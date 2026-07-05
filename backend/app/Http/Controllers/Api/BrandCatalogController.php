@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 
 class BrandCatalogController extends Controller
 {
+
     public function index(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -24,9 +25,9 @@ class BrandCatalogController extends Controller
 
         $query = Brand::query()
             ->where('status', 'active')
-            ->whereHas('products', fn (Builder $query) => $query->where('status', 'active'))
-            ->withCount(['products' => fn (Builder $query) => $query->where('status', 'active')])
-            ->when($request->filled('search'), fn (Builder $query) => $query->where('name', 'like', '%'.trim((string) $request->query('search')).'%'))
+            ->whereHas('products', fn(Builder $query) => $query->where('status', 'active'))
+            ->withCount(['products' => fn(Builder $query) => $query->where('status', 'active')])
+            ->when($request->filled('search'), fn(Builder $query) => $query->where('name', 'like', '%' . trim((string) $request->query('search')) . '%'))
             ->orderByDesc('is_featured')
             ->orderBy('name');
 
@@ -37,8 +38,8 @@ class BrandCatalogController extends Controller
                 Brand::query()
                     ->where('status', 'active')
                     ->where('is_featured', true)
-                    ->whereHas('products', fn (Builder $query) => $query->where('status', 'active'))
-                    ->withCount(['products' => fn (Builder $query) => $query->where('status', 'active')])
+                    ->whereHas('products', fn(Builder $query) => $query->where('status', 'active'))
+                    ->withCount(['products' => fn(Builder $query) => $query->where('status', 'active')])
                     ->orderBy('name')
                     ->limit(6)
                     ->get()
@@ -61,14 +62,14 @@ class BrandCatalogController extends Controller
         $brand = Brand::query()
             ->where('slug', $slug)
             ->where('status', 'active')
-            ->withCount(['products' => fn (Builder $query) => $query->where('status', 'active')])
+            ->withCount(['products' => fn(Builder $query) => $query->where('status', 'active')])
             ->firstOrFail();
 
         $products = Product::query()
             ->where('status', 'active')
             ->where('brand_id', $brand->id)
             ->whereNotNull('published_at')
-            ->where(fn (Builder $query) => $query
+            ->where(fn(Builder $query) => $query
                 ->where('track_inventory', false)
                 ->orWhere('stock_quantity', '>', 0))
             ->with([

@@ -11,7 +11,6 @@ class SyncCollectionSchedules extends Command
 {
     protected $signature = 'collections:sync-schedules';
 
-
     protected $description = 'Deactivate expired collections and clear storefront collection caches.';
 
     public function handle(): int

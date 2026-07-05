@@ -20,6 +20,7 @@ class CollectionCatalogController extends Controller
             abort(404);
         }
 
+
         $request->validate([
             'page' => ['nullable', 'integer', 'min:1'],
             'per_page' => ['nullable', 'integer', 'in:12'],

@@ -14,7 +14,6 @@ use Illuminate\Support\Str;
 
 class ImportProductImages extends Command
 {
-
     protected $signature = 'products:import-images
         {source=C:\Users\sumon\Downloads\image\image : Directory containing source images}
         {--commit : Persist changes. Without this option the command runs as a dry run}

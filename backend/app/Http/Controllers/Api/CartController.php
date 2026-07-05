@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 
 class CartController extends Controller
 {
+
     public function __construct(private readonly CartService $service) {}
 
     public function show(Request $request): JsonResponse
