@@ -1,0 +1,115 @@
+export type RuntimeNavigationItem = {
+  label: string;
+  href: string;
+  icon?: string;
+  module?: string;
+  enabled?: boolean;
+  permission?: string;
+};
+
+export type RuntimeNavigationGroup = {
+  key: string;
+  label: string;
+  icon?: string;
+  type: "single" | "group";
+  items: RuntimeNavigationItem[];
+};
+
+export type RuntimeSocialLink = {
+  platform: string;
+  url: string;
+  icon?: string;
+  open_in_new_tab: boolean;
+};
+
+export type CategoryDisplayMode =
+  | "landing_page"
+  | "home_grid_navbar_dropdown"
+  | "navbar_dropdown_only";
+
+export type RuntimeCategoryDisplaySettings = {
+  enable_home_category_section: boolean;
+  category_display_mode: CategoryDisplayMode;
+  categories_page_enabled: boolean;
+  navbar_dropdown_enabled: boolean;
+  home_category_variant: "landing_cards" | "icon_grid" | "hidden";
+};
+
+export type RuntimeCategory = {
+  id: number;
+  name: string;
+  slug: string;
+  description?: string | null;
+  image_url?: string | null;
+  icon?: string | null;
+  product_count: number;
+  show_on_home: boolean;
+  show_in_navbar: boolean;
+  home_display_order: number;
+  navbar_display_order: number;
+  children: RuntimeCategory[];
+};
+
+export type RuntimeCurrencySettings = {
+  currency: string;
+  currency_symbol: string;
+  currency_position: "left" | "right";
+  decimal_places: number;
+  decimal_separator: string;
+  thousands_separator: string;
+};
+
+export type RuntimeHomeFeatureCard = {
+  id: number;
+  icon: string;
+  title: string;
+  description: string;
+  sort_order: number;
+};
+
+export type RuntimeSettings = {
+  company_settings: Record<string, unknown>;
+  website_settings: Record<string, unknown>;
+  appearance_settings: {
+    logo?: string | null;
+    dark_logo?: string | null;
+    favicon?: string | null;
+    site_name?: string | null;
+  };
+  module_settings: Record<string, boolean>;
+  feature_card_settings: {
+    enabled: boolean;
+  };
+  category_display_settings: RuntimeCategoryDisplaySettings;
+  theme_configuration: {
+    currency?: string | null;
+    currency_symbol?: string | null;
+    currency_country?: string | null;
+    currency_position?: string | null;
+    decimal_places?: number | string | null;
+    decimal_separator?: string | null;
+    thousands_separator?: string | null;
+    timezone?: string | null;
+    date_format?: string | null;
+    time_format?: string | null;
+  };
+  branding: {
+    site_name?: string | null;
+    company_name?: string | null;
+    legal_company_name?: string | null;
+    logo?: string | null;
+    dark_logo?: string | null;
+    favicon?: string | null;
+    support_email?: string | null;
+    support_phone?: string | null;
+    company_phone?: string | null;
+    address?: string | null;
+  };
+  navigation: {
+    frontend: RuntimeNavigationItem[];
+    admin_sidebar: RuntimeNavigationGroup[];
+  };
+  categories: RuntimeCategory[];
+  home_feature_cards: RuntimeHomeFeatureCard[];
+  social_links: RuntimeSocialLink[];
+};

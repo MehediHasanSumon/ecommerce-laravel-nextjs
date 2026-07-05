@@ -1,0 +1,308 @@
+<?php
+
+namespace App\Http\Controllers\Api\Settings;
+
+use App\Models\Category;
+use App\Models\Product;
+use App\Http\Controllers\Controller;
+use App\Http\Responses\ApiResponse;
+use App\Http\Resources\Admin\Settings\CategoryDisplaySettingResource;
+use App\Services\Admin\Settings\CategoryDisplaySettingsService;
+use App\Services\Admin\Settings\CompanySettingsService;
+use App\Services\Admin\HomeFeatureCardService;
+use App\Services\Admin\Settings\HomeFeatureCardSettingsService;
+use App\Services\Admin\Settings\MaintenanceModeSettingsService;
+use App\Services\Admin\Settings\PaymentSettingsService;
+use App\Services\Admin\Settings\ShippingSettingsService;
+use App\Services\Admin\Settings\SocialMediaSettingsService;
+use App\Services\Admin\Settings\StoreSettingsService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
+
+class NavigationSettingsController extends Controller
+{
+    public function __construct(
+        private readonly CompanySettingsService $companySettings,
+        private readonly CategoryDisplaySettingsService $categoryDisplaySettings,
+        private readonly HomeFeatureCardSettingsService $homeFeatureCardSettings,
+        private readonly HomeFeatureCardService $homeFeatureCards,
+        private readonly StoreSettingsService $storeSettings,
+        private readonly SocialMediaSettingsService $socialMediaSettings,
+        private readonly PaymentSettingsService $paymentSettings,
+        private readonly ShippingSettingsService $shippingSettings,
+        private readonly MaintenanceModeSettingsService $maintenanceSettings,
+    ) {}
+
+    public function show(): JsonResponse
+    {
+        return ApiResponse::success(Cache::remember(
+            'settings.navigation.runtime',
+            now()->addMinutes(10),
+            fn (): array => $this->payload()
+        ));
+    }
+
+    private function payload(): array
+    {
+        $company = $this->companySettings->get();
+        $store = $this->storeSettings->get();
+        $categoryDisplay = CategoryDisplaySettingResource::make($this->categoryDisplaySettings->get())->resolve();
+        $homeFeatureCardSettings = $this->homeFeatureCardSettings->get();
+        $social = $this->socialMediaSettings->all();
+        $payments = $this->paymentSettings->all();
+        $shipping = $this->shippingSettings->get();
+        $maintenance = $this->maintenanceSettings->get();
+        $siteName = $company->company_name ?: $store->store_name;
+        $currency = $company->currency;
+
+        $modules = [
+            'storefront' => (bool) $company->company_active,
+            'catalog' => true,
+            'products' => true,
+            'categories' => true,
+            'brands' => true,
+            'offers' => true,
+            'blog' => false,
+            'wishlist' => (bool) $store->enable_wishlist,
+            'compare' => (bool) $store->enable_compare,
+            'reviews' => (bool) $store->enable_reviews,
+            'stock_management' => (bool) $store->enable_stock_management,
+            'guest_checkout' => (bool) $store->enable_guest_checkout,
+            'shipping' => (bool) $shipping->enable_shipping,
+            'payments' => $payments->contains('enabled', true),
+            'maintenance' => (bool) $maintenance->enabled,
+        ];
+
+        return [
+            'company_settings' => $company->toArray(),
+            'website_settings' => $store->toArray(),
+            'appearance_settings' => [
+                'logo' => $this->assetUrl($company->logo),
+                'dark_logo' => $this->assetUrl($company->dark_logo),
+                'favicon' => $this->assetUrl($company->favicon),
+                'site_name' => $siteName,
+            ],
+            'module_settings' => $modules,
+            'category_display_settings' => $categoryDisplay,
+            'feature_card_settings' => [
+                'enabled' => (bool) $homeFeatureCardSettings->enabled,
+            ],
+            'theme_configuration' => [
+                'currency' => $currency?->currency ?: 'BDT',
+                'currency_symbol' => $currency?->symbol ?: '৳',
+                'currency_country' => $currency?->country,
+                'currency_position' => $company->currency_position,
+                'decimal_places' => (int) ($company->decimal_places ?? 2),
+                'decimal_separator' => $company->decimal_separator ?: '.',
+                'thousands_separator' => $company->thousands_separator ?: ',',
+                'timezone' => $company->timezone,
+                'date_format' => $company->date_format,
+                'time_format' => $company->time_format,
+            ],
+            'branding' => [
+                'site_name' => $siteName,
+                'company_name' => $company->company_name,
+                'legal_company_name' => $company->legal_company_name,
+                'logo' => $this->assetUrl($company->logo),
+                'dark_logo' => $this->assetUrl($company->dark_logo),
+                'favicon' => $this->assetUrl($company->favicon),
+                'support_email' => $company->support_email ?: $store->store_email,
+                'support_phone' => $company->support_phone ?: $store->store_phone,
+                'company_phone' => $company->company_phone,
+                'address' => $company->full_address,
+            ],
+            'navigation' => [
+                'frontend' => $this->frontendNavigation($modules, $company, $store),
+                'admin_sidebar' => $this->adminSidebar($modules),
+            ],
+            'categories' => $this->categoryTree(),
+            'home_feature_cards' => (bool) $homeFeatureCardSettings->enabled
+                ? $this->homeFeatureCards->activeForRuntime()
+                : [],
+            'social_links' => $social
+                ->where('status', true)
+                ->values()
+                ->map(fn ($item): array => [
+                    'platform' => $item->platform,
+                    'url' => $item->url,
+                    'icon' => $item->icon,
+                    'open_in_new_tab' => (bool) $item->open_in_new_tab,
+                ])
+                ->all(),
+        ];
+    }
+
+    private function frontendNavigation(array $modules, object $company, object $store): array
+    {
+        return collect([
+            ['label' => 'Home', 'href' => '/', 'module' => 'storefront', 'enabled' => $modules['storefront']],
+            ['label' => 'Shop', 'href' => '/shop', 'module' => 'catalog', 'enabled' => $modules['catalog']],
+            ['label' => 'Categories', 'href' => '/categories', 'module' => 'categories', 'enabled' => $modules['categories']],
+            ['label' => 'Brands', 'href' => '/brands', 'module' => 'brands', 'enabled' => $modules['brands']],
+            ['label' => 'Offers', 'href' => '/deals', 'module' => 'offers', 'enabled' => $modules['offers']],
+            ['label' => 'Blog', 'href' => '/blog', 'module' => 'blog', 'enabled' => $modules['blog']],
+            ['label' => 'Contact', 'href' => '/contact', 'module' => 'contact', 'enabled' => (bool) ($company->support_email || $company->support_phone || $store->store_email || $store->store_phone)],
+        ])->where('enabled', true)->values()->all();
+    }
+
+    private function categoryTree(): array
+    {
+        return Cache::remember(
+            'categories.runtime.tree',
+            now()->addMinutes(10),
+            function (): array {
+                $categories = Category::query()
+                    ->whereNull('parent_id')
+                    ->where('status', 'active')
+                    ->with([
+                        'children' => fn ($query) => $query
+                            ->where('status', 'active')
+                            ->orderBy('navbar_display_order')
+                            ->orderBy('sort_order')
+                            ->orderBy('name'),
+                    ])
+                    ->orderBy('home_display_order')
+                    ->orderBy('sort_order')
+                    ->orderBy('name')
+                    ->get();
+
+                $categoryIds = $categories
+                    ->flatMap(fn (Category $category) => [$category->id, ...$category->children->pluck('id')->all()])
+                    ->unique()
+                    ->values();
+                $counts = Product::query()
+                    ->whereIn('category_id', $categoryIds)
+                    ->where('status', 'active')
+                    ->selectRaw('category_id, count(*) as aggregate')
+                    ->groupBy('category_id')
+                    ->pluck('aggregate', 'category_id');
+
+                return $categories
+                    ->map(fn (Category $category): array => $this->categoryPayload($category, $counts))
+                    ->all();
+            }
+        );
+    }
+
+    private function categoryPayload(Category $category, $counts): array
+    {
+        $children = $category->children
+            ->map(fn (Category $child): array => [
+                'id' => $child->id,
+                'name' => $child->name,
+                'slug' => $child->slug,
+                'description' => $child->description,
+                'image_url' => $this->assetUrl($child->image_url),
+                'icon' => $child->icon,
+                'product_count' => (int) ($counts[$child->id] ?? 0),
+                'show_on_home' => (bool) $child->show_on_home,
+                'show_in_navbar' => (bool) $child->show_in_navbar,
+                'home_display_order' => (int) ($child->home_display_order ?? 0),
+                'navbar_display_order' => (int) ($child->navbar_display_order ?? 0),
+                'children' => [],
+            ])
+            ->all();
+        $childProductCount = collect($children)->sum('product_count');
+
+        return [
+            'id' => $category->id,
+            'name' => $category->name,
+            'slug' => $category->slug,
+            'description' => $category->description,
+            'image_url' => $this->assetUrl($category->image_url),
+            'icon' => $category->icon,
+            'product_count' => (int) ($counts[$category->id] ?? 0) + $childProductCount,
+            'show_on_home' => (bool) $category->show_on_home,
+            'show_in_navbar' => (bool) $category->show_in_navbar,
+            'home_display_order' => (int) ($category->home_display_order ?? 0),
+            'navbar_display_order' => (int) ($category->navbar_display_order ?? 0),
+            'children' => $children,
+        ];
+    }
+
+    private function adminSidebar(array $modules): array
+    {
+        return [
+            [
+                'key' => 'main',
+                'label' => 'Main',
+                'type' => 'single',
+                'items' => [
+                    ['label' => 'Dashboard', 'href' => '/dashboard', 'icon' => 'Home', 'enabled' => true],
+                ],
+            ],
+            [
+                'key' => 'users',
+                'label' => 'Users Management',
+                'icon' => 'UsersRound',
+                'type' => 'group',
+                'items' => [
+                    ['label' => 'User Management', 'href' => '/admin/users', 'icon' => 'UsersRound', 'permission' => 'users.view', 'enabled' => true],
+                    ['label' => 'Role Management', 'href' => '/admin/roles', 'icon' => 'ShieldCheck', 'permission' => 'roles.view', 'enabled' => true],
+                    ['label' => 'Permission Management', 'href' => '/admin/permissions', 'icon' => 'KeyRound', 'permission' => 'permissions.view', 'enabled' => true],
+                ],
+            ],
+            [
+                'key' => 'products',
+                'label' => 'Product Management',
+                'icon' => 'Package',
+                'type' => 'group',
+                'items' => [
+                    ['label' => 'Brand Management', 'href' => '/admin/brands', 'icon' => 'Building2', 'enabled' => $modules['brands']],
+                    ['label' => 'Category Management', 'href' => '/admin/categories', 'icon' => 'Layers3', 'enabled' => $modules['categories']],
+                    ['label' => 'Attribute Management', 'href' => '/admin/attributes', 'icon' => 'Shapes', 'enabled' => $modules['products']],
+                    ['label' => 'Attribute Value Management', 'href' => '/admin/attribute-values', 'icon' => 'Boxes', 'enabled' => $modules['products']],
+                    ['label' => 'Tag Management', 'href' => '/admin/tags', 'icon' => 'Tags', 'enabled' => $modules['products']],
+                    ['label' => 'Warehouse Management', 'href' => '/admin/warehouses', 'icon' => 'Warehouse', 'enabled' => $modules['stock_management']],
+                    ['label' => 'Product Management', 'href' => '/admin/products', 'icon' => 'Package', 'enabled' => $modules['products']],
+                    ['label' => 'Collection Management', 'href' => '/admin/collections', 'icon' => 'ShoppingBag', 'enabled' => $modules['products']],
+                    ['label' => 'Currency Management', 'href' => '/admin/currencies', 'icon' => 'CircleDollarSign', 'enabled' => true],
+                    ['label' => 'Discount Management', 'href' => '/admin/discounts', 'icon' => 'CirclePercent', 'enabled' => $modules['offers']],
+                    ['label' => 'Review Management', 'href' => '/admin/reviews', 'icon' => 'Star', 'enabled' => $modules['reviews']],
+                ],
+            ],
+            [
+                'key' => 'settings',
+                'label' => 'Settings',
+                'icon' => 'Settings2',
+                'type' => 'group',
+                'items' => [
+                    ['label' => 'Company Settings', 'href' => '/admin/settings/company', 'icon' => 'Building2', 'enabled' => true],
+                    ['label' => 'Category Display', 'href' => '/admin/settings/categories', 'icon' => 'LayoutGrid', 'enabled' => true],
+                    ['label' => 'Feature Cards', 'href' => '/admin/settings/home-feature-cards', 'icon' => 'BadgeCheck', 'enabled' => true],
+                    ['label' => 'Store Settings', 'href' => '/admin/settings/store', 'icon' => 'Store', 'enabled' => true],
+                    ['label' => 'Email (SMTP)', 'href' => '/admin/settings/email', 'icon' => 'Mail', 'enabled' => true],
+                    ['label' => 'SMS Provider', 'href' => '/admin/settings/sms', 'icon' => 'MessageSquareText', 'enabled' => true],
+                    ['label' => 'Payment Settings', 'href' => '/admin/settings/payment', 'icon' => 'CreditCard', 'enabled' => true],
+                    ['label' => 'Shipping Settings', 'href' => '/admin/settings/shipping', 'icon' => 'PackageCheck', 'enabled' => $modules['shipping']],
+                    ['label' => 'SEO Settings', 'href' => '/admin/settings/seo', 'icon' => 'Search', 'enabled' => true],
+                    ['label' => 'Social Media', 'href' => '/admin/settings/social', 'icon' => 'Megaphone', 'enabled' => true],
+                    ['label' => 'Localization', 'href' => '/admin/settings/localization', 'icon' => 'Globe2', 'enabled' => true],
+                    ['label' => 'Maintenance Mode', 'href' => '/admin/settings/maintenance', 'icon' => 'ShieldAlert', 'enabled' => true],
+                ],
+            ],
+            ];
+    }
+
+    private function assetUrl(?string $path): ?string
+    {
+        if (! $path) {
+            return null;
+        }
+
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
+        if (str_starts_with($path, '/storage/')) {
+            return url($path);
+        }
+
+        if (str_starts_with($path, 'storage/')) {
+            return url($path);
+        }
+
+        return Storage::disk('public')->url($path);
+    }
+}

@@ -1,0 +1,33 @@
+import type { BaseRecord, Option } from "@/features/admin/shared/types";
+
+export type ProductModule =
+  | "brands"
+  | "categories"
+  | "attributes"
+  | "attribute-values"
+  | "tags"
+  | "warehouses"
+  | "shipping-methods"
+  | "products"
+  | "collections"
+  | "currencies"
+  | "discounts"
+  | "reviews";
+
+export type ProductOptions = {
+  brands: Option[];
+  categories: Array<Option & { parent_id?: number | null }>;
+  attributes: Array<Option & { type?: string | null }>;
+  attribute_values: Array<Option & { attribute_id?: number | null; type?: string | null; slug?: string | null }>;
+  tags: Option[];
+  warehouses: Option[];
+  products: Option[];
+};
+
+export type ProductRecord = BaseRecord & Record<string, unknown> & {
+  name?: string;
+  slug?: string;
+  status?: string;
+};
+
+export type ProductModulePayload = Record<string, unknown>;

@@ -1,0 +1,560 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import {
+  BadgeCheck,
+  Bell,
+  Boxes,
+  Building2,
+  ChevronDown,
+  ChevronLeft,
+  CircleDollarSign,
+  CirclePercent,
+  CreditCard,
+  Globe2,
+  KeyRound,
+  Heart,
+  Home,
+  Layers3,
+  LogOut,
+  Mail,
+  Menu,
+  MessageSquareText,
+  Moon,
+  Package,
+  PackageCheck,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Shapes,
+  Search,
+  Settings,
+  Settings2,
+  ShieldAlert,
+  ShoppingBag,
+  ShieldCheck,
+  Star,
+  Store,
+  Tags,
+  UsersRound,
+  Sun,
+  UserRound,
+  Warehouse,
+  Ship,
+  X,
+} from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { BrandLogo } from "@/components/settings/BrandLogo";
+import { useTheme } from "@/components/theme/ThemeProvider";
+import { routePaths } from "@/constants/routes";
+import { useAuthStore } from "@/store/auth-store";
+import { selectAdminNavigation, selectSettingsPending, useSettingsStore } from "@/store/settings-store";
+import { cn } from "@/utils/cn";
+import { getInitials } from "@/utils/sanitize";
+import type { User } from "@/types/auth";
+import type { RuntimeNavigationGroup, RuntimeNavigationItem } from "@/types/settings";
+
+const navItems = [
+  { href: routePaths.dashboard, label: "Dashboard", icon: Home },
+];
+
+const usersManagementItems = [
+  { href: routePaths.dashboardUsers, label: "User Management", icon: UsersRound },
+  { href: routePaths.dashboardRoles, label: "Role Management", icon: ShieldCheck },
+  { href: routePaths.dashboardPermissions, label: "Permission Management", icon: KeyRound },
+];
+
+const productManagementItems = [
+  { href: routePaths.adminBrands, label: "Brand Management", icon: Building2 },
+  { href: routePaths.adminCategories, label: "Category Management", icon: Layers3 },
+  { href: routePaths.adminAttributes, label: "Attribute Management", icon: Shapes },
+  { href: routePaths.adminAttributeValues, label: "Attribute Value Management", icon: Boxes },
+  { href: routePaths.adminTags, label: "Tag Management", icon: Tags },
+  { href: routePaths.adminWarehouses, label: "Warehouse Management", icon: Warehouse },
+  { href: routePaths.adminShippingMethods, label: "Shipping Management", icon: Ship },
+  { href: routePaths.adminProducts, label: "Product Management", icon: Package },
+  { href: routePaths.adminCollections, label: "Collection Management", icon: ShoppingBag },
+  { href: routePaths.adminCurrencies, label: "Currency Management", icon: CircleDollarSign },
+  { href: routePaths.adminDiscounts, label: "Discount Management", icon: CirclePercent },
+  { href: routePaths.adminReviews, label: "Review Management", icon: Star },
+];
+
+const settingsItems = [
+  { href: routePaths.adminSettingsCompany, label: "Company Settings", icon: Building2 },
+  { href: routePaths.adminSettingsCategories, label: "Category Display", icon: Layers3 },
+  { href: routePaths.adminSettingsHomeFeatureCards, label: "Feature Cards", icon: BadgeCheck },
+  { href: routePaths.adminSettingsStore, label: "Store Settings", icon: Store },
+  { href: routePaths.adminSettingsEmail, label: "Email (SMTP)", icon: Mail },
+  { href: routePaths.adminSettingsSms, label: "SMS Provider", icon: MessageSquareText },
+  { href: routePaths.adminSettingsPayment, label: "Payment Settings", icon: CreditCard },
+  { href: routePaths.adminSettingsShipping, label: "Shipping Settings", icon: PackageCheck },
+  { href: routePaths.adminSettingsSeo, label: "SEO Settings", icon: Search },
+  { href: routePaths.adminSettingsSocial, label: "Social Media", icon: Star },
+  { href: routePaths.adminSettingsLocalization, label: "Localization", icon: Globe2 },
+  { href: routePaths.adminSettingsMaintenance, label: "Maintenance Mode", icon: ShieldAlert },
+];
+
+const iconMap = {
+  Bell,
+  BadgeCheck,
+  Boxes,
+  Building2,
+  ChevronDown,
+  CircleDollarSign,
+  CirclePercent,
+  CreditCard,
+  Globe2,
+  Heart,
+  Home,
+  KeyRound,
+  Layers3,
+  LogOut,
+  Mail,
+  MessageSquareText,
+  Package,
+  PackageCheck,
+  Search,
+  Settings2,
+  Shapes,
+  ShieldAlert,
+  ShieldCheck,
+  ShoppingBag,
+  Star,
+  Store,
+  Tags,
+  UsersRound,
+  Warehouse,
+  Ship,
+};
+
+function resolveIcon(name?: string) {
+  if (!name) return Home;
+  return iconMap[name as keyof typeof iconMap] ?? Home;
+}
+
+function renderIcon(name: string | undefined, className: string) {
+  switch (name) {
+    case "Bell": return <Bell className={className} />;
+    case "BadgeCheck": return <BadgeCheck className={className} />;
+    case "Boxes": return <Boxes className={className} />;
+    case "Building2": return <Building2 className={className} />;
+    case "CirclePercent": return <CirclePercent className={className} />;
+    case "CircleDollarSign": return <CircleDollarSign className={className} />;
+    case "CreditCard": return <CreditCard className={className} />;
+    case "Globe2": return <Globe2 className={className} />;
+    case "Heart": return <Heart className={className} />;
+    case "KeyRound": return <KeyRound className={className} />;
+    case "Layers3": return <Layers3 className={className} />;
+    case "LogOut": return <LogOut className={className} />;
+    case "Mail": return <Mail className={className} />;
+    case "MessageSquareText": return <MessageSquareText className={className} />;
+    case "Package": return <Package className={className} />;
+    case "PackageCheck": return <PackageCheck className={className} />;
+    case "Search": return <Search className={className} />;
+    case "Settings2": return <Settings2 className={className} />;
+    case "Shapes": return <Shapes className={className} />;
+    case "ShieldAlert": return <ShieldAlert className={className} />;
+    case "ShieldCheck": return <ShieldCheck className={className} />;
+    case "ShoppingBag": return <ShoppingBag className={className} />;
+    case "Star": return <Star className={className} />;
+    case "Store": return <Store className={className} />;
+    case "Tags": return <Tags className={className} />;
+    case "UsersRound": return <UsersRound className={className} />;
+    case "Warehouse": return <Warehouse className={className} />;
+    case "Ship": return <Ship className={className} />;
+    case "Home":
+    default:
+      return <Home className={className} />;
+  }
+}
+
+function fallbackAdminNavigation(): RuntimeNavigationGroup[] {
+  return [
+    { key: "main", label: "Main", type: "single", items: navItems.map((item) => ({ label: item.label, href: item.href, icon: item.icon.name, enabled: true })) },
+    { key: "users", label: "Users Management", icon: "UsersRound", type: "group", items: usersManagementItems.map((item) => ({ label: item.label, href: item.href, icon: item.icon.name, enabled: true })) },
+    { key: "products", label: "Product Management", icon: "Package", type: "group", items: productManagementItems.map((item) => ({ label: item.label, href: item.href, icon: item.icon.name, enabled: true })) },
+    { key: "settings", label: "Settings", icon: "Settings2", type: "group", items: settingsItems.map((item) => ({ label: item.label, href: item.href, icon: item.icon.name, enabled: true })) },
+  ];
+}
+
+type DashboardShellProps = {
+  user: User;
+  children: React.ReactNode;
+};
+
+type AdminSidebarProps = {
+  isLoading: boolean;
+  pathname: string;
+  onLogout: () => void;
+};
+
+function AdminSidebar({
+  isLoading,
+  pathname,
+  onLogout,
+}: AdminSidebarProps) {
+  const dynamicGroups = useSettingsStore(selectAdminNavigation);
+  const settingsLoading = useSettingsStore(selectSettingsPending);
+  const groups = (dynamicGroups.length ? dynamicGroups : fallbackAdminNavigation())
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => item.enabled !== false),
+    }))
+    .filter((group) => group.items.length);
+  const activeGroups = groups
+    .filter((group) => group.type === "group" && group.items.some((item) => isAdminItemActive(item, pathname)))
+    .map((group) => group.key);
+  const activeGroupKey = activeGroups.join("|");
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(
+    Object.fromEntries(activeGroups.map((key) => [key, true])),
+  );
+
+  useEffect(() => {
+    const keys = activeGroupKey.split("|").filter(Boolean);
+    if (keys.length) {
+      setOpenGroups((current) => ({
+        ...current,
+        ...Object.fromEntries(keys.map((key) => [key, true])),
+      }));
+    }
+  }, [activeGroupKey]);
+
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="shrink-0">
+        <Link
+          href={routePaths.dashboard}
+          className="flex min-w-0 max-w-full items-center gap-3 font-bold"
+          aria-label="Admin dashboard"
+        >
+          <BrandLogo className="max-w-full" iconClassName="h-10 w-10 rounded-xl shadow-sm" textClassName="text-base" />
+        </Link>
+      </div>
+
+      <nav className="mt-6 min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {settingsLoading ? (
+          <div className="space-y-2">
+            <span className="block h-10 animate-pulse rounded-xl bg-muted" />
+            <span className="block h-10 animate-pulse rounded-xl bg-muted" />
+            <span className="block h-10 animate-pulse rounded-xl bg-muted" />
+          </div>
+        ) : null}
+        {!settingsLoading && groups.map((group) => {
+          if (group.type === "single") {
+            return group.items.map((item) => (
+              <AdminNavLink key={item.href} item={item} pathname={pathname} />
+            ));
+          }
+
+          const Icon = resolveIcon(group.icon);
+          const active = group.items.some((item) => isAdminItemActive(item, pathname));
+          const isOpen = openGroups[group.key] ?? active;
+
+          return (
+            <div key={group.key} className="space-y-1">
+              <button
+                type="button"
+                onClick={() => setOpenGroups((current) => ({ ...current, [group.key]: !isOpen }))}
+                aria-expanded={isOpen}
+                aria-controls={`${group.key}-sidebar-menu`}
+                className={cn(
+                  "group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition-all",
+                  active
+                    ? "text-foreground"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                <Icon className="h-4 w-4" />
+                <span className="min-w-0 flex-1">{group.label}</span>
+                <ChevronDown
+                  className={cn(
+                    "h-4 w-4 transition-transform duration-300 ease-out",
+                    isOpen && "rotate-180"
+                  )}
+                />
+              </button>
+              <div
+                id={`${group.key}-sidebar-menu`}
+                className={cn(
+                  "grid overflow-hidden transition-[grid-template-rows,opacity] duration-300 ease-out",
+                  isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+                )}
+              >
+                <div className="min-h-0 space-y-1 pl-5">
+                  {group.items.map((item) => (
+                    <AdminNavLink key={item.href} item={item} pathname={pathname} nested />
+                  ))}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </nav>
+
+      <div className="shrink-0 pt-4">
+        <button
+          onClick={onLogout}
+          disabled={isLoading}
+          className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <LogOut className="h-4 w-4" />
+          <span>Sign out</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function AdminNavLink({
+  item,
+  pathname,
+  nested,
+}: {
+  item: RuntimeNavigationItem;
+  pathname: string;
+  nested?: boolean;
+}) {
+  const active = isAdminItemActive(item, pathname);
+
+  return (
+    <Link
+      href={item.href}
+      className={cn(
+        "group flex items-center gap-3 rounded-xl px-3 text-sm font-medium transition-all",
+        nested ? "py-2" : "py-2.5",
+        active
+          ? "bg-primary text-primary-foreground shadow-sm"
+          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+      )}
+    >
+      {renderIcon(item.icon, "h-4 w-4")}
+      <span>{item.label}</span>
+    </Link>
+  );
+}
+
+function isAdminItemActive(item: RuntimeNavigationItem, pathname: string) {
+  return pathname === item.href || (item.href === routePaths.adminProducts && pathname.startsWith(`${routePaths.adminProducts}/`));
+}
+
+function UserMenu({ user, isLoading, onLogout }: { user: User; isLoading: boolean; onLogout: () => void }) {
+  const { resolvedTheme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const isDark = mounted && resolvedTheme === "dark";
+  const menuItems = [
+    { href: routePaths.profile, label: "My Profile", icon: UserRound },
+    { href: routePaths.settings, label: "Account Settings", icon: Settings },
+    { href: routePaths.settings, label: "Change Password", icon: ShieldCheck },
+    { href: routePaths.dashboard, label: "Activity Log", icon: Star },
+  ];
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="flex items-center gap-2 rounded-xl border border-border bg-card px-2 py-1.5 transition hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+          aria-label="Open user menu"
+        >
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
+            {getInitials(user.name)}
+          </span>
+          <span className="hidden max-w-40 min-w-0 text-left md:block">
+            <span className="block truncate text-sm font-semibold">{user.name}</span>
+            <span className="block truncate text-xs text-muted-foreground">{user.email}</span>
+          </span>
+          <ChevronDown className="hidden h-4 w-4 text-muted-foreground md:block" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="end" sideOffset={8} className="w-80 p-2">
+        <div className="flex items-center gap-3 rounded-lg bg-muted/60 p-3">
+          <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-primary text-base font-extrabold text-primary-foreground">
+            {getInitials(user.name)}
+          </span>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-bold">{user.name}</p>
+            <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+          </div>
+        </div>
+        <div className="mt-2 grid gap-1">
+          {menuItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link key={`${item.label}-${item.href}`} href={item.href} className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground">
+                <Icon className="h-4 w-4" />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+          <button
+            type="button"
+            className="flex items-center justify-between rounded-lg px-3 py-2 text-left text-sm font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+            onClick={() => setTheme(isDark ? "light" : "dark")}
+          >
+            <span className="flex items-center gap-3">
+              {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              Theme Switch
+            </span>
+            <span className="text-xs">{isDark ? "Dark" : "Light"}</span>
+          </button>
+        </div>
+        <div className="mt-2 border-t border-border pt-2">
+          <button
+            type="button"
+            disabled={isLoading}
+            onClick={onLogout}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-semibold text-destructive transition hover:bg-destructive/10 disabled:opacity-60"
+          >
+            <LogOut className="h-4 w-4" />
+            Logout
+          </button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+export function DashboardShell({ user, children }: DashboardShellProps) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const logout = useAuthStore((state) => state.logout);
+  const isLoading = useAuthStore((state) => state.isLoading);
+  const activeItem =
+    [...navItems, ...usersManagementItems].find((item) => item.href === pathname) ??
+    productManagementItems.find((item) => item.href === pathname || (item.href === routePaths.adminProducts && pathname.startsWith(`${routePaths.adminProducts}/`))) ??
+    settingsItems.find((item) => item.href === pathname) ??
+    navItems[0];
+
+  async function handleLogout() {
+    await logout();
+    toast.success("Signed out securely.");
+    router.replace(routePaths.home);
+    router.refresh();
+  }
+
+  useEffect(() => {
+    setIsMobileSidebarOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    document.body.style.overflow = isMobileSidebarOpen ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isMobileSidebarOpen]);
+
+  return (
+    <div className="fixed inset-0 overflow-hidden bg-muted/30 text-foreground">
+      <aside
+        className={cn(
+          "fixed inset-y-0 left-0 z-30 hidden w-80 border-r border-border bg-background/95 p-4 shadow-sm backdrop-blur transition-transform duration-300 ease-out lg:block",
+          isSidebarCollapsed && "-translate-x-full"
+        )}
+      >
+        <AdminSidebar
+          isLoading={isLoading}
+          pathname={pathname}
+          onLogout={handleLogout}
+        />
+      </aside>
+
+      {isMobileSidebarOpen ? (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <button
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setIsMobileSidebarOpen(false)}
+            aria-label="Close sidebar overlay"
+          />
+          <aside className="absolute bottom-0 left-0 top-0 w-[min(20rem,calc(100vw-2rem))] border-r border-border bg-background p-4 shadow-2xl transition-transform duration-300">
+            <div className="mb-4 flex items-center justify-between">
+              <span className="text-sm font-semibold text-muted-foreground">Navigation</span>
+              <button
+                onClick={() => setIsMobileSidebarOpen(false)}
+                className="rounded-lg p-2 transition-colors hover:bg-muted"
+                aria-label="Close sidebar"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <AdminSidebar
+              isLoading={isLoading}
+              pathname={pathname}
+              onLogout={handleLogout}
+            />
+          </aside>
+        </div>
+      ) : null}
+
+      <div
+        className={cn(
+          "flex h-full min-w-0 flex-col transition-[padding] duration-300 ease-out",
+          isSidebarCollapsed ? "lg:pl-0" : "lg:pl-80"
+        )}
+      >
+        <header
+          className={cn(
+            "fixed left-0 right-0 top-0 z-40 border-b border-border bg-background/90 backdrop-blur transition-[left] duration-300 ease-out",
+            isSidebarCollapsed ? "lg:left-0" : "lg:left-80"
+          )}
+        >
+          <div className="mx-auto flex h-16 w-full max-w-7xl items-center gap-3 px-4 sm:px-5 lg:px-6">
+            <button
+              onClick={() => setIsMobileSidebarOpen(true)}
+              className="cursor-pointer rounded-xl border border-border bg-card p-2 transition-colors hover:bg-muted lg:hidden"
+              aria-label="Open sidebar"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+            <button
+              onClick={() => setIsSidebarCollapsed((value) => !value)}
+              className="hidden cursor-pointer rounded-xl border border-border bg-card p-2 transition-colors hover:bg-muted lg:inline-flex"
+              aria-label={isSidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
+            >
+              {isSidebarCollapsed ? (
+                <PanelLeftOpen className="h-5 w-5" />
+              ) : (
+                <PanelLeftClose className="h-5 w-5" />
+              )}
+            </button>
+
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Link href="/" className="transition-colors hover:text-foreground">
+                  Storefront
+                </Link>
+                <ChevronLeft className="h-3 w-3 rotate-180" />
+                <span>Admin</span>
+              </div>
+              <h1 className="truncate text-base font-extrabold sm:text-lg">{activeItem.label}</h1>
+            </div>
+
+            <div className="hidden max-w-xs flex-1 items-center gap-2 rounded-xl border border-border bg-muted/60 px-3 py-2 xl:flex">
+              <Search className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Search admin...</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="icon" aria-label="Notifications" icon={<Bell className="h-4 w-4" />} className="cursor-pointer" />
+              <Button variant="ghost" size="icon" aria-label="Wishlist" icon={<Heart className="h-4 w-4" />} className="cursor-pointer" />
+              <UserMenu user={user} isLoading={isLoading} onLogout={handleLogout} />
+            </div>
+          </div>
+        </header>
+
+        <main className="min-h-0 flex-1 overflow-y-auto pt-16">
+          <div className="mx-auto w-full max-w-7xl p-4 sm:p-5 lg:p-6">{children}</div>
+        </main>
+      </div>
+    </div>
+  );
+}
