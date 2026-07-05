@@ -46,42 +46,38 @@ export function LoginForm() {
       {sessionExpired ? <Alert type="info" message="Your session expired. Please sign in again." /> : null}
       {error ? <Alert type="error" message={error} /> : null}
 
-      <div className="relative">
-        <Mail className="absolute left-4 top-[calc(50%+0.875rem)] h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          label="Email address"
-          type="email"
-          autoComplete="email"
-          disabled={isLoading}
-          error={form.formState.errors.email?.message}
-          className="pl-11"
-          placeholder="john@example.com"
-          {...form.register("email")}
-        />
-      </div>
+      <Input
+        label="Email address"
+        type="email"
+        autoComplete="email"
+        disabled={isLoading}
+        error={form.formState.errors.email?.message}
+        leftIcon={<Mail className="h-4 w-4" />}
+        placeholder="john@example.com"
+        {...form.register("email")}
+      />
 
       <div>
-        <div className="relative">
-          <Lock className="absolute left-4 top-[calc(50%+0.875rem)] h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            label="Password"
-            type={showPassword ? "text" : "password"}
-            autoComplete="current-password"
-            disabled={isLoading}
-            error={form.formState.errors.password?.message}
-            className="pl-11 pr-12"
-            placeholder="Enter your password"
-            {...form.register("password")}
-          />
-          <button
-            type="button"
-            onClick={() => setShowPassword((value) => !value)}
-            className="absolute right-3 top-[calc(50%+0.875rem)] -translate-y-1/2 rounded-xl p-2 text-muted-foreground transition hover:bg-muted hover:text-foreground"
-            aria-label={showPassword ? "Hide password" : "Show password"}
-          >
-            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-          </button>
-        </div>
+        <Input
+          label="Password"
+          type={showPassword ? "text" : "password"}
+          autoComplete="current-password"
+          disabled={isLoading}
+          error={form.formState.errors.password?.message}
+          leftIcon={<Lock className="h-4 w-4" />}
+          rightIcon={
+            <button
+              type="button"
+              onClick={() => setShowPassword((value) => !value)}
+              className="rounded-xl p-2 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          }
+          placeholder="Enter your password"
+          {...form.register("password")}
+        />
         <div className="mt-2 text-right">
           <Link href={routePaths.forgotPassword} className="text-xs font-medium text-primary hover:underline">
             Forgot password?

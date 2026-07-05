@@ -55,10 +55,7 @@ export function ForgotPasswordForm() {
   return (
     <form className="space-y-5" onSubmit={form.handleSubmit(onSubmit)} noValidate>
       {error ? <Alert type="error" message={error} /> : null}
-      <div className="relative">
-        <Mail className="absolute left-4 top-[calc(50%+0.875rem)] h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input label="Email address" type="email" autoComplete="email" disabled={isLoading} error={form.formState.errors.email?.message} className="pl-11" placeholder="john@example.com" {...form.register("email")} />
-      </div>
+      <Input label="Email address" type="email" autoComplete="email" disabled={isLoading} error={form.formState.errors.email?.message} leftIcon={<Mail className="h-4 w-4" />} placeholder="john@example.com" {...form.register("email")} />
       <Button className="w-full" type="submit" isLoading={isLoading}>
         Send reset link
       </Button>

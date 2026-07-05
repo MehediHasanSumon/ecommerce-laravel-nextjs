@@ -54,17 +54,22 @@ export function ResetPasswordForm() {
   return (
     <form className="space-y-5" onSubmit={form.handleSubmit(onSubmit)} noValidate>
       {error ? <Alert type="error" message={error} /> : null}
-      <div className="relative">
-        <Lock className="absolute left-4 top-[calc(50%+0.875rem)] h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input label="Password" type={showPassword ? "text" : "password"} autoComplete="new-password" disabled={isLoading} error={form.formState.errors.password?.message} className="pl-11 pr-12" placeholder="Create a strong password" {...form.register("password")} />
-        <button type="button" onClick={() => setShowPassword((value) => !value)} className="absolute right-3 top-[calc(50%+0.875rem)] -translate-y-1/2 rounded-xl p-2 text-muted-foreground transition hover:bg-muted hover:text-foreground" aria-label={showPassword ? "Hide password" : "Show password"}>
-          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-        </button>
-      </div>
-      <div className="relative">
-        <Lock className="absolute left-4 top-[calc(50%+0.875rem)] h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input label="Confirm password" type={showPassword ? "text" : "password"} autoComplete="new-password" disabled={isLoading} error={form.formState.errors.password_confirmation?.message} className="pl-11" placeholder="Confirm your password" {...form.register("password_confirmation")} />
-      </div>
+      <Input
+        label="Password"
+        type={showPassword ? "text" : "password"}
+        autoComplete="new-password"
+        disabled={isLoading}
+        error={form.formState.errors.password?.message}
+        leftIcon={<Lock className="h-4 w-4" />}
+        rightIcon={
+          <button type="button" onClick={() => setShowPassword((value) => !value)} className="rounded-xl p-2 text-muted-foreground transition hover:bg-muted hover:text-foreground" aria-label={showPassword ? "Hide password" : "Show password"}>
+            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        }
+        placeholder="Create a strong password"
+        {...form.register("password")}
+      />
+      <Input label="Confirm password" type={showPassword ? "text" : "password"} autoComplete="new-password" disabled={isLoading} error={form.formState.errors.password_confirmation?.message} leftIcon={<Lock className="h-4 w-4" />} placeholder="Confirm your password" {...form.register("password_confirmation")} />
       <Button className="w-full" type="submit" isLoading={isLoading}>
         Reset password
       </Button>
