@@ -22,15 +22,6 @@ class AuthController extends Controller
     {
         $data = $this->authService->register($request->validated());
 
-        activity('auth')
-            ->event('registered')
-            ->withProperties([
-                'user_id' => $data['user']['id'],
-                'ip' => $request->ip(),
-                'user_agent' => $request->userAgent(),
-            ])
-            ->log('User registered');
-
         return ApiResponse::success(
             ['user' => $data['user']],
             'Registration successful.',
@@ -42,15 +33,6 @@ class AuthController extends Controller
     public function login(LoginRequest $request): JsonResponse
     {
         $data = $this->authService->login($request->validated());
-
-        activity('auth')
-            ->event('login')
-            ->withProperties([
-                'user_id' => $data['user']['id'],
-                'ip' => $request->ip(),
-                'user_agent' => $request->userAgent(),
-            ])
-            ->log('User logged in');
 
         return ApiResponse::success(
             ['user' => $data['user']],
@@ -68,15 +50,6 @@ class AuthController extends Controller
         if (! $data) {
             abort(401, 'Unauthenticated.');
         }
-
-        activity('auth')
-            ->event('token_refreshed')
-            ->withProperties([
-                'user_id' => $data['user']['id'],
-                'ip' => $request->ip(),
-                'user_agent' => $request->userAgent(),
-            ])
-            ->log('Authentication token refreshed');
 
         return ApiResponse::success(['user' => $data['user']], 'Token refreshed.')
             ->withCookie(AuthCookie::access($data['tokens']['access_token']))
@@ -106,15 +79,6 @@ class AuthController extends Controller
     {
         $this->authService->forgotPassword($request->validated('email'));
 
-        activity('auth')
-            ->event('password_reset_requested')
-            ->withProperties([
-                'email' => hash('sha256', strtolower($request->validated('email'))),
-                'ip' => $request->ip(),
-                'user_agent' => $request->userAgent(),
-            ])
-            ->log('Password reset requested');
-
         return ApiResponse::success(
             [],
             'If an account exists for that email, a password reset link has been sent.'
@@ -125,33 +89,12 @@ class AuthController extends Controller
     {
         $this->authService->resetPassword($request->validated());
 
-        activity('auth')
-            ->event('password_reset')
-            ->withProperties([
-                'email' => hash('sha256', strtolower($request->validated('email'))),
-                'ip' => $request->ip(),
-                'user_agent' => $request->userAgent(),
-            ])
-            ->log('Password reset completed');
-
         return ApiResponse::success([], 'Password reset successful.');
     }
 
     public function logout(Request $request): JsonResponse
     {
         $user = $request->user();
-
-        if ($user) {
-            activity('auth')
-                ->event('logout')
-                ->performedOn($user)
-                ->causedBy($user)
-                ->withProperties([
-                    'ip' => $request->ip(),
-                    'user_agent' => $request->userAgent(),
-                ])
-                ->log('User logged out');
-        }
 
         optional($user)->tokens()?->delete();
 
