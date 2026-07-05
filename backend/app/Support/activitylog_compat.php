@@ -9,3 +9,13 @@ if (
         \Spatie\Activitylog\Models\Concerns\LogsActivity::class
     );
 }
+
+if (
+    class_exists(\Spatie\Activitylog\Support\LogOptions::class)
+    && ! class_exists(\Spatie\Activitylog\LogOptions::class)
+) {
+    class_alias(
+        \Spatie\Activitylog\Support\LogOptions::class,
+        \Spatie\Activitylog\LogOptions::class
+    );
+}
