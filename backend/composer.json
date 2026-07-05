@@ -13,7 +13,6 @@
         "laravel/framework": "^13.8",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^3.0",
-        "spatie/laravel-activitylog": "*",
         "spatie/laravel-permission": "*"
     },
     "require-dev": {
@@ -28,7 +27,6 @@
     },
     "autoload": {
         "files": [
-            "app/Support/activitylog_compat.php",
             "app/Support/seeder_compat.php"
         ],
         "psr-4": {
@@ -64,8 +62,7 @@
             "@php artisan package:discover --ansi"
         ],
         "post-update-cmd": [
-            "@php artisan vendor:publish --tag=laravel-assets --ansi --force",
-            "@php artisan boost:update --ansi"
+            "@php artisan vendor:publish --tag=laravel-assets --ansi --force"
         ],
         "post-root-package-install": [
             "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
