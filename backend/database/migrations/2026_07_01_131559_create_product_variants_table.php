@@ -35,6 +35,16 @@ return new class extends Migration
      */
     public function down(): void
     {
+        foreach ([
+            'cart_items',
+            'product_images',
+            'stock_movements',
+            'inventories',
+            'product_variant_attribute_value',
+        ] as $table) {
+            Schema::dropIfExists($table);
+        }
+
         Schema::dropIfExists('product_variants');
     }
 };
