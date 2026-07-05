@@ -99,52 +99,55 @@ export type AddCartItemPayload = {
   selected_options?: Record<string, unknown>;
 };
 
-function guestHeaders(guestToken: string) {
+export type CartSessionMode = "authenticated" | "guest";
+
+function cartHeaders(guestToken: string, mode: CartSessionMode) {
   return {
     Accept: "application/json",
     "X-Requested-With": "XMLHttpRequest",
     "X-Guest-Token": guestToken,
+    "X-Cart-Mode": mode,
   };
 }
 
 export const cartService = {
-  async getCart(guestToken: string) {
+  async getCart(guestToken: string, mode: CartSessionMode) {
     const { data } = await client.get<ApiEnvelope<{ cart: CartApiResponse }>>("/cart", {
-      headers: guestHeaders(guestToken),
+      headers: cartHeaders(guestToken, mode),
     });
 
     return data.data.cart;
   },
 
-  async addItem(guestToken: string, payload: AddCartItemPayload) {
+  async addItem(guestToken: string, mode: CartSessionMode, payload: AddCartItemPayload) {
     const { data } = await client.post<ApiEnvelope<{ cart: CartApiResponse }>>("/cart/items", payload, {
-      headers: guestHeaders(guestToken),
+      headers: cartHeaders(guestToken, mode),
     });
 
     return data.data.cart;
   },
 
-  async updateItem(guestToken: string, itemId: string, quantity: number) {
+  async updateItem(guestToken: string, mode: CartSessionMode, itemId: string, quantity: number) {
     const { data } = await client.put<ApiEnvelope<{ cart: CartApiResponse }>>(`/cart/items/${itemId}`, {
       quantity,
     }, {
-      headers: guestHeaders(guestToken),
+      headers: cartHeaders(guestToken, mode),
     });
 
     return data.data.cart;
   },
 
-  async removeItem(guestToken: string, itemId: string) {
+  async removeItem(guestToken: string, mode: CartSessionMode, itemId: string) {
     const { data } = await client.delete<ApiEnvelope<{ cart: CartApiResponse }>>(`/cart/items/${itemId}`, {
-      headers: guestHeaders(guestToken),
+      headers: cartHeaders(guestToken, mode),
     });
 
     return data.data.cart;
   },
 
-  async clearCart(guestToken: string) {
+  async clearCart(guestToken: string, mode: CartSessionMode) {
     const { data } = await client.delete<ApiEnvelope<{ cart: CartApiResponse }>>("/cart/items", {
-      headers: guestHeaders(guestToken),
+      headers: cartHeaders(guestToken, mode),
     });
 
     return data.data.cart;
@@ -152,25 +155,25 @@ export const cartService = {
 
   async mergeCart(guestToken: string) {
     const { data } = await client.post<ApiEnvelope<{ cart: CartApiResponse }>>("/cart/merge", undefined, {
-      headers: guestHeaders(guestToken),
+      headers: cartHeaders(guestToken, "authenticated"),
     });
 
     return data.data.cart;
   },
 
-  async applyCoupon(guestToken: string, code: string) {
+  async applyCoupon(guestToken: string, mode: CartSessionMode, code: string) {
     const { data } = await client.post<ApiEnvelope<{ cart: CartApiResponse }>>("/cart/coupon", {
       code,
     }, {
-      headers: guestHeaders(guestToken),
+      headers: cartHeaders(guestToken, mode),
     });
 
     return data.data.cart;
   },
 
-  async removeCoupon(guestToken: string) {
+  async removeCoupon(guestToken: string, mode: CartSessionMode) {
     const { data } = await client.delete<ApiEnvelope<{ cart: CartApiResponse }>>("/cart/coupon", {
-      headers: guestHeaders(guestToken),
+      headers: cartHeaders(guestToken, mode),
     });
 
     return data.data.cart;

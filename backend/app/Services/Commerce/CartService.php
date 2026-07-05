@@ -176,7 +176,8 @@ class CartService
 
     private function resolveCart(Request $request, bool $create): Cart
     {
-        $user = $request->user();
+        $forceGuest = $request->headers->get('X-Cart-Mode') === 'guest';
+        $user = $forceGuest ? null : $request->user();
         $query = Cart::query()->where('status', 'active');
 
         if ($user) {

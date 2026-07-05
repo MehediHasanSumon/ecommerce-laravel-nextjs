@@ -13,6 +13,16 @@ import { AppError, toAppError } from "@/lib/errors";
 import { useCartStore } from "@/store/cartStore";
 import { useWishlistStore } from "@/store/wishlistStore";
 
+const AUTH_LOGOUT_EVENT_KEY = "luxecart-auth-logout";
+
+function broadcastLogout() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(AUTH_LOGOUT_EVENT_KEY, String(Date.now()));
+}
+
 type AuthState = {
   user: User | null;
   isAuthenticated: boolean;
@@ -40,7 +50,9 @@ export const useAuthStore = create<AuthState>((set) => ({
   async login(payload) {
     set({ isLoading: true, error: null });
     try {
+      await useCartStore.getState().resetAfterLogout();
       const user = await authService.login(payload);
+      set({ user, isAuthenticated: true });
       await Promise.all([
         useCartStore.getState().syncAfterAuth().catch(() => undefined),
         useWishlistStore.getState().syncAfterAuth().catch(() => undefined),
@@ -61,7 +73,9 @@ export const useAuthStore = create<AuthState>((set) => ({
   async register(payload) {
     set({ isLoading: true, error: null });
     try {
+      await useCartStore.getState().resetAfterLogout();
       const user = await authService.register(payload);
+      set({ user, isAuthenticated: true });
       await Promise.all([
         useCartStore.getState().syncAfterAuth().catch(() => undefined),
         useWishlistStore.getState().syncAfterAuth().catch(() => undefined),
@@ -82,6 +96,8 @@ export const useAuthStore = create<AuthState>((set) => ({
       // Local state must be cleared even if the server session already expired.
     } finally {
       set({ user: null, isAuthenticated: false, isLoading: false });
+      await useCartStore.getState().resetAfterLogout({ reloadGuest: true });
+      broadcastLogout();
     }
   },
 
@@ -116,10 +132,12 @@ export const useAuthStore = create<AuthState>((set) => ({
 
       if (!session.authenticated) {
         set({ user: null, isAuthenticated: false, isLoading: false });
+        await useCartStore.getState().resetAfterLogout({ reloadGuest: true });
         return null;
       }
 
       const user = await authService.me();
+      set({ user, isAuthenticated: true });
       await Promise.all([
         useCartStore.getState().syncAfterAuth().catch(() => undefined),
         useWishlistStore.getState().syncAfterAuth().catch(() => undefined),
@@ -137,6 +155,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       });
 
       if (appError.status === 401 || appError.status === 403) {
+        await useCartStore.getState().resetAfterLogout({ reloadGuest: true });
         return null;
       }
 
@@ -148,3 +167,19 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ error: null });
   },
 }));
+
+if (typeof window !== "undefined") {
+  window.addEventListener("storage", (event) => {
+    if (event.key !== AUTH_LOGOUT_EVENT_KEY || !event.newValue) {
+      return;
+    }
+
+    useAuthStore.setState({
+      user: null,
+      isAuthenticated: false,
+      isLoading: false,
+      error: null,
+    });
+    void useCartStore.getState().resetAfterLogout({ reloadGuest: true });
+  });
+}

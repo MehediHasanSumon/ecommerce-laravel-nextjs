@@ -2,11 +2,17 @@
 
 import { create } from 'zustand';
 import type { Cart, CartItem, Product } from '@/types';
-import { cartService, type AddCartItemPayload, type CartApiResponse } from '@/services/cart-service';
+import {
+  cartService,
+  type AddCartItemPayload,
+  type CartApiResponse,
+  type CartSessionMode,
+} from '@/services/cart-service';
 import { useAuthStore } from '@/store/auth-store';
 import { toAppError } from '@/lib/errors';
 
 const GUEST_TOKEN_KEY = 'luxecart-guest-token';
+const CART_STORAGE_PREFIXES = ['luxecart-cart', 'cart'];
 
 function browserGuestToken() {
   if (typeof window === 'undefined') {
@@ -79,6 +85,43 @@ function emptyCart(): Cart {
   };
 }
 
+function emptyCartState(): Pick<
+  CartStore,
+  'cart' | 'items' | 'couponCode' | 'couponDiscount' | 'couponMessage' | 'couponMessageType'
+> {
+  return {
+    cart: emptyCart(),
+    items: [],
+    couponCode: '',
+    couponDiscount: 0,
+    couponMessage: '',
+    couponMessageType: null,
+  };
+}
+
+function activeCartMode(): CartSessionMode {
+  return useAuthStore.getState().isAuthenticated ? 'authenticated' : 'guest';
+}
+
+function clearCartStorage() {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  for (const storage of [window.localStorage, window.sessionStorage]) {
+    for (let index = storage.length - 1; index >= 0; index -= 1) {
+      const key = storage.key(index);
+      if (!key || key === GUEST_TOKEN_KEY) {
+        continue;
+      }
+
+      if (CART_STORAGE_PREFIXES.some((prefix) => key.toLowerCase().startsWith(prefix))) {
+        storage.removeItem(key);
+      }
+    }
+  }
+}
+
 type AddItemInput =
   | Product
   | {
@@ -102,9 +145,11 @@ interface CartStore {
   isCouponLoading: boolean;
   initialized: boolean;
   guestToken: string;
+  requestVersion: number;
   initialize: () => Promise<void>;
   refresh: () => Promise<void>;
   syncAfterAuth: () => Promise<void>;
+  resetAfterLogout: (options?: { reloadGuest?: boolean }) => Promise<void>;
   addItem: (
     product: AddItemInput,
     quantity?: number,
@@ -169,68 +214,120 @@ function applyCartState(set: (partial: Partial<CartStore>) => void, cart: CartAp
 }
 
 export const useCartStore = create<CartStore>()((set, get) => ({
-  cart: emptyCart(),
-  items: [],
-  couponCode: '',
-  couponDiscount: 0,
-  couponMessage: '',
-  couponMessageType: null,
+  ...emptyCartState(),
   isLoading: false,
   isCouponLoading: false,
   initialized: false,
   guestToken: '',
+  requestVersion: 0,
 
   async initialize() {
     if (get().initialized) {
       return;
     }
 
+    const requestVersion = get().requestVersion;
     set({ isLoading: true });
     try {
       const guestToken = ensureGuestToken(get().guestToken, set);
-      if (useAuthStore.getState().isAuthenticated) {
+      if (activeCartMode() === 'authenticated') {
         await get().syncAfterAuth();
       } else {
-        const cart = await cartService.getCart(guestToken);
-        applyCartState(set, cart);
+        const cart = await cartService.getCart(guestToken, 'guest');
+        if (get().requestVersion === requestVersion && activeCartMode() === 'guest') {
+          applyCartState(set, cart);
+        }
       }
-      set({ initialized: true, isLoading: false });
+      if (get().requestVersion === requestVersion) {
+        set({ initialized: true, isLoading: false });
+      }
     } catch {
-      set({ initialized: true, isLoading: false });
+      if (get().requestVersion === requestVersion) {
+        set({ initialized: true, isLoading: false });
+      }
     }
   },
 
   async refresh() {
+    const requestVersion = get().requestVersion;
     const guestToken = ensureGuestToken(get().guestToken, set);
-    const cart = await cartService.getCart(guestToken);
-    applyCartState(set, cart);
+    const mode = activeCartMode();
+    const cart = await cartService.getCart(guestToken, mode);
+    if (get().requestVersion === requestVersion && activeCartMode() === mode) {
+      applyCartState(set, cart);
+    }
   },
 
   async syncAfterAuth() {
+    const requestVersion = get().requestVersion;
     const guestToken = ensureGuestToken(get().guestToken, set);
     const cart = await cartService.mergeCart(guestToken);
-    applyCartState(set, cart);
+    if (get().requestVersion === requestVersion && activeCartMode() === 'authenticated') {
+      applyCartState(set, cart);
+    }
+  },
+
+  async resetAfterLogout(options = {}) {
+    const guestToken = ensureGuestToken(get().guestToken, set);
+    clearCartStorage();
+    set({
+      ...emptyCartState(),
+      guestToken,
+      initialized: true,
+      isLoading: false,
+      isCouponLoading: false,
+      requestVersion: get().requestVersion + 1,
+    });
+
+    if (!options.reloadGuest) {
+      return;
+    }
+
+    const requestVersion = get().requestVersion;
+    set({ isLoading: true });
+    try {
+      const cart = await cartService.getCart(guestToken, 'guest');
+      if (get().requestVersion === requestVersion && activeCartMode() === 'guest') {
+        applyCartState(set, cart);
+      }
+    } finally {
+      if (get().requestVersion === requestVersion) {
+        set({ isLoading: false, initialized: true });
+      }
+    }
   },
 
   async addItem(product, quantity = 1, selectedColor, selectedSize) {
+    const requestVersion = get().requestVersion;
     set({ isLoading: true });
     try {
       const guestToken = ensureGuestToken(get().guestToken, set);
-      const cart = await cartService.addItem(guestToken, selectionToPayload(product, quantity, selectedColor, selectedSize));
-      applyCartState(set, cart);
+      const mode = activeCartMode();
+      const cart = await cartService.addItem(guestToken, mode, selectionToPayload(product, quantity, selectedColor, selectedSize));
+      if (get().requestVersion === requestVersion && activeCartMode() === mode) {
+        applyCartState(set, cart);
+      }
     } finally {
-      set({ isLoading: false, initialized: true });
+      if (get().requestVersion === requestVersion) {
+        set({ isLoading: false, initialized: true });
+      }
     }
   },
 
   async removeItem(itemId) {
+    const requestVersion = get().requestVersion;
     set({ isLoading: true });
     try {
       const guestToken = ensureGuestToken(get().guestToken, set);
-      const cart = await cartService.removeItem(guestToken, itemId);
-      applyCartState(set, cart);
+      const mode = activeCartMode();
+      const cart = await cartService.removeItem(guestToken, mode, itemId);
+      if (get().requestVersion === requestVersion && activeCartMode() === mode) {
+        applyCartState(set, cart);
+      }
     } finally {
-      set({ isLoading: false });
+      if (get().requestVersion === requestVersion) {
+        set({ isLoading: false });
+      }
     }
   },
 
@@ -240,24 +337,36 @@ export const useCartStore = create<CartStore>()((set, get) => ({
       return;
     }
 
+    const requestVersion = get().requestVersion;
     set({ isLoading: true });
     try {
       const guestToken = ensureGuestToken(get().guestToken, set);
-      const cart = await cartService.updateItem(guestToken, itemId, quantity);
-      applyCartState(set, cart);
+      const mode = activeCartMode();
+      const cart = await cartService.updateItem(guestToken, mode, itemId, quantity);
+      if (get().requestVersion === requestVersion && activeCartMode() === mode) {
+        applyCartState(set, cart);
+      }
     } finally {
-      set({ isLoading: false });
+      if (get().requestVersion === requestVersion) {
+        set({ isLoading: false });
+      }
     }
   },
 
   async clearCart() {
+    const requestVersion = get().requestVersion;
     set({ isLoading: true });
     try {
       const guestToken = ensureGuestToken(get().guestToken, set);
-      const cart = await cartService.clearCart(guestToken);
-      applyCartState(set, cart);
+      const mode = activeCartMode();
+      const cart = await cartService.clearCart(guestToken, mode);
+      if (get().requestVersion === requestVersion && activeCartMode() === mode) {
+        applyCartState(set, cart);
+      }
     } finally {
-      set({ isLoading: false });
+      if (get().requestVersion === requestVersion) {
+        set({ isLoading: false });
+      }
     }
   },
 
@@ -271,29 +380,41 @@ export const useCartStore = create<CartStore>()((set, get) => ({
       return false;
     }
 
+    const requestVersion = get().requestVersion;
     set({ isCouponLoading: true });
     try {
       const guestToken = ensureGuestToken(get().guestToken, set);
-      const cart = await cartService.applyCoupon(guestToken, finalCode);
-      applyCartState(set, cart);
+      const mode = activeCartMode();
+      const cart = await cartService.applyCoupon(guestToken, mode, finalCode);
+      if (get().requestVersion === requestVersion && activeCartMode() === mode) {
+        applyCartState(set, cart);
+      }
       return true;
     } catch (error) {
       const appError = toAppError(error);
       set({ couponMessage: appError.message, couponMessageType: 'error' });
       return false;
     } finally {
-      set({ isCouponLoading: false, initialized: true });
+      if (get().requestVersion === requestVersion) {
+        set({ isCouponLoading: false, initialized: true });
+      }
     }
   },
 
   async removeCoupon() {
+    const requestVersion = get().requestVersion;
     set({ isCouponLoading: true });
     try {
       const guestToken = ensureGuestToken(get().guestToken, set);
-      const cart = await cartService.removeCoupon(guestToken);
-      applyCartState(set, cart);
+      const mode = activeCartMode();
+      const cart = await cartService.removeCoupon(guestToken, mode);
+      if (get().requestVersion === requestVersion && activeCartMode() === mode) {
+        applyCartState(set, cart);
+      }
     } finally {
-      set({ isCouponLoading: false, initialized: true });
+      if (get().requestVersion === requestVersion) {
+        set({ isCouponLoading: false, initialized: true });
+      }
     }
   },
 
