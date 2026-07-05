@@ -54,7 +54,6 @@ return new class extends Migration
                 $table->softDeletes();
 
                 $table->index(['user_id']);
-                $table->index(['guest_token']);
             });
         }
 
