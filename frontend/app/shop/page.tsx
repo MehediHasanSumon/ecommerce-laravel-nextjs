@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { ChevronRight, Grid3X3, List, SlidersHorizontal, Star, X } from 'lucide-react';
+import { ChevronRight, Grid3X3, List, Search, SlidersHorizontal, Star, X } from 'lucide-react';
 import axios from 'axios';
 import { AnnouncementBar } from '@/components/layout/AnnouncementBar';
 import { Header } from '@/components/layout/Header';
@@ -161,8 +161,6 @@ function toApiParams(query: ShopQuery): ProductQueryParams {
 function FilterSidebar({
   filters,
   query,
-  searchInput,
-  onSearchInput,
   onPatch,
   onToggleBrand,
   onToggleAttribute,
@@ -171,8 +169,6 @@ function FilterSidebar({
 }: {
   filters: ProductFilterMetadata;
   query: ShopQuery;
-  searchInput: string;
-  onSearchInput: (value: string) => void;
   onPatch: (patch: Partial<ShopQuery>) => void;
   onToggleBrand: (slug: string) => void;
   onToggleAttribute: (attributeSlug: string, valueSlug: string) => void;
@@ -201,20 +197,6 @@ function FilterSidebar({
             <X size={12} /> Clear all
           </button>
         )}
-      </div>
-
-      <div>
-        <label htmlFor="shop-search" className="font-semibold text-sm mb-3 block">
-          Search
-        </label>
-        <input
-          id="shop-search"
-          type="search"
-          value={searchInput}
-          onChange={(event) => onSearchInput(event.target.value)}
-          placeholder="Search products..."
-          className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-        />
       </div>
 
       <div>
@@ -474,8 +456,6 @@ export default function ShopPage() {
               <FilterSidebar
                 filters={filters}
                 query={query}
-                searchInput={searchInput}
-                onSearchInput={setSearchInput}
                 onPatch={patchQuery}
                 onToggleBrand={toggleBrand}
                 onToggleAttribute={toggleAttribute}
@@ -493,7 +473,18 @@ export default function ShopPage() {
               >
                 <SlidersHorizontal size={15} /> Filters
               </button>
-              <div className="ml-auto">
+              <div className="relative min-w-[260px] flex-1 lg:max-w-2xl">
+                <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  id="shop-search"
+                  type="search"
+                  value={searchInput}
+                  onChange={(event) => setSearchInput(event.target.value)}
+                  placeholder="Search products..."
+                  className="h-10 w-full rounded-xl border border-border bg-card pl-10 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-ring/20"
+                />
+              </div>
+              <div className="sm:ml-auto">
                 <Select value={query.sort} onValueChange={(sort) => patchQuery({ sort, page: 1 })}>
                   <SelectTrigger className="h-10 w-[180px] rounded-xl bg-card text-sm font-medium">
                     <SelectValue />
@@ -643,8 +634,6 @@ export default function ShopPage() {
               <FilterSidebar
                 filters={filters}
                 query={query}
-                searchInput={searchInput}
-                onSearchInput={setSearchInput}
                 onPatch={patchQuery}
                 onToggleBrand={toggleBrand}
                 onToggleAttribute={toggleAttribute}
