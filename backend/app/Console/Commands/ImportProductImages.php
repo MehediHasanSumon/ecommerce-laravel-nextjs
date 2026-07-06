@@ -21,11 +21,10 @@ class ImportProductImages extends Command
     protected $signature = 'products:import-images
         {source : Directory containing source images}
         {--commit : Persist changes. Without this option the command runs as a dry run}
-        {--limit= : Limit number of matched records to process}
-        {--disk=public : Storage disk used for copied images}
-        {--strategy=match : Matching strategy: match, sequential, or repeat}';
+        {--limit= : Limit number of records to process}
+        {--disk=public : Storage disk used for copied images}';
 
-    protected $description = 'Import matched product, category, or brand images into storage.';
+    protected $description = 'Import source images into product, category, or brand records.';
 
     private const SUPPORTED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp'];
 
@@ -37,18 +36,11 @@ class ImportProductImages extends Command
         $disk = (string) $this->option('disk');
         $commit = (bool) $this->option('commit');
         $limit = $this->option('limit') ? max(1, (int) $this->option('limit')) : null;
-        $strategy = (string) $this->option('strategy');
         $target = $this->choice('Select image import target', [
             1 => 'product',
             2 => 'category',
             3 => 'brand',
         ], 1);
-
-        if (! in_array($strategy, ['match', 'sequential', 'repeat'], true)) {
-            $this->error('Invalid --strategy value. Supported values: match, sequential, repeat');
-
-            return self::FAILURE;
-        }
 
         if (! File::isDirectory($source)) {
             $this->error("Source directory does not exist: {$source}");
@@ -73,10 +65,8 @@ class ImportProductImages extends Command
                 disk: $disk,
                 commit: $commit,
                 limit: $limit,
-                strategy: $strategy,
                 imageColumn: 'image_url',
                 storageDirectory: 'categories',
-                identifierFields: ['slug', 'name'],
             ),
             'brand' => $this->importSingleImages(
                 target: 'brand',
@@ -86,71 +76,26 @@ class ImportProductImages extends Command
                 disk: $disk,
                 commit: $commit,
                 limit: $limit,
-                strategy: $strategy,
                 imageColumn: 'logo_url',
                 storageDirectory: 'brands',
-                identifierFields: ['slug', 'name'],
             ),
-            default => $this->importProductImages($source, $images, $disk, $commit, $limit, $strategy),
+            default => $this->importProductImages($source, $images, $disk, $commit, $limit),
         };
     }
 
-    private function importProductImages(string $source, Collection $images, string $disk, bool $commit, ?int $limit, string $strategy): int
+    private function importProductImages(string $source, Collection $images, string $disk, bool $commit, ?int $limit): int
     {
         $products = Product::query()
             ->with(['images' => fn ($query) => $query->orderBy('sort_order')->orderBy('id')])
             ->orderBy('id')
             ->get();
 
-        $matches = [];
-        $skippedImages = [];
+        $matched = $products
+            ->map(fn (Product $product, int $index): array => [
+                'product' => $product,
+                'images' => $this->cycledImages($images, $index * self::PRODUCT_IMAGE_LIMIT, self::PRODUCT_IMAGE_LIMIT),
+            ]);
 
-        if ($strategy === 'repeat') {
-            $imageCount = $images->count();
-
-            foreach ($products as $productIndex => $product) {
-                for ($imageIndex = 0; $imageIndex < self::PRODUCT_IMAGE_LIMIT; $imageIndex++) {
-                    $image = $images->get(($productIndex * self::PRODUCT_IMAGE_LIMIT + $imageIndex) % $imageCount);
-
-                    $matches[$product->id] ??= ['product' => $product, 'images' => []];
-                    $matches[$product->id]['images'][] = $image;
-                }
-            }
-        } elseif ($strategy === 'sequential') {
-            foreach ($images as $index => $image) {
-                $product = $products->get(intdiv($index, self::PRODUCT_IMAGE_LIMIT));
-
-                if (! $product) {
-                    $skippedImages[] = $image->getPathname();
-
-                    continue;
-                }
-
-                $matches[$product->id] ??= ['product' => $product, 'images' => []];
-                $matches[$product->id]['images'][] = $image;
-            }
-        } else {
-            $productIndex = $this->productIndex($products);
-
-            foreach ($images as $image) {
-                $key = $this->matchKey($image->getFilenameWithoutExtension());
-                $product = $productIndex[$key] ?? null;
-
-                if (! $product) {
-                    $skippedImages[] = $image->getPathname();
-
-                    continue;
-                }
-
-                $matches[$product->id] ??= ['product' => $product, 'images' => []];
-
-                if (count($matches[$product->id]['images']) < self::PRODUCT_IMAGE_LIMIT) {
-                    $matches[$product->id]['images'][] = $image;
-                }
-            }
-        }
-
-        $matched = collect($matches)->values();
         if ($limit) {
             $matched = $matched->take($limit);
         }
@@ -159,30 +104,24 @@ class ImportProductImages extends Command
             'source' => $source,
             'target' => 'product',
             'commit' => $commit,
-            'strategy' => $strategy,
             'images_per_product' => self::PRODUCT_IMAGE_LIMIT,
             'source_images' => $images->count(),
-            'matched_products' => $matched->count(),
-            'matched_images' => $matched->sum(fn ($item) => count($item['images'])),
-            'skipped_images' => count($skippedImages),
+            'updated_products' => $matched->count(),
+            'assigned_images' => $matched->sum(fn ($item) => count($item['images'])),
         ];
 
         $this->info(($commit ? 'Importing' : 'Dry run for').' product images');
         $this->table(['Metric', 'Value'], collect($summary)->map(fn ($value, $key) => [$key, is_bool($value) ? ($value ? 'yes' : 'no') : $value])->all());
 
-        foreach ($skippedImages as $path) {
-            $this->line("SKIP image without matching product: {$path}");
-        }
-
         foreach ($matched as $item) {
             /** @var Product $product */
             $product = $item['product'];
-            $this->line("MATCH {$product->sku} | {$product->slug} <= ".count($item['images']).' image(s, max '.self::PRODUCT_IMAGE_LIMIT.')');
+            $assigned = collect($item['images'])->map->getFilename()->join(', ');
+            $this->line("ASSIGN {$product->sku} | {$product->slug} <= {$assigned}");
         }
 
         Log::info('Product image import scan completed.', $summary + [
-            'skipped_images' => $skippedImages,
-            'matched_products' => $matched->map(fn ($item) => [
+            'updated_products' => $matched->map(fn ($item) => [
                 'product_id' => $item['product']->id,
                 'sku' => $item['product']->sku,
                 'slug' => $item['product']->slug,
@@ -238,51 +177,16 @@ class ImportProductImages extends Command
         string $disk,
         bool $commit,
         ?int $limit,
-        string $strategy,
         string $imageColumn,
         string $storageDirectory,
-        array $identifierFields,
     ): int {
-        $matches = [];
-        $skippedImages = [];
+        $matched = $records
+            ->values()
+            ->map(fn (Model $record, int $index): array => [
+                'record' => $record,
+                'image' => $images->get($index % $images->count()),
+            ]);
 
-        if ($strategy === 'repeat') {
-            foreach ($records as $index => $record) {
-                $matches[$record->id] = [
-                    'record' => $record,
-                    'image' => $images->get($index % $images->count()),
-                ];
-            }
-        } elseif ($strategy === 'sequential') {
-            foreach ($images as $index => $image) {
-                $record = $records->get($index);
-
-                if (! $record) {
-                    $skippedImages[] = $image->getPathname();
-
-                    continue;
-                }
-
-                $matches[$record->id] = ['record' => $record, 'image' => $image];
-            }
-        } else {
-            $recordIndex = $this->recordIndex($records, $identifierFields);
-
-            foreach ($images as $image) {
-                $key = $this->matchKey($image->getFilenameWithoutExtension());
-                $record = $recordIndex[$key] ?? null;
-
-                if (! $record) {
-                    $skippedImages[] = $image->getPathname();
-
-                    continue;
-                }
-
-                $matches[$record->id] = ['record' => $record, 'image' => $image];
-            }
-        }
-
-        $matched = collect($matches)->values();
         if ($limit) {
             $matched = $matched->take($limit);
         }
@@ -291,29 +195,22 @@ class ImportProductImages extends Command
             'source' => $source,
             'target' => $target,
             'commit' => $commit,
-            'strategy' => $strategy,
             'source_images' => $images->count(),
-            'matched_records' => $matched->count(),
-            'skipped_images' => count($skippedImages),
+            'updated_records' => $matched->count(),
             'updated_column' => $imageColumn,
         ];
 
         $this->info(($commit ? 'Importing' : 'Dry run for')." {$target} images");
         $this->table(['Metric', 'Value'], collect($summary)->map(fn ($value, $key) => [$key, is_bool($value) ? ($value ? 'yes' : 'no') : $value])->all());
 
-        foreach ($skippedImages as $path) {
-            $this->line("SKIP image without matching {$target}: {$path}");
-        }
-
         foreach ($matched as $item) {
             /** @var Model $record */
             $record = $item['record'];
-            $this->line("MATCH {$record->getAttribute('slug')} | {$record->getAttribute('name')} <= {$item['image']->getFilename()}");
+            $this->line("ASSIGN {$record->getAttribute('slug')} | {$record->getAttribute('name')} <= {$item['image']->getFilename()}");
         }
 
         Log::info(ucfirst($target).' image import scan completed.', $summary + [
-            'skipped_images' => $skippedImages,
-            'matched_records' => $matched->map(fn ($item) => [
+            'updated_records' => $matched->map(fn ($item) => [
                 'id' => $item['record']->id,
                 'slug' => $item['record']->getAttribute('slug'),
                 'name' => $item['record']->getAttribute('name'),
@@ -365,45 +262,13 @@ class ImportProductImages extends Command
             ->values();
     }
 
-    private function productIndex(Collection $products): array
+    private function cycledImages(Collection $images, int $offset, int $count): array
     {
-        $index = [];
+        $imageCount = $images->count();
 
-        foreach ($products as $product) {
-            foreach ([$product->slug, $product->sku, $product->name] as $identifier) {
-                $key = $this->matchKey((string) $identifier);
-                if ($key !== '') {
-                    $index[$key] = $product;
-                }
-            }
-        }
-
-        return $index;
-    }
-
-    private function recordIndex(Collection $records, array $identifierFields): array
-    {
-        $index = [];
-
-        foreach ($records as $record) {
-            foreach ($identifierFields as $field) {
-                $key = $this->matchKey((string) $record->getAttribute($field));
-                if ($key !== '') {
-                    $index[$key] = $record;
-                }
-            }
-        }
-
-        return $index;
-    }
-
-    private function matchKey(string $value): string
-    {
-        $key = Str::slug(pathinfo($value, PATHINFO_FILENAME));
-        $key = preg_replace('/-(main|primary|featured|thumbnail|thumb|front|back|side|gallery|image|img|photo)(-\d+)?$/', '', $key) ?: $key;
-        $key = preg_replace('/-\d+$/', '', $key) ?: $key;
-
-        return trim($key, '-');
+        return collect(range(0, $count - 1))
+            ->map(fn (int $index) => $images->get(($offset + $index) % $imageCount))
+            ->all();
     }
 
     private function copyImages(Product $product, Collection $images, string $disk): array
