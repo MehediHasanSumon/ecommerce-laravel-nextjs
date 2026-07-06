@@ -11,7 +11,6 @@ return new class extends Migration
         Schema::create('customer_addresses', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete()->cascadeOnUpdate();
-            $table->string('label', 80)->default('Home');
             $table->string('full_name');
             $table->string('phone', 40);
             $table->string('email')->nullable();

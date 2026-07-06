@@ -74,7 +74,6 @@ export default function CheckoutPage() {
     area: '',
     zip: '',
     country: 'Bangladesh',
-    label: 'Home',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
@@ -208,7 +207,6 @@ export default function CheckoutPage() {
 
   const selectedBillingAddress = addresses.find((address) => address.id === selectedBillingAddressId) ?? null;
   const checkoutAddress = {
-    label: form.label,
     fullName: form.fullName,
     email: form.email,
     phone: form.phone,
@@ -329,7 +327,7 @@ export default function CheckoutPage() {
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
-                              <p className="text-sm font-semibold">{address.label} · {address.fullName}</p>
+                              <p className="text-sm font-semibold">{address.fullName}</p>
                               <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
                                 {address.addressLine}, {address.city}, {address.state}
                               </p>
@@ -350,22 +348,21 @@ export default function CheckoutPage() {
                 )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {[
-                    { label: 'Address Label', key: 'label', placeholder: 'Home' },
-                    { label: 'Full Name', key: 'fullName', placeholder: 'John Doe', col: 2 },
+                    { label: 'Full Name', key: 'fullName', placeholder: 'Enter full name', col: 2 },
                     {
                       label: 'Email',
                       key: 'email',
-                      placeholder: 'john@example.com',
+                      placeholder: 'Enter email address',
                       type: 'email',
                     },
-                    { label: 'Phone', key: 'phone', placeholder: '+1 (555) 000-0000', type: 'tel' },
-                    { label: 'Street Address', key: 'address', placeholder: '123 Main St', col: 2 },
-                    { label: 'City', key: 'city', placeholder: 'New York' },
-                    { label: 'State', key: 'state', placeholder: 'NY' },
-                    { label: 'District', key: 'district', placeholder: 'Dhaka' },
-                    { label: 'Area / Zone', key: 'area', placeholder: 'Dhanmondi' },
-                    { label: 'ZIP Code', key: 'zip', placeholder: '10001' },
-                    { label: 'Country', key: 'country', placeholder: 'US' },
+                    { label: 'Phone', key: 'phone', placeholder: 'Enter phone number', type: 'tel' },
+                    { label: 'Street Address', key: 'address', placeholder: 'Enter street address', col: 2 },
+                    { label: 'City', key: 'city', placeholder: 'Enter city' },
+                    { label: 'State', key: 'state', placeholder: 'Enter state' },
+                    { label: 'District', key: 'district', placeholder: 'Enter district' },
+                    { label: 'Area / Zone', key: 'area', placeholder: 'Enter area or zone' },
+                    { label: 'ZIP Code', key: 'zip', placeholder: 'Enter ZIP code' },
+                    { label: 'Country', key: 'country', placeholder: 'Enter country' },
                   ].map(({ label, key, placeholder, col, type }) => (
                     <div key={key} className={col === 2 ? 'md:col-span-2' : ''}>
                       <label className="block text-xs font-semibold mb-1.5 text-muted-foreground uppercase tracking-wide">

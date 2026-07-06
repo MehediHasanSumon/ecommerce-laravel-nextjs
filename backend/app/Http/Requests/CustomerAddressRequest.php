@@ -14,7 +14,6 @@ class CustomerAddressRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'label' => ['required', 'string', 'max:80'],
             'full_name' => ['sometimes', 'string', 'max:255'],
             'fullName' => ['required_without:full_name', 'string', 'max:255'],
             'phone' => ['required', 'string', 'max:40'],

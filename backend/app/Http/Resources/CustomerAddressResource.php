@@ -11,7 +11,6 @@ class CustomerAddressResource extends JsonResource
     {
         return [
             'id' => (string) $this->id,
-            'label' => $this->label,
             'fullName' => $this->full_name,
             'phone' => $this->phone,
             'email' => $this->email,

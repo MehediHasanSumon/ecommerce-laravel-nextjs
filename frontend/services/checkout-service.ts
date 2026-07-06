@@ -22,7 +22,6 @@ function checkoutHeaders() {
 
 export type CustomerAddress = {
   id: string;
-  label: string;
   fullName: string;
   phone: string;
   email?: string | null;
@@ -46,7 +45,6 @@ export type PaymentMethod = {
 };
 
 export type CheckoutAddressPayload = {
-  label?: string;
   fullName: string;
   phone: string;
   email?: string;

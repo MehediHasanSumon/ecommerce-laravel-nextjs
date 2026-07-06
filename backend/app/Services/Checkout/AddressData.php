@@ -7,7 +7,6 @@ class AddressData
     public static function normalize(array $data): array
     {
         return [
-            'label' => (string) ($data['label'] ?? 'Home'),
             'full_name' => (string) ($data['full_name'] ?? $data['fullName'] ?? ''),
             'phone' => (string) ($data['phone'] ?? ''),
             'email' => $data['email'] ?? null,

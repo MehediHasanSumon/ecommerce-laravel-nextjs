@@ -34,7 +34,6 @@ it('manages customer addresses with billing and shipping defaults', function ():
     $token = checkoutUserToken($user);
 
     $payload = [
-        'label' => 'Home',
         'fullName' => 'Ada Lovelace',
         'phone' => '+8801700000000',
         'email' => 'ada@example.test',
@@ -86,7 +85,6 @@ it('places a cash on delivery order from the cart with server-side totals', func
 
     $response = $this->withToken($token)->postJson('/api/checkout/place-order', [
         'billing_address' => [
-            'label' => 'Home',
             'fullName' => 'Ada Lovelace',
             'phone' => '+8801700000000',
             'country' => 'Bangladesh',
