@@ -25,12 +25,11 @@ class PaymentGatewayManager
     {
         $this->ensureDefaultSettings();
 
-        return Cache::remember('checkout.payment-methods.enabled', 300, fn () => PaymentGatewaySetting::query()
+        return PaymentGatewaySetting::query()
             ->where('enabled', true)
             ->orderBy('display_order')
             ->get()
-            ->filter(fn (PaymentGatewaySetting $setting) => isset($this->gateways[$setting->gateway]))
-            ->values());
+            ->values();
     }
 
     public function setting(string $gateway): PaymentGatewaySetting
@@ -53,12 +52,11 @@ class PaymentGatewayManager
 
     private function ensureDefaultSettings(): void
     {
-        if (PaymentGatewaySetting::query()->exists()) {
-            return;
-        }
-
         foreach (SettingsDefaults::paymentGateways() as $gateway) {
-            PaymentGatewaySetting::query()->create($gateway);
+            PaymentGatewaySetting::query()->firstOrCreate(
+                ['gateway' => $gateway['gateway']],
+                $gateway,
+            );
         }
 
         Cache::forget('checkout.payment-methods.enabled');
