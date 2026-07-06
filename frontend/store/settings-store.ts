@@ -13,6 +13,23 @@ const emptyHomeFeatureCards: RuntimeSettings["home_feature_cards"] = [];
 const defaultFeatureCardSettings: RuntimeSettings["feature_card_settings"] = {
   enabled: true,
 };
+const defaultBlogSettings: RuntimeSettings["blog_settings"] = {
+  enabled: false,
+  layout: "grid",
+  list_options: {
+    enable_thumbnail: true,
+    show_excerpt: true,
+    show_author: true,
+    show_published_date: true,
+    show_reading_time: true,
+  },
+  show_on_home: false,
+  home_limit: 3,
+  allow_comments: true,
+  enable_related: true,
+  enable_search: true,
+  seo: {},
+};
 const defaultCategoryDisplaySettings: RuntimeSettings["category_display_settings"] = {
   enable_home_category_section: true,
   category_display_mode: "landing_page",
@@ -167,6 +184,8 @@ export const selectFeatureCardSettings = (state: SettingsState) =>
   selectSettingsPending(state) ? { enabled: false } : state.settings?.feature_card_settings ?? defaultFeatureCardSettings;
 export const selectHomeFeatureCards = (state: SettingsState) =>
   selectSettingsPending(state) ? emptyHomeFeatureCards : state.settings?.home_feature_cards ?? emptyHomeFeatureCards;
+export const selectBlogSettings = (state: SettingsState) =>
+  selectSettingsPending(state) ? defaultBlogSettings : state.settings?.blog_settings ?? defaultBlogSettings;
 export const selectCurrencySettings = (state: SettingsState): RuntimeCurrencySettings => {
   if (selectSettingsPending(state)) {
     return {

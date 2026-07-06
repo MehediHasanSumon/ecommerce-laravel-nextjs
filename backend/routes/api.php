@@ -2,9 +2,12 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\Admin\HomeFeatureCardController;
+use App\Http\Controllers\Api\Admin\BlogCommentManagementController;
+use App\Http\Controllers\Api\Admin\BlogManagementController;
 use App\Http\Controllers\Api\Admin\PermissionManagementController;
 use App\Http\Controllers\Api\Admin\ProductModuleController;
 use App\Http\Controllers\Api\Admin\RoleManagementController;
+use App\Http\Controllers\Api\Admin\Settings\BlogSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\CompanySettingsController;
 use App\Http\Controllers\Api\Admin\Settings\CategoryDisplaySettingsController;
 use App\Http\Controllers\Api\Admin\Settings\EmailSettingsController;
@@ -19,6 +22,7 @@ use App\Http\Controllers\Api\Admin\Settings\SocialMediaSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\StoreSettingsController;
 use App\Http\Controllers\Api\Admin\UserManagementController;
 use App\Http\Controllers\Api\BrandCatalogController;
+use App\Http\Controllers\Api\BlogCatalogController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\CollectionCatalogController;
 use App\Http\Controllers\Api\HomePageController;
@@ -30,6 +34,9 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/settings/navigation', [NavigationSettingsController::class, 'show'])->middleware('throttle:public-settings');
 Route::get('/home-page', [HomePageController::class, 'show'])->middleware('throttle:public-settings');
+Route::get('/blogs/home', [BlogCatalogController::class, 'home'])->middleware('throttle:public-settings');
+Route::get('/blogs', [BlogCatalogController::class, 'index'])->middleware('throttle:public-settings');
+Route::get('/blogs/{slug}', [BlogCatalogController::class, 'show'])->where('slug', '[A-Za-z0-9\\-]+')->middleware('throttle:public-settings');
 Route::get('/brands', [BrandCatalogController::class, 'index'])->middleware('throttle:public-settings');
 Route::get('/brands/{slug}', [BrandCatalogController::class, 'show'])->where('slug', '[A-Za-z0-9\\-]+')->middleware('throttle:public-settings');
 Route::get('/collections/{slug}', [CollectionCatalogController::class, 'show'])->where('slug', '[A-Za-z0-9\\-]+')->middleware('throttle:public-settings');
@@ -51,6 +58,8 @@ Route::middleware(['auth.cookie.optional:access', 'throttle:public-settings'])->
     Route::delete('/wishlist/items/{itemId}', [WishlistController::class, 'destroy']);
     Route::delete('/wishlist/items', [WishlistController::class, 'clear']);
     Route::post('/wishlist/merge', [WishlistController::class, 'merge']);
+
+    Route::post('/blogs/{blog:slug}/comments', [BlogCatalogController::class, 'storeComment']);
 });
 
 Route::prefix('auth')->group(function (): void {
@@ -74,6 +83,12 @@ Route::prefix('admin')
         Route::delete('/users/bulk', [UserManagementController::class, 'bulkDestroy']);
         Route::apiResource('users', UserManagementController::class);
 
+        Route::delete('/blogs/bulk', [BlogManagementController::class, 'bulkDestroy']);
+        Route::apiResource('blogs', BlogManagementController::class);
+        Route::get('/blog-comments', [BlogCommentManagementController::class, 'index']);
+        Route::put('/blog-comments/{comment}', [BlogCommentManagementController::class, 'update']);
+        Route::delete('/blog-comments/{comment}', [BlogCommentManagementController::class, 'destroy']);
+
         Route::delete('/roles/bulk', [RoleManagementController::class, 'bulkDestroy']);
         Route::apiResource('roles', RoleManagementController::class);
 
@@ -92,6 +107,9 @@ Route::prefix('admin')
 
         Route::get('/settings/home-feature-cards', [HomeFeatureCardSettingsController::class, 'show']);
         Route::put('/settings/home-feature-cards', [HomeFeatureCardSettingsController::class, 'update']);
+
+        Route::get('/settings/blog', [BlogSettingsController::class, 'show']);
+        Route::put('/settings/blog', [BlogSettingsController::class, 'update']);
 
         Route::get('/settings/store', [StoreSettingsController::class, 'show']);
         Route::put('/settings/store', [StoreSettingsController::class, 'update']);

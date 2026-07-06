@@ -67,6 +67,29 @@ export type RuntimeHomeFeatureCard = {
   sort_order: number;
 };
 
+export type RuntimeBlogSettings = {
+  enabled: boolean;
+  layout: "grid" | "list";
+  list_options: {
+    enable_thumbnail: boolean;
+    show_excerpt: boolean;
+    show_author: boolean;
+    show_published_date: boolean;
+    show_reading_time: boolean;
+  };
+  show_on_home: boolean;
+  home_limit: number;
+  allow_comments: boolean;
+  enable_related: boolean;
+  enable_search: boolean;
+  seo: {
+    default_meta_title?: string | null;
+    default_meta_description?: string | null;
+    open_graph_image?: string | null;
+    canonical_url?: string | null;
+  };
+};
+
 export type RuntimeSettings = {
   company_settings: Record<string, unknown>;
   website_settings: Record<string, unknown>;
@@ -80,6 +103,7 @@ export type RuntimeSettings = {
   feature_card_settings: {
     enabled: boolean;
   };
+  blog_settings: RuntimeBlogSettings;
   category_display_settings: RuntimeCategoryDisplaySettings;
   theme_configuration: {
     currency?: string | null;

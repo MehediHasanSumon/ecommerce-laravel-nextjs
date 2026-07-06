@@ -29,6 +29,7 @@ import { useWishlistStore } from '@/store/wishlistStore';
 import { useAuthStore } from '@/store/auth-store';
 import {
   selectBranding,
+  selectBlogSettings,
   selectCategoryDisplaySettings,
   selectCurrencyFingerprint,
   selectFrontendNavigation,
@@ -339,6 +340,7 @@ export function Header() {
   const logout = useAuthStore((state) => state.logout);
   const fetchCurrentUser = useAuthStore((state) => state.fetchCurrentUser);
   const branding = useSettingsStore(selectBranding);
+  const blogSettings = useSettingsStore(selectBlogSettings);
   useSettingsStore(selectCurrencyFingerprint);
 
   useEffect(() => {
@@ -489,9 +491,11 @@ export function Header() {
               <Link href="/about" className="hover:text-foreground transition-colors">
                 About
               </Link>
-              <Link href="/blog" className="hover:text-foreground transition-colors">
-                Blog
-              </Link>
+              {blogSettings.enabled ? (
+                <Link href="/blogs" className="hover:text-foreground transition-colors">
+                  Blog
+                </Link>
+              ) : null}
               <Link href="/contact" className="hover:text-foreground transition-colors">
                 Contact
               </Link>

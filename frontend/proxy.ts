@@ -6,6 +6,7 @@ const apiBaseUrl =
   process.env.AUTH_PROXY_API_BASE_URL ??
   process.env.NEXT_PUBLIC_API_BASE_URL ??
   "http://localhost:8000/api/auth";
+const apiRootUrl = apiBaseUrl.replace(/\/auth\/?$/, "");
 
 type SessionPayload = {
   success?: boolean;
@@ -84,6 +85,29 @@ async function refreshSession(request: NextRequest) {
   }
 }
 
+async function isBlogEnabled(request: NextRequest) {
+  try {
+    const response = await fetch(`${apiRootUrl}/settings/navigation`, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        Cookie: request.headers.get("cookie") ?? "",
+        "X-Requested-With": "XMLHttpRequest",
+      },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      return false;
+    }
+
+    const payload = await response.json() as { data?: { module_settings?: Record<string, boolean> } };
+    return Boolean(payload.data?.module_settings?.blog);
+  } catch {
+    return false;
+  }
+}
+
 async function authenticate(request: NextRequest) {
   const session = await getSession(request);
 
@@ -108,6 +132,15 @@ async function authenticate(request: NextRequest) {
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const blogRoute = pathname === "/blogs" || pathname.startsWith("/blogs/") || pathname === "/blog" || pathname.startsWith("/blog/");
+
+  if (blogRoute && !await isBlogEnabled(request)) {
+    const notFoundUrl = request.nextUrl.clone();
+    notFoundUrl.pathname = "/not-found";
+    notFoundUrl.search = "";
+    return NextResponse.rewrite(notFoundUrl, { status: 404 });
+  }
+
   const protectedRoute = isRoute(pathname, protectedRoutes);
   const publicAuthRoute = isRoute(pathname, publicAuthRoutes);
 
@@ -156,5 +189,7 @@ export const config = {
     "/register",
     "/forgot-password",
     "/reset-password",
+    "/blogs/:path*",
+    "/blog/:path*",
   ],
 };

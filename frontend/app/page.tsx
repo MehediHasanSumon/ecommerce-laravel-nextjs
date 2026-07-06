@@ -19,8 +19,8 @@ import { ProductCard } from '@/components/product/ProductCard';
 import { ProductGridSkeleton } from '@/components/skeleton';
 import { useCountdown } from '@/hooks/useCountdown';
 import { HOMEPAGE_REVIEWS } from '@/mock/reviews';
-import { MOCK_BLOG_POSTS } from '@/mock/blog';
 import { fetchHomePageSections, type HomePageSections } from '@/services/catalog-service';
+import { fetchHomeBlogs, type BlogCard } from '@/services/blog-service';
 import {
   selectCategoryDisplaySettings,
   selectFeatureCardSettings,
@@ -347,6 +347,9 @@ export default function HomePage() {
   const [homeData, setHomeData] = useState<HomePageSections | null>(null);
   const [homeLoading, setHomeLoading] = useState(true);
   const [homeError, setHomeError] = useState(false);
+  const [homeBlogs, setHomeBlogs] = useState<BlogCard[]>([]);
+  const [homeBlogsEnabled, setHomeBlogsEnabled] = useState(false);
+  const [homeBlogsLoading, setHomeBlogsLoading] = useState(true);
   const homeCollections = homeData?.collections ?? [];
   const categoryDisplay = useSettingsStore(selectCategoryDisplaySettings);
   const runtimeCategories = useSettingsStore(selectRuntimeCategories);
@@ -366,6 +369,25 @@ export default function HomePage() {
 
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setHomeBlogsLoading(true);
+    fetchHomeBlogs({ signal: controller.signal })
+      .then((response) => {
+        setHomeBlogs(response.blogs);
+        setHomeBlogsEnabled(response.settings.enabled && response.settings.show_on_home);
+      })
+      .catch(() => {
+        setHomeBlogs([]);
+        setHomeBlogsEnabled(false);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setHomeBlogsLoading(false);
+      });
+
+    return () => controller.abort();
   }, []);
 
   useEffect(() => {
@@ -662,47 +684,54 @@ export default function HomePage() {
         {renderCollections('reviews', 'after')}
 
         {renderCollections('blog', 'before')}
-        {/* Blog */}
-        <section className="py-10">
-          <SectionHeader
-            title="From Our Blog"
-            subtitle="Style guides, reviews, and inspiration"
-            href="/blog"
-          />
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {MOCK_BLOG_POSTS.slice(0, 3).map((post) => (
-              <Link
-                key={post.id}
-                href={`/blog/${post.slug}`}
-                className="group bg-card border border-border rounded-2xl overflow-hidden hover:shadow-md transition-shadow"
-              >
-                <div className="relative aspect-video overflow-hidden">
-                  <Image
-                    src={post.coverImage}
-                    alt={post.title}
-                    fill
-                    className="object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                </div>
-                <div className="p-5">
-                  <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-md">
-                    {post.category}
-                  </span>
-                  <h3 className="font-bold mt-2 mb-1 line-clamp-2 group-hover:text-primary transition-colors text-sm leading-snug">
-                    {post.title}
-                  </h3>
-                  <p className="text-xs text-muted-foreground line-clamp-2">{post.excerpt}</p>
-                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
-                    <span className="text-xs text-muted-foreground">{post.readTime} min read</span>
-                    <span className="text-xs font-semibold text-primary group-hover:underline">
-                      Read more →
-                    </span>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </section>
+        {homeBlogsEnabled || homeBlogsLoading ? (
+          <section className="py-10">
+            <SectionHeader
+              title="From Our Blog"
+              subtitle="Style guides, reviews, and inspiration"
+              href="/blogs"
+            />
+            {homeBlogsLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <div key={index} className="h-72 animate-pulse rounded-2xl bg-muted" />
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {homeBlogs.map((post) => (
+                  <Link
+                    key={post.id}
+                    href={`/blogs/${post.slug}`}
+                    className="group bg-card border border-border rounded-2xl overflow-hidden hover:shadow-md transition-shadow"
+                  >
+                    <div className="relative aspect-video overflow-hidden">
+                      <Image
+                        src={post.featured_image}
+                        alt={post.title}
+                        fill
+                        unoptimized
+                        className="object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                    </div>
+                    <div className="p-5">
+                      <h3 className="font-bold mb-1 line-clamp-2 group-hover:text-primary transition-colors text-sm leading-snug">
+                        {post.title}
+                      </h3>
+                      <p className="text-xs text-muted-foreground line-clamp-2">{post.excerpt}</p>
+                      <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
+                        <span className="text-xs text-muted-foreground">{post.reading_time_minutes} min read</span>
+                        <span className="text-xs font-semibold text-primary group-hover:underline">
+                          Read more →
+                        </span>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </section>
+        ) : null}
         {renderCollections('blog', 'after')}
 
         {renderCollections('newsletter', 'before')}

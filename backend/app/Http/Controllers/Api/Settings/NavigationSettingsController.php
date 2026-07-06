@@ -11,6 +11,7 @@ use App\Services\Admin\Settings\CategoryDisplaySettingsService;
 use App\Services\Admin\Settings\CompanySettingsService;
 use App\Services\Admin\HomeFeatureCardService;
 use App\Services\Admin\Settings\HomeFeatureCardSettingsService;
+use App\Services\Admin\Settings\BlogSettingsService;
 use App\Services\Admin\Settings\MaintenanceModeSettingsService;
 use App\Services\Admin\Settings\PaymentSettingsService;
 use App\Services\Admin\Settings\ShippingSettingsService;
@@ -26,6 +27,7 @@ class NavigationSettingsController extends Controller
         private readonly CompanySettingsService $companySettings,
         private readonly CategoryDisplaySettingsService $categoryDisplaySettings,
         private readonly HomeFeatureCardSettingsService $homeFeatureCardSettings,
+        private readonly BlogSettingsService $blogSettings,
         private readonly HomeFeatureCardService $homeFeatureCards,
         private readonly StoreSettingsService $storeSettings,
         private readonly SocialMediaSettingsService $socialMediaSettings,
@@ -49,6 +51,7 @@ class NavigationSettingsController extends Controller
         $store = $this->storeSettings->get();
         $categoryDisplay = CategoryDisplaySettingResource::make($this->categoryDisplaySettings->get())->resolve();
         $homeFeatureCardSettings = $this->homeFeatureCardSettings->get();
+        $blogSettings = $this->blogSettings->runtime();
         $social = $this->socialMediaSettings->all();
         $payments = $this->paymentSettings->all();
         $shipping = $this->shippingSettings->get();
@@ -63,7 +66,7 @@ class NavigationSettingsController extends Controller
             'categories' => true,
             'brands' => true,
             'offers' => true,
-            'blog' => false,
+            'blog' => (bool) $blogSettings['enabled'],
             'wishlist' => (bool) $store->enable_wishlist,
             'compare' => (bool) $store->enable_compare,
             'reviews' => (bool) $store->enable_reviews,
@@ -88,6 +91,7 @@ class NavigationSettingsController extends Controller
             'feature_card_settings' => [
                 'enabled' => (bool) $homeFeatureCardSettings->enabled,
             ],
+            'blog_settings' => $blogSettings,
             'theme_configuration' => [
                 'currency' => $currency?->currency ?: 'BDT',
                 'currency_symbol' => $currency?->symbol ?: '৳',
@@ -141,7 +145,7 @@ class NavigationSettingsController extends Controller
             ['label' => 'Categories', 'href' => '/categories', 'module' => 'categories', 'enabled' => $modules['categories']],
             ['label' => 'Brands', 'href' => '/brands', 'module' => 'brands', 'enabled' => $modules['brands']],
             ['label' => 'Offers', 'href' => '/deals', 'module' => 'offers', 'enabled' => $modules['offers']],
-            ['label' => 'Blog', 'href' => '/blog', 'module' => 'blog', 'enabled' => $modules['blog']],
+            ['label' => 'Blog', 'href' => '/blogs', 'module' => 'blog', 'enabled' => $modules['blog']],
             ['label' => 'Contact', 'href' => '/contact', 'module' => 'contact', 'enabled' => (bool) ($company->support_email || $company->support_phone || $store->store_email || $store->store_phone)],
         ])->where('enabled', true)->values()->all();
     }
@@ -260,6 +264,7 @@ class NavigationSettingsController extends Controller
                     ['label' => 'Currency Management', 'href' => '/admin/currencies', 'icon' => 'CircleDollarSign', 'enabled' => true],
                     ['label' => 'Discount Management', 'href' => '/admin/discounts', 'icon' => 'CirclePercent', 'enabled' => $modules['offers']],
                     ['label' => 'Review Management', 'href' => '/admin/reviews', 'icon' => 'Star', 'enabled' => $modules['reviews']],
+                    ['label' => 'Blog Management', 'href' => '/admin/blogs', 'icon' => 'Newspaper', 'enabled' => true],
                 ],
             ],
             [
@@ -271,6 +276,7 @@ class NavigationSettingsController extends Controller
                     ['label' => 'Company Settings', 'href' => '/admin/settings/company', 'icon' => 'Building2', 'enabled' => true],
                     ['label' => 'Category Display', 'href' => '/admin/settings/categories', 'icon' => 'LayoutGrid', 'enabled' => true],
                     ['label' => 'Feature Cards', 'href' => '/admin/settings/home-feature-cards', 'icon' => 'BadgeCheck', 'enabled' => true],
+                    ['label' => 'Blog Settings', 'href' => '/admin/settings/blog', 'icon' => 'Newspaper', 'enabled' => true],
                     ['label' => 'Store Settings', 'href' => '/admin/settings/store', 'icon' => 'Store', 'enabled' => true],
                     ['label' => 'Email (SMTP)', 'href' => '/admin/settings/email', 'icon' => 'Mail', 'enabled' => true],
                     ['label' => 'SMS Provider', 'href' => '/admin/settings/sms', 'icon' => 'MessageSquareText', 'enabled' => true],

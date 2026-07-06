@@ -8,6 +8,12 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (Schema::hasColumn('company_settings', 'default_currency')) {
+            Schema::table('company_settings', function (Blueprint $table): void {
+                $table->dropIndex(['default_currency']);
+            });
+        }
+
         Schema::table('company_settings', function (Blueprint $table): void {
             foreach (['currency_symbol', 'default_currency'] as $column) {
                 if (Schema::hasColumn('company_settings', $column)) {

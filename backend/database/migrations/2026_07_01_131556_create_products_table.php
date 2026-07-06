@@ -44,7 +44,7 @@ return new class extends Migration
             $table->index(['status', 'published_at']);
             $table->index(['category_id', 'status']);
             $table->index(['brand_id', 'status']);
-            $table->fullText(['name', 'short_description', 'description']);
+            $table->index('name');
         });
     }
 

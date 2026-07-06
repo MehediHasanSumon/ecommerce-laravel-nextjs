@@ -21,7 +21,7 @@ export const NAV_LINKS = [
   { label: 'Categories', href: '/categories' },
   { label: 'Brands', href: '/brands' },
   { label: 'Deals', href: '/deals' },
-  { label: 'Blog', href: '/blog' },
+  { label: 'Blog', href: '/blogs' },
 ];
 
 export const ACCOUNT_NAV = [
@@ -41,7 +41,7 @@ export const FOOTER_LINKS = {
     { label: 'About Us', href: '/about' },
     { label: 'Careers', href: '/careers' },
     { label: 'Press', href: '/press' },
-    { label: 'Blog', href: '/blog' },
+    { label: 'Blog', href: '/blogs' },
     { label: 'Contact Us', href: '/contact' },
   ],
   support: [

@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use Database\Seeders\Settings\CompanySettingsSeeder;
+use Database\Seeders\Settings\BlogSettingsSeeder;
 use Database\Seeders\Settings\CategoryDisplaySettingsSeeder;
 use Database\Seeders\Settings\EmailSettingsSeeder;
 use Database\Seeders\Settings\HomeFeatureCardSettingsSeeder;
@@ -22,6 +23,7 @@ class SettingsSeeder extends Seeder
     {
         $this->call([
             CompanySettingsSeeder::class,
+            BlogSettingsSeeder::class,
             CategoryDisplaySettingsSeeder::class,
             HomeFeatureCardSettingsSeeder::class,
             StoreSettingsSeeder::class,

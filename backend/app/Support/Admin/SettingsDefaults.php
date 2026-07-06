@@ -78,6 +78,28 @@ class SettingsDefaults
         ];
     }
 
+    public static function blog(): array
+    {
+        return [
+            'enabled' => false,
+            'layout' => 'grid',
+            'list_enable_thumbnail' => true,
+            'list_show_excerpt' => true,
+            'list_show_author' => true,
+            'list_show_published_date' => true,
+            'list_show_reading_time' => true,
+            'show_on_home' => false,
+            'home_limit' => 3,
+            'allow_comments' => true,
+            'enable_related' => true,
+            'enable_search' => true,
+            'default_meta_title' => 'Blog',
+            'default_meta_description' => 'Read the latest articles and updates from our store.',
+            'open_graph_image' => null,
+            'canonical_url' => null,
+        ];
+    }
+
     public static function homeFeatureCardItems(): array
     {
         return [
