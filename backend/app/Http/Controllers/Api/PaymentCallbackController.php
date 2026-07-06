@@ -20,7 +20,7 @@ class PaymentCallbackController extends Controller
 
     public function callback(Request $request, string $gateway): RedirectResponse
     {
-        $setting = $this->payments->setting($gateway);
+        $setting = $this->payments->setting($gateway, requireEnabled: false);
         $result = $this->payments->gateway($gateway)->handleCallback($request, $setting);
         $transaction = $this->findTransaction($gateway, $request);
         $this->logger->log($gateway, 'callback', $request->all(), $transaction, level: $result->status === 'paid' ? 'info' : 'warning');
@@ -34,7 +34,7 @@ class PaymentCallbackController extends Controller
 
     public function webhook(Request $request, string $gateway)
     {
-        $setting = $this->payments->setting($gateway);
+        $setting = $this->payments->setting($gateway, requireEnabled: false);
         $result = $this->payments->gateway($gateway)->handleCallback($request, $setting);
         $transaction = $this->findTransaction($gateway, $request);
         $this->logger->log($gateway, 'webhook', $request->all(), $transaction, level: $result->status === 'paid' ? 'info' : 'warning');
@@ -52,6 +52,9 @@ class PaymentCallbackController extends Controller
             ->where('gateway', $gateway)
             ->where(function ($query) use ($request): void {
                 $query->when($request->input('tran_id'), fn ($q, $value) => $q->orWhere('transaction_key', $value)->orWhere('gateway_transaction_id', $value))
+                    ->when($request->input('session_id'), fn ($q, $value) => $q->orWhere('gateway_payment_id', $value))
+                    ->when($request->input('transaction'), fn ($q, $value) => $q->orWhere('transaction_key', $value))
+                    ->when($request->input('razorpay_order_id'), fn ($q, $value) => $q->orWhere('gateway_payment_id', $value))
                     ->when($request->input('paymentID'), fn ($q, $value) => $q->orWhere('gateway_payment_id', $value))
                     ->when($request->input('order_id') ?? $request->input('orderId'), fn ($q, $value) => $q->orWhere('transaction_key', $value))
                     ->when($request->input('payment_ref_id') ?? $request->input('paymentReferenceId'), fn ($q, $value) => $q->orWhere('gateway_payment_id', $value));

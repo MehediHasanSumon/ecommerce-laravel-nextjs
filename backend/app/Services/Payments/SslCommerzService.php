@@ -6,13 +6,14 @@ use App\Models\Order;
 use App\Models\PaymentTransaction;
 use App\Models\Settings\PaymentGatewaySetting;
 use App\Services\Payments\Concerns\BuildsGatewayUrls;
+use App\Services\Payments\Concerns\RedactsSensitivePaymentData;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Str;
 
 class SslCommerzService implements PaymentGatewayInterface
 {
     use BuildsGatewayUrls;
+    use RedactsSensitivePaymentData;
 
     public function gateway(): string
     {
@@ -28,30 +29,43 @@ class SslCommerzService implements PaymentGatewayInterface
     public function initiate(Order $order, PaymentTransaction $transaction, PaymentGatewaySetting $setting): PaymentResult
     {
         $base = rtrim((string) $this->configValue($setting, 'base_url', $setting->sandbox_mode ? 'https://sandbox.sslcommerz.com' : 'https://securepay.sslcommerz.com'), '/');
+        $successUrl = $this->configValue($setting, 'success_url', route('payments.callback', ['gateway' => 'sslcommerz', 'result' => 'success']));
+        $failUrl = $this->configValue($setting, 'fail_url', route('payments.callback', ['gateway' => 'sslcommerz', 'result' => 'fail']));
+        $cancelUrl = $this->configValue($setting, 'cancel_url', route('payments.callback', ['gateway' => 'sslcommerz', 'result' => 'cancel']));
+        $ipnUrl = $this->configValue($setting, 'ipn_url', route('payments.webhook', ['gateway' => 'sslcommerz']));
         $payload = [
             'store_id' => $setting->merchant_id,
             'store_passwd' => $setting->secret_key,
             'total_amount' => number_format($order->total_cents / 100, 2, '.', ''),
             'currency' => $order->currency,
             'tran_id' => $transaction->transaction_key,
-            'success_url' => route('payments.callback', ['gateway' => 'sslcommerz', 'result' => 'success']),
-            'fail_url' => route('payments.callback', ['gateway' => 'sslcommerz', 'result' => 'fail']),
-            'cancel_url' => route('payments.callback', ['gateway' => 'sslcommerz', 'result' => 'cancel']),
-            'ipn_url' => route('payments.webhook', ['gateway' => 'sslcommerz']),
+            'success_url' => $successUrl,
+            'fail_url' => $failUrl,
+            'cancel_url' => $cancelUrl,
+            'ipn_url' => $ipnUrl,
             'cus_name' => $order->billing_address['full_name'] ?? 'Customer',
             'cus_email' => $order->billing_address['email'] ?? 'customer@example.com',
             'cus_phone' => $order->billing_address['phone'] ?? '',
             'cus_add1' => $order->billing_address['address_line'] ?? '',
             'cus_city' => $order->billing_address['city'] ?? '',
+            'cus_state' => $order->billing_address['state'] ?? '',
+            'cus_postcode' => $order->billing_address['postal_code'] ?? '',
             'cus_country' => $order->billing_address['country'] ?? 'Bangladesh',
+            'ship_name' => $order->shipping_address['full_name'] ?? $order->billing_address['full_name'] ?? 'Customer',
+            'ship_add1' => $order->shipping_address['address_line'] ?? $order->billing_address['address_line'] ?? '',
+            'ship_city' => $order->shipping_address['city'] ?? $order->billing_address['city'] ?? '',
+            'ship_state' => $order->shipping_address['state'] ?? $order->billing_address['state'] ?? '',
+            'ship_postcode' => $order->shipping_address['postal_code'] ?? $order->billing_address['postal_code'] ?? '',
+            'ship_country' => $order->shipping_address['country'] ?? $order->billing_address['country'] ?? 'Bangladesh',
             'shipping_method' => 'YES',
+            'num_of_item' => max(1, $order->items()->count()),
             'product_name' => 'Order '.$order->order_number,
             'product_category' => 'ecommerce',
             'product_profile' => 'general',
         ];
 
         $response = Http::asForm()->timeout(20)->post($base.'/gwprocess/v4/api.php', $payload)->json();
-        $transaction->update(['request_payload' => $payload, 'response_payload' => $response]);
+        $transaction->update(['request_payload' => $this->redact($payload), 'response_payload' => $response]);
 
         abort_unless(($response['status'] ?? null) === 'SUCCESS' && ! empty($response['GatewayPageURL']), 502, 'SSLCommerz checkout could not be initialized.');
 
@@ -74,7 +88,9 @@ class SslCommerzService implements PaymentGatewayInterface
 
         $amountMatches = abs(((float) ($response['amount'] ?? 0)) - ($transaction->amount_cents / 100)) < 0.01;
         $currencyMatches = strtoupper((string) ($response['currency'] ?? '')) === strtoupper($transaction->currency);
-        $paid = in_array($response['status'] ?? null, ['VALID', 'VALIDATED'], true) && $amountMatches && $currencyMatches;
+        $storeMatches = ($response['store_id'] ?? $setting->merchant_id) === $setting->merchant_id;
+        $transactionMatches = ($response['tran_id'] ?? $payload['tran_id'] ?? null) === $transaction->transaction_key;
+        $paid = in_array($response['status'] ?? null, ['VALID', 'VALIDATED'], true) && $amountMatches && $currencyMatches && $storeMatches && $transactionMatches;
 
         $transaction->update([
             'status' => $paid ? 'paid' : 'failed',

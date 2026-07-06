@@ -14,11 +14,15 @@ class PaymentGatewayManager
     public function __construct(
         CashOnDeliveryService $cod,
         BankTransferService $bankTransfer,
+        StripeService $stripe,
+        PaypalService $paypal,
+        RazorpayService $razorpay,
         SslCommerzService $sslCommerz,
         BkashService $bkash,
         NagadService $nagad,
+        RocketService $rocket,
     ) {
-        $this->gateways = collect([$cod, $bankTransfer, $sslCommerz, $bkash, $nagad])->keyBy->gateway()->all();
+        $this->gateways = collect([$cod, $bankTransfer, $stripe, $paypal, $razorpay, $sslCommerz, $bkash, $nagad, $rocket])->keyBy->gateway()->all();
     }
 
     public function enabledSettings()
@@ -32,12 +36,14 @@ class PaymentGatewayManager
             ->values();
     }
 
-    public function setting(string $gateway): PaymentGatewaySetting
+    public function setting(string $gateway, bool $requireEnabled = true): PaymentGatewaySetting
     {
         $this->ensureDefaultSettings();
 
         $setting = PaymentGatewaySetting::query()->where('gateway', $gateway)->firstOrFail();
-        abort_unless($setting->enabled, 422, 'The selected payment method is not enabled.');
+        if ($requireEnabled) {
+            abort_unless($setting->enabled, 422, 'The selected payment method is not enabled.');
+        }
         abort_unless(isset($this->gateways[$gateway]), 422, 'The selected payment method is not supported by checkout.');
 
         return $setting;

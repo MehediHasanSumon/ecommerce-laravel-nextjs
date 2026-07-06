@@ -18,6 +18,13 @@ class PaymentSettingsService
     public function replace(array $gateways, ?int $userId = null)
     {
         foreach ($gateways as $index => $gateway) {
+            $existing = PaymentGatewaySetting::query()->where('gateway', $gateway['gateway'])->first();
+            foreach (['secret_key', 'api_key', 'webhook_secret'] as $secretField) {
+                if (($gateway[$secretField] ?? null) === '********') {
+                    $gateway[$secretField] = $existing?->{$secretField};
+                }
+            }
+
             if (in_array($gateway['gateway'], self::OFFLINE_GATEWAYS, true)) {
                 $gateway = [
                     ...$gateway,

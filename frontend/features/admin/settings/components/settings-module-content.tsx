@@ -91,6 +91,11 @@ type PaymentGatewayRow = {
   display_order: number;
 };
 
+function gatewayConfigValue(row: PaymentGatewayRow, key: string) {
+  const value = row.additional_configuration?.[key];
+  return typeof value === "string" || typeof value === "number" ? String(value) : "";
+}
+
 type SocialMediaRow = {
   platform: string;
   url: string;
@@ -766,6 +771,13 @@ export function PaymentSettingsContent() {
     setGateways((rows) => rows.map((row, rowIndex) => rowIndex === index ? { ...row, [key]: value } : row));
   }
 
+  function patchGatewayConfig(index: number, key: string, value: string) {
+    setGateways((rows) => rows.map((row, rowIndex) => rowIndex === index ? {
+      ...row,
+      additional_configuration: { ...(row.additional_configuration ?? {}), [key]: value },
+    } : row));
+  }
+
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     try {
@@ -810,14 +822,63 @@ export function PaymentSettingsContent() {
                 >
                   <FormGrid>
                     <ToggleSwitch label="Enable Gateway" checked={Boolean(gateway.enabled)} onChange={(checked) => patch(index, "enabled", checked)} />
+                    <TextInput label="Display Name" value={gatewayConfigValue(gateway, "display_name")} onChange={(event) => patchGatewayConfig(index, "display_name", event.target.value)} />
+                    <TextInput label="Display Description" value={gatewayConfigValue(gateway, "checkout_description")} onChange={(event) => patchGatewayConfig(index, "checkout_description", event.target.value)} />
+                    <TextInput label="Sort Order" type="number" value={String(gateway.display_order ?? index)} onChange={(event) => patch(index, "display_order", Number(event.target.value))} />
+                    <TextInput label="Gateway Logo/Icon URL" value={gatewayConfigValue(gateway, "logo_url")} onChange={(event) => patchGatewayConfig(index, "logo_url", event.target.value)} />
                     {!isOfflineGateway ? (
                       <>
                         <ToggleSwitch label="Sandbox Mode" checked={Boolean(gateway.sandbox_mode)} onChange={(checked) => patch(index, "sandbox_mode", checked)} />
-                        <TextInput label="Public Key" value={gateway.public_key ?? ""} onChange={(event) => patch(index, "public_key", event.target.value)} />
-                        <TextInput label="Secret Key" type="password" value={gateway.secret_key ?? ""} onChange={(event) => patch(index, "secret_key", event.target.value)} />
-                        <TextInput label="API Key" type="password" value={gateway.api_key ?? ""} onChange={(event) => patch(index, "api_key", event.target.value)} />
-                        <TextInput label="Merchant ID" value={gateway.merchant_id ?? ""} onChange={(event) => patch(index, "merchant_id", event.target.value)} />
-                        <TextInput label="Webhook Secret" type="password" value={gateway.webhook_secret ?? ""} onChange={(event) => patch(index, "webhook_secret", event.target.value)} />
+                        {gateway.gateway === "sslcommerz" ? (
+                          <>
+                            <TextInput label="Store ID" value={gateway.merchant_id ?? ""} onChange={(event) => patch(index, "merchant_id", event.target.value)} />
+                            <TextInput label="Store Password" type="password" value={gateway.secret_key ?? ""} onChange={(event) => patch(index, "secret_key", event.target.value)} />
+                            <TextInput label="Success URL" value={gatewayConfigValue(gateway, "success_url")} onChange={(event) => patchGatewayConfig(index, "success_url", event.target.value)} />
+                            <TextInput label="Fail URL" value={gatewayConfigValue(gateway, "fail_url")} onChange={(event) => patchGatewayConfig(index, "fail_url", event.target.value)} />
+                            <TextInput label="Cancel URL" value={gatewayConfigValue(gateway, "cancel_url")} onChange={(event) => patchGatewayConfig(index, "cancel_url", event.target.value)} />
+                            <TextInput label="IPN/Webhook URL" value={gatewayConfigValue(gateway, "ipn_url")} onChange={(event) => patchGatewayConfig(index, "ipn_url", event.target.value)} />
+                            <TextInput label="Validation Base URL" value={gatewayConfigValue(gateway, "validation_base_url")} onChange={(event) => patchGatewayConfig(index, "validation_base_url", event.target.value)} />
+                          </>
+                        ) : gateway.gateway === "stripe" ? (
+                          <>
+                            <TextInput label="Publishable Key" value={gateway.public_key ?? ""} onChange={(event) => patch(index, "public_key", event.target.value)} />
+                            <TextInput label="Secret Key" type="password" value={gateway.secret_key ?? ""} onChange={(event) => patch(index, "secret_key", event.target.value)} />
+                            <TextInput label="Webhook Secret" type="password" value={gateway.webhook_secret ?? ""} onChange={(event) => patch(index, "webhook_secret", event.target.value)} />
+                          </>
+                        ) : gateway.gateway === "paypal" ? (
+                          <>
+                            <TextInput label="Client ID" value={gateway.public_key ?? ""} onChange={(event) => patch(index, "public_key", event.target.value)} />
+                            <TextInput label="Client Secret" type="password" value={gateway.secret_key ?? ""} onChange={(event) => patch(index, "secret_key", event.target.value)} />
+                          </>
+                        ) : gateway.gateway === "razorpay" ? (
+                          <>
+                            <TextInput label="Key ID" value={gateway.public_key ?? ""} onChange={(event) => patch(index, "public_key", event.target.value)} />
+                            <TextInput label="Key Secret" type="password" value={gateway.secret_key ?? ""} onChange={(event) => patch(index, "secret_key", event.target.value)} />
+                            <TextInput label="Webhook Secret" type="password" value={gateway.webhook_secret ?? ""} onChange={(event) => patch(index, "webhook_secret", event.target.value)} />
+                          </>
+                        ) : gateway.gateway === "bkash" ? (
+                          <>
+                            <TextInput label="Username" value={gateway.public_key ?? ""} onChange={(event) => patch(index, "public_key", event.target.value)} />
+                            <TextInput label="Password" type="password" value={gateway.secret_key ?? ""} onChange={(event) => patch(index, "secret_key", event.target.value)} />
+                            <TextInput label="App Key" type="password" value={gateway.api_key ?? ""} onChange={(event) => patch(index, "api_key", event.target.value)} />
+                            <TextInput label="App Secret" type="password" value={gateway.merchant_id ?? ""} onChange={(event) => patch(index, "merchant_id", event.target.value)} />
+                          </>
+                        ) : gateway.gateway === "nagad" ? (
+                          <>
+                            <TextInput label="Merchant ID" value={gateway.merchant_id ?? ""} onChange={(event) => patch(index, "merchant_id", event.target.value)} />
+                            <TextInput label="Merchant Number" value={gatewayConfigValue(gateway, "merchant_number")} onChange={(event) => patchGatewayConfig(index, "merchant_number", event.target.value)} />
+                            <TextInput label="Public Key" value={gateway.public_key ?? ""} onChange={(event) => patch(index, "public_key", event.target.value)} />
+                            <TextInput label="Private Key" type="password" value={gateway.secret_key ?? ""} onChange={(event) => patch(index, "secret_key", event.target.value)} />
+                          </>
+                        ) : (
+                          <>
+                            <TextInput label="Public Key" value={gateway.public_key ?? ""} onChange={(event) => patch(index, "public_key", event.target.value)} />
+                            <TextInput label="Secret Key" type="password" value={gateway.secret_key ?? ""} onChange={(event) => patch(index, "secret_key", event.target.value)} />
+                            <TextInput label="API Key" type="password" value={gateway.api_key ?? ""} onChange={(event) => patch(index, "api_key", event.target.value)} />
+                            <TextInput label="Merchant ID" value={gateway.merchant_id ?? ""} onChange={(event) => patch(index, "merchant_id", event.target.value)} />
+                            <TextInput label="Webhook Secret" type="password" value={gateway.webhook_secret ?? ""} onChange={(event) => patch(index, "webhook_secret", event.target.value)} />
+                          </>
+                        )}
                       </>
                     ) : null}
                   </FormGrid>
