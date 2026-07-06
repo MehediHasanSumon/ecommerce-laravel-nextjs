@@ -147,6 +147,7 @@ const timezoneOptions = [
 
 const smsProviderLabels: Record<string, string> = { twilio: "Twilio", vonage: "Vonage", ssl_wireless: "SSL Wireless", custom: "Custom Provider" };
 const paymentGatewayLabels: Record<string, string> = { stripe: "Stripe", sslcommerz: "SSLCommerz", bkash: "bKash", nagad: "Nagad", rocket: "Rocket", paypal: "PayPal", razorpay: "Razorpay", cash_on_delivery: "Cash On Delivery", bank_transfer: "Bank Transfer" };
+const offlinePaymentGateways = new Set(["cash_on_delivery", "bank_transfer"]);
 
 const yesNo = [
   { label: "Left", value: "left" },
@@ -769,7 +770,18 @@ export function PaymentSettingsContent() {
     event.preventDefault();
     try {
       setSaving(true);
-      const response = await settingsApi.update<{ gateways: PaymentGatewayRow[] }, { gateways: PaymentGatewayRow[] }>("payment", { gateways });
+      const payload = gateways.map((gateway) => offlinePaymentGateways.has(gateway.gateway)
+        ? {
+            ...gateway,
+            sandbox_mode: false,
+            public_key: "",
+            secret_key: "",
+            api_key: "",
+            merchant_id: "",
+            webhook_secret: "",
+          }
+        : gateway);
+      const response = await settingsApi.update<{ gateways: PaymentGatewayRow[] }, { gateways: PaymentGatewayRow[] }>("payment", { gateways: payload });
       setGateways(response.data.gateways);
       setInitial(response.data.gateways);
       toast.success(response.message || "Payment settings saved.");
@@ -786,19 +798,32 @@ export function PaymentSettingsContent() {
         <SettingsGrid>
           <SettingsSubnav items={settingsNavItems} pathname={pathname} />
           <div className="grid gap-4 2xl:grid-cols-2">
-            {loading ? <SettingsLoading /> : gateways.map((gateway, index) => (
-              <SettingsSection key={gateway.gateway} title={paymentGatewayLabels[String(gateway.gateway)] ?? String(gateway.gateway)} description="Gateway status, mode, credentials, merchant identity, and webhook secret." icon={CreditCard}>
-                <FormGrid>
-                  <ToggleSwitch label="Enable Gateway" checked={Boolean(gateway.enabled)} onChange={(checked) => patch(index, "enabled", checked)} />
-                  <ToggleSwitch label="Sandbox Mode" checked={Boolean(gateway.sandbox_mode)} onChange={(checked) => patch(index, "sandbox_mode", checked)} />
-                  <TextInput label="Public Key" value={gateway.public_key ?? ""} onChange={(event) => patch(index, "public_key", event.target.value)} />
-                  <TextInput label="Secret Key" type="password" value={gateway.secret_key ?? ""} onChange={(event) => patch(index, "secret_key", event.target.value)} />
-                  <TextInput label="API Key" type="password" value={gateway.api_key ?? ""} onChange={(event) => patch(index, "api_key", event.target.value)} />
-                  <TextInput label="Merchant ID" value={gateway.merchant_id ?? ""} onChange={(event) => patch(index, "merchant_id", event.target.value)} />
-                  <TextInput label="Webhook Secret" type="password" value={gateway.webhook_secret ?? ""} onChange={(event) => patch(index, "webhook_secret", event.target.value)} />
-                </FormGrid>
-              </SettingsSection>
-            ))}
+            {loading ? <SettingsLoading /> : gateways.map((gateway, index) => {
+              const isOfflineGateway = offlinePaymentGateways.has(gateway.gateway);
+
+              return (
+                <SettingsSection
+                  key={gateway.gateway}
+                  title={paymentGatewayLabels[String(gateway.gateway)] ?? String(gateway.gateway)}
+                  description={isOfflineGateway ? "Gateway status only. No API credentials are required." : "Gateway status, mode, credentials, merchant identity, and webhook secret."}
+                  icon={CreditCard}
+                >
+                  <FormGrid>
+                    <ToggleSwitch label="Enable Gateway" checked={Boolean(gateway.enabled)} onChange={(checked) => patch(index, "enabled", checked)} />
+                    {!isOfflineGateway ? (
+                      <>
+                        <ToggleSwitch label="Sandbox Mode" checked={Boolean(gateway.sandbox_mode)} onChange={(checked) => patch(index, "sandbox_mode", checked)} />
+                        <TextInput label="Public Key" value={gateway.public_key ?? ""} onChange={(event) => patch(index, "public_key", event.target.value)} />
+                        <TextInput label="Secret Key" type="password" value={gateway.secret_key ?? ""} onChange={(event) => patch(index, "secret_key", event.target.value)} />
+                        <TextInput label="API Key" type="password" value={gateway.api_key ?? ""} onChange={(event) => patch(index, "api_key", event.target.value)} />
+                        <TextInput label="Merchant ID" value={gateway.merchant_id ?? ""} onChange={(event) => patch(index, "merchant_id", event.target.value)} />
+                        <TextInput label="Webhook Secret" type="password" value={gateway.webhook_secret ?? ""} onChange={(event) => patch(index, "webhook_secret", event.target.value)} />
+                      </>
+                    ) : null}
+                  </FormGrid>
+                </SettingsSection>
+              );
+            })}
           </div>
         </SettingsGrid>
       </SettingsPageShell>

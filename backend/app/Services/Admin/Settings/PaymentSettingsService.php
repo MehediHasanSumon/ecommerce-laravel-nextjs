@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Cache;
 class PaymentSettingsService
 {
     public const GATEWAYS = ['stripe', 'sslcommerz', 'bkash', 'nagad', 'rocket', 'paypal', 'razorpay', 'cash_on_delivery', 'bank_transfer'];
+    private const OFFLINE_GATEWAYS = ['cash_on_delivery', 'bank_transfer'];
 
     public function all()
     {
@@ -17,6 +18,18 @@ class PaymentSettingsService
     public function replace(array $gateways, ?int $userId = null)
     {
         foreach ($gateways as $index => $gateway) {
+            if (in_array($gateway['gateway'], self::OFFLINE_GATEWAYS, true)) {
+                $gateway = [
+                    ...$gateway,
+                    'sandbox_mode' => false,
+                    'public_key' => null,
+                    'secret_key' => null,
+                    'api_key' => null,
+                    'merchant_id' => null,
+                    'webhook_secret' => null,
+                ];
+            }
+
             PaymentGatewaySetting::query()->updateOrCreate(
                 ['gateway' => $gateway['gateway']],
                 [...$gateway, 'display_order' => $gateway['display_order'] ?? $index, 'updated_by' => $userId]

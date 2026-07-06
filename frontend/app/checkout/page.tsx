@@ -20,7 +20,7 @@ import {
 } from '@/services/checkout-service';
 import { toast } from 'sonner';
 
-const STEPS = ['Cart', 'Shipping', 'Payment', 'Review'];
+const STEPS = ['Cart', 'Shipping', 'Payment'];
 
 function StepIndicator({ current }: { current: number }) {
   return (
@@ -252,7 +252,6 @@ export default function CheckoutPage() {
   const fieldClass =
     'w-full px-4 py-3 bg-muted border border-transparent rounded-xl text-sm focus:border-primary focus:bg-background outline-none transition-colors';
   const selectedShippingMethod = shippingMethods.find((method) => method.id === selectedShippingMethodId) ?? null;
-  const selectedPayment = paymentMethods.find((method) => method.gateway === selectedPaymentMethod) ?? null;
   const couponDiscount = cart.summary?.couponDiscount ?? cart.coupon?.discount ?? 0;
   const hasCoupon = Boolean(cart.couponCode);
   const shippingAmount = cart.coupon?.freeShipping ? 0 : (selectedShippingMethod?.charge ?? 0);
@@ -452,76 +451,11 @@ export default function CheckoutPage() {
                     Back
                   </button>
                   <button
-                    onClick={() => setStep(3)}
+                    onClick={handlePlaceOrder}
+                    disabled={isSubmitting || paymentMethods.length === 0}
                     className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-primary text-primary-foreground rounded-xl font-bold hover:opacity-90 transition-opacity text-sm"
                   >
-                    Review Order <ChevronRight size={16} />
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {step === 3 && (
-              <div className="bg-card border border-border rounded-2xl p-6">
-                <h2 className="font-bold mb-6">Review Your Order</h2>
-                <div className="space-y-4 mb-6">
-                  {items.map((item) => (
-                    <div key={item.id} className="flex items-center gap-3">
-                      <div className="relative w-14 h-14 rounded-xl overflow-hidden bg-muted shrink-0">
-                        <Image
-                          src={item.product.thumbnail}
-                          alt={item.product.name}
-                          fill
-                          className="object-cover"
-                        />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{item.product.name}</p>
-                        <p className="text-xs text-muted-foreground">Qty: {item.quantity}</p>
-                      </div>
-                      <span className="font-bold text-sm">
-                        {formatPrice((item.subtotal ?? item.product.price * item.quantity))}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-                <div className="bg-muted rounded-xl p-4 mb-6 space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Shipping to:</span>
-                    <span className="font-medium">
-                      {selectedBillingAddress?.city || form.city || 'Dhaka'}, {selectedBillingAddress?.state || form.state || 'Dhaka'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Payment:</span>
-                    <span className="font-medium">{selectedPayment?.name ?? 'Not selected'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Delivery:</span>
-                    <span className="font-medium">
-                      {selectedShippingMethod?.name ?? 'Not selected'}
-                    </span>
-                  </div>
-                </div>
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setStep(2)}
-                    className="flex-1 py-3.5 border border-border rounded-xl font-semibold hover:bg-muted transition-colors text-sm"
-                  >
-                    Back
-                  </button>
-                  <button
-                    onClick={handlePlaceOrder}
-                    disabled={isSubmitting}
-                    className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-emerald-500 text-white rounded-xl font-bold hover:bg-emerald-600 transition-colors text-sm disabled:opacity-50"
-                  >
-                    {isSubmitting ? (
-                      'Placing order...'
-                    ) : (
-                      <>
-                        <Check size={16} /> Place Order
-                      </>
-                    )}
+                    {isSubmitting ? 'Placing order...' : <>Place Order <ChevronRight size={16} /></>}
                   </button>
                 </div>
               </div>
