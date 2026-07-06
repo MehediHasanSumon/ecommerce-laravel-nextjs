@@ -11,6 +11,14 @@ import { selectCurrencyFingerprint, useSettingsStore } from '@/store/settings-st
 import { formatPrice } from '@/utils/format';
 import { useRouter } from 'next/navigation';
 import { fetchShippingMethods, type ShippingMethod } from '@/services/catalog-service';
+import {
+  fetchAddresses,
+  fetchPaymentMethods,
+  placeOrder,
+  type CustomerAddress,
+  type PaymentMethod,
+} from '@/services/checkout-service';
+import { toast } from 'sonner';
 
 const STEPS = ['Cart', 'Shipping', 'Payment', 'Review'];
 
@@ -49,6 +57,12 @@ export default function CheckoutPage() {
   const [shippingMethods, setShippingMethods] = useState<ShippingMethod[]>([]);
   const [shippingLoading, setShippingLoading] = useState(true);
   const [selectedShippingMethodId, setSelectedShippingMethodId] = useState<string>('');
+  const [addresses, setAddresses] = useState<CustomerAddress[]>([]);
+  const [selectedBillingAddressId, setSelectedBillingAddressId] = useState<string>('');
+  const [sameAsBilling, setSameAsBilling] = useState(true);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [paymentLoading, setPaymentLoading] = useState(true);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
   const [form, setForm] = useState({
     fullName: '',
     email: '',
@@ -56,12 +70,11 @@ export default function CheckoutPage() {
     address: '',
     city: '',
     state: '',
+    district: '',
+    area: '',
     zip: '',
-    country: 'US',
-    cardName: '',
-    cardNumber: '',
-    expiry: '',
-    cvv: '',
+    country: 'Bangladesh',
+    label: 'Home',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
@@ -70,7 +83,6 @@ export default function CheckoutPage() {
   const cart = useCartStore((s) => s.cart);
   const getSubtotal = useCartStore((s) => s.getSubtotal);
   const getTax = useCartStore((s) => s.getTax);
-  const clearCart = useCartStore((s) => s.clearCart);
   const initializeCart = useCartStore((s) => s.initialize);
   const applyCoupon = useCartStore((s) => s.applyCoupon);
   const removeCoupon = useCartStore((s) => s.removeCoupon);
@@ -102,6 +114,55 @@ export default function CheckoutPage() {
       });
 
     return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    setPaymentLoading(true);
+
+    fetchPaymentMethods()
+      .then((methods) => {
+        if (!active) {
+          return;
+        }
+        setPaymentMethods(methods);
+        setSelectedPaymentMethod((current) => current || methods[0]?.gateway || '');
+      })
+      .catch(() => {
+        if (active) {
+          setPaymentMethods([]);
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setPaymentLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    fetchAddresses()
+      .then((savedAddresses) => {
+        if (!active) {
+          return;
+        }
+        setAddresses(savedAddresses);
+        const defaultAddress = savedAddresses.find((address) => address.isDefaultBilling) ?? savedAddresses[0];
+        if (defaultAddress) {
+          setSelectedBillingAddressId(defaultAddress.id);
+        }
+      })
+      .catch(() => undefined);
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -145,17 +206,55 @@ export default function CheckoutPage() {
     );
   }
 
+  const selectedBillingAddress = addresses.find((address) => address.id === selectedBillingAddressId) ?? null;
+  const checkoutAddress = {
+    label: form.label,
+    fullName: form.fullName,
+    email: form.email,
+    phone: form.phone,
+    addressLine: form.address,
+    city: form.city,
+    state: form.state,
+    district: form.district || form.city,
+    area: form.area,
+    postalCode: form.zip,
+    country: form.country,
+  };
+
   const handlePlaceOrder = async () => {
+    if (!selectedShippingMethodId || !selectedPaymentMethod) {
+      toast.error('Please select shipping and payment methods.');
+      return;
+    }
+
     setIsSubmitting(true);
-    await new Promise((r) => setTimeout(r, 1500));
-    await clearCart();
-    router.push('/order-success');
+    try {
+      const response = await placeOrder({
+        billing_address_id: selectedBillingAddress ? Number(selectedBillingAddress.id) : undefined,
+        billing_address: selectedBillingAddress ? undefined : checkoutAddress,
+        same_as_billing: sameAsBilling,
+        shipping_method_id: Number(selectedShippingMethodId),
+        payment_method: selectedPaymentMethod,
+      });
+
+      if (response.payment.redirectUrl) {
+        window.location.assign(response.payment.redirectUrl);
+        return;
+      }
+
+      router.push(`/order-success?order=${encodeURIComponent(response.order.orderNumber)}`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to place order. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const updateForm = (key: string, value: string) => setForm((f) => ({ ...f, [key]: value }));
   const fieldClass =
     'w-full px-4 py-3 bg-muted border border-transparent rounded-xl text-sm focus:border-primary focus:bg-background outline-none transition-colors';
   const selectedShippingMethod = shippingMethods.find((method) => method.id === selectedShippingMethodId) ?? null;
+  const selectedPayment = paymentMethods.find((method) => method.gateway === selectedPaymentMethod) ?? null;
   const couponDiscount = cart.summary?.couponDiscount ?? cart.coupon?.discount ?? 0;
   const hasCoupon = Boolean(cart.couponCode);
   const shippingAmount = cart.coupon?.freeShipping ? 0 : (selectedShippingMethod?.charge ?? 0);
@@ -212,8 +311,46 @@ export default function CheckoutPage() {
                   <MapPin size={18} className="text-primary" />
                   <h2 className="font-bold">Shipping Information</h2>
                 </div>
+                {addresses.length > 0 && (
+                  <div className="mb-5 space-y-2">
+                    {addresses.map((address) => {
+                      const selected = selectedBillingAddressId === address.id;
+
+                      return (
+                        <button
+                          key={address.id}
+                          type="button"
+                          onClick={() => setSelectedBillingAddressId(address.id)}
+                          className={`w-full rounded-xl border p-3 text-left transition-colors ${
+                            selected
+                              ? 'border-primary bg-primary/5'
+                              : 'border-border hover:border-primary/40 hover:bg-muted/50'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold">{address.label} · {address.fullName}</p>
+                              <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
+                                {address.addressLine}, {address.city}, {address.state}
+                              </p>
+                            </div>
+                            {selected && <Check size={16} className="text-primary" />}
+                          </div>
+                        </button>
+                      );
+                    })}
+                    <button
+                      type="button"
+                      onClick={() => setSelectedBillingAddressId('')}
+                      className="text-left text-sm font-medium text-primary transition-colors hover:underline"
+                    >
+                      Add a new address
+                    </button>
+                  </div>
+                )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {[
+                    { label: 'Address Label', key: 'label', placeholder: 'Home' },
                     { label: 'Full Name', key: 'fullName', placeholder: 'John Doe', col: 2 },
                     {
                       label: 'Email',
@@ -225,6 +362,8 @@ export default function CheckoutPage() {
                     { label: 'Street Address', key: 'address', placeholder: '123 Main St', col: 2 },
                     { label: 'City', key: 'city', placeholder: 'New York' },
                     { label: 'State', key: 'state', placeholder: 'NY' },
+                    { label: 'District', key: 'district', placeholder: 'Dhaka' },
+                    { label: 'Area / Zone', key: 'area', placeholder: 'Dhanmondi' },
                     { label: 'ZIP Code', key: 'zip', placeholder: '10001' },
                     { label: 'Country', key: 'country', placeholder: 'US' },
                   ].map(({ label, key, placeholder, col, type }) => (
@@ -238,10 +377,20 @@ export default function CheckoutPage() {
                         onChange={(e) => updateForm(key, e.target.value)}
                         placeholder={placeholder}
                         className={fieldClass}
+                        disabled={Boolean(selectedBillingAddress)}
                       />
                     </div>
                   ))}
                 </div>
+                <label className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={sameAsBilling}
+                    onChange={(event) => setSameAsBilling(event.target.checked)}
+                    className="h-4 w-4 rounded border-border"
+                  />
+                  Shipping address same as billing address
+                </label>
                 <button
                   onClick={() => setStep(2)}
                   className="mt-6 w-full flex items-center justify-center gap-2 py-3.5 bg-primary text-primary-foreground rounded-xl font-bold hover:opacity-90 transition-opacity"
@@ -260,58 +409,43 @@ export default function CheckoutPage() {
                   <span className="text-xs text-muted-foreground">Encrypted & secure</span>
                 </div>
                 <div className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-semibold mb-1.5 text-muted-foreground uppercase tracking-wide">
-                      Name on Card
-                    </label>
-                    <input
-                      type="text"
-                      value={form.cardName}
-                      onChange={(e) => updateForm('cardName', e.target.value)}
-                      placeholder="John Doe"
-                      className={fieldClass}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold mb-1.5 text-muted-foreground uppercase tracking-wide">
-                      Card Number
-                    </label>
-                    <input
-                      type="text"
-                      value={form.cardNumber}
-                      onChange={(e) =>
-                        updateForm('cardNumber', e.target.value.replace(/\D/g, '').slice(0, 16))
-                      }
-                      placeholder="1234 5678 9012 3456"
-                      className={fieldClass}
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-semibold mb-1.5 text-muted-foreground uppercase tracking-wide">
-                        Expiry
-                      </label>
-                      <input
-                        type="text"
-                        value={form.expiry}
-                        onChange={(e) => updateForm('expiry', e.target.value)}
-                        placeholder="MM/YY"
-                        className={fieldClass}
-                      />
+                  {paymentLoading ? (
+                    <div className="space-y-2">
+                      <div className="h-14 rounded-xl bg-muted animate-pulse" />
+                      <div className="h-14 rounded-xl bg-muted animate-pulse" />
                     </div>
-                    <div>
-                      <label className="block text-xs font-semibold mb-1.5 text-muted-foreground uppercase tracking-wide">
-                        CVV
-                      </label>
-                      <input
-                        type="text"
-                        value={form.cvv}
-                        onChange={(e) => updateForm('cvv', e.target.value.slice(0, 4))}
-                        placeholder="123"
-                        className={fieldClass}
-                      />
-                    </div>
-                  </div>
+                  ) : paymentMethods.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No payment methods available right now.</p>
+                  ) : (
+                    paymentMethods.map((method) => {
+                      const selected = method.gateway === selectedPaymentMethod;
+
+                      return (
+                        <button
+                          key={method.gateway}
+                          type="button"
+                          onClick={() => setSelectedPaymentMethod(method.gateway)}
+                          className={`w-full rounded-xl border p-3 text-left transition-colors ${
+                            selected
+                              ? 'border-primary bg-primary/5'
+                              : 'border-border hover:border-primary/40 hover:bg-muted/50'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold">{method.name}</p>
+                              {method.description && (
+                                <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
+                                  {method.description}
+                                </p>
+                              )}
+                            </div>
+                            {selected && <Check size={16} className="text-primary" />}
+                          </div>
+                        </button>
+                      );
+                    })
+                  )}
                 </div>
                 <div className="mt-6 flex gap-3">
                   <button
@@ -358,14 +492,12 @@ export default function CheckoutPage() {
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Shipping to:</span>
                     <span className="font-medium">
-                      {form.city || 'New York'}, {form.state || 'NY'}
+                      {selectedBillingAddress?.city || form.city || 'Dhaka'}, {selectedBillingAddress?.state || form.state || 'Dhaka'}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Payment:</span>
-                    <span className="font-medium">
-                      Card ending in {form.cardNumber.slice(-4) || '****'}
-                    </span>
+                    <span className="font-medium">{selectedPayment?.name ?? 'Not selected'}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Delivery:</span>

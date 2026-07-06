@@ -23,6 +23,7 @@ class PaymentSettingsService
             );
         }
         Cache::forget('settings.navigation.runtime');
+        Cache::forget('checkout.payment-methods.enabled');
         return $this->all();
     }
 }

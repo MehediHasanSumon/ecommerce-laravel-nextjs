@@ -24,8 +24,11 @@ use App\Http\Controllers\Api\Admin\UserManagementController;
 use App\Http\Controllers\Api\BrandCatalogController;
 use App\Http\Controllers\Api\BlogCatalogController;
 use App\Http\Controllers\Api\CartController;
+use App\Http\Controllers\Api\CheckoutController;
 use App\Http\Controllers\Api\CollectionCatalogController;
+use App\Http\Controllers\Api\CustomerAddressController;
 use App\Http\Controllers\Api\HomePageController;
+use App\Http\Controllers\Api\PaymentCallbackController;
 use App\Http\Controllers\Api\ProductCatalogController;
 use App\Http\Controllers\Api\ShippingMethodController;
 use App\Http\Controllers\Api\WishlistController;
@@ -43,6 +46,8 @@ Route::get('/collections/{slug}', [CollectionCatalogController::class, 'show'])-
 Route::get('/products', [ProductCatalogController::class, 'index'])->middleware('throttle:public-settings');
 Route::get('/products/{slug}', [ProductCatalogController::class, 'show'])->where('slug', '[A-Za-z0-9\\-]+')->middleware('throttle:public-settings');
 Route::get('/shipping-methods', [ShippingMethodController::class, 'index'])->middleware('throttle:public-settings');
+Route::match(['get', 'post'], '/payments/{gateway}/callback/{result?}', [PaymentCallbackController::class, 'callback'])->name('payments.callback');
+Route::post('/payments/{gateway}/webhook', [PaymentCallbackController::class, 'webhook'])->name('payments.webhook');
 Route::middleware(['auth.cookie.optional:access', 'throttle:public-settings'])->group(function (): void {
     Route::get('/cart', [CartController::class, 'show']);
     Route::post('/cart/items', [CartController::class, 'store']);
@@ -53,6 +58,9 @@ Route::middleware(['auth.cookie.optional:access', 'throttle:public-settings'])->
     Route::post('/cart/coupon', [CartController::class, 'applyCoupon']);
     Route::delete('/cart/coupon', [CartController::class, 'removeCoupon']);
 
+    Route::get('/checkout/payment-methods', [CheckoutController::class, 'paymentMethods']);
+    Route::post('/checkout/place-order', [CheckoutController::class, 'place']);
+
     Route::get('/wishlist', [WishlistController::class, 'show']);
     Route::post('/wishlist/toggle', [WishlistController::class, 'toggle']);
     Route::delete('/wishlist/items/{itemId}', [WishlistController::class, 'destroy']);
@@ -60,6 +68,10 @@ Route::middleware(['auth.cookie.optional:access', 'throttle:public-settings'])->
     Route::post('/wishlist/merge', [WishlistController::class, 'merge']);
 
     Route::post('/blogs/{blog:slug}/comments', [BlogCatalogController::class, 'storeComment']);
+});
+
+Route::middleware(['auth.cookie:access', 'throttle:public-settings'])->group(function (): void {
+    Route::apiResource('addresses', CustomerAddressController::class)->only(['index', 'store', 'update', 'destroy']);
 });
 
 Route::prefix('auth')->group(function (): void {
