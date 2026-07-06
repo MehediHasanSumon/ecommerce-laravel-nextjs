@@ -146,6 +146,7 @@ interface CartStore {
   initialized: boolean;
   guestToken: string;
   requestVersion: number;
+  itemRequestVersions: Record<string, number>;
   initialize: () => Promise<void>;
   refresh: () => Promise<void>;
   syncAfterAuth: () => Promise<void>;
@@ -213,6 +214,52 @@ function applyCartState(set: (partial: Partial<CartStore>) => void, cart: CartAp
   });
 }
 
+function applyOptimisticQuantity(
+  set: (partial: Partial<CartStore>) => void,
+  state: CartStore,
+  itemId: string,
+  quantity: number,
+) {
+  const item = state.items.find((cartItem) => cartItem.id === itemId);
+  if (!item) {
+    return;
+  }
+
+  const previousQuantity = item.quantity;
+  const nextItems = state.items.map((cartItem) => {
+    if (cartItem.id !== itemId) {
+      return cartItem;
+    }
+
+    const unitPrice = cartItem.discountedPrice ?? cartItem.unitPrice ?? cartItem.product.price;
+
+    return {
+      ...cartItem,
+      quantity,
+      subtotal: unitPrice * quantity,
+    };
+  });
+
+  const unitPrice = item.discountedPrice ?? item.unitPrice ?? item.product.price;
+  const subtotalDelta = unitPrice * (quantity - previousQuantity);
+  const summary = state.cart.summary
+    ? {
+        ...state.cart.summary,
+        subtotal: Math.max(0, state.cart.summary.subtotal + subtotalDelta),
+        total: Math.max(0, state.cart.summary.total + subtotalDelta),
+      }
+    : state.cart.summary;
+
+  set({
+    items: nextItems,
+    cart: {
+      ...state.cart,
+      items: nextItems,
+      summary,
+    },
+  });
+}
+
 export const useCartStore = create<CartStore>()((set, get) => ({
   ...emptyCartState(),
   isLoading: false,
@@ -220,6 +267,7 @@ export const useCartStore = create<CartStore>()((set, get) => ({
   initialized: false,
   guestToken: '',
   requestVersion: 0,
+  itemRequestVersions: {},
 
   async initialize() {
     if (get().initialized) {
@@ -338,17 +386,48 @@ export const useCartStore = create<CartStore>()((set, get) => ({
     }
 
     const requestVersion = get().requestVersion;
-    set({ isLoading: true });
+    const itemRequestVersion = (get().itemRequestVersions[itemId] ?? 0) + 1;
+    const previousCart = get().cart;
+    const previousItems = get().items;
+
+    applyOptimisticQuantity(set, get(), itemId, quantity);
+    set({
+      itemRequestVersions: {
+        ...get().itemRequestVersions,
+        [itemId]: itemRequestVersion,
+      },
+    });
+
     try {
       const guestToken = ensureGuestToken(get().guestToken, set);
       const mode = activeCartMode();
       const cart = await cartService.updateItem(guestToken, mode, itemId, quantity);
-      if (get().requestVersion === requestVersion && activeCartMode() === mode) {
+      if (
+        get().requestVersion === requestVersion &&
+        get().itemRequestVersions[itemId] === itemRequestVersion &&
+        activeCartMode() === mode
+      ) {
         applyCartState(set, cart);
       }
+    } catch (error) {
+      if (
+        get().requestVersion === requestVersion &&
+        get().itemRequestVersions[itemId] === itemRequestVersion
+      ) {
+        set({ cart: previousCart, items: previousItems });
+      }
+      throw error;
     } finally {
-      if (get().requestVersion === requestVersion) {
-        set({ isLoading: false });
+      if (
+        get().requestVersion === requestVersion &&
+        get().itemRequestVersions[itemId] === itemRequestVersion
+      ) {
+        set((state) => {
+          const itemRequestVersions = { ...state.itemRequestVersions };
+          delete itemRequestVersions[itemId];
+
+          return { itemRequestVersions };
+        });
       }
     }
   },
