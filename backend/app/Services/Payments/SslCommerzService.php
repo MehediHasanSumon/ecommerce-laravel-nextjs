@@ -7,6 +7,7 @@ use App\Models\PaymentTransaction;
 use App\Models\Settings\PaymentGatewaySetting;
 use App\Services\Payments\Concerns\BuildsGatewayUrls;
 use App\Services\Payments\Concerns\RedactsSensitivePaymentData;
+use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 
@@ -29,10 +30,10 @@ class SslCommerzService implements PaymentGatewayInterface
     public function initiate(Order $order, PaymentTransaction $transaction, PaymentGatewaySetting $setting): PaymentResult
     {
         $base = rtrim((string) $this->configValue($setting, 'base_url', $setting->sandbox_mode ? 'https://sandbox.sslcommerz.com' : 'https://securepay.sslcommerz.com'), '/');
-        $successUrl = $this->configValue($setting, 'success_url', route('payments.callback', ['gateway' => 'sslcommerz', 'result' => 'success']));
-        $failUrl = $this->configValue($setting, 'fail_url', route('payments.callback', ['gateway' => 'sslcommerz', 'result' => 'fail']));
-        $cancelUrl = $this->configValue($setting, 'cancel_url', route('payments.callback', ['gateway' => 'sslcommerz', 'result' => 'cancel']));
-        $ipnUrl = $this->configValue($setting, 'ipn_url', route('payments.webhook', ['gateway' => 'sslcommerz']));
+        $successUrl = route('payments.callback', ['gateway' => 'sslcommerz', 'result' => 'success']);
+        $failUrl = route('payments.callback', ['gateway' => 'sslcommerz', 'result' => 'fail']);
+        $cancelUrl = route('payments.callback', ['gateway' => 'sslcommerz', 'result' => 'cancel']);
+        $ipnUrl = route('payments.webhook', ['gateway' => 'sslcommerz']);
         $payload = [
             'store_id' => $setting->merchant_id,
             'store_passwd' => $setting->secret_key,
@@ -64,7 +65,7 @@ class SslCommerzService implements PaymentGatewayInterface
             'product_profile' => 'general',
         ];
 
-        $response = Http::asForm()->timeout(20)->post($base.'/gwprocess/v4/api.php', $payload)->json();
+        $response = $this->http()->asForm()->post($base.'/gwprocess/v4/api.php', $payload)->json();
         $transaction->update(['request_payload' => $this->redact($payload), 'response_payload' => $response]);
 
         abort_unless(($response['status'] ?? null) === 'SUCCESS' && ! empty($response['GatewayPageURL']), 502, 'SSLCommerz checkout could not be initialized.');
@@ -78,7 +79,7 @@ class SslCommerzService implements PaymentGatewayInterface
         abort_unless($valId, 422, 'SSLCommerz validation id is missing.');
 
         $base = rtrim((string) $this->configValue($setting, 'validation_base_url', $setting->sandbox_mode ? 'https://sandbox.sslcommerz.com' : 'https://securepay.sslcommerz.com'), '/');
-        $response = Http::timeout(20)->get($base.'/validator/api/validationserverAPI.php', [
+        $response = $this->http()->get($base.'/validator/api/validationserverAPI.php', [
             'val_id' => $valId,
             'store_id' => $setting->merchant_id,
             'store_passwd' => $setting->secret_key,
@@ -118,5 +119,21 @@ class SslCommerzService implements PaymentGatewayInterface
         }
 
         return $this->verify($transaction, $setting, $request->all());
+    }
+
+    private function http(): PendingRequest
+    {
+        $request = Http::timeout(20)->acceptJson();
+        $caBundle = config('services.payments.ca_bundle');
+
+        if (! $caBundle) {
+            return $request;
+        }
+
+        $path = str_starts_with((string) $caBundle, DIRECTORY_SEPARATOR) || preg_match('/^[A-Za-z]:[\\\\\/]/', (string) $caBundle)
+            ? (string) $caBundle
+            : base_path((string) $caBundle);
+
+        return file_exists($path) ? $request->withOptions(['verify' => $path]) : $request;
     }
 }

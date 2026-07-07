@@ -32,6 +32,10 @@ return [
         'ca_bundle' => env('PAYPAL_CA_BUNDLE'),
     ],
 
+    'payments' => [
+        'ca_bundle' => env('PAYMENT_CA_BUNDLE', env('PAYPAL_CA_BUNDLE')),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

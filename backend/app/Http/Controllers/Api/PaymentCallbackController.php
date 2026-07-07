@@ -65,7 +65,7 @@ class PaymentCallbackController extends Controller
     private function frontendUrl(string $status, ?PaymentTransaction $transaction): string
     {
         $base = rtrim((string) env('FRONTEND_URL', config('app.url')), '/');
-        $path = $status === 'paid' ? '/order-success' : '/checkout';
+        $path = $status === 'paid' ? '/payment/success' : '/checkout';
         $order = $transaction?->order?->order_number;
 
         return $base.$path.'?payment='.$status.($order ? '&order='.urlencode($order) : '');

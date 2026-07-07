@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -20,8 +20,9 @@ export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { login, isLoading, error, clearError } = useAuthStore();
-  const redirectTo = safeRedirect(searchParams.get("redirect"));
+  const { login, isAuthenticated, isLoading, error, clearError, fetchCurrentUser } = useAuthStore();
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
+  const redirectTo = safeRedirect(searchParams.get("redirect"), routePaths.dashboard);
   const sessionExpired = searchParams.get("session") === "expired";
 
   const form = useForm<LoginFormValues>({
@@ -39,6 +40,48 @@ export function LoginForm() {
     } catch (err) {
       toast.error(toAppError(err).message);
     }
+  }
+
+  useEffect(() => {
+    let active = true;
+
+    async function checkSession() {
+      if (isAuthenticated) {
+        router.replace(redirectTo);
+        router.refresh();
+        return;
+      }
+
+      try {
+        const user = await fetchCurrentUser();
+        if (active && user) {
+          router.replace(redirectTo);
+          router.refresh();
+        }
+      } catch {
+        // Keep the normal login form visible when the session endpoint is unavailable.
+      } finally {
+        if (active) {
+          setIsCheckingSession(false);
+        }
+      }
+    }
+
+    void checkSession();
+
+    return () => {
+      active = false;
+    };
+  }, [fetchCurrentUser, isAuthenticated, redirectTo, router]);
+
+  if (isCheckingSession) {
+    return (
+      <div className="space-y-5" aria-hidden="true">
+        <div className="h-12 w-full animate-pulse rounded-2xl bg-muted" />
+        <div className="h-12 w-full animate-pulse rounded-2xl bg-muted" />
+        <div className="h-12 w-full animate-pulse rounded-2xl bg-muted" />
+      </div>
+    );
   }
 
   return (

@@ -30,6 +30,22 @@ function safeRedirectTarget(request: NextRequest) {
     : routePaths.dashboard;
 }
 
+function safePublicAuthRedirectTarget(request: NextRequest) {
+  const target = request.nextUrl.searchParams.get("redirect");
+
+  if (!target || !target.startsWith("/") || target.startsWith("//")) {
+    return routePaths.dashboard;
+  }
+
+  try {
+    const url = new URL(target, "http://local.test");
+    const redirectTarget = `${url.pathname}${url.search}`;
+    return isRoute(url.pathname, publicAuthRoutes) ? routePaths.dashboard : redirectTarget;
+  } catch {
+    return routePaths.dashboard;
+  }
+}
+
 function appendRefreshCookies(source: Response, target: NextResponse) {
   const headersWithCookies = source.headers as Headers & {
     getSetCookie?: () => string[];
@@ -159,8 +175,9 @@ export async function proxy(request: NextRequest) {
 
   if (publicAuthRoute && authenticated) {
     const dashboardUrl = request.nextUrl.clone();
-    dashboardUrl.pathname = routePaths.dashboard;
-    dashboardUrl.search = "";
+    const redirectTarget = safePublicAuthRedirectTarget(request);
+    dashboardUrl.pathname = redirectTarget.split("?")[0] || routePaths.dashboard;
+    dashboardUrl.search = redirectTarget.includes("?") ? redirectTarget.slice(redirectTarget.indexOf("?")) : "";
     const response = NextResponse.redirect(dashboardUrl);
     if (refreshResponse) {
       appendRefreshCookies(refreshResponse, response);

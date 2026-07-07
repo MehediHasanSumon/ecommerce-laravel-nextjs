@@ -245,7 +245,7 @@ export default function CheckoutPage() {
         return;
       }
 
-      router.push(`/order-success?order=${encodeURIComponent(response.order.orderNumber)}`);
+      router.push(`/payment/success?payment=paid&order=${encodeURIComponent(response.order.orderNumber)}`);
     } catch (error) {
       toast.error(toAppError(error).message || 'Unable to place order. Please try again.');
     } finally {
