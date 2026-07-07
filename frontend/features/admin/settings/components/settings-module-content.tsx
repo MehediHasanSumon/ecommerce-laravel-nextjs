@@ -151,8 +151,8 @@ const timezoneOptions = [
 ];
 
 const smsProviderLabels: Record<string, string> = { twilio: "Twilio", vonage: "Vonage", ssl_wireless: "SSL Wireless", custom: "Custom Provider" };
-const paymentGatewayLabels: Record<string, string> = { stripe: "Stripe", sslcommerz: "SSLCommerz", bkash: "bKash", nagad: "Nagad", rocket: "Rocket", paypal: "PayPal", razorpay: "Razorpay", cash_on_delivery: "Cash On Delivery", bank_transfer: "Bank Transfer" };
-const offlinePaymentGateways = new Set(["cash_on_delivery", "bank_transfer"]);
+const paymentGatewayLabels: Record<string, string> = { stripe: "Stripe", sslcommerz: "SSLCommerz", bkash: "bKash", nagad: "Nagad", rocket: "Rocket", paypal: "PayPal", aamarpay: "aamarPay", cash_on_delivery: "Cash On Delivery" };
+const offlinePaymentGateways = new Set(["cash_on_delivery"]);
 
 const yesNo = [
   { label: "Left", value: "left" },
@@ -850,12 +850,6 @@ export function PaymentSettingsContent() {
                             <TextInput label="Client ID" value={gateway.public_key ?? ""} onChange={(event) => patch(index, "public_key", event.target.value)} />
                             <TextInput label="Client Secret" type="password" value={gateway.secret_key ?? ""} onChange={(event) => patch(index, "secret_key", event.target.value)} />
                           </>
-                        ) : gateway.gateway === "razorpay" ? (
-                          <>
-                            <TextInput label="Key ID" value={gateway.public_key ?? ""} onChange={(event) => patch(index, "public_key", event.target.value)} />
-                            <TextInput label="Key Secret" type="password" value={gateway.secret_key ?? ""} onChange={(event) => patch(index, "secret_key", event.target.value)} />
-                            <TextInput label="Webhook Secret" type="password" value={gateway.webhook_secret ?? ""} onChange={(event) => patch(index, "webhook_secret", event.target.value)} />
-                          </>
                         ) : gateway.gateway === "bkash" ? (
                           <>
                             <TextInput label="Username" value={gateway.public_key ?? ""} onChange={(event) => patch(index, "public_key", event.target.value)} />
@@ -869,6 +863,13 @@ export function PaymentSettingsContent() {
                             <TextInput label="Merchant Number" value={gatewayConfigValue(gateway, "merchant_number")} onChange={(event) => patchGatewayConfig(index, "merchant_number", event.target.value)} />
                             <TextInput label="Public Key" value={gateway.public_key ?? ""} onChange={(event) => patch(index, "public_key", event.target.value)} />
                             <TextInput label="Private Key" type="password" value={gateway.secret_key ?? ""} onChange={(event) => patch(index, "secret_key", event.target.value)} />
+                          </>
+                        ) : gateway.gateway === "aamarpay" ? (
+                          <>
+                            <TextInput label="Store ID" value={gateway.merchant_id ?? ""} onChange={(event) => patch(index, "merchant_id", event.target.value)} />
+                            <TextInput label="Signature Key" type="password" value={gateway.secret_key ?? ""} onChange={(event) => patch(index, "secret_key", event.target.value)} />
+                            <TextInput label="Checkout URL" value={gatewayConfigValue(gateway, "checkout_url")} onChange={(event) => patchGatewayConfig(index, "checkout_url", event.target.value)} />
+                            <TextInput label="Transaction Search URL" value={gatewayConfigValue(gateway, "search_url")} onChange={(event) => patchGatewayConfig(index, "search_url", event.target.value)} />
                           </>
                         ) : (
                           <>

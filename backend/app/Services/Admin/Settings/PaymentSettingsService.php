@@ -3,21 +3,33 @@
 namespace App\Services\Admin\Settings;
 
 use App\Models\Settings\PaymentGatewaySetting;
+use App\Support\Admin\SettingsDefaults;
 use Illuminate\Support\Facades\Cache;
 
 class PaymentSettingsService
 {
-    public const GATEWAYS = ['stripe', 'sslcommerz', 'bkash', 'nagad', 'rocket', 'paypal', 'razorpay', 'cash_on_delivery', 'bank_transfer'];
-    private const OFFLINE_GATEWAYS = ['cash_on_delivery', 'bank_transfer'];
+    public const GATEWAYS = ['stripe', 'sslcommerz', 'bkash', 'nagad', 'rocket', 'paypal', 'aamarpay', 'cash_on_delivery'];
+    private const OFFLINE_GATEWAYS = ['cash_on_delivery'];
 
     public function all()
     {
-        return PaymentGatewaySetting::query()->orderBy('display_order')->get();
+        $this->syncSupportedGateways();
+
+        return PaymentGatewaySetting::query()
+            ->whereIn('gateway', self::GATEWAYS)
+            ->orderBy('display_order')
+            ->get();
     }
 
     public function replace(array $gateways, ?int $userId = null)
     {
-        foreach ($gateways as $index => $gateway) {
+        $this->syncSupportedGateways();
+
+        foreach (array_values($gateways) as $index => $gateway) {
+            if (! in_array($gateway['gateway'], self::GATEWAYS, true)) {
+                continue;
+            }
+
             $existing = PaymentGatewaySetting::query()->where('gateway', $gateway['gateway'])->first();
             foreach (['secret_key', 'api_key', 'webhook_secret'] as $secretField) {
                 if (($gateway[$secretField] ?? null) === '********') {
@@ -45,5 +57,19 @@ class PaymentSettingsService
         Cache::forget('settings.navigation.runtime');
         Cache::forget('checkout.payment-methods.enabled');
         return $this->all();
+    }
+
+    private function syncSupportedGateways(): void
+    {
+        PaymentGatewaySetting::query()
+            ->whereNotIn('gateway', self::GATEWAYS)
+            ->delete();
+
+        foreach (SettingsDefaults::paymentGateways() as $gateway) {
+            PaymentGatewaySetting::query()->firstOrCreate(
+                ['gateway' => $gateway['gateway']],
+                $gateway,
+            );
+        }
     }
 }

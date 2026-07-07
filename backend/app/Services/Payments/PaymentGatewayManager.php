@@ -13,16 +13,15 @@ class PaymentGatewayManager
 
     public function __construct(
         CashOnDeliveryService $cod,
-        BankTransferService $bankTransfer,
         StripeService $stripe,
         PaypalService $paypal,
-        RazorpayService $razorpay,
         SslCommerzService $sslCommerz,
         BkashService $bkash,
         NagadService $nagad,
         RocketService $rocket,
+        AamarPayService $aamarPay,
     ) {
-        $this->gateways = collect([$cod, $bankTransfer, $stripe, $paypal, $razorpay, $sslCommerz, $bkash, $nagad, $rocket])->keyBy->gateway()->all();
+        $this->gateways = collect([$cod, $stripe, $paypal, $sslCommerz, $bkash, $nagad, $rocket, $aamarPay])->keyBy->gateway()->all();
     }
 
     public function enabledSettings()

@@ -205,10 +205,10 @@ class SettingsDefaults
 
     public static function paymentGateways(): array
     {
-        return collect(['stripe', 'sslcommerz', 'bkash', 'nagad', 'rocket', 'paypal', 'razorpay', 'cash_on_delivery', 'bank_transfer'])
+        return collect(['stripe', 'sslcommerz', 'bkash', 'nagad', 'rocket', 'paypal', 'aamarpay', 'cash_on_delivery'])
             ->map(fn (string $gateway, int $index) => [
                 'gateway' => $gateway,
-                'enabled' => in_array($gateway, ['cash_on_delivery', 'bank_transfer'], true),
+                'enabled' => $gateway === 'cash_on_delivery',
                 'sandbox_mode' => true,
                 'public_key' => null,
                 'secret_key' => null,

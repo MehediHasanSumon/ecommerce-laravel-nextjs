@@ -54,8 +54,8 @@ class PaymentCallbackController extends Controller
                 $query->when($request->input('tran_id'), fn ($q, $value) => $q->orWhere('transaction_key', $value)->orWhere('gateway_transaction_id', $value))
                     ->when($request->input('session_id'), fn ($q, $value) => $q->orWhere('gateway_payment_id', $value))
                     ->when($request->input('transaction'), fn ($q, $value) => $q->orWhere('transaction_key', $value))
-                    ->when($request->input('razorpay_order_id'), fn ($q, $value) => $q->orWhere('gateway_payment_id', $value))
                     ->when($request->input('paymentID'), fn ($q, $value) => $q->orWhere('gateway_payment_id', $value))
+                    ->when($request->input('mer_txnid') ?? $request->input('merTxnid') ?? $request->input('request_id'), fn ($q, $value) => $q->orWhere('gateway_payment_id', $value)->orWhere('transaction_key', $value))
                     ->when($request->input('order_id') ?? $request->input('orderId'), fn ($q, $value) => $q->orWhere('transaction_key', $value))
                     ->when($request->input('payment_ref_id') ?? $request->input('paymentReferenceId'), fn ($q, $value) => $q->orWhere('gateway_payment_id', $value));
             })
