@@ -10,6 +10,7 @@ import { useCartStore } from '@/store/cartStore';
 import { selectCurrencyFingerprint, useSettingsStore } from '@/store/settings-store';
 import { formatPrice } from '@/utils/format';
 import { useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { fetchShippingMethods, type ShippingMethod } from '@/services/catalog-service';
 import {
   fetchAddresses,
@@ -18,6 +19,7 @@ import {
   type CustomerAddress,
   type PaymentMethod,
 } from '@/services/checkout-service';
+import { toAppError } from '@/lib/errors';
 import { toast } from 'sonner';
 
 const STEPS = ['Cart', 'Shipping', 'Payment'];
@@ -50,6 +52,7 @@ function StepIndicator({ current }: { current: number }) {
 
 export default function CheckoutPage() {
   useSettingsStore(selectCurrencyFingerprint);
+  const searchParams = useSearchParams();
   const [mounted, setMounted] = useState(false);
   const [step, setStep] = useState(1);
   const [couponOpen, setCouponOpen] = useState(false);
@@ -77,6 +80,8 @@ export default function CheckoutPage() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
+  const paymentStatus = searchParams.get('payment');
+  const paymentOrderNumber = searchParams.get('order');
 
   const items = useCartStore((s) => s.items);
   const cart = useCartStore((s) => s.cart);
@@ -242,7 +247,7 @@ export default function CheckoutPage() {
 
       router.push(`/order-success?order=${encodeURIComponent(response.order.orderNumber)}`);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Unable to place order. Please try again.');
+      toast.error(toAppError(error).message || 'Unable to place order. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -298,6 +303,30 @@ export default function CheckoutPage() {
         </nav>
 
         <StepIndicator current={step} />
+
+        {paymentStatus === 'failed' || paymentStatus === 'cancelled' || paymentStatus === 'cancel' ? (
+          <div className="mb-6 rounded-2xl border border-destructive/20 bg-destructive/5 p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="font-bold text-destructive">
+                  {paymentStatus === 'cancelled' || paymentStatus === 'cancel' ? 'Payment cancelled' : 'Payment failed'}
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {paymentOrderNumber
+                    ? `Order ${paymentOrderNumber} was not paid. Please choose a payment method and try again.`
+                    : 'Your payment was not completed. Please choose a payment method and try again.'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => router.replace('/checkout')}
+                className="w-fit rounded-xl border border-border bg-background px-4 py-2 text-sm font-semibold transition-colors hover:bg-muted"
+              >
+                Retry Payment
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         <div className="grid lg:grid-cols-5 gap-8">
           {/* Form */}

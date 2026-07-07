@@ -106,3 +106,45 @@ it('places a cash on delivery order from the cart with server-side totals', func
     expect(Order::query()->count())->toBe(1)
         ->and(PaymentTransaction::query()->where('gateway', 'cash_on_delivery')->where('status', 'pending')->exists())->toBeTrue();
 });
+
+it('rejects paypal checkout when company currency is unsupported instead of crashing', function (): void {
+    $user = User::factory()->create();
+    $token = checkoutUserToken($user);
+    $product = checkoutProduct();
+    $shipping = ShippingMethod::query()->create([
+        'name' => 'Home Delivery',
+        'code' => 'paypal-home-delivery-'.uniqid(),
+        'type' => 'flat_rate',
+        'rate_cents' => 8000,
+        'status' => true,
+    ]);
+    PaymentGatewaySetting::query()->create([
+        'gateway' => 'paypal',
+        'enabled' => true,
+        'sandbox_mode' => true,
+        'public_key' => 'client-id',
+        'secret_key' => 'client-secret',
+        'display_order' => 0,
+    ]);
+
+    $this->withToken($token)->postJson('/api/cart/items', [
+        'product_id' => $product->id,
+        'quantity' => 1,
+    ])->assertOk();
+
+    $this->withToken($token)->postJson('/api/checkout/place-order', [
+        'billing_address' => [
+            'fullName' => 'Ada Lovelace',
+            'phone' => '+8801700000000',
+            'country' => 'Bangladesh',
+            'state' => 'Dhaka',
+            'district' => 'Dhaka',
+            'city' => 'Dhaka',
+            'addressLine' => 'House 12, Road 8',
+        ],
+        'same_as_billing' => true,
+        'shipping_method_id' => $shipping->id,
+        'payment_method' => 'paypal',
+    ])->assertStatus(422)
+        ->assertJsonPath('message', 'PayPal does not support BDT. Please use a PayPal-supported company currency such as USD.');
+});
