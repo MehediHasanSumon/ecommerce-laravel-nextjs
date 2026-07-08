@@ -264,6 +264,7 @@ class NavigationSettingsController extends Controller
                     ['label' => 'Currency Management', 'href' => '/admin/currencies', 'icon' => 'CircleDollarSign', 'enabled' => true],
                     ['label' => 'Discount Management', 'href' => '/admin/discounts', 'icon' => 'CirclePercent', 'enabled' => $modules['offers']],
                     ['label' => 'Review Management', 'href' => '/admin/reviews', 'icon' => 'Star', 'enabled' => $modules['reviews']],
+                    ['label' => 'Order Management', 'href' => '/admin/orders', 'icon' => 'PackageCheck', 'enabled' => true],
                     ['label' => 'Blog Management', 'href' => '/admin/blogs', 'icon' => 'Newspaper', 'enabled' => true],
                 ],
             ],

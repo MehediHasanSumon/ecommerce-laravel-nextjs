@@ -14,8 +14,16 @@ class OrderResource extends JsonResource
             'orderNumber' => $this->order_number,
             'status' => $this->status,
             'paymentStatus' => $this->payment_status,
+            'shippingStatus' => $this->shipping_status ?? 'pending',
             'paymentMethod' => $this->payment_method,
+            'shippingMethod' => $this->shipping_method_name,
             'currency' => $this->currency,
+            'customer' => $this->whenLoaded('user', fn () => [
+                'id' => $this->user?->id,
+                'name' => $this->user?->name,
+                'email' => $this->user?->email,
+            ]),
+            'itemsCount' => $this->items_count ?? $this->items?->count(),
             'summary' => [
                 'subtotal' => round($this->subtotal_cents / 100, 2),
                 'itemDiscount' => round($this->item_discount_cents / 100, 2),

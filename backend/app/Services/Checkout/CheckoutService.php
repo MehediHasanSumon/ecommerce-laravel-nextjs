@@ -11,6 +11,7 @@ use App\Models\Settings\CompanySetting;
 use App\Models\Settings\ShippingMethod;
 use App\Models\Settings\StoreSetting;
 use App\Services\Commerce\CartService;
+use App\Services\Orders\OrderService;
 use App\Services\Payments\PaymentGatewayManager;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -22,6 +23,7 @@ class CheckoutService
     public function __construct(
         private readonly CartService $cartService,
         private readonly PaymentGatewayManager $payments,
+        private readonly OrderService $orders,
     ) {}
 
     public function place(Request $request, array $payload): array
@@ -77,6 +79,7 @@ class CheckoutService
                 'user_agent' => substr((string) $request->userAgent(), 0, 2000),
                 'placed_at' => now(),
             ]);
+            $this->orders->record($order, 'order', 'pending', null, 'Order created', null, [], $request->user()?->id);
 
             foreach ($cart->items as $item) {
                 $order->items()->create([
@@ -115,11 +118,13 @@ class CheckoutService
                 'amount_cents' => $order->total_cents,
                 'currency' => $order->currency,
             ]);
+            $this->orders->record($order, 'payment', 'initiated', null, 'Payment initiated', null, ['gateway' => $paymentSetting->gateway], $request->user()?->id);
 
             $result = $gateway->initiate($order, $transaction, $paymentSetting);
             $order->setAttribute('redirect_url', $result->redirectUrl);
 
             if ($result->status === 'pending') {
+                $this->orders->syncPayment($order, $transaction->fresh(), 'pending', 'Offline payment pending.');
                 $this->completeCart($cart);
             }
 
@@ -135,6 +140,8 @@ class CheckoutService
                 return;
             }
             $order->update(['payment_status' => 'paid', 'status' => 'confirmed']);
+            $this->orders->syncPayment($order->fresh(), $transaction, 'paid');
+            $this->orders->record($order->fresh(), 'order', 'confirmed', 'pending', 'Order confirmed');
             if ($order->cart) {
                 $this->completeCart($order->cart);
             }

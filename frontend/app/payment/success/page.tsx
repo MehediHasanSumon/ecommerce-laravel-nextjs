@@ -1,106 +1,121 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, useSearchParams } from "next/navigation";
 import { CheckCircle, Home, Package, ShoppingBag } from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { fetchPaymentResult, type OrderDetail } from "@/services/order-service";
+import { formatPrice } from "@/utils/format";
 
-type PaymentSuccessPageProps = {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-};
+export default function PaymentSuccessPage() {
+  const searchParams = useSearchParams();
+  const orderNumber = searchParams.get("order");
+  const [order, setOrder] = useState<OrderDetail | null>(null);
+  const [loading, setLoading] = useState(true);
 
-export default async function PaymentSuccessPage({ searchParams }: PaymentSuccessPageProps) {
-  const params = await searchParams;
-  const orderParam = params.order;
-  const orderNumber = Array.isArray(orderParam) ? orderParam[0] : orderParam;
+  useEffect(() => {
+    if (!orderNumber?.trim()) {
+      notFound();
+    }
+    fetchPaymentResult(orderNumber)
+      .then(setOrder)
+      .catch(() => notFound())
+      .finally(() => setLoading(false));
+  }, [orderNumber]);
 
-  if (!orderNumber?.trim()) {
+  if (loading) {
+    return <PaymentResultSkeleton />;
+  }
+
+  if (!order) {
     notFound();
   }
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      <main className="mx-auto max-w-2xl px-4 py-16 text-center">
+      <main className="mx-auto max-w-3xl px-4 py-16 text-center">
         <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-950">
           <CheckCircle size={48} className="text-emerald-500" />
         </div>
         <h1 className="mb-2 text-3xl font-extrabold">Payment Successful</h1>
-        <p className="mb-2 text-muted-foreground">
-          Thank you for your purchase. Your order is confirmed and being processed.
-        </p>
-        {orderNumber ? <p className="mb-8 text-lg font-bold text-primary">{orderNumber}</p> : null}
+        <p className="mb-2 text-muted-foreground">Thank you for your purchase. Your order is confirmed and being processed.</p>
+        <p className="mb-8 text-lg font-bold text-primary">{order.orderNumber}</p>
 
-        <div className="mb-10 grid grid-cols-1 gap-4 md:grid-cols-3">
-          {[
-            { title: "Payment Complete", desc: "Your payment was verified", status: "complete" },
-            { title: "Order Confirmed", desc: "Your order has been placed", status: "active" },
-            { title: "Delivery", desc: "Est. 3-5 business days", status: "pending" },
-          ].map(({ title, desc, status }) => (
-            <div
-              key={title}
-              className={`rounded-2xl border p-4 ${
-                status === "complete"
-                  ? "border-emerald-200 bg-emerald-50 dark:bg-emerald-950"
-                  : status === "active"
-                    ? "border-primary/30 bg-primary/5"
-                    : "border-border bg-muted/50"
-              }`}
-            >
-              <Package
-                size={20}
-                className={`mx-auto mb-2 ${
-                  status === "complete"
-                    ? "text-emerald-500"
-                    : status === "active"
-                      ? "text-primary"
-                      : "text-muted-foreground"
-                }`}
-              />
-              <p className="text-sm font-semibold">{title}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{desc}</p>
-            </div>
-          ))}
+        <div className="mb-8 grid gap-4 text-left md:grid-cols-3">
+          <InfoTile title="Payment Status" value={order.paymentStatus} />
+          <InfoTile title="Payment Method" value={order.payment.gateway || order.paymentMethod} />
+          <InfoTile title="Grand Total" value={formatPrice(order.summary.total)} />
         </div>
 
         <div className="mb-8 rounded-2xl border border-border bg-card p-6 text-left">
-          <h2 className="mb-4 font-bold">What happens next?</h2>
-          <div className="space-y-3">
-            {[
-              "You will receive a confirmation email with your order details",
-              "We will notify you when your order ships with a tracking number",
-              "Your package will arrive within the estimated delivery time",
-              "You can track your order from your account order history",
-            ].map((step, index) => (
-              <div key={step} className="flex items-start gap-3">
-                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-                  {index + 1}
-                </span>
-                <p className="text-sm text-muted-foreground">{step}</p>
-              </div>
-            ))}
+          <h2 className="mb-4 font-bold">Order Summary</h2>
+          <div className="space-y-2 text-sm">
+            <SummaryRow label="Subtotal" value={formatPrice(order.summary.subtotal)} />
+            <SummaryRow label="Discount" value={`-${formatPrice(order.summary.itemDiscount + order.summary.couponDiscount)}`} />
+            <SummaryRow label="Shipping" value={formatPrice(order.summary.shipping)} />
+            <SummaryRow label="Tax" value={formatPrice(order.summary.tax)} />
+            <SummaryRow label="Total" value={formatPrice(order.summary.total)} strong />
           </div>
         </div>
 
+        <div className="mb-8 grid gap-4 text-left md:grid-cols-2">
+          <AddressBlock title="Billing Address" address={order.billingAddress} />
+          <AddressBlock title="Shipping Address" address={order.shippingAddress} />
+        </div>
+
         <div className="flex flex-col justify-center gap-3 sm:flex-row">
-          <Link
-            href="/account/orders"
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 font-semibold text-primary-foreground transition-opacity hover:opacity-90"
-          >
-            <Package size={16} /> Track Order
+          <Link href={`/account/orders/${order.orderNumber}`} className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 font-semibold text-primary-foreground transition-opacity hover:opacity-90">
+            <Package size={16} /> View Order
           </Link>
-          <Link
-            href="/shop"
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-border px-6 py-3 font-semibold transition-colors hover:bg-muted"
-          >
+          <Link href="/shop" className="inline-flex items-center justify-center gap-2 rounded-xl border border-border px-6 py-3 font-semibold transition-colors hover:bg-muted">
             <ShoppingBag size={16} /> Continue Shopping
           </Link>
-          <Link
-            href="/"
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-border px-6 py-3 font-semibold transition-colors hover:bg-muted"
-          >
+          <Link href="/" className="inline-flex items-center justify-center gap-2 rounded-xl border border-border px-6 py-3 font-semibold transition-colors hover:bg-muted">
             <Home size={16} /> Home
           </Link>
         </div>
+      </main>
+      <Footer />
+    </div>
+  );
+}
+
+function InfoTile({ title, value }: { title: string; value?: string | number | null }) {
+  return (
+    <div className="rounded-2xl border border-border bg-card p-4">
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</p>
+      <p className="mt-1 font-bold capitalize">{String(value ?? "Not available").replaceAll("_", " ")}</p>
+    </div>
+  );
+}
+
+function SummaryRow({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+  return <div className={`flex justify-between ${strong ? "border-t border-border pt-2 font-bold" : ""}`}><span>{label}</span><span>{value}</span></div>;
+}
+
+function AddressBlock({ title, address }: { title: string; address: Record<string, string | null> }) {
+  return (
+    <div className="rounded-2xl border border-border bg-card p-5">
+      <h2 className="mb-3 font-bold">{title}</h2>
+      <p className="text-sm font-semibold">{address.full_name}</p>
+      <p className="text-sm text-muted-foreground">{address.phone}</p>
+      <p className="mt-2 text-sm text-muted-foreground">{address.address_line}, {address.city}, {address.state}</p>
+    </div>
+  );
+}
+
+function PaymentResultSkeleton() {
+  return (
+    <div className="min-h-screen bg-background">
+      <Header />
+      <main className="mx-auto max-w-3xl px-4 py-16">
+        <div className="mx-auto mb-6 h-24 w-24 animate-pulse rounded-full bg-muted" />
+        <div className="mx-auto mb-3 h-8 w-64 animate-pulse rounded bg-muted" />
+        <div className="mx-auto mb-8 h-5 w-80 animate-pulse rounded bg-muted" />
+        <div className="grid gap-4 md:grid-cols-3">{[1, 2, 3].map((item) => <div key={item} className="h-24 animate-pulse rounded-2xl bg-muted" />)}</div>
       </main>
       <Footer />
     </div>

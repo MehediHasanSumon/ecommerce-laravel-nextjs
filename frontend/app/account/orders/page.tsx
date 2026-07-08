@@ -1,163 +1,95 @@
-'use client';
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import Image from 'next/image';
-import { ChevronRight, Package, Eye, Download } from 'lucide-react';
-import { AnnouncementBar } from '@/components/layout/AnnouncementBar';
-import { Header } from '@/components/layout/Header';
-import { Footer } from '@/components/layout/Footer';
-import { AccountSidebar } from '@/components/account/AccountSidebar';
-import { OrderCardSkeleton } from '@/components/skeleton';
-import { MOCK_ORDERS } from '@/mock/orders';
-import { selectCurrencyFingerprint, useSettingsStore } from '@/store/settings-store';
-import { formatPrice } from '@/utils/format';
-import { ORDER_STATUS_COLORS, ORDER_STATUS_LABELS } from '@/constants';
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { ChevronRight, Eye, Package } from "lucide-react";
+import { AnnouncementBar } from "@/components/layout/AnnouncementBar";
+import { Header } from "@/components/layout/Header";
+import { Footer } from "@/components/layout/Footer";
+import { AccountSidebar } from "@/components/account/AccountSidebar";
+import { OrderCardSkeleton } from "@/components/skeleton";
+import { fetchOrders, type OrderListItem } from "@/services/order-service";
+import { selectCurrencyFingerprint, useSettingsStore } from "@/store/settings-store";
+import { formatPrice } from "@/utils/format";
+import { ORDER_STATUS_COLORS, ORDER_STATUS_LABELS } from "@/constants";
 
 export default function OrdersPage() {
   useSettingsStore(selectCurrencyFingerprint);
-  const [mounted, setMounted] = useState(false);
-  const [filter, setFilter] = useState('all');
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const [orders, setOrders] = useState<OrderListItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState("all");
 
-  const FILTERS = ['all', 'pending', 'processing', 'shipped', 'delivered', 'cancelled'];
-  const filtered = filter === 'all' ? MOCK_ORDERS : MOCK_ORDERS.filter((o) => o.status === filter);
+  useEffect(() => {
+    setLoading(true);
+    fetchOrders(filter === "all" ? {} : { status: filter })
+      .then((response) => setOrders(response.data.orders))
+      .catch(() => setOrders([]))
+      .finally(() => setLoading(false));
+  }, [filter]);
+
+  const filters = ["all", "pending", "confirmed", "processing", "shipped", "delivered", "cancelled"];
 
   return (
     <div className="min-h-screen bg-background">
       <AnnouncementBar />
       <Header />
-      <main className="max-w-7xl mx-auto px-4 py-8 pb-16">
-        <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
-          <Link href="/" className="hover:text-foreground">
-            Home
-          </Link>
+      <main className="mx-auto max-w-7xl px-4 py-8 pb-16">
+        <nav className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
+          <Link href="/" className="hover:text-foreground">Home</Link>
           <ChevronRight size={14} />
-          <Link href="/account" className="hover:text-foreground">
-            Account
-          </Link>
+          <Link href="/account" className="hover:text-foreground">Account</Link>
           <ChevronRight size={14} />
-          <span className="text-foreground font-medium">Orders</span>
+          <span className="font-medium text-foreground">Orders</span>
         </nav>
 
         <div className="flex gap-8">
           <AccountSidebar active="orders" />
-
-          <div className="flex-1 min-w-0">
-            <h1 className="text-2xl font-extrabold mb-6">My Orders</h1>
-
-            {/* Filter tabs */}
-            <div className="flex overflow-x-auto pb-2 mb-6 gap-2">
-              {FILTERS.map((f) => (
+          <div className="min-w-0 flex-1">
+            <h1 className="mb-6 text-2xl font-extrabold">My Orders</h1>
+            <div className="mb-6 flex gap-2 overflow-x-auto pb-2">
+              {filters.map((status) => (
                 <button
-                  key={f}
-                  onClick={() => setFilter(f)}
-                  className={`px-4 py-2 rounded-xl text-sm font-medium capitalize whitespace-nowrap transition-colors ${filter === f ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'}`}
+                  key={status}
+                  onClick={() => setFilter(status)}
+                  className={`whitespace-nowrap rounded-xl px-4 py-2 text-sm font-medium capitalize transition-colors ${filter === status ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"}`}
                 >
-                  {f === 'all' ? 'All Orders' : ORDER_STATUS_LABELS[f]}
+                  {status === "all" ? "All Orders" : ORDER_STATUS_LABELS[status] ?? status.replaceAll("_", " ")}
                 </button>
               ))}
             </div>
 
-            {!mounted ? (
-              <div className="space-y-4">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <OrderCardSkeleton key={i} />
-                ))}
-              </div>
-            ) : filtered.length === 0 ? (
-              <div className="text-center py-16">
-                <Package size={48} className="mx-auto text-muted-foreground opacity-40 mb-4" />
-                <h3 className="font-bold text-lg mb-2">No orders found</h3>
-                <p className="text-muted-foreground text-sm mb-6">
-                  You haven&apos;t placed any orders in this category yet.
-                </p>
-                <Link
-                  href="/shop"
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-semibold hover:opacity-90"
-                >
-                  Start Shopping
-                </Link>
+            {loading ? (
+              <div className="space-y-4">{Array.from({ length: 3 }).map((_, index) => <OrderCardSkeleton key={index} />)}</div>
+            ) : orders.length === 0 ? (
+              <div className="py-16 text-center">
+                <Package size={48} className="mx-auto mb-4 text-muted-foreground opacity-40" />
+                <h3 className="mb-2 text-lg font-bold">No orders found</h3>
+                <p className="mb-6 text-sm text-muted-foreground">You haven&apos;t placed any orders in this category yet.</p>
+                <Link href="/shop" className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 font-semibold text-primary-foreground hover:opacity-90">Start Shopping</Link>
               </div>
             ) : (
               <div className="space-y-4">
-                {filtered.map((order) => (
-                  <div
-                    key={order.id}
-                    className="bg-card border border-border rounded-2xl overflow-hidden hover:shadow-sm transition-shadow"
-                  >
-                    <div className="flex items-center justify-between p-5 border-b border-border">
+                {orders.map((order) => (
+                  <div key={order.id} className="overflow-hidden rounded-2xl border border-border bg-card transition-shadow hover:shadow-sm">
+                    <div className="flex items-center justify-between border-b border-border p-5">
                       <div>
-                        <p className="font-bold text-sm">{order.orderNumber}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {order.createdAt.slice(0, 10)}
-                        </p>
+                        <p className="text-sm font-bold">{order.orderNumber}</p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">{order.placedAt ? new Date(order.placedAt).toLocaleDateString() : "Not set"}</p>
                       </div>
                       <div className="flex items-center gap-3">
-                        <span
-                          className={`text-xs font-semibold px-3 py-1 rounded-full ${ORDER_STATUS_COLORS[order.status]}`}
-                        >
-                          {ORDER_STATUS_LABELS[order.status]}
+                        <span className={`rounded-full px-3 py-1 text-xs font-semibold ${ORDER_STATUS_COLORS[order.status] ?? "bg-muted text-muted-foreground"}`}>
+                          {ORDER_STATUS_LABELS[order.status] ?? order.status}
                         </span>
-                        <span className="font-bold">{formatPrice(order.total)}</span>
+                        <span className="font-bold">{formatPrice(order.summary.total)}</span>
                       </div>
                     </div>
-
                     <div className="p-5">
-                      <div className="flex gap-3 mb-4">
-                        {order.items.slice(0, 3).map((item) => (
-                          <div
-                            key={item.id}
-                            className="relative w-14 h-14 rounded-xl overflow-hidden bg-muted shrink-0"
-                          >
-                            <Image
-                              src={item.product.thumbnail}
-                              alt={item.product.name}
-                              fill
-                              className="object-cover"
-                            />
-                          </div>
-                        ))}
-                        {order.items.length > 3 && (
-                          <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center text-sm text-muted-foreground font-semibold">
-                            +{order.items.length - 3}
-                          </div>
-                        )}
-                        <div className="ml-2">
-                          <p className="text-sm font-medium">
-                            {order.items
-                              .map((i) => i.product.name)
-                              .slice(0, 2)
-                              .join(', ')}
-                            {order.items.length > 2 ? ` +${order.items.length - 2} more` : ''}
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {order.items.reduce((s, i) => s + i.quantity, 0)} items
-                          </p>
-                          {order.trackingNumber && (
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                              Tracking: {order.trackingNumber}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-3 pt-4 border-t border-border">
-                        <Link
-                          href={`/account/orders/${order.id}`}
-                          className="inline-flex items-center gap-1.5 px-4 py-2 bg-muted rounded-xl text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors"
-                        >
+                      <p className="text-sm font-medium">{order.itemsCount ?? 0} items · {order.paymentMethod.replaceAll("_", " ")}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">Payment: {order.paymentStatus} · Shipping: {order.shippingStatus}</p>
+                      <div className="mt-4 flex items-center gap-3 border-t border-border pt-4">
+                        <Link href={`/account/orders/${order.orderNumber}`} className="inline-flex items-center gap-1.5 rounded-xl bg-muted px-4 py-2 text-sm font-medium transition-colors hover:bg-primary hover:text-primary-foreground">
                           <Eye size={14} /> View Details
                         </Link>
-                        <button className="inline-flex items-center gap-1.5 px-4 py-2 border border-border rounded-xl text-sm font-medium hover:bg-muted transition-colors">
-                          <Download size={14} /> Invoice
-                        </button>
-                        {order.status === 'delivered' && (
-                          <button className="ml-auto inline-flex items-center gap-1.5 px-4 py-2 bg-primary/10 text-primary rounded-xl text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors">
-                            Write Review
-                          </button>
-                        )}
                       </div>
                     </div>
                   </div>
@@ -171,4 +103,3 @@ export default function OrdersPage() {
     </div>
   );
 }
-

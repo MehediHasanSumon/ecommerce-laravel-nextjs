@@ -38,6 +38,7 @@ export const routePaths = {
   adminCurrencies: "/admin/currencies",
   adminDiscounts: "/admin/discounts",
   adminReviews: "/admin/reviews",
+  adminOrders: "/admin/orders",
   adminBlogs: "/admin/blogs",
   adminSettingsCompany: "/admin/settings/company",
   adminSettingsCategories: "/admin/settings/categories",

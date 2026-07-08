@@ -80,6 +80,7 @@ const productManagementItems = [
   { href: routePaths.adminCurrencies, label: "Currency Management", icon: CircleDollarSign },
   { href: routePaths.adminDiscounts, label: "Discount Management", icon: CirclePercent },
   { href: routePaths.adminReviews, label: "Review Management", icon: Star },
+  { href: routePaths.adminOrders, label: "Order Management", icon: PackageCheck },
 ];
 
 const settingsItems = [
@@ -337,7 +338,9 @@ function AdminNavLink({
 }
 
 function isAdminItemActive(item: RuntimeNavigationItem, pathname: string) {
-  return pathname === item.href || (item.href === routePaths.adminProducts && pathname.startsWith(`${routePaths.adminProducts}/`));
+  return pathname === item.href
+    || (item.href === routePaths.adminProducts && pathname.startsWith(`${routePaths.adminProducts}/`))
+    || (item.href === routePaths.adminOrders && pathname.startsWith(`${routePaths.adminOrders}/`));
 }
 
 function UserMenu({ user, isLoading, onLogout }: { user: User; isLoading: boolean; onLogout: () => void }) {
@@ -431,7 +434,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
   const isLoading = useAuthStore((state) => state.isLoading);
   const activeItem =
     [...navItems, ...usersManagementItems].find((item) => item.href === pathname) ??
-    productManagementItems.find((item) => item.href === pathname || (item.href === routePaths.adminProducts && pathname.startsWith(`${routePaths.adminProducts}/`))) ??
+    productManagementItems.find((item) => item.href === pathname || (item.href === routePaths.adminProducts && pathname.startsWith(`${routePaths.adminProducts}/`)) || (item.href === routePaths.adminOrders && pathname.startsWith(`${routePaths.adminOrders}/`))) ??
     settingsItems.find((item) => item.href === pathname) ??
     navItems[0];
 

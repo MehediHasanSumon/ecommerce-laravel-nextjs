@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\Admin\HomeFeatureCardController;
 use App\Http\Controllers\Api\Admin\BlogCommentManagementController;
 use App\Http\Controllers\Api\Admin\BlogManagementController;
 use App\Http\Controllers\Api\Admin\PermissionManagementController;
+use App\Http\Controllers\Api\Admin\OrderManagementController;
 use App\Http\Controllers\Api\Admin\ProductModuleController;
 use App\Http\Controllers\Api\Admin\RoleManagementController;
 use App\Http\Controllers\Api\Admin\Settings\BlogSettingsController;
@@ -28,6 +29,7 @@ use App\Http\Controllers\Api\CheckoutController;
 use App\Http\Controllers\Api\CollectionCatalogController;
 use App\Http\Controllers\Api\CustomerAddressController;
 use App\Http\Controllers\Api\HomePageController;
+use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\PaymentCallbackController;
 use App\Http\Controllers\Api\ProductCatalogController;
 use App\Http\Controllers\Api\ShippingMethodController;
@@ -60,6 +62,7 @@ Route::middleware(['auth.cookie.optional:access', 'throttle:public-settings'])->
 
     Route::get('/checkout/payment-methods', [CheckoutController::class, 'paymentMethods']);
     Route::post('/checkout/place-order', [CheckoutController::class, 'place']);
+    Route::get('/payment/result', [OrderController::class, 'paymentResult']);
 
     Route::get('/wishlist', [WishlistController::class, 'show']);
     Route::post('/wishlist/toggle', [WishlistController::class, 'toggle']);
@@ -72,6 +75,8 @@ Route::middleware(['auth.cookie.optional:access', 'throttle:public-settings'])->
 
 Route::middleware(['auth.cookie:access', 'throttle:public-settings'])->group(function (): void {
     Route::apiResource('addresses', CustomerAddressController::class)->only(['index', 'store', 'update', 'destroy']);
+    Route::get('/orders', [OrderController::class, 'index']);
+    Route::get('/orders/{order}', [OrderController::class, 'show']);
 });
 
 Route::prefix('auth')->group(function (): void {
@@ -106,6 +111,10 @@ Route::prefix('admin')
 
         Route::delete('/permissions/bulk', [PermissionManagementController::class, 'bulkDestroy']);
         Route::apiResource('permissions', PermissionManagementController::class);
+
+        Route::get('/orders', [OrderManagementController::class, 'index']);
+        Route::get('/orders/{order}', [OrderManagementController::class, 'show']);
+        Route::put('/orders/{order}', [OrderManagementController::class, 'update']);
 
         Route::post('/feature-cards/reorder', [HomeFeatureCardController::class, 'reorder']);
         Route::apiResource('feature-cards', HomeFeatureCardController::class);
