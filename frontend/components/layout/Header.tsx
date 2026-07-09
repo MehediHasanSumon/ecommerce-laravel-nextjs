@@ -15,7 +15,6 @@ import {
   ChevronRight,
   MapPin,
   Phone,
-  Truck,
   Package,
   LogOut,
   Settings,
@@ -517,9 +516,6 @@ export function Header() {
         <div className="hidden md:block bg-muted/50 border-b border-border">
           <div className="max-w-7xl mx-auto px-4 py-1.5 flex items-center justify-between text-xs text-muted-foreground">
             <div className="flex items-center gap-4">
-              <span className="flex items-center gap-1">
-                <Truck size={12} /> Free shipping over {formatPrice(75)}
-              </span>
               {supportPhone ? (
                 <span className="flex items-center gap-1">
                   <Phone size={12} /> {supportPhone}
