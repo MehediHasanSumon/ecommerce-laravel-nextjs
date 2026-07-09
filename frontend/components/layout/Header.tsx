@@ -123,7 +123,7 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="max-w-3xl mx-auto px-4 py-4">
-          <div className="flex items-center gap-3 rounded-xl bg-muted px-4 py-3 ring-1 ring-transparent transition focus-within:bg-background focus-within:ring-primary">
+          <div className="flex items-center gap-3 rounded-xl bg-muted px-4 py-3 ring-1 ring-transparent transition focus-within:bg-background focus-within:ring-primary/20">
             <Search size={20} className="text-muted-foreground shrink-0" />
             <input
               ref={inputRef}
@@ -131,7 +131,7 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
               placeholder="Search products, brands, categories..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="min-w-0 flex-1 bg-transparent text-base text-foreground placeholder:text-muted-foreground"
+              className="min-w-0 flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground focus-visible:shadow-none"
             />
             <button
               onClick={onClose}

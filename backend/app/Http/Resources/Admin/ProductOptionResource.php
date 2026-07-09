@@ -13,6 +13,7 @@ class ProductOptionResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name ?? $this->value ?? $this->title ?? (string) $this->id,
             'type' => $this->type ?? null,
+            'parent_id' => $this->parent_id ?? null,
             'attribute_id' => $this->attribute_id ?? null,
             'brand_id' => $this->brand_id ?? null,
             'brand_name' => $this->brand?->name ?? null,

@@ -52,6 +52,27 @@ function stripFileValues(values: ProductWizardValues): ProductWizardValues {
   };
 }
 
+function normalizeCategorySelection(values: ProductWizardValues, options: ProductOptions): ProductWizardValues {
+  const category = options.categories.find((item) => String(item.id) === String(values.category_id));
+  if (category?.parent_id) {
+    return {
+      ...values,
+      category_id: String(category.parent_id),
+      subcategory_id: String(category.id),
+    };
+  }
+
+  const subcategory = options.categories.find((item) => String(item.id) === String(values.subcategory_id));
+  if (subcategory && String(subcategory.parent_id ?? "") !== String(values.category_id)) {
+    return {
+      ...values,
+      subcategory_id: "",
+    };
+  }
+
+  return values;
+}
+
 export function ProductWizardPage({ mode, productId }: { mode: ProductWizardMode; productId?: number }) {
   const router = useRouter();
   const [options, setOptions] = useState<ProductOptions>(emptyOptions);
@@ -75,9 +96,10 @@ export function ProductWizardPage({ mode, productId }: { mode: ProductWizardMode
       setOptions(optionResponse.data.options ?? emptyOptions);
       const record = productResponse?.data.item ?? null;
       setInitialProduct(record);
-      const baseValues = valuesFromProduct(record);
+      const loadedOptions = optionResponse.data.options ?? emptyOptions;
+      const baseValues = valuesFromProduct(record, loadedOptions);
       const saved = typeof window !== "undefined" ? window.localStorage.getItem(draftKey) : null;
-      form.reset(saved ? { ...baseValues, ...JSON.parse(saved) } : baseValues);
+      form.reset(normalizeCategorySelection(saved ? { ...baseValues, ...JSON.parse(saved) } : baseValues, loadedOptions));
     } catch (error) {
       toast.error(toAppError(error).message);
     } finally {

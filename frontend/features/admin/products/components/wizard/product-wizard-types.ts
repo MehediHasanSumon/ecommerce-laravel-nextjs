@@ -238,16 +238,21 @@ function mediaFromRecord(record: ProductRecord): { featured: ProductMediaItem | 
   };
 }
 
-export function valuesFromProduct(record?: ProductRecord | null): ProductWizardValues {
+export function valuesFromProduct(record?: ProductRecord | null, options?: ProductOptions): ProductWizardValues {
   const values = emptyProductWizardValues();
   if (!record) return values;
   const media = mediaFromRecord(record);
+  const selectedCategoryId = record.category_id ? String(record.category_id) : "";
+  const selectedCategory = options?.categories.find((category) => String(category.id) === selectedCategoryId);
+  const parentCategoryId = selectedCategory?.parent_id ? String(selectedCategory.parent_id) : selectedCategoryId;
+  const subcategoryId = selectedCategory?.parent_id ? selectedCategoryId : "";
 
   return {
     ...values,
     name: String(record.name ?? ""),
     brand_id: record.brand_id ? String(record.brand_id) : "",
-    category_id: record.category_id ? String(record.category_id) : "",
+    category_id: parentCategoryId,
+    subcategory_id: subcategoryId,
     short_description: String(record.short_description ?? ""),
     description: String(record.description ?? ""),
     product_type: record.product_type === "digital" ? "digital" : "physical",

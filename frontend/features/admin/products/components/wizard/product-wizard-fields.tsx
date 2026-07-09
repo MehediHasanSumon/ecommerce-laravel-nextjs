@@ -226,7 +226,7 @@ export function TagInputField({
             </span>
           ))}
           <input
-            className="min-w-40 flex-1 bg-transparent py-1 text-sm outline-none placeholder:text-muted-foreground"
+            className="min-w-40 flex-1 bg-transparent py-1 text-sm outline-none placeholder:text-muted-foreground focus-visible:shadow-none"
             value={input}
             placeholder={values.length ? "Add more tags" : "Type tags, separate with comma"}
             onChange={(event) => {
