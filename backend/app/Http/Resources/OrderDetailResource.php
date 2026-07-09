@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Storage;
 
 class OrderDetailResource extends JsonResource
 {
@@ -25,19 +26,28 @@ class OrderDetailResource extends JsonResource
             'shippingAddress' => $this->shipping_address,
             'adminNotes' => $this->admin_notes,
             'customerNotes' => $this->customer_notes,
-            'items' => $this->items->map(fn ($item) => [
-                'id' => $item->id,
-                'productId' => $item->product_id,
-                'variantId' => $item->product_variant_id,
-                'productName' => $item->product_name,
-                'sku' => $item->sku,
-                'quantity' => (int) $item->quantity,
-                'unitPrice' => round($item->unit_price_cents / 100, 2),
-                'discountedPrice' => $item->discounted_price_cents ? round($item->discounted_price_cents / 100, 2) : null,
-                'lineSubtotal' => round($item->line_subtotal_cents / 100, 2),
-                'lineDiscount' => round($item->line_discount_cents / 100, 2),
-                'selection' => $item->selection_snapshot,
-            ])->values(),
+            'items' => $this->items->map(function ($item): array {
+                $selection = (array) ($item->selection_snapshot ?? []);
+                $variantImage = $item->variant?->images?->sortBy('sort_order')->first()?->url;
+                $productImage = $item->product?->images?->firstWhere('is_primary', true)?->url
+                    ?: $item->product?->images?->sortBy('sort_order')->first()?->url;
+
+                return [
+                    'id' => $item->id,
+                    'productId' => $item->product_id,
+                    'variantId' => $item->product_variant_id,
+                    'productName' => $item->product_name,
+                    'productSlug' => $item->product?->slug,
+                    'image' => $this->assetUrl($selection['selected_image'] ?? $variantImage ?? $productImage),
+                    'sku' => $item->sku,
+                    'quantity' => (int) $item->quantity,
+                    'unitPrice' => round($item->unit_price_cents / 100, 2),
+                    'discountedPrice' => $item->discounted_price_cents ? round($item->discounted_price_cents / 100, 2) : null,
+                    'lineSubtotal' => round($item->line_subtotal_cents / 100, 2),
+                    'lineDiscount' => round($item->line_discount_cents / 100, 2),
+                    'selection' => $selection,
+                ];
+            })->values(),
             'payment' => [
                 'gateway' => $latestTransaction?->gateway ?? $this->payment_method,
                 'transactionId' => $latestTransaction?->gateway_transaction_id,
@@ -56,5 +66,22 @@ class OrderDetailResource extends JsonResource
                 'createdAt' => optional($history->created_at)->toISOString(),
             ])->values(),
         ];
+    }
+
+    private function assetUrl(?string $path): ?string
+    {
+        if (! $path) {
+            return null;
+        }
+
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
+        if (str_starts_with($path, '/storage/') || str_starts_with($path, 'storage/')) {
+            return url($path);
+        }
+
+        return Storage::disk('public')->url($path);
     }
 }

@@ -65,7 +65,7 @@ export default function OrdersPage() {
           <AccountSidebar active="orders" />
           <div className="min-w-0 flex-1">
             <h1 className="mb-6 text-2xl font-extrabold">My Orders</h1>
-            <form onSubmit={handleSearch} className="mb-4 flex gap-2">
+            <form onSubmit={handleSearch} className="mb-6 flex flex-col gap-2 sm:flex-row">
               <div className="relative flex-1">
                 <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <input
@@ -74,24 +74,25 @@ export default function OrdersPage() {
                   className="w-full rounded-xl border border-border bg-background py-2 pl-9 pr-3 text-sm outline-none focus:border-primary"
                 />
               </div>
+              <select
+                value={filter}
+                onChange={(event) => {
+                  setFilter(event.target.value);
+                  setPage(1);
+                }}
+                className="h-10 rounded-xl border border-border bg-background px-3 text-sm font-medium outline-none transition-colors focus:border-primary sm:w-56"
+                aria-label="Filter orders by status"
+              >
+                {filters.map((status) => (
+                  <option key={status} value={status}>
+                    {status === "all" ? "All Orders" : ORDER_STATUS_LABELS[status] ?? status.replaceAll("_", " ")}
+                  </option>
+                ))}
+              </select>
               <button type="submit" className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90">
                 Search
               </button>
             </form>
-            <div className="mb-6 flex gap-2 overflow-x-auto pb-2">
-              {filters.map((status) => (
-                <button
-                  key={status}
-                  onClick={() => {
-                    setFilter(status);
-                    setPage(1);
-                  }}
-                  className={`whitespace-nowrap rounded-xl px-4 py-2 text-sm font-medium capitalize transition-colors ${filter === status ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"}`}
-                >
-                  {status === "all" ? "All Orders" : ORDER_STATUS_LABELS[status] ?? status.replaceAll("_", " ")}
-                </button>
-              ))}
-            </div>
 
             {loading ? (
               <div className="space-y-4">{Array.from({ length: 3 }).map((_, index) => <OrderCardSkeleton key={index} />)}</div>

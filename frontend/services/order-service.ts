@@ -49,6 +49,8 @@ export type OrderDetail = OrderListItem & {
   items: Array<{
     id: number;
     productName: string;
+    productSlug?: string | null;
+    image?: string | null;
     sku?: string | null;
     quantity: number;
     unitPrice: number;

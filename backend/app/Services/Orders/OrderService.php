@@ -117,7 +117,9 @@ class OrderService
         return Order::query()->with([
             'user:id,name,email',
             'items.product:id,name,slug',
+            'items.product.images:id,product_id,url,is_primary,sort_order',
             'items.variant:id,sku',
+            'items.variant.images:id,product_variant_id,url,is_primary,sort_order',
             'transactions' => fn ($query) => $query->latest(),
             'histories' => fn ($query) => $query->latest(),
         ]);
