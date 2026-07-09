@@ -11,10 +11,13 @@ use App\Models\ProductAttribute;
 use App\Models\ProductAttributeValue;
 use App\Models\ProductCollection;
 use App\Models\ProductReview;
+use App\Models\ProductVariant;
 use App\Models\Tag;
 use App\Models\Warehouse;
 use App\Services\Admin\Concerns\BuildsManagementQueries;
 use App\Services\Concerns\StoresPublicUploads;
+use App\Support\Identifiers\SkuGenerator;
+use App\Support\Identifiers\SlugGenerator;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
@@ -114,6 +117,7 @@ class ProductModuleService
         if ($module === 'collections') {
             $products = $data['products'] ?? [];
             unset($data['products']);
+            $this->applySlug($module, $model, $data);
             $data['type'] = ($data['collection_type'] ?? $data['type'] ?? 'manual') === 'smart' ? 'automatic' : 'manual';
             if (! (bool) ($data['discount_enabled'] ?? false)) {
                 $data['discount_type'] = null;
@@ -164,6 +168,7 @@ class ProductModuleService
             }
         }
 
+        $this->applySlug($module, $model, $data);
         $model->fill($data)->save();
 
         if ($module === 'reviews' && ! empty($data['admin_reply'])) {
@@ -244,6 +249,8 @@ class ProductModuleService
             $data['variants']
         );
 
+        $this->applySlug('products', $model, $data);
+        $this->applyProductSku($model, $data);
         $model->fill($data)->save();
         $model->tags()->sync($tags);
         $this->syncProductAttributeValues($model, $attributeValues);
@@ -261,15 +268,108 @@ class ProductModuleService
             $model->seo()->delete();
         }
 
+        $existingVariantSkus = $this->existingVariantSkusByAttributes($model);
         $model->variants()->delete();
         foreach ($variants as $variantData) {
             $variantAttributeValues = $variantData['attribute_values'] ?? [];
             unset($variantData['attribute_values']);
+            $variantData['sku'] = $this->variantSku($model, $variantData, $variantAttributeValues, $existingVariantSkus);
             $variant = $model->variants()->create($variantData);
             $this->syncVariantAttributeValues($variant, $variantAttributeValues);
         }
 
         return $this->find('products', $model->id);
+    }
+
+    private function applySlug(string $module, Model $model, array &$data): void
+    {
+        $source = $this->slugSource($module, $data, $model);
+
+        if (! $source || ! $this->hasSlug($module)) {
+            unset($data['slug']);
+            return;
+        }
+
+        if ($model->exists && filled($model->getAttribute('slug'))) {
+            $data['slug'] = $model->getAttribute('slug');
+            return;
+        }
+
+        $data['slug'] = SlugGenerator::generate(
+            $source,
+            $this->modelClass($module),
+            $model->exists ? $model->getKey() : null,
+            scope: $module === 'attribute-values' ? ['attribute_id' => $data['attribute_id'] ?? $model->getAttribute('attribute_id')] : []
+        );
+    }
+
+    private function applyProductSku(Model $model, array &$data): void
+    {
+        if ($model->exists && filled($model->getAttribute('sku'))) {
+            $data['sku'] = $model->getAttribute('sku');
+            return;
+        }
+
+        $data['sku'] = SkuGenerator::generate(
+            (string) ($data['name'] ?? $model->getAttribute('name')),
+            [Product::class, ProductVariant::class]
+        );
+    }
+
+    private function slugSource(string $module, array $data, Model $model): ?string
+    {
+        $value = match ($module) {
+            'attribute-values' => $data['value'] ?? $model->getAttribute('value'),
+            'products', 'brands', 'categories', 'attributes', 'tags', 'collections' => $data['name'] ?? $model->getAttribute('name'),
+            default => null,
+        };
+
+        return filled($value) ? (string) $value : null;
+    }
+
+    private function hasSlug(string $module): bool
+    {
+        return in_array($module, ['products', 'brands', 'categories', 'attributes', 'attribute-values', 'tags', 'collections'], true);
+    }
+
+    private function existingVariantSkusByAttributes(Product $product): array
+    {
+        return $product->variants()
+            ->with('attributeValues:id')
+            ->get()
+            ->mapWithKeys(function (ProductVariant $variant): array {
+                return [$this->variantAttributeKey($variant->attributeValues->pluck('id')->all()) => $variant->sku];
+            })
+            ->all();
+    }
+
+    private function variantSku(Product $product, array $variantData, array $attributeValueIds, array $existingVariantSkus): string
+    {
+        $key = $this->variantAttributeKey($attributeValueIds);
+        if (filled($existingVariantSkus[$key] ?? null)) {
+            return $existingVariantSkus[$key];
+        }
+
+        if (filled($variantData['sku'] ?? null)) {
+            return SkuGenerator::generate((string) $variantData['sku'], [Product::class, ProductVariant::class]);
+        }
+
+        $labels = ProductAttributeValue::query()
+            ->whereIn('id', $attributeValueIds)
+            ->orderBy('id')
+            ->pluck('value')
+            ->all();
+
+        $source = trim($product->name.' '.implode(' ', $labels));
+
+        return SkuGenerator::generate($source, [Product::class, ProductVariant::class]);
+    }
+
+    private function variantAttributeKey(array $attributeValueIds): string
+    {
+        sort($attributeValueIds);
+
+        return implode('-', $attributeValueIds);
     }
 
     private function productImagesFromUploads(array $images, mixed $featuredImageFile, mixed $galleryImageFiles): array

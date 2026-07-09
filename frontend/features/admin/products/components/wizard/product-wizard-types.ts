@@ -21,7 +21,6 @@ export type ProductMediaItem = {
 
 export type ProductVariantDraft = {
   id: string;
-  sku: string;
   price_cents?: number;
   cost_price_cents?: number;
   stock_quantity?: number;
@@ -32,8 +31,6 @@ export type ProductVariantDraft = {
 
 export type ProductWizardValues = {
   name: string;
-  slug: string;
-  sku: string;
   brand_id: string;
   category_id: string;
   subcategory_id: string;
@@ -98,8 +95,6 @@ const optionalUrl = z.string().trim().optional().or(z.literal(""));
 
 export const productWizardSchema = z.object({
   name: z.string().trim().min(2, "Product name is required."),
-  slug: z.string().trim().min(2, "Slug is required.").regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Use lowercase letters, numbers, and hyphens."),
-  sku: z.string().trim().max(100, "SKU must be 100 characters or fewer.").optional(),
   brand_id: z.string().optional(),
   category_id: z.string().min(1, "Category is required."),
   subcategory_id: z.string().optional(),
@@ -158,7 +153,7 @@ export const productWizardSchema = z.object({
 });
 
 export const stepFields: Record<ProductWizardStepId, Array<keyof ProductWizardValues | string>> = {
-  basic: ["name", "slug", "sku", "brand_id", "category_id", "subcategory_id", "short_description"],
+  basic: ["name", "brand_id", "category_id", "subcategory_id", "short_description"],
   pricing: ["base_price_cents", "compare_at_price_cents", "cost_price_cents", "tax_class", "currency"],
   inventory: ["stock_quantity", "stock_status", "low_stock_threshold", "track_inventory", "backorders", "min_order_quantity", "max_order_quantity"],
   media: ["featured_image", "gallery_images"],
@@ -171,8 +166,6 @@ export const stepFields: Record<ProductWizardStepId, Array<keyof ProductWizardVa
 export function emptyProductWizardValues(): ProductWizardValues {
   return {
     name: "",
-    slug: "",
-    sku: "",
     brand_id: "",
     category_id: "",
     subcategory_id: "",
@@ -253,8 +246,6 @@ export function valuesFromProduct(record?: ProductRecord | null): ProductWizardV
   return {
     ...values,
     name: String(record.name ?? ""),
-    slug: String(record.slug ?? ""),
-    sku: String(record.sku ?? ""),
     brand_id: record.brand_id ? String(record.brand_id) : "",
     category_id: record.category_id ? String(record.category_id) : "",
     short_description: String(record.short_description ?? ""),
@@ -275,7 +266,6 @@ export function valuesFromProduct(record?: ProductRecord | null): ProductWizardV
       const item = variant as Record<string, unknown>;
       return {
         id: String(item.id ?? `variant-${index}`),
-        sku: String(item.sku ?? ""),
         price_cents: item.price_cents === null || item.price_cents === undefined ? undefined : Number(item.price_cents),
         cost_price_cents: item.cost_price_cents === null || item.cost_price_cents === undefined ? undefined : Number(item.cost_price_cents),
         stock_quantity: item.stock_quantity === null || item.stock_quantity === undefined ? undefined : Number(item.stock_quantity),
@@ -329,8 +319,6 @@ export function productPayloadFromValues(values: ProductWizardValues, publish: b
     brand_id: values.brand_id ? Number(values.brand_id) : null,
     category_id: values.subcategory_id ? Number(values.subcategory_id) : values.category_id ? Number(values.category_id) : null,
     name: values.name,
-    slug: values.slug,
-    sku: values.sku || null,
     short_description: values.short_description,
     description: values.description || null,
     product_type: values.product_type,
@@ -368,7 +356,6 @@ export function productPayloadFromValues(values: ProductWizardValues, publish: b
       values.shipping.package_info ? { group_name: "Shipping", name: "Package Information", value: values.shipping.package_info, sort_order: 3 } : null,
     ].filter(Boolean),
     variants: values.variants.map((variant) => ({
-      sku: variant.sku,
       price_cents: variant.price_cents ?? null,
       cost_price_cents: variant.cost_price_cents ?? null,
       stock_quantity: variant.stock_quantity ?? null,

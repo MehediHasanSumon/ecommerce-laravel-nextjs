@@ -27,7 +27,6 @@ export type ManagedBlog = BaseRecord & {
 
 export type BlogPayload = {
   title: string;
-  slug?: string;
   featured_image: string;
   excerpt: string;
   content: string;

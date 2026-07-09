@@ -43,8 +43,6 @@ export function BasicInfoSection({ form, options }: SectionProps) {
       <SectionHeader title="Basic Information" description="Name the product, connect it to catalog taxonomy, and add the short merchandising copy." />
       <FieldGrid>
         <Input label="Product Name" {...form.register("name")} error={errors.name?.message} />
-        <Input label="Slug" {...form.register("slug")} error={errors.slug?.message} />
-        <Input label="SKU" {...form.register("sku")} error={errors.sku?.message} />
         <SelectField label="Brand" value={useFieldValue(form, "brand_id")} placeholder="Select brand" options={[{ id: "", name: "No brand" }, ...options.brands]} onChange={(value) => form.setValue("brand_id", value, { shouldDirty: true })} />
         <SelectField label="Category" value={categoryId} placeholder="Select category" options={parentCategories.length ? parentCategories : options.categories} error={errors.category_id?.message} onChange={(value) => form.setValue("category_id", value, { shouldDirty: true, shouldValidate: true })} />
         <SelectField label="Subcategory" value={useFieldValue(form, "subcategory_id")} placeholder="Select subcategory" options={[{ id: "", name: "No subcategory" }, ...subcategories]} onChange={(value) => form.setValue("subcategory_id", value, { shouldDirty: true })} />
@@ -130,7 +128,6 @@ export function VariantSection({ form, options }: SectionProps) {
   function addVariant() {
     const next: ProductVariantDraft = {
       id: crypto.randomUUID(),
-      sku: "",
       status: "active",
       attribute_values: selectedAttributes,
     };
@@ -143,7 +140,7 @@ export function VariantSection({ form, options }: SectionProps) {
 
   return (
     <div className="space-y-5">
-      <SectionHeader title="Attributes & Variants" description="Attach attribute values and generate sellable variant rows with SKU, price, stock, and images." />
+      <SectionHeader title="Attributes & Variants" description="Attach attribute values and generate sellable variant rows with price, stock, and images." />
       <MultiSelectField title="Attributes" options={options.attribute_values.map((value) => ({ id: value.id, name: `${value.name}${value.type ? ` (${value.type})` : ""}` }))} values={selectedAttributes} onChange={(values) => form.setValue("attribute_values", values, { shouldDirty: true })} />
       <div className="flex justify-end">
         <Button type="button" size="sm" icon={<Plus className="h-4 w-4" />} onClick={addVariant}>Generate Variant</Button>
@@ -156,7 +153,6 @@ export function VariantSection({ form, options }: SectionProps) {
               <Button type="button" size="icon" variant="ghost" title="Remove variant" icon={<Trash2 className="h-4 w-4" />} onClick={() => form.setValue("variants", variants.filter((item) => item.id !== variant.id), { shouldDirty: true })} />
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-3">
-              <Input label="Variant SKU" value={variant.sku} onChange={(event) => updateVariant(variant.id, { sku: event.target.value })} />
               <Input label="Variant Price" type="number" value={variant.price_cents ?? ""} onChange={(event) => updateVariant(variant.id, { price_cents: event.target.value ? Number(event.target.value) : undefined })} />
               <Input label="Variant Stock" type="number" value={variant.stock_quantity ?? ""} onChange={(event) => updateVariant(variant.id, { stock_quantity: event.target.value ? Number(event.target.value) : undefined })} />
               <Input label="Variant Image URL" value={variant.image_url ?? ""} onChange={(event) => updateVariant(variant.id, { image_url: event.target.value })} />
@@ -216,7 +212,7 @@ export function ShippingSection({ form }: SectionProps) {
 export function PublishSection({ form, options }: SectionProps) {
   const values = form.getValues();
   const checks = [
-    { label: "Basic information", complete: Boolean(values.name && values.slug && values.category_id && values.short_description) },
+    { label: "Basic information", complete: Boolean(values.name && values.category_id && values.short_description) },
     { label: "Pricing", complete: values.base_price_cents !== "" && Boolean(values.currency) },
     { label: "Inventory", complete: !values.track_inventory || values.stock_quantity !== "" },
     { label: "Media", complete: Boolean(values.featured_image || values.gallery_images.length) },
@@ -230,8 +226,6 @@ export function PublishSection({ form, options }: SectionProps) {
         <div className="rounded-lg border border-border bg-background p-4">
           <h3 className="text-base font-bold">{values.name || "Untitled product"}</h3>
           <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-            <Summary label="Slug" value={values.slug || "Not set"} />
-            <Summary label="SKU" value={values.sku || "Not set"} />
             <Summary label="Brand" value={optionName(options, "brands", values.brand_id)} />
             <Summary label="Category" value={optionName(options, "categories", values.subcategory_id || values.category_id)} />
             <Summary label="Regular Price" value={formatCurrency(Number(values.base_price_cents || 0) / 100)} />

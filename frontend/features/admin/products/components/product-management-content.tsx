@@ -110,7 +110,6 @@ export const productModuleConfigs: Record<ProductModule, ModuleConfig> = {
     statuses: commonStatus,
     fields: [
       { name: "name", label: "Name", type: "text" },
-      { name: "slug", label: "Slug", type: "text" },
       { name: "description", label: "Description", type: "textarea", optional: true },
       { name: "logo_file", label: "Logo", type: "file", optional: true, existingImageField: "logo_url", maxSizeMb: 2 },
       { name: "cover_image_file", label: "Cover Image", type: "file", optional: true, existingImageField: "cover_image_url", maxSizeMb: 4 },
@@ -143,7 +142,6 @@ export const productModuleConfigs: Record<ProductModule, ModuleConfig> = {
     fields: [
       { name: "parent_id", label: "Parent Category", type: "select", options: "categories", optional: true },
       { name: "name", label: "Name", type: "text" },
-      { name: "slug", label: "Slug", type: "text" },
       { name: "description", label: "Description", type: "textarea", optional: true },
       { name: "image_file", label: "Category Image", type: "file", optional: true, existingImageField: "image_url", maxSizeMb: 4 },
       { name: "icon", label: "Icon", type: "text", optional: true },
@@ -179,7 +177,6 @@ export const productModuleConfigs: Record<ProductModule, ModuleConfig> = {
     types: ["text", "color", "image", "number", "select"],
     fields: [
       { name: "name", label: "Name", type: "text" },
-      { name: "slug", label: "Slug", type: "text" },
       { name: "type", label: "Type", type: "select", options: ["text", "color", "image", "number", "select"] },
       { name: "is_filterable", label: "Filterable", type: "checkbox", optional: true },
       { name: "is_variant_defining", label: "Variant Defining", type: "checkbox", optional: true },
@@ -202,7 +199,6 @@ export const productModuleConfigs: Record<ProductModule, ModuleConfig> = {
     fields: [
       { name: "attribute_id", label: "Attribute", type: "select", options: "attributes" },
       { name: "value", label: "Value", type: "text" },
-      { name: "slug", label: "Slug", type: "text" },
       { name: "display_value", label: "Display Value", type: "text", optional: true },
       { name: "hex_color", label: "Hex Color", type: "text", optional: true },
       { name: "sort_order", label: "Sort Order", type: "number", optional: true },
@@ -222,7 +218,6 @@ export const productModuleConfigs: Record<ProductModule, ModuleConfig> = {
     defaultSort: "created_at",
     fields: [
       { name: "name", label: "Name", type: "text" },
-      { name: "slug", label: "Slug", type: "text" },
     ],
     columns: [
       { key: "name", label: "Name", sortable: true, render: (item) => <span className="font-semibold">{String(item.name ?? "")}</span> },
@@ -284,7 +279,6 @@ export const productModuleConfigs: Record<ProductModule, ModuleConfig> = {
     types: ["manual", "smart"],
     fields: [
       { tab: "Basic", name: "name", label: "Name", type: "text" },
-      { tab: "Basic", name: "slug", label: "Slug", type: "text" },
       { tab: "Basic", name: "description", label: "Description", type: "textarea", optional: true },
       { tab: "Basic", name: "collection_type", label: "Collection Type", type: "select", options: ["manual", "smart"] },
       { tab: "Basic", name: "rule_key", label: "Smart Rule", type: "select", options: ["flash_sale", "trending", "best_sellers", "new_arrivals", "recently_added", "featured", "custom"], optional: true, showWhen: (values) => values.collection_type === "smart" },
@@ -422,8 +416,6 @@ export const productModuleConfigs: Record<ProductModule, ModuleConfig> = {
 function productFields(): FieldConfig[] {
   return [
     { tab: "Basic", name: "name", label: "Product Name", type: "text" },
-    { tab: "Basic", name: "slug", label: "Slug", type: "text" },
-    { tab: "Basic", name: "sku", label: "SKU", type: "text", optional: true },
     { tab: "Basic", name: "product_type", label: "Product Type", type: "select", options: ["physical", "digital"] },
     { tab: "Basic", name: "status", label: "Status", type: "select", options: ["draft", "active", "archived"] },
     { tab: "Basic", name: "brand_id", label: "Brand", type: "select", options: "brands", optional: true },

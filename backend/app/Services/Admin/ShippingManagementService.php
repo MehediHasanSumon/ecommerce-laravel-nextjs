@@ -5,9 +5,9 @@ namespace App\Services\Admin;
 use App\Models\Settings\ShippingMethod;
 use App\Models\Settings\ShippingZone;
 use App\Services\Admin\Concerns\BuildsManagementQueries;
+use App\Support\Identifiers\SlugGenerator;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Str;
 
 class ShippingManagementService
 {
@@ -117,7 +117,7 @@ class ShippingManagementService
     {
         $freeShipping = (bool) $data['free_shipping'];
         $name = $data['name'];
-        $slug = $method?->slug ?: $this->uniqueMethodSlug(Str::slug($name));
+        $slug = $method?->slug ?: SlugGenerator::generate($name, ShippingMethod::class);
         $code = $method?->code ?: $this->uniqueMethodCode($slug);
 
         return [
@@ -148,20 +148,6 @@ class ShippingManagementService
         }
 
         return $code;
-    }
-
-    private function uniqueMethodSlug(string $base): string
-    {
-        $base = $base ?: 'shipping-method';
-        $slug = $base;
-        $index = 2;
-
-        while (ShippingMethod::query()->where('slug', $slug)->exists()) {
-            $slug = "{$base}-{$index}";
-            $index++;
-        }
-
-        return $slug;
     }
 
     private function clearRuntimeCache(): void

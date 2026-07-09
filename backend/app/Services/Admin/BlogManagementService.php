@@ -5,9 +5,9 @@ namespace App\Services\Admin;
 use App\Models\Blog;
 use App\Services\Admin\Concerns\BuildsManagementQueries;
 use App\Services\Admin\Settings\BlogSettingsService;
+use App\Support\Identifiers\SlugGenerator;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
 class BlogManagementService
 {
@@ -42,7 +42,7 @@ class BlogManagementService
     public function create(array $data, int $userId): Blog
     {
         return DB::transaction(function () use ($data, $userId): Blog {
-            $data['slug'] = $this->uniqueSlug($data['slug'] ?? $data['title']);
+            $data['slug'] = SlugGenerator::generate($data['title'], Blog::class);
             $data['author_id'] = $data['author_id'] ?? $userId;
             $data['created_by'] = $userId;
             $data['updated_by'] = $userId;
@@ -56,8 +56,10 @@ class BlogManagementService
     public function update(Blog $blog, array $data, int $userId): Blog
     {
         return DB::transaction(function () use ($blog, $data, $userId): Blog {
-            if (array_key_exists('slug', $data) || array_key_exists('title', $data)) {
-                $data['slug'] = $this->uniqueSlug($data['slug'] ?? $data['title'], $blog->id);
+            if (! filled($blog->slug)) {
+                $data['slug'] = SlugGenerator::generate($data['title'] ?? $blog->title, Blog::class, $blog->id);
+            } else {
+                unset($data['slug']);
             }
 
             if (array_key_exists('content', $data)) {
@@ -79,24 +81,6 @@ class BlogManagementService
     public function bulkDelete(array $ids): int
     {
         return Blog::query()->whereIn('id', $ids)->delete();
-    }
-
-    private function uniqueSlug(string $value, ?int $ignoreId = null): string
-    {
-        $base = Str::slug($value) ?: Str::random(8);
-        $slug = $base;
-        $suffix = 2;
-
-        while (Blog::query()
-            ->where('slug', $slug)
-            ->when($ignoreId, fn ($query) => $query->whereKeyNot($ignoreId))
-            ->withTrashed()
-            ->exists()) {
-            $slug = "{$base}-{$suffix}";
-            $suffix++;
-        }
-
-        return $slug;
     }
 
     private function readingTime(string $content): int

@@ -14,11 +14,8 @@ class SaveBlogRequest extends FormRequest
 
     public function rules(): array
     {
-        $blogId = $this->route('blog')?->id;
-
         return [
             'title' => ['required', 'string', 'max:255'],
-            'slug' => ['nullable', 'string', 'max:255', Rule::unique('blogs', 'slug')->ignore($blogId)],
             'featured_image' => ['required', 'string', 'max:2048'],
             'excerpt' => ['required', 'string', 'max:1000'],
             'content' => ['required', 'string'],

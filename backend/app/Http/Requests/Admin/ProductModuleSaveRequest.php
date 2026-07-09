@@ -5,7 +5,6 @@ namespace App\Http\Requests\Admin;
 use App\Models\Category;
 use App\Services\Admin\Settings\CategoryDisplaySettingsService;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
@@ -35,13 +34,7 @@ class ProductModuleSaveRequest extends FormRequest
         }
 
         if ((string) $this->route('module') === 'collections') {
-            $slug = $this->input('slug');
-            if (! filled($slug) && filled($this->input('name'))) {
-                $slug = $this->uniqueCollectionSlug((string) $this->input('name'), $this->route('id'));
-            }
-
             $this->merge([
-                'slug' => $slug,
                 'collection_type' => $this->input('collection_type', $this->input('type', 'manual') === 'automatic' ? 'smart' : 'manual'),
                 'display_position_anchor' => $this->input('display_position_anchor', 'products'),
                 'display_position_placement' => $this->input('display_position_placement', 'before'),
@@ -78,7 +71,6 @@ class ProductModuleSaveRequest extends FormRequest
         return match ($module) {
             'brands' => [
                 'name' => ['required', 'string', 'max:255'],
-                'slug' => ['required', 'string', 'max:255', Rule::unique('brands', 'slug')->ignore($id)],
                 'description' => ['nullable', 'string'],
                 'logo_url' => ['nullable', 'string'],
                 'cover_image_url' => ['nullable', 'string'],
@@ -98,7 +90,6 @@ class ProductModuleSaveRequest extends FormRequest
             'categories' => [
                 'parent_id' => ['nullable', 'integer', 'exists:categories,id', Rule::notIn([(int) $id])],
                 'name' => ['required', 'string', 'max:255'],
-                'slug' => ['required', 'string', 'max:255', Rule::unique('categories', 'slug')->ignore($id)],
                 'description' => ['nullable', 'string'],
                 'image_url' => ['nullable', 'string'],
                 'image_file' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
@@ -120,7 +111,6 @@ class ProductModuleSaveRequest extends FormRequest
             ],
             'attributes' => [
                 'name' => ['required', 'string', 'max:255'],
-                'slug' => ['required', 'string', 'max:255', Rule::unique('attributes', 'slug')->ignore($id)],
                 'type' => ['required', Rule::in(['text', 'color', 'image', 'number', 'select'])],
                 'is_filterable' => ['boolean'],
                 'is_variant_defining' => ['boolean'],
@@ -129,19 +119,12 @@ class ProductModuleSaveRequest extends FormRequest
             'attribute-values' => [
                 'attribute_id' => ['required', 'integer', 'exists:attributes,id'],
                 'value' => ['required', 'string', 'max:255'],
-                'slug' => [
-                    'required',
-                    'string',
-                    'max:255',
-                    Rule::unique('attribute_values', 'slug')->where('attribute_id', $this->input('attribute_id'))->ignore($id),
-                ],
                 'display_value' => ['nullable', 'string', 'max:255'],
                 'hex_color' => ['nullable', 'string', 'max:20'],
                 'sort_order' => ['nullable', 'integer', 'min:0'],
             ],
             'tags' => [
                 'name' => ['required', 'string', 'max:255'],
-                'slug' => ['required', 'string', 'max:255', Rule::unique('tags', 'slug')->ignore($id)],
             ],
             'warehouses' => [
                 'name' => ['required', 'string', 'max:255'],
@@ -162,7 +145,6 @@ class ProductModuleSaveRequest extends FormRequest
             'products' => $this->productRules($id),
             'collections' => [
                 'name' => ['required', 'string', 'max:255'],
-                'slug' => ['required', 'string', 'max:255', Rule::unique('collections', 'slug')->ignore($id)],
                 'description' => ['nullable', 'string'],
                 'type' => ['nullable', Rule::in(['manual', 'automatic', 'smart'])],
                 'collection_type' => ['required', Rule::in(['manual', 'smart'])],
@@ -291,12 +273,10 @@ class ProductModuleSaveRequest extends FormRequest
             'brand_id' => ['nullable', 'integer', 'exists:brands,id'],
             'category_id' => ['nullable', 'integer', 'exists:categories,id'],
             'name' => ['required', 'string', 'max:255'],
-            'slug' => ['required', 'string', 'max:255', Rule::unique('products', 'slug')->ignore($id)],
             'short_description' => ['nullable', 'string'],
             'description' => ['nullable', 'string'],
             'product_type' => ['required', Rule::in(['physical', 'digital'])],
             'status' => ['required', Rule::in(['draft', 'active', 'archived'])],
-            'sku' => ['nullable', 'string', 'max:100', Rule::unique('products', 'sku')->ignore($id)],
             'base_price_cents' => ['required', 'integer', 'min:0'],
             'compare_at_price_cents' => ['nullable', 'integer', 'min:0'],
             'cost_price_cents' => ['nullable', 'integer', 'min:0'],
@@ -345,7 +325,7 @@ class ProductModuleSaveRequest extends FormRequest
             'seo.og_image_url' => ['nullable', 'string'],
             'seo.schema_json' => ['nullable', 'array'],
             'variants' => ['nullable', 'array'],
-            'variants.*.sku' => ['required_with:variants', 'string', 'max:100'],
+            'variants.*.sku' => ['nullable', 'string', 'max:100'],
             'variants.*.barcode' => ['nullable', 'string', 'max:255'],
             'variants.*.price_cents' => ['nullable', 'integer', 'min:0'],
             'variants.*.compare_at_price_cents' => ['nullable', 'integer', 'min:0'],
@@ -359,22 +339,4 @@ class ProductModuleSaveRequest extends FormRequest
         ];
     }
 
-    private function uniqueCollectionSlug(string $name, mixed $ignoreId = null): string
-    {
-        $base = Str::slug($name) ?: 'collection';
-        $slug = $base;
-        $index = 2;
-
-        while (
-            DB::table('collections')
-                ->when($ignoreId, fn ($query) => $query->where('id', '!=', $ignoreId))
-                ->where('slug', $slug)
-                ->exists()
-        ) {
-            $slug = "{$base}-{$index}";
-            $index++;
-        }
-
-        return $slug;
-    }
 }

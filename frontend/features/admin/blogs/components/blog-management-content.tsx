@@ -20,7 +20,6 @@ const pageSizes = [10, 20, 50, 100];
 
 const emptyForm: BlogPayload = {
   title: "",
-  slug: "",
   featured_image: "",
   excerpt: "",
   content: "",
@@ -92,7 +91,6 @@ export function BlogManagementContent() {
     try {
       const payload = {
         ...values,
-        slug: values.slug || undefined,
         author_id: values.author_id || undefined,
         published_at: values.published_at || null,
         scheduled_publish_at: values.scheduled_publish_at || null,
@@ -282,7 +280,6 @@ function BlogDrawer({ open, mode, blog, authors, onClose, onSubmit }: { open: bo
   useEffect(() => {
     setForm(blog ? {
       title: blog.title,
-      slug: blog.slug,
       featured_image: blog.featured_image,
       excerpt: blog.excerpt,
       content: blog.content,
@@ -326,7 +323,6 @@ function BlogDrawer({ open, mode, blog, authors, onClose, onSubmit }: { open: bo
         </div>
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
           <Input required label="Title" value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} />
-          <Input label="Slug" value={form.slug} onChange={(event) => setForm((current) => ({ ...current, slug: event.target.value }))} placeholder="Auto-generated when blank" />
           <Input required label="Featured Image" value={form.featured_image} onChange={(event) => setForm((current) => ({ ...current, featured_image: event.target.value }))} />
           <label className="block space-y-1.5 text-sm font-semibold">
             <span>Author</span>

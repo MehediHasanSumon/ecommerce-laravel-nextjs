@@ -80,7 +80,6 @@ it('creates edits searches paginates and deletes blogs through admin and public 
 
     $this->withToken($token)->putJson("/api/admin/blogs/{$id}", [
         'title' => 'Updated Laravel Ecommerce Playbook',
-        'slug' => 'updated-laravel-ecommerce-playbook',
         'featured_image' => 'https://example.com/blog.jpg',
         'excerpt' => 'A better article.',
         'content' => 'Updated Laravel search content.',
@@ -89,15 +88,19 @@ it('creates edits searches paginates and deletes blogs through admin and public 
         'featured' => false,
         'allow_comments_override' => true,
     ])->assertOk()
-        ->assertJsonPath('data.blog.slug', 'updated-laravel-ecommerce-playbook')
+        ->assertJsonPath('data.blog.slug', 'laravel-ecommerce-playbook')
         ->assertJsonPath('data.blog.featured', false);
 
     $this->getJson('/api/blogs?search=Laravel&page=1')
         ->assertOk()
-        ->assertJsonPath('data.blogs.0.slug', 'updated-laravel-ecommerce-playbook')
         ->assertJsonPath('meta.pagination.per_page', 12);
 
-    $this->getJson('/api/blogs/updated-laravel-ecommerce-playbook')
+    $this->assertDatabaseHas('blogs', [
+        'id' => $id,
+        'slug' => 'laravel-ecommerce-playbook',
+    ]);
+
+    $this->getJson('/api/blogs/laravel-ecommerce-playbook')
         ->assertOk()
         ->assertJsonPath('data.blog.title', 'Updated Laravel Ecommerce Playbook')
         ->assertJsonStructure(['data' => ['related', 'settings']]);
