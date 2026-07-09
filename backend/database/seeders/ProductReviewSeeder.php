@@ -43,28 +43,12 @@ class ProductReviewSeeder extends Seeder
                         'Good value, clear product details, and no surprises during checkout or delivery.',
                         'This became part of my daily routine almost immediately. The size, feel, and performance are all solid.',
                     ]),
-                    'helpful_count' => fake()->numberBetween(0, 34),
+                    'helpful_count' => 0,
                     'is_verified_purchase' => fake()->boolean(82),
                     'status' => fake()->randomElement(['approved', 'approved', 'approved', 'pending']),
                     'created_at' => now()->subDays(fake()->numberBetween(1, 180)),
                     'updated_at' => now(),
                 ]);
-
-                if (fake()->boolean(28)) {
-                    ProductReviewImage::query()->create([
-                        'product_review_id' => $review->id,
-                        'url' => 'reviews/'.$product->slug.'/review-'.$review->id.'.webp',
-                        'sort_order' => 0,
-                    ]);
-                }
-
-                $voters = $users->where('id', '!=', $review->user_id)->random(min(fake()->numberBetween(1, 5), $users->count() - 1));
-                foreach ($voters as $voter) {
-                    ProductReviewVote::query()->updateOrCreate(
-                        ['product_review_id' => $review->id, 'user_id' => $voter->id],
-                        ['is_helpful' => fake()->boolean(85)]
-                    );
-                }
             }
 
             $approvedCount = ProductReview::query()->where('product_id', $product->id)->where('status', 'approved')->count();

@@ -153,6 +153,17 @@ class ProductModuleService
             return $this->find($module, $model->id);
         }
 
+        if ($module === 'reviews') {
+            $reply = trim((string) ($data['admin_reply'] ?? ''));
+            $data['admin_reply'] = $reply !== '' ? $reply : null;
+            if ($data['admin_reply'] && ! $model->admin_replied_at) {
+                $data['admin_replied_at'] = now();
+            }
+            if (! $data['admin_reply']) {
+                $data['admin_replied_at'] = null;
+            }
+        }
+
         $model->fill($data)->save();
 
         if ($module === 'categories') {
@@ -328,7 +339,7 @@ class ProductModuleService
             'currencies' => ['country', 'currency', 'symbol'],
             'attribute-values' => ['value', 'slug', 'display_value'],
             'warehouses' => ['name', 'code', 'city', 'country'],
-            'reviews' => ['title', 'comment'],
+            'reviews' => ['comment'],
             default => ['name', 'slug'],
         };
 

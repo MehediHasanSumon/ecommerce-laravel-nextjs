@@ -8,9 +8,11 @@ use App\Http\Resources\ProductDetailResource;
 use App\Http\Responses\ApiResponse;
 use App\Models\Brand;
 use App\Models\Category;
+use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\ProductAttribute;
 use App\Models\ProductAttributeValue;
+use App\Models\ProductReview;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -142,7 +144,6 @@ class ProductCatalogController extends Controller
                 'variants.images:id,product_id,product_variant_id,url,alt_text,type,is_primary,sort_order',
                 'reviews' => fn ($query) => $query->where('status', 'approved')->latest()->limit(20),
                 'reviews.user:id,name,email',
-                'reviews.images:id,product_review_id,url,sort_order',
                 'relatedProducts' => fn ($query) => $query
                     ->where('products.status', 'active')
                     ->with(['brand:id,name,slug', 'category:id,name,slug', 'images:id,product_id,url,is_primary,sort_order', 'tags:id,name'])
@@ -152,6 +153,51 @@ class ProductCatalogController extends Controller
             ->firstOrFail();
 
         return ApiResponse::success(ProductDetailResource::make($product)->resolve());
+    }
+
+    public function storeReview(Request $request, Product $product): JsonResponse
+    {
+        abort_unless($product->status === 'active', 404);
+
+        $validated = $request->validate([
+            'rating' => ['required', 'integer', 'min:1', 'max:5'],
+            'comment' => ['required', 'string', 'min:10', 'max:2000'],
+        ]);
+
+        $user = $request->user();
+        $existing = ProductReview::query()
+            ->where('product_id', $product->id)
+            ->where('user_id', $user->id)
+            ->exists();
+
+        if ($existing) {
+            return ApiResponse::error('You have already reviewed this product.', 409);
+        }
+
+        $verifiedPurchase = OrderItem::query()
+            ->where('product_id', $product->id)
+            ->whereHas('order', function ($query) use ($user): void {
+                $query
+                    ->where('user_id', $user->id)
+                    ->where('payment_status', 'paid');
+            })
+            ->exists();
+
+        $review = ProductReview::query()->create([
+            'product_id' => $product->id,
+            'user_id' => $user->id,
+            'rating' => $validated['rating'],
+            'comment' => $validated['comment'],
+            'is_verified_purchase' => $verifiedPurchase,
+            'status' => 'pending',
+        ]);
+
+        return ApiResponse::success([
+            'review' => [
+                'id' => (string) $review->id,
+                'status' => $review->status,
+            ],
+        ], 'Review submitted successfully. It will appear after approval.', 201);
     }
 
     private function applySort($query, string $sort): void

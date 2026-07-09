@@ -18,6 +18,7 @@ class ProductReview extends Model
     {
         return [
             'is_verified_purchase' => 'boolean',
+            'admin_replied_at' => 'datetime',
         ];
     }
 

@@ -77,6 +77,7 @@ Route::middleware(['auth.cookie.optional:access', 'throttle:public-settings'])->
 
 Route::middleware(['auth.cookie:access', 'throttle:public-settings'])->group(function (): void {
     Route::apiResource('addresses', CustomerAddressController::class)->only(['index', 'store', 'update', 'destroy']);
+    Route::post('/products/{product:slug}/reviews', [ProductCatalogController::class, 'storeReview']);
     Route::get('/orders', [OrderController::class, 'index']);
     Route::get('/orders/{order}', [OrderController::class, 'show']);
     Route::get('/account/dashboard', [AccountController::class, 'dashboard']);

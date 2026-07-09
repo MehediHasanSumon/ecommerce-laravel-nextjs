@@ -1,6 +1,7 @@
 "use client";
 
 import axios from "axios";
+import { createAuthAwareClient } from "@/lib/api-client";
 import type { ApiEnvelope, PaginationMeta } from "@/features/admin/shared/types";
 import type { Product } from "@/types";
 import type { Brand } from "@/types";
@@ -8,6 +9,7 @@ import type { Brand } from "@/types";
 const apiBaseUrl = (
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/auth"
 ).replace(/\/auth\/?$/, "");
+const authClient = createAuthAwareClient({ baseURL: apiBaseUrl, refreshPath: "/auth/refresh" });
 
 type ProductListPayload = {
   items: Product[];
@@ -61,12 +63,10 @@ export type ProductReview = {
   userId: string;
   user: { id: string; name: string; avatar?: string | null };
   rating: number;
-  title: string;
   comment: string;
-  images?: string[];
-  helpful: number;
   verified: boolean;
   createdAt: string;
+  replies?: Array<{ id: string; author: string; comment: string; createdAt?: string | null }>;
 };
 
 export type ProductVariantDetail = {
@@ -357,6 +357,18 @@ export async function fetchProductDetail(
   );
 
   return response.data.data;
+}
+
+export async function submitProductReview(
+  slug: string,
+  payload: { rating: number; comment: string },
+): Promise<string> {
+  const response = await authClient.post<ApiEnvelope<{ review: { id: string; status: string } }>>(
+    `/products/${encodeURIComponent(slug)}/reviews`,
+    payload,
+  );
+
+  return response.data.message;
 }
 
 export async function fetchShippingMethods(

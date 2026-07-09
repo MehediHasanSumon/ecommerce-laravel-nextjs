@@ -69,10 +69,21 @@ export default function ReviewsPage() {
                         </div>
                       </div>
                     )}
-                    <h4 className="font-semibold text-sm mb-1">{review.title}</h4>
                     <p className="text-sm text-muted-foreground">{review.comment}</p>
+                    {review.replies?.length ? (
+                      <div className="mt-4 space-y-3 border-l-2 border-border pl-4">
+                        {review.replies.map((reply) => (
+                          <div key={reply.id} className="rounded-xl bg-muted/50 p-4">
+                            <div className="mb-1 flex items-center justify-between gap-3">
+                              <p className="text-xs font-bold uppercase text-foreground">{reply.author}</p>
+                              {reply.createdAt ? <span className="text-xs text-muted-foreground">{new Date(reply.createdAt).toLocaleDateString()}</span> : null}
+                            </div>
+                            <p className="text-sm text-muted-foreground">{reply.comment}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
                     <div className="flex items-center gap-2 mt-3 text-xs text-muted-foreground">
-                      <span>{review.helpful} people found this helpful</span>
                       {review.verified && <span className="text-emerald-600 font-medium">Verified Purchase</span>}
                     </div>
                   </div>

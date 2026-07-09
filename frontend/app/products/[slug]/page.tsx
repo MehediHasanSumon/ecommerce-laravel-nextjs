@@ -1,5 +1,6 @@
 'use client';
 import { useState, use, useEffect, useMemo } from 'react';
+import type { FormEvent } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -30,10 +31,13 @@ import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import {
   fetchProductDetail,
+  submitProductReview,
   type ProductDetail,
   type ProductDetailResponse,
   type ProductVariantDetail,
 } from '@/services/catalog-service';
+import { useAuthStore } from '@/store/auth-store';
+import { toAppError } from '@/lib/errors';
 
 function findSelectedVariant(
   product: ProductDetail | null,
@@ -70,12 +74,19 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
   const [data, setData] = useState<ProductDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewMessage, setReviewMessage] = useState<string | null>(null);
 
   const addItem = useCartStore((s) => s.addItem);
   const toggleItem = useWishlistStore((s) => s.toggleItem);
   const isInWishlist = useWishlistStore((s) => s.isInWishlist);
   const initializeCart = useCartStore((s) => s.initialize);
   const initializeWishlist = useWishlistStore((s) => s.initialize);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const authInitialized = useAuthStore((s) => s.initialized);
+  const fetchCurrentUser = useAuthStore((s) => s.fetchCurrentUser);
   const router = useRouter();
 
   useEffect(() => {
@@ -83,6 +94,12 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
     initializeCart().catch(() => undefined);
     initializeWishlist().catch(() => undefined);
   }, [initializeCart, initializeWishlist]);
+
+  useEffect(() => {
+    if (!authInitialized) {
+      fetchCurrentUser().catch(() => undefined);
+    }
+  }, [authInitialized, fetchCurrentUser]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -226,6 +243,32 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
     toast(inWishlist ? 'Removed from wishlist' : 'Added to wishlist!', {
       icon: inWishlist ? '💔' : '❤️',
     });
+  };
+  const handleReviewSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setReviewMessage(null);
+
+    if (!isAuthenticated) {
+      toast.error('Please sign in to write a review.');
+      return;
+    }
+
+    setReviewSubmitting(true);
+    try {
+      const message = await submitProductReview(slug, {
+        rating: reviewRating,
+        comment: reviewComment.trim(),
+      });
+      setReviewComment('');
+      setReviewRating(5);
+      setReviewMessage(message);
+      toast.success(message);
+    } catch (error) {
+      const appError = toAppError(error);
+      toast.error(appError.message);
+    } finally {
+      setReviewSubmitting(false);
+    }
   };
   const discount = product.discount ?? 0;
   const savings = displayOriginalPrice ? displayOriginalPrice - displayPrice : 0;
@@ -594,6 +637,61 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
 
           {activeTab === 'reviews' && (
             <div className="space-y-5 max-w-3xl">
+              {isAuthenticated && (
+                <form onSubmit={handleReviewSubmit} className="rounded-2xl border border-border bg-card p-5">
+                  <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <h3 className="text-sm font-bold">Write a review</h3>
+                      <p className="mt-1 text-xs text-muted-foreground">Share your experience with this product.</p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: 5 }).map((_, index) => {
+                        const rating = index + 1;
+
+                        return (
+                          <button
+                            key={rating}
+                            type="button"
+                            onClick={() => setReviewRating(rating)}
+                            className="rounded-md p-1 transition-colors hover:bg-muted"
+                            aria-label={`${rating} star rating`}
+                          >
+                            <Star
+                              size={18}
+                              className={rating <= reviewRating ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground/40'}
+                            />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  {reviewMessage && (
+                    <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+                      {reviewMessage}
+                    </div>
+                  )}
+                  <div className="space-y-3">
+                    <textarea
+                      value={reviewComment}
+                      onChange={(event) => setReviewComment(event.target.value)}
+                      className="min-h-28 w-full resize-y rounded-xl border border-border bg-background px-3 py-3 text-sm outline-none transition-colors focus:border-primary"
+                      placeholder="Write your review"
+                      minLength={10}
+                      maxLength={2000}
+                      required
+                    />
+                    <div className="flex justify-end">
+                      <button
+                        type="submit"
+                        disabled={reviewSubmitting}
+                        className="rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {reviewSubmitting ? 'Submitting...' : 'Submit Review'}
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              )}
               {reviews.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
                   <Star size={40} className="mx-auto mb-3 opacity-20" />
@@ -640,25 +738,22 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
                         {review.createdAt.slice(0, 10)}
                       </span>
                     </div>
-                    <h4 className="font-semibold text-sm mt-3 mb-1">{review.title}</h4>
                     <p className="text-sm text-muted-foreground leading-relaxed">
                       {review.comment}
                     </p>
-                    {review.images?.length ? (
-                      <div className="mt-3 grid grid-cols-4 gap-2">
-                        {review.images.map((image, index) => (
-                          <div key={`${review.id}-${index}`} className="relative aspect-square overflow-hidden rounded-lg bg-muted">
-                            <Image src={image} alt={`${review.title} image ${index + 1}`} fill unoptimized className="object-cover" />
+                    {review.replies?.length ? (
+                      <div className="mt-4 space-y-3 border-l-2 border-border pl-4">
+                        {review.replies.map((reply) => (
+                          <div key={reply.id} className="rounded-xl bg-muted/50 p-4">
+                            <div className="mb-1 flex items-center justify-between gap-3">
+                              <p className="text-xs font-bold uppercase text-foreground">{reply.author}</p>
+                              {reply.createdAt ? <span className="text-xs text-muted-foreground">{reply.createdAt.slice(0, 10)}</span> : null}
+                            </div>
+                            <p className="text-sm text-muted-foreground leading-relaxed">{reply.comment}</p>
                           </div>
                         ))}
                       </div>
                     ) : null}
-                    <div className="flex items-center gap-2 mt-3 text-xs text-muted-foreground">
-                      <span>Helpful? ({review.helpful})</span>
-                      <button className="hover:text-primary transition-colors">Yes</button>
-                      <span>·</span>
-                      <button className="hover:text-primary transition-colors">No</button>
-                    </div>
                   </div>
                 ))
               )}

@@ -161,12 +161,16 @@ class AccountController extends Controller
             'items' => $reviews->map(fn ($review) => [
                 'id' => $review->id,
                 'rating' => $review->rating,
-                'title' => $review->title,
                 'comment' => $review->comment,
-                'helpful' => $review->helpful_count,
                 'verified' => (bool) $review->is_verified_purchase,
                 'status' => $review->status,
                 'createdAt' => optional($review->created_at)->toISOString(),
+                'replies' => $review->admin_reply ? [[
+                    'id' => 'admin-'.$review->id,
+                    'author' => 'Store',
+                    'comment' => $review->admin_reply,
+                    'createdAt' => optional($review->admin_replied_at ?: $review->updated_at)->toISOString(),
+                ]] : [],
                 'product' => $review->product ? ProductCardResource::make($review->product)->resolve() : null,
             ])->values(),
         ], meta: ['pagination' => $this->paginationMeta($reviews)]);

@@ -97,17 +97,15 @@ class ProductDetailResource extends JsonResource
                         'avatar' => 'https://ui-avatars.com/api/?name='.urlencode($review->user?->name ?: 'Customer').'&background=111827&color=fff',
                     ],
                     'rating' => (int) $review->rating,
-                    'title' => $review->title,
                     'comment' => $review->comment,
-                    'images' => $review->images
-                        ->sortBy('sort_order')
-                        ->map(fn ($image): ?string => $this->assetUrl($image->url))
-                        ->filter()
-                        ->values()
-                        ->all(),
-                    'helpful' => (int) $review->helpful_count,
                     'verified' => (bool) $review->is_verified_purchase,
                     'createdAt' => optional($review->created_at)->toISOString(),
+                    'replies' => $review->admin_reply ? [[
+                        'id' => 'admin-'.$review->id,
+                        'author' => 'Store',
+                        'comment' => $review->admin_reply,
+                        'createdAt' => optional($review->admin_replied_at ?: $review->updated_at)->toISOString(),
+                    ]] : [],
                 ])
                 ->all(),
             'relatedProducts' => ProductCardResource::collection($this->relationProducts('related'))->resolve(),

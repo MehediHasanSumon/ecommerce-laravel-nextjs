@@ -60,12 +60,11 @@ export type AccountNotification = {
 export type AccountReview = {
   id: number;
   rating: number;
-  title: string;
   comment: string;
-  helpful: number;
   verified: boolean;
   status: string;
   createdAt?: string | null;
+  replies?: Array<{ id: string; author: string; comment: string; createdAt?: string | null }>;
   product: Product | null;
 };
 

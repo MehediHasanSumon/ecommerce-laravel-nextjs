@@ -389,15 +389,15 @@ export const productModuleConfigs: Record<ProductModule, ModuleConfig> = {
     fields: [
       { name: "product_id", label: "Product", type: "select", options: "products" },
       { name: "rating", label: "Rating", type: "number" },
-      { name: "title", label: "Title", type: "text" },
       { name: "comment", label: "Comment", type: "textarea" },
+      { name: "admin_reply", label: "Reply", type: "textarea", optional: true },
       { name: "status", label: "Status", type: "select", options: ["pending", "approved", "rejected"] },
       { name: "is_verified_purchase", label: "Verified Purchase", type: "checkbox", optional: true },
     ],
     columns: [
-      { key: "title", label: "Title", render: (item) => <span className="font-semibold">{String(item.title ?? "")}</span> },
       { key: "product", label: "Product", render: (item) => optionName(item.product) },
       { key: "rating", label: "Rating", sortable: true },
+      { key: "comment", label: "Comment", render: (item) => <span className="line-clamp-2 text-sm text-muted-foreground">{String(item.comment ?? "")}</span> },
       { key: "status", label: "Status", sortable: true, render: (item) => <StatusBadge value={String(item.status ?? "pending")} /> },
       { key: "created_at", label: "Created At", sortable: true, render: (item) => formatDate(item.created_at) },
     ],
@@ -449,8 +449,8 @@ function schemaFor(config: ModuleConfig) {
           ? z.array(z.coerce.number())
           : z.string().trim();
 
-    if (field.type === "select" && Array.isArray(field.options)) {
-      rule = field.optional ? z.string() : z.string().min(1, `${field.label} is required.`);
+    if (field.type === "select") {
+      rule = field.optional ? z.coerce.string() : z.coerce.string().min(1, `${field.label} is required.`);
     } else if (!field.optional && field.type !== "checkbox" && field.type !== "multiselect" && field.type !== "number") {
       rule = z.string().trim().min(1, `${field.label} is required.`);
     }
@@ -528,6 +528,9 @@ function normalizeFormValue(field: FieldConfig, value: unknown) {
   if (field.type === "date" && typeof value === "string") {
     return value.slice(0, 10);
   }
+  if (field.type === "select") {
+    return String(value);
+  }
   if (field.type === "textarea" && (Array.isArray(value) || (value && typeof value === "object"))) {
     return JSON.stringify(value, null, 2);
   }
@@ -569,6 +572,10 @@ function toPayload(values: ProductModulePayload, config: ModuleConfig): ProductM
       } catch {
         setNestedValue(payload, field.name, field.name === "route_aliases" ? value.split(",").map((item) => item.trim()).filter(Boolean) : []);
       }
+      return;
+    }
+    if (field.type === "select" && typeof value === "string") {
+      setNestedValue(payload, field.name, numericIfOption(value));
       return;
     }
     setNestedValue(payload, field.name, value);
@@ -661,7 +668,7 @@ function FieldControl({ field, form, item, options }: { field: FieldConfig; form
     return (
       <label className="block space-y-1.5 text-sm font-semibold">
         <span>{field.label}</span>
-        <Select value={value ? String(value) : "none"} onValueChange={(next) => form.setValue(field.name, next === "none" ? "" : numericIfOption(next), { shouldDirty: true })}>
+        <Select value={value ? String(value) : "none"} onValueChange={(next) => form.setValue(field.name, next === "none" ? "" : next, { shouldDirty: true })}>
           <SelectTrigger className="h-10 rounded-lg px-3 text-sm">
             <SelectValue placeholder={`Select ${field.label.toLowerCase()}`} />
           </SelectTrigger>
