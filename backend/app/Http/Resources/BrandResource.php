@@ -21,10 +21,13 @@ class BrandResource extends JsonResource
             'featured' => (bool) $this->is_featured,
             'website' => $this->website_url,
             'seo' => [
-                'title' => "{$this->name} | LuxeCart",
-                'description' => $this->description ?: "Shop {$this->name} products at LuxeCart.",
-                'canonicalUrl' => url("/brands/{$this->slug}"),
-                'ogImage' => $this->assetUrl($this->cover_image_url) ?: $this->assetUrl($this->logo_url),
+                'title' => $this->meta_title ?: "{$this->name} | LuxeCart",
+                'description' => $this->meta_description ?: $this->description ?: "Shop {$this->name} products at LuxeCart.",
+                'keywords' => $this->meta_keywords,
+                'canonicalUrl' => $this->canonical_url ?: url("/brands/{$this->slug}"),
+                'ogTitle' => $this->og_title ?: $this->meta_title,
+                'ogDescription' => $this->og_description ?: $this->meta_description,
+                'ogImage' => $this->assetUrl($this->og_image_url) ?: $this->assetUrl($this->cover_image_url) ?: $this->assetUrl($this->logo_url),
             ],
         ];
     }

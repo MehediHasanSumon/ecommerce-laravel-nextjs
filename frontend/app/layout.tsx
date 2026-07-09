@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { SettingsProvider } from "@/components/settings/SettingsProvider";
 import { ToastProvider } from "@/components/ui/toast-provider";
+import { defaultMetadata } from "@/lib/seo";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -15,11 +16,14 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "Store",
-  description: "Premium ecommerce experience",
-  icons: { icon: "/favicon.png" },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const metadata = await defaultMetadata();
+
+  return {
+    ...metadata,
+    icons: { icon: "/favicon.png" },
+  };
+}
 
 export default function RootLayout({
   children,

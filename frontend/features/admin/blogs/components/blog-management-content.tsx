@@ -26,6 +26,8 @@ const emptyForm: BlogPayload = {
   content: "",
   meta_title: "",
   meta_description: "",
+  meta_keywords: "",
+  canonical_url: "",
   open_graph_image: "",
   author_id: null,
   status: "draft",
@@ -96,6 +98,8 @@ export function BlogManagementContent() {
         scheduled_publish_at: values.scheduled_publish_at || null,
         meta_title: values.meta_title || null,
         meta_description: values.meta_description || null,
+        meta_keywords: values.meta_keywords || null,
+        canonical_url: values.canonical_url || null,
         open_graph_image: values.open_graph_image || null,
       };
       if (drawer.mode === "create") {
@@ -284,6 +288,8 @@ function BlogDrawer({ open, mode, blog, authors, onClose, onSubmit }: { open: bo
       content: blog.content,
       meta_title: blog.meta_title ?? "",
       meta_description: blog.meta_description ?? "",
+      meta_keywords: blog.meta_keywords ?? "",
+      canonical_url: blog.canonical_url ?? "",
       open_graph_image: blog.open_graph_image ?? "",
       author_id: blog.author_id,
       status: blog.status,
@@ -350,8 +356,13 @@ function BlogDrawer({ open, mode, blog, authors, onClose, onSubmit }: { open: bo
           </label>
           <div className="grid gap-4 sm:grid-cols-2">
             <Input label="Meta Title" value={form.meta_title ?? ""} onChange={(event) => setForm((current) => ({ ...current, meta_title: event.target.value }))} />
+            <Input label="Canonical URL" value={form.canonical_url ?? ""} onChange={(event) => setForm((current) => ({ ...current, canonical_url: event.target.value }))} />
             <Input label="Open Graph Image" value={form.open_graph_image ?? ""} onChange={(event) => setForm((current) => ({ ...current, open_graph_image: event.target.value }))} />
           </div>
+          <label className="space-y-1.5 text-sm font-semibold">
+            <span>Meta Keywords</span>
+            <textarea value={form.meta_keywords ?? ""} onChange={(event) => setForm((current) => ({ ...current, meta_keywords: event.target.value }))} className="min-h-16 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+          </label>
           <label className="space-y-1.5 text-sm font-semibold">
             <span>Meta Description</span>
             <textarea value={form.meta_description ?? ""} onChange={(event) => setForm((current) => ({ ...current, meta_description: event.target.value }))} className="min-h-20 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />

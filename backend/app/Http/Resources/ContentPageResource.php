@@ -19,6 +19,11 @@ class ContentPageResource extends JsonResource
             'seo' => [
                 'title' => $this->meta_title ?: $this->title,
                 'description' => $this->meta_description ?: $this->description,
+                'keywords' => $this->meta_keywords,
+                'canonicalUrl' => $this->canonical_url ?: url("/{$this->slug}"),
+                'ogTitle' => $this->og_title ?: $this->meta_title,
+                'ogDescription' => $this->og_description ?: $this->meta_description,
+                'ogImage' => $this->og_image_url,
             ],
             'updated_at' => optional($this->updated_at)->toISOString(),
         ];

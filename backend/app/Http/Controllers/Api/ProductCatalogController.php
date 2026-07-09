@@ -141,7 +141,7 @@ class ProductCatalogController extends Controller
                 'tags:id,name',
                 'features:id,product_id,value,sort_order',
                 'specifications:id,product_id,group_name,name,value,sort_order',
-                'seo:id,product_id,meta_title,meta_description,canonical_url,og_image_url,schema_json',
+                'seo:id,product_id,meta_title,meta_description,meta_keywords,canonical_url,og_image_url,schema_json',
                 'attributeValues.attribute:id,name,slug,type',
                 'variants' => fn ($query) => $query->where('status', 'active')->orderBy('id'),
                 'variants.attributeValues.attribute:id,name,slug,type',

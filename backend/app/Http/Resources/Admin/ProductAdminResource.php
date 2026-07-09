@@ -79,6 +79,7 @@ class ProductAdminResource extends JsonResource
             'seo' => $this->whenLoaded('seo', fn () => $this->seo ? [
                 'meta_title' => $this->seo->meta_title,
                 'meta_description' => $this->seo->meta_description,
+                'meta_keywords' => $this->seo->meta_keywords,
                 'canonical_url' => $this->seo->canonical_url,
                 'og_image_url' => $this->seo->og_image_url,
                 'schema_json' => $this->seo->schema_json,

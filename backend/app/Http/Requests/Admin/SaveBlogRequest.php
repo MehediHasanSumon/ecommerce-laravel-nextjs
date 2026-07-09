@@ -24,6 +24,8 @@ class SaveBlogRequest extends FormRequest
             'content' => ['required', 'string'],
             'meta_title' => ['nullable', 'string', 'max:255'],
             'meta_description' => ['nullable', 'string', 'max:500'],
+            'meta_keywords' => ['nullable', 'string', 'max:500'],
+            'canonical_url' => ['nullable', 'url', 'max:2048'],
             'open_graph_image' => ['nullable', 'string', 'max:2048'],
             'author_id' => ['nullable', 'integer', 'exists:users,id'],
             'status' => ['required', Rule::in(['draft', 'published', 'scheduled', 'archived'])],

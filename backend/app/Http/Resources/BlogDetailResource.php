@@ -18,6 +18,8 @@ class BlogDetailResource extends JsonResource
             'content' => $this->content,
             'meta_title' => $this->meta_title,
             'meta_description' => $this->meta_description,
+            'meta_keywords' => $this->meta_keywords,
+            'canonical_url' => $this->canonical_url,
             'open_graph_image' => $this->open_graph_image,
             'author' => $this->whenLoaded('author', fn () => [
                 'id' => $this->author?->id,

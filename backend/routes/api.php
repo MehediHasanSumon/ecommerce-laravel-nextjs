@@ -39,11 +39,15 @@ use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\PaymentCallbackController;
 use App\Http\Controllers\Api\ProductCatalogController;
 use App\Http\Controllers\Api\ShippingMethodController;
+use App\Http\Controllers\Api\SeoMetadataController;
 use App\Http\Controllers\Api\WishlistController;
 use App\Http\Controllers\Api\Settings\NavigationSettingsController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/settings/navigation', [NavigationSettingsController::class, 'show'])->middleware('throttle:public-settings');
+Route::get('/seo/defaults', [SeoMetadataController::class, 'defaults'])->middleware('throttle:public-settings');
+Route::get('/seo/{type}/{slug}', [SeoMetadataController::class, 'entity'])->where('slug', '[A-Za-z0-9\\-]+')->middleware('throttle:public-settings');
+Route::get('/seo/sitemap', [SeoMetadataController::class, 'sitemap'])->middleware('throttle:public-settings');
 Route::get('/home-page', [HomePageController::class, 'show'])->middleware('throttle:public-settings');
 Route::get('/blogs/home', [BlogCatalogController::class, 'home'])->middleware('throttle:public-settings');
 Route::get('/blogs', [BlogCatalogController::class, 'index'])->middleware('throttle:public-settings');

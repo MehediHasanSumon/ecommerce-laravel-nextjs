@@ -10,6 +10,8 @@ export type ManagedBlog = BaseRecord & {
   content: string;
   meta_title: string | null;
   meta_description: string | null;
+  meta_keywords: string | null;
+  canonical_url: string | null;
   open_graph_image: string | null;
   author_id: number;
   author?: Option & { email?: string };
@@ -31,6 +33,8 @@ export type BlogPayload = {
   content: string;
   meta_title?: string | null;
   meta_description?: string | null;
+  meta_keywords?: string | null;
+  canonical_url?: string | null;
   open_graph_image?: string | null;
   author_id?: number | null;
   status: BlogStatus;
