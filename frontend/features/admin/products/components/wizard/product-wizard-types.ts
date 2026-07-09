@@ -34,7 +34,7 @@ export type ProductWizardValues = {
   brand_id: string;
   category_id: string;
   subcategory_id: string;
-  tags: number[];
+  tags: string[];
   short_description: string;
   description: string;
   product_type: "physical" | "digital";
@@ -98,7 +98,7 @@ export const productWizardSchema = z.object({
   brand_id: z.string().optional(),
   category_id: z.string().min(1, "Category is required."),
   subcategory_id: z.string().optional(),
-  tags: z.array(z.number()),
+  tags: z.array(z.string()),
   short_description: z.string().trim().min(10, "Add a short description."),
   description: z.string().optional(),
   product_type: z.enum(["physical", "digital"]),
@@ -261,6 +261,7 @@ export function valuesFromProduct(record?: ProductRecord | null): ProductWizardV
     low_stock_threshold: moneyInput(record.low_stock_threshold),
     featured_image: media.featured,
     gallery_images: media.gallery,
+    tags: Array.isArray(record.tags) ? record.tags.map((item) => String((item as { id: number }).id)) : [],
     attribute_values: Array.isArray(record.attribute_values) ? record.attribute_values.map((item) => Number((item as { id: number }).id)) : [],
     variants: Array.isArray(record.variants) ? record.variants.map((variant, index) => {
       const item = variant as Record<string, unknown>;

@@ -86,3 +86,4 @@ frontend/.vercel/
 # TypeScript
 *.tsbuildinfo
 /LuxaCart/*
+/images/*

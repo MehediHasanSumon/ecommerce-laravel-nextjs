@@ -252,7 +252,7 @@ class ProductModuleService
         $this->applySlug('products', $model, $data);
         $this->applyProductSku($model, $data);
         $model->fill($data)->save();
-        $model->tags()->sync($tags);
+        $model->tags()->sync($this->resolveProductTags($tags));
         $this->syncProductAttributeValues($model, $attributeValues);
         $images = $this->productImagesFromUploads($images, $featuredImageFile, $galleryImageFiles);
         $model->images()->delete();
@@ -370,6 +370,45 @@ class ProductModuleService
         sort($attributeValueIds);
 
         return implode('-', $attributeValueIds);
+    }
+
+    private function resolveProductTags(array $tags): array
+    {
+        return collect($tags)
+            ->flatMap(fn ($tag) => is_string($tag) ? explode(',', $tag) : [$tag])
+            ->map(fn ($tag) => is_string($tag) ? trim($tag) : $tag)
+            ->filter(fn ($tag) => filled($tag))
+            ->map(function ($tag): ?int {
+                if (is_numeric($tag)) {
+                    $existing = Tag::query()->find((int) $tag);
+                    if ($existing) {
+                        return (int) $existing->id;
+                    }
+                }
+
+                $name = trim((string) $tag);
+                if ($name === '') {
+                    return null;
+                }
+
+                $existing = Tag::query()
+                    ->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])
+                    ->orWhere('slug', str($name)->slug()->toString())
+                    ->first();
+
+                if ($existing) {
+                    return (int) $existing->id;
+                }
+
+                return (int) Tag::query()->create([
+                    'name' => $name,
+                    'slug' => SlugGenerator::generate($name, Tag::class),
+                ])->id;
+            })
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
     }
 
     private function productImagesFromUploads(array $images, mixed $featuredImageFile, mixed $galleryImageFiles): array

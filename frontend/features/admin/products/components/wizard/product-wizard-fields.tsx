@@ -156,6 +156,127 @@ export function MultiSelectField({
   );
 }
 
+export function TagInputField({
+  title,
+  options,
+  values,
+  onChange,
+}: {
+  title: string;
+  options: Option[];
+  values: string[];
+  onChange: (values: string[]) => void;
+}) {
+  const [input, setInput] = React.useState("");
+  const normalizedValues = React.useMemo(() => values.map((value) => value.toLowerCase()), [values]);
+  const suggestions = React.useMemo(() => {
+    const query = input.trim().toLowerCase();
+    if (!query) return [];
+
+    return options
+      .filter((option) => {
+        const id = String(option.id);
+        return !normalizedValues.includes(id.toLowerCase()) && !normalizedValues.includes(option.name.toLowerCase()) && option.name.toLowerCase().includes(query);
+      })
+      .slice(0, 8);
+  }, [input, normalizedValues, options]);
+
+  function labelFor(value: string) {
+    return options.find((option) => String(option.id) === value)?.name ?? value;
+  }
+
+  function addTags(raw: string) {
+    const next = raw
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .map((item) => {
+        const existing = options.find((option) => option.name.toLowerCase() === item.toLowerCase());
+        return existing ? String(existing.id) : item;
+      });
+
+    if (!next.length) return;
+
+    const merged = [...values];
+    next.forEach((item) => {
+      const label = labelFor(item).toLowerCase();
+      if (!merged.some((value) => value.toLowerCase() === item.toLowerCase() || labelFor(value).toLowerCase() === label)) {
+        merged.push(item);
+      }
+    });
+    onChange(merged);
+    setInput("");
+  }
+
+  function removeTag(value: string) {
+    onChange(values.filter((item) => item !== value));
+  }
+
+  return (
+    <div className="space-y-2">
+      <p className="text-sm font-semibold">{title}</p>
+      <div className="relative">
+        <div className="flex min-h-12 flex-wrap items-center gap-2 rounded-xl border border-transparent bg-muted px-3 py-2 transition focus-within:border-primary focus-within:bg-background">
+          {values.map((value) => (
+            <span key={value} className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-1 text-sm font-medium">
+              <span className="truncate">{labelFor(value)}</span>
+              <button type="button" className="rounded-full p-0.5 text-muted-foreground hover:text-foreground" aria-label={`Remove ${labelFor(value)}`} onClick={() => removeTag(value)}>
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </span>
+          ))}
+          <input
+            className="min-w-40 flex-1 bg-transparent py-1 text-sm outline-none placeholder:text-muted-foreground"
+            value={input}
+            placeholder={values.length ? "Add more tags" : "Type tags, separate with comma"}
+            onChange={(event) => {
+              const next = event.target.value;
+              if (next.includes(",")) {
+                addTags(next);
+                return;
+              }
+              setInput(next);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                addTags(input);
+              }
+              if (event.key === "Backspace" && !input && values.length) {
+                removeTag(values[values.length - 1]);
+              }
+            }}
+            onBlur={() => addTags(input)}
+            onPaste={(event) => {
+              const text = event.clipboardData.getData("text");
+              if (!text.includes(",")) return;
+              event.preventDefault();
+              addTags(text);
+            }}
+          />
+        </div>
+        {suggestions.length ? (
+          <div className="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-lg border border-border bg-background shadow-lg">
+            {suggestions.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                className="block w-full px-3 py-2 text-left text-sm hover:bg-muted"
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  addTags(option.name);
+                }}
+              >
+                {option.name}
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 function fileToMedia(file: File, type: ProductMediaItem["type"], sortOrder: number): ProductMediaItem {
   return {
     id: crypto.randomUUID(),

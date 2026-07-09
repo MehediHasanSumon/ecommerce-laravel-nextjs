@@ -292,7 +292,7 @@ class ProductModuleSaveRequest extends FormRequest
             'free_shipping' => ['boolean'],
             'published_at' => ['nullable', 'date'],
             'tags' => ['nullable', 'array'],
-            'tags.*' => ['integer', 'exists:tags,id'],
+            'tags.*' => ['nullable'],
             'attribute_values' => ['nullable', 'array'],
             'attribute_values.*' => ['integer', 'exists:attribute_values,id'],
             'images' => ['nullable', 'array'],

@@ -14,6 +14,7 @@ import {
   ProductImageUploader,
   SectionHeader,
   SelectField,
+  TagInputField,
   TextAreaField,
   ToggleField,
   useFieldValue,
@@ -49,7 +50,7 @@ export function BasicInfoSection({ form, options }: SectionProps) {
       </FieldGrid>
       <TextAreaField label="Short Description" rows={3} {...form.register("short_description")} error={errors.short_description?.message} />
       <TextAreaField label="Full Description" rows={5} {...form.register("description")} />
-      <MultiSelectField title="Tags" options={options.tags} values={useFieldValue(form, "tags")} onChange={(values) => form.setValue("tags", values, { shouldDirty: true })} />
+      <TagInputField title="Tags" options={options.tags} values={useFieldValue(form, "tags")} onChange={(values) => form.setValue("tags", values, { shouldDirty: true })} />
     </div>
   );
 }
