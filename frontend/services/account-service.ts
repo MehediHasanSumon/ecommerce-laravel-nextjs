@@ -38,17 +38,6 @@ export type AccountDashboard = {
   suggestedProducts: Product[];
 };
 
-export type PaymentHistoryItem = {
-  id: number;
-  orderNumber?: string | null;
-  gateway: string;
-  status: string;
-  transactionId?: string | null;
-  amount: number;
-  currency: string;
-  createdAt?: string | null;
-};
-
 export type AccountNotification = {
   id: number;
   type: string;
@@ -117,11 +106,6 @@ export const accountService = {
   async updateSettings(payload: AccountSettings) {
     const response = await client.put<ApiEnvelope<{ settings: AccountSettings }>>("/account/settings", payload);
     return response.data.data.settings;
-  },
-
-  async paymentHistory() {
-    const response = await client.get<ApiEnvelope<{ items: PaymentHistoryItem[] }>>("/account/payment-history");
-    return response.data.data.items;
   },
 
   async notifications() {

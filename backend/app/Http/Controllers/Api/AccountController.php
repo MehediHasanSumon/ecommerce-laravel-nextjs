@@ -9,7 +9,6 @@ use App\Http\Responses\ApiResponse;
 use App\Models\Cart;
 use App\Models\CustomerNotification;
 use App\Models\Order;
-use App\Models\PaymentTransaction;
 use App\Models\Product;
 use App\Models\ProductReview;
 use App\Models\Wishlist;
@@ -124,28 +123,6 @@ class AccountController extends Controller
         $request->user()->update(['account_preferences' => $data]);
 
         return ApiResponse::success(['settings' => $this->settingsPayload($request->user()->fresh())], 'Account settings saved.');
-    }
-
-    public function paymentHistory(Request $request): JsonResponse
-    {
-        $transactions = PaymentTransaction::query()
-            ->whereHas('order', fn ($query) => $query->where('user_id', $request->user()->id))
-            ->with('order:id,order_number,total_cents,currency')
-            ->latest()
-            ->paginate(min((int) $request->query('per_page', 10), 50));
-
-        return ApiResponse::success([
-            'items' => $transactions->map(fn ($transaction) => [
-                'id' => $transaction->id,
-                'orderNumber' => $transaction->order?->order_number,
-                'gateway' => $transaction->gateway,
-                'status' => $transaction->status,
-                'transactionId' => $transaction->gateway_transaction_id,
-                'amount' => round($transaction->amount_cents / 100, 2),
-                'currency' => $transaction->currency,
-                'createdAt' => optional($transaction->created_at)->toISOString(),
-            ])->values(),
-        ], meta: ['pagination' => $this->paginationMeta($transactions)]);
     }
 
     public function notifications(Request $request): JsonResponse
