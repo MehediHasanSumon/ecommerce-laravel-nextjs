@@ -30,7 +30,6 @@ export const ACCOUNT_NAV = [
   { label: 'Wishlist', href: '/wishlist', icon: 'Heart' },
   { label: 'Profile', href: '/account/profile', icon: 'User' },
   { label: 'Addresses', href: '/account/addresses', icon: 'MapPin' },
-  { label: 'Payment Methods', href: '/account/payment', icon: 'CreditCard' },
   { label: 'Notifications', href: '/account/notifications', icon: 'Bell' },
   { label: 'Reviews', href: '/account/reviews', icon: 'Star' },
   { label: 'Settings', href: '/account/settings', icon: 'Settings' },
