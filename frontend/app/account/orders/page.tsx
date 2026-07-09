@@ -1,14 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronRight, Eye, Package } from "lucide-react";
+import { ChevronRight, Eye, Package, Search } from "lucide-react";
 import { AnnouncementBar } from "@/components/layout/AnnouncementBar";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { AccountSidebar } from "@/components/account/AccountSidebar";
 import { OrderCardSkeleton } from "@/components/skeleton";
 import { fetchOrders, type OrderListItem } from "@/services/order-service";
+import type { PaginationMeta } from "@/features/admin/shared/types";
 import { selectCurrencyFingerprint, useSettingsStore } from "@/store/settings-store";
 import { formatPrice } from "@/utils/format";
 import { ORDER_STATUS_COLORS, ORDER_STATUS_LABELS } from "@/constants";
@@ -18,16 +19,34 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<OrderListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<PaginationMeta | null>(null);
 
   useEffect(() => {
     setLoading(true);
-    fetchOrders(filter === "all" ? {} : { status: filter })
-      .then((response) => setOrders(response.data.orders))
+    fetchOrders({
+      ...(filter === "all" ? {} : { status: filter }),
+      ...(query ? { search: query } : {}),
+      page,
+      per_page: 10,
+    })
+      .then((response) => {
+        setOrders(response.data.orders);
+        setPagination(response.meta?.pagination ?? null);
+      })
       .catch(() => setOrders([]))
       .finally(() => setLoading(false));
-  }, [filter]);
+  }, [filter, query, page]);
 
-  const filters = ["all", "pending", "confirmed", "processing", "shipped", "delivered", "cancelled"];
+  const filters = ["all", "pending", "confirmed", "processing", "packed", "ready_for_shipment", "shipped", "out_for_delivery", "delivered", "cancelled", "refunded"];
+
+  const handleSearch = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setPage(1);
+    setQuery(search.trim());
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -46,11 +65,27 @@ export default function OrdersPage() {
           <AccountSidebar active="orders" />
           <div className="min-w-0 flex-1">
             <h1 className="mb-6 text-2xl font-extrabold">My Orders</h1>
+            <form onSubmit={handleSearch} className="mb-4 flex gap-2">
+              <div className="relative flex-1">
+                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  className="w-full rounded-xl border border-border bg-background py-2 pl-9 pr-3 text-sm outline-none focus:border-primary"
+                />
+              </div>
+              <button type="submit" className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90">
+                Search
+              </button>
+            </form>
             <div className="mb-6 flex gap-2 overflow-x-auto pb-2">
               {filters.map((status) => (
                 <button
                   key={status}
-                  onClick={() => setFilter(status)}
+                  onClick={() => {
+                    setFilter(status);
+                    setPage(1);
+                  }}
                   className={`whitespace-nowrap rounded-xl px-4 py-2 text-sm font-medium capitalize transition-colors ${filter === status ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"}`}
                 >
                   {status === "all" ? "All Orders" : ORDER_STATUS_LABELS[status] ?? status.replaceAll("_", " ")}
@@ -94,6 +129,29 @@ export default function OrdersPage() {
                     </div>
                   </div>
                 ))}
+                {pagination && pagination.last_page > 1 && (
+                  <div className="flex items-center justify-between pt-2">
+                    <p className="text-xs text-muted-foreground">
+                      Showing {pagination.from ?? 0}-{pagination.to ?? 0} of {pagination.total}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setPage((current) => Math.max(1, current - 1))}
+                        disabled={pagination.current_page <= 1}
+                        className="rounded-xl border border-border px-4 py-2 text-sm font-semibold disabled:opacity-50"
+                      >
+                        Previous
+                      </button>
+                      <button
+                        onClick={() => setPage((current) => Math.min(pagination.last_page, current + 1))}
+                        disabled={pagination.current_page >= pagination.last_page}
+                        className="rounded-xl border border-border px-4 py-2 text-sm font-semibold disabled:opacity-50"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

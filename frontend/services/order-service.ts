@@ -76,8 +76,8 @@ export type OrderDetail = OrderListItem & {
   }>;
 };
 
-export async function fetchOrders(params: Record<string, string | number | undefined> = {}) {
-  const response = await client.get<ApiEnvelope<{ orders: OrderListItem[] }>>("/orders", {
+export async function fetchOrders(params: Record<string, string | number | undefined> = {}): Promise<OrderListResponse> {
+  const response = await client.get<OrderListResponse>("/orders", {
     params,
     headers: guestHeaders(),
   });

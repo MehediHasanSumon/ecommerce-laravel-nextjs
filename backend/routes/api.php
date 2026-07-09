@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\AccountController;
 use App\Http\Controllers\Api\Admin\HomeFeatureCardController;
 use App\Http\Controllers\Api\Admin\BlogCommentManagementController;
 use App\Http\Controllers\Api\Admin\BlogManagementController;
@@ -77,6 +78,16 @@ Route::middleware(['auth.cookie:access', 'throttle:public-settings'])->group(fun
     Route::apiResource('addresses', CustomerAddressController::class)->only(['index', 'store', 'update', 'destroy']);
     Route::get('/orders', [OrderController::class, 'index']);
     Route::get('/orders/{order}', [OrderController::class, 'show']);
+    Route::get('/account/dashboard', [AccountController::class, 'dashboard']);
+    Route::get('/account/profile', [AccountController::class, 'profile']);
+    Route::put('/account/profile', [AccountController::class, 'updateProfile']);
+    Route::put('/account/password', [AccountController::class, 'changePassword']);
+    Route::get('/account/settings', [AccountController::class, 'settings']);
+    Route::put('/account/settings', [AccountController::class, 'updateSettings']);
+    Route::get('/account/payment-history', [AccountController::class, 'paymentHistory']);
+    Route::get('/account/notifications', [AccountController::class, 'notifications']);
+    Route::post('/account/notifications/mark-read', [AccountController::class, 'markNotificationsRead']);
+    Route::get('/account/reviews', [AccountController::class, 'reviews']);
 });
 
 Route::prefix('auth')->group(function (): void {

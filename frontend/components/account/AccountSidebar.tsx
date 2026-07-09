@@ -1,6 +1,5 @@
 'use client';
 import Link from 'next/link';
-import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
@@ -16,6 +15,7 @@ import {
 } from 'lucide-react';
 import { routePaths } from '@/constants/routes';
 import { useAuthStore } from '@/store/auth-store';
+import { getInitials } from '@/utils/sanitize';
 
 const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', href: '/account', icon: LayoutDashboard },
@@ -36,6 +36,7 @@ interface AccountSidebarProps {
 export function AccountSidebar({ active }: AccountSidebarProps) {
   const router = useRouter();
   const logout = useAuthStore((state) => state.logout);
+  const user = useAuthStore((state) => state.user);
 
   async function handleLogout() {
     await logout();
@@ -49,18 +50,12 @@ export function AccountSidebar({ active }: AccountSidebarProps) {
         {/* User Card */}
         <div className="bg-card border border-border rounded-2xl p-5 mb-4 text-center">
           <div className="w-16 h-16 bg-gradient-to-br from-primary/20 to-primary/10 rounded-full mx-auto mb-3 flex items-center justify-center overflow-hidden">
-            <Image
-              src="https://i.pravatar.cc/150?img=12"
-              alt="User"
-              width={64}
-              height={64}
-              className="rounded-full"
-            />
+            <span className="text-lg font-extrabold text-primary">{getInitials(user?.name ?? 'User')}</span>
           </div>
-          <p className="font-bold text-sm">John Doe</p>
-          <p className="text-xs text-muted-foreground">john@example.com</p>
+          <p className="font-bold text-sm">{user?.name ?? 'Customer'}</p>
+          <p className="text-xs text-muted-foreground">{user?.email ?? ''}</p>
           <div className="flex items-center justify-center gap-1 mt-2">
-            <span className="text-xs font-semibold text-amber-500">Gold Member</span>
+            <span className="text-xs font-semibold text-amber-500">Member</span>
             <Star size={11} className="fill-amber-500 text-amber-500" />
           </div>
         </div>

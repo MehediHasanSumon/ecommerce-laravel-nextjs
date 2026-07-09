@@ -115,6 +115,23 @@ export async function createAddress(payload: CheckoutAddressPayload & { isDefaul
   return response.data.data.address;
 }
 
+export async function updateAddress(
+  id: string,
+  payload: CheckoutAddressPayload & { isDefaultBilling?: boolean; isDefaultShipping?: boolean },
+) {
+  const response = await client.put<ApiEnvelope<{ address: CustomerAddress }>>(`/addresses/${encodeURIComponent(id)}`, payload, {
+    headers: checkoutHeaders(),
+  });
+
+  return response.data.data.address;
+}
+
+export async function deleteAddress(id: string) {
+  await client.delete<ApiEnvelope<Record<string, never>>>(`/addresses/${encodeURIComponent(id)}`, {
+    headers: checkoutHeaders(),
+  });
+}
+
 export async function placeOrder(payload: PlaceOrderPayload): Promise<PlaceOrderResponse> {
   const response = await client.post<ApiEnvelope<PlaceOrderResponse>>("/checkout/place-order", payload, {
     headers: checkoutHeaders(),
