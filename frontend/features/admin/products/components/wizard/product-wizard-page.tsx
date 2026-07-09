@@ -5,7 +5,7 @@ import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
-import type { Resolver } from "react-hook-form";
+import type { FieldErrors, Path, Resolver, UseFormReturn } from "react-hook-form";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import type { ProductOptions, ProductRecord } from "@/features/admin/products/types";
@@ -49,6 +49,10 @@ function stripFileValues(values: ProductWizardValues): ProductWizardValues {
     ...values,
     featured_image: values.featured_image ? { ...values.featured_image, file: undefined } : null,
     gallery_images: values.gallery_images.map((image) => ({ ...image, file: undefined })),
+    variants: values.variants.map((variant) => ({
+      ...variant,
+      variant_image: variant.variant_image ? { ...variant.variant_image, file: undefined } : null,
+    })),
   };
 }
 
@@ -71,6 +75,55 @@ function normalizeCategorySelection(values: ProductWizardValues, options: Produc
   }
 
   return values;
+}
+
+function mergeSavedDraft(baseValues: ProductWizardValues, saved: string | null, mode: ProductWizardMode): ProductWizardValues {
+  if (!saved) return baseValues;
+
+  const parsed = JSON.parse(saved) as Partial<ProductWizardValues>;
+  if (mode === "edit") {
+    delete parsed.featured_image;
+    delete parsed.gallery_images;
+    delete parsed.base_price_cents;
+    delete parsed.compare_at_price_cents;
+    delete parsed.cost_price_cents;
+    delete parsed.variants;
+  }
+
+  return { ...baseValues, ...parsed };
+}
+
+function firstValidationMessage(errors: Record<string, string[]> | undefined) {
+  if (!errors) return null;
+  const first = Object.entries(errors)[0];
+  if (!first) return null;
+
+  return `${first[0]}: ${first[1]?.[0] ?? "Invalid value."}`;
+}
+
+function applyServerValidationErrors(form: UseFormReturn<ProductWizardValues>, errors: Record<string, string[]> | undefined) {
+  if (!errors) return;
+
+  Object.entries(errors).forEach(([field, messages]) => {
+    form.setError(field as Path<ProductWizardValues>, {
+      type: "server",
+      message: messages[0] ?? "Invalid value.",
+    });
+  });
+}
+
+function firstFormError(errors: FieldErrors<ProductWizardValues>, prefix = ""): string | null {
+  for (const [field, error] of Object.entries(errors)) {
+    const path = prefix ? `${prefix}.${field}` : field;
+    if (error && typeof error === "object" && "message" in error && typeof error.message === "string") {
+      return `${path}: ${error.message}`;
+    }
+
+    const nested = firstFormError(error as FieldErrors<ProductWizardValues>, path);
+    if (nested) return nested;
+  }
+
+  return null;
 }
 
 export function ProductWizardPage({ mode, productId }: { mode: ProductWizardMode; productId?: number }) {
@@ -99,7 +152,7 @@ export function ProductWizardPage({ mode, productId }: { mode: ProductWizardMode
       const loadedOptions = optionResponse.data.options ?? emptyOptions;
       const baseValues = valuesFromProduct(record, loadedOptions);
       const saved = typeof window !== "undefined" ? window.localStorage.getItem(draftKey) : null;
-      form.reset(normalizeCategorySelection(saved ? { ...baseValues, ...JSON.parse(saved) } : baseValues, loadedOptions));
+      form.reset(normalizeCategorySelection(mergeSavedDraft(baseValues, saved, mode), loadedOptions));
     } catch (error) {
       toast.error(toAppError(error).message);
     } finally {
@@ -159,9 +212,10 @@ export function ProductWizardPage({ mode, productId }: { mode: ProductWizardMode
   }
 
   async function submit(publish: boolean) {
+    form.clearErrors();
     const valid = await form.trigger();
     if (!valid) {
-      toast.error("Resolve validation errors before publishing.");
+      toast.error(firstFormError(form.formState.errors) ?? "Resolve validation errors before publishing.");
       return;
     }
 
@@ -179,7 +233,9 @@ export function ProductWizardPage({ mode, productId }: { mode: ProductWizardMode
       router.push(routePaths.adminProducts);
       router.refresh();
     } catch (error) {
-      toast.error(toAppError(error).message);
+      const appError = toAppError(error);
+      applyServerValidationErrors(form, appError.validationErrors);
+      toast.error(firstValidationMessage(appError.validationErrors) ?? appError.message);
     }
   }
 

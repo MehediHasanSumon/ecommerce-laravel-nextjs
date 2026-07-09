@@ -75,6 +75,14 @@ class ProductAdminResource extends JsonResource
                 'weight_grams' => $variant->weight_grams,
                 'status' => $variant->status,
                 'attribute_values' => ProductOptionResource::collection($variant->relationLoaded('attributeValues') ? $variant->attributeValues : collect()),
+                'images' => $variant->relationLoaded('images') ? $variant->images->map(fn ($image) => [
+                    'id' => $image->id,
+                    'url' => $image->url,
+                    'alt_text' => $image->alt_text,
+                    'type' => $image->type,
+                    'sort_order' => $image->sort_order,
+                    'is_primary' => (bool) $image->is_primary,
+                ])->values() : [],
             ])),
             'seo' => $this->whenLoaded('seo', fn () => $this->seo ? [
                 'meta_title' => $this->seo->meta_title,

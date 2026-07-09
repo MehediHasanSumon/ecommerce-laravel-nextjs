@@ -25,7 +25,7 @@ export type ProductVariantDraft = {
   cost_price_cents?: number;
   stock_quantity?: number;
   status: "active" | "inactive";
-  image_url?: string;
+  variant_image?: ProductMediaItem | null;
   attribute_values: number[];
 };
 
@@ -92,6 +92,11 @@ export const productWizardSteps = [
 export type ProductWizardStepId = (typeof productWizardSteps)[number]["id"];
 
 const optionalUrl = z.string().trim().optional().or(z.literal(""));
+const integerInput = (min: number) => z.preprocess((value) => {
+  if (value === "" || value === null || value === undefined) return "";
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.trunc(number) : value;
+}, z.union([z.number().int().min(min), z.literal("")])).optional();
 
 export const productWizardSchema = z.object({
   name: z.string().trim().min(2, "Product name is required."),
@@ -108,12 +113,12 @@ export const productWizardSchema = z.object({
   tax_class: z.string().optional(),
   currency: z.string().trim().length(3, "Use a 3-letter currency code."),
   track_inventory: z.boolean(),
-  stock_quantity: z.union([z.coerce.number().int().min(0), z.literal("")]).optional(),
+  stock_quantity: integerInput(0),
   stock_status: z.enum(["in_stock", "out_of_stock", "preorder"]),
-  low_stock_threshold: z.union([z.coerce.number().int().min(0), z.literal("")]).optional(),
+  low_stock_threshold: integerInput(0),
   backorders: z.enum(["deny", "allow", "notify"]),
-  min_order_quantity: z.union([z.coerce.number().int().min(1), z.literal("")]).optional(),
-  max_order_quantity: z.union([z.coerce.number().int().min(1), z.literal("")]).optional(),
+  min_order_quantity: integerInput(1),
+  max_order_quantity: integerInput(1),
   featured_image: z.any().nullable(),
   gallery_images: z.array(z.any()).max(10, "Upload up to 10 gallery images."),
   attribute_values: z.array(z.number()),
@@ -126,7 +131,7 @@ export const productWizardSchema = z.object({
     og_image_url: z.string().optional(),
   }),
   shipping: z.object({
-    weight_grams: z.union([z.coerce.number().int().min(0), z.literal("")]).optional(),
+    weight_grams: integerInput(0),
     length_cm: z.union([z.coerce.number().min(0), z.literal("")]).optional(),
     width_cm: z.union([z.coerce.number().min(0), z.literal("")]).optional(),
     height_cm: z.union([z.coerce.number().min(0), z.literal("")]).optional(),
@@ -215,7 +220,13 @@ export function emptyProductWizardValues(): ProductWizardValues {
 }
 
 function moneyInput(value: unknown): number | "" {
-  return value === null || value === undefined ? "" : Number(value);
+  return value === null || value === undefined ? "" : Number(value) / 100;
+}
+
+function quantityInput(value: unknown): number | "" {
+  if (value === null || value === undefined || value === "") return "";
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.trunc(number) : "";
 }
 
 function mediaFromRecord(record: ProductRecord): { featured: ProductMediaItem | null; gallery: ProductMediaItem[] } {
@@ -235,6 +246,24 @@ function mediaFromRecord(record: ProductRecord): { featured: ProductMediaItem | 
   return {
     featured: mapped.find((image) => image.is_primary || image.type === "featured") ?? null,
     gallery: mapped.filter((image) => !image.is_primary && image.type !== "featured").sort((a, b) => a.sort_order - b.sort_order),
+  };
+}
+
+function variantImageFromRecord(item: Record<string, unknown>, index: number): ProductMediaItem | null {
+  const images = Array.isArray(item.images) ? item.images as Array<Record<string, unknown>> : [];
+  const image = images.find((entry) => Boolean(entry.is_primary)) ?? images[0];
+  if (!image?.url) return null;
+
+  return {
+    id: String(image.id ?? `variant-image-${index}`),
+    url: String(image.url),
+    alt_text: String(image.alt_text ?? ""),
+    caption: "",
+    type: "variant",
+    sort_order: Number(image.sort_order ?? 0),
+    is_primary: true,
+    progress: 100,
+    status: "ready",
   };
 }
 
@@ -261,9 +290,9 @@ export function valuesFromProduct(record?: ProductRecord | null, options?: Produ
     cost_price_cents: moneyInput(record.cost_price_cents),
     currency: String(record.currency ?? selectCurrencySettings(useSettingsStore.getState()).currency),
     track_inventory: Boolean(record.track_inventory ?? true),
-    stock_quantity: moneyInput(record.stock_quantity),
+    stock_quantity: quantityInput(record.stock_quantity),
     stock_status: Number(record.stock_quantity ?? 0) > 0 ? "in_stock" : "out_of_stock",
-    low_stock_threshold: moneyInput(record.low_stock_threshold),
+    low_stock_threshold: quantityInput(record.low_stock_threshold),
     featured_image: media.featured,
     gallery_images: media.gallery,
     tags: Array.isArray(record.tags) ? record.tags.map((item) => String((item as { id: number }).id)) : [],
@@ -272,10 +301,11 @@ export function valuesFromProduct(record?: ProductRecord | null, options?: Produ
       const item = variant as Record<string, unknown>;
       return {
         id: String(item.id ?? `variant-${index}`),
-        price_cents: item.price_cents === null || item.price_cents === undefined ? undefined : Number(item.price_cents),
-        cost_price_cents: item.cost_price_cents === null || item.cost_price_cents === undefined ? undefined : Number(item.cost_price_cents),
-        stock_quantity: item.stock_quantity === null || item.stock_quantity === undefined ? undefined : Number(item.stock_quantity),
+        price_cents: item.price_cents === null || item.price_cents === undefined ? undefined : Number(item.price_cents) / 100,
+        cost_price_cents: item.cost_price_cents === null || item.cost_price_cents === undefined ? undefined : Number(item.cost_price_cents) / 100,
+        stock_quantity: item.stock_quantity === null || item.stock_quantity === undefined ? undefined : quantityInput(item.stock_quantity) || 0,
         status: item.status === "inactive" ? "inactive" : "active",
+        variant_image: variantImageFromRecord(item, index),
         attribute_values: Array.isArray(item.attribute_values) ? item.attribute_values.map((value) => Number((value as { id: number }).id)) : [],
       };
     }) : [],
@@ -300,11 +330,31 @@ function optionalNumber(value: number | "" | undefined) {
   return value === "" || value === undefined ? null : Number(value);
 }
 
+function amountToCents(value: number | "" | undefined) {
+  return value === "" || value === undefined ? null : Math.round(Number(value) * 100);
+}
+
+function storagePath(url: string) {
+  if (url.startsWith("blob:") || url.startsWith("data:")) return url;
+  try {
+    const parsed = new URL(url);
+    const storageIndex = parsed.pathname.indexOf("/storage/");
+    if (storageIndex >= 0) {
+      return parsed.pathname.slice(storageIndex + "/storage/".length);
+    }
+  } catch {
+    // Relative storage path.
+  }
+
+  return url.replace(/^\/?storage\//, "");
+}
+
 export function productPayloadFromValues(values: ProductWizardValues, publish: boolean): ProductModulePayload {
   const images: ProductModulePayload[] = [];
+  const variantImageFiles: File[] = [];
   if (values.featured_image) {
     images.push({
-      url: values.featured_image.file ? values.featured_image.url : values.featured_image.url,
+      url: storagePath(values.featured_image.url),
       alt_text: values.featured_image.alt_text,
       type: "featured",
       sort_order: 0,
@@ -313,12 +363,25 @@ export function productPayloadFromValues(values: ProductWizardValues, publish: b
   }
   values.gallery_images.forEach((image, index) => {
     images.push({
-      url: image.file ? image.url : image.url,
+      url: storagePath(image.url),
       alt_text: image.alt_text,
       type: "gallery",
       sort_order: index + 1,
       is_primary: false,
     });
+  });
+  const variants = values.variants.map((variant) => {
+    const imageFileIndex = variant.variant_image?.file ? variantImageFiles.push(variant.variant_image.file) - 1 : null;
+
+    return {
+      price_cents: amountToCents(variant.price_cents),
+      cost_price_cents: amountToCents(variant.cost_price_cents),
+      stock_quantity: variant.stock_quantity ?? 0,
+      status: variant.status,
+      attribute_values: variant.attribute_values,
+      image_url: variant.variant_image?.file ? null : variant.variant_image?.url ? storagePath(variant.variant_image.url) : null,
+      image_file_index: imageFileIndex,
+    };
   });
 
   return {
@@ -329,9 +392,9 @@ export function productPayloadFromValues(values: ProductWizardValues, publish: b
     description: values.description || null,
     product_type: values.product_type,
     status: publish ? "active" : values.status,
-    base_price_cents: Number(values.base_price_cents || 0),
-    compare_at_price_cents: optionalNumber(values.compare_at_price_cents),
-    cost_price_cents: optionalNumber(values.cost_price_cents),
+    base_price_cents: amountToCents(values.base_price_cents) ?? 0,
+    compare_at_price_cents: amountToCents(values.compare_at_price_cents),
+    cost_price_cents: amountToCents(values.cost_price_cents),
     currency: values.currency.toUpperCase(),
     track_inventory: values.track_inventory,
     stock_quantity: optionalNumber(values.stock_quantity),
@@ -361,13 +424,8 @@ export function productPayloadFromValues(values: ProductWizardValues, publish: b
       values.shipping.shipping_class ? { group_name: "Shipping", name: "Shipping Class", value: values.shipping.shipping_class, sort_order: 2 } : null,
       values.shipping.package_info ? { group_name: "Shipping", name: "Package Information", value: values.shipping.package_info, sort_order: 3 } : null,
     ].filter(Boolean),
-    variants: values.variants.map((variant) => ({
-      price_cents: variant.price_cents ?? null,
-      cost_price_cents: variant.cost_price_cents ?? null,
-      stock_quantity: variant.stock_quantity ?? null,
-      status: variant.status,
-      attribute_values: variant.attribute_values,
-    })),
+    variant_image_files: variantImageFiles,
+    variants,
   };
 }
 

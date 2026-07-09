@@ -47,6 +47,44 @@ class ProductModuleSaveRequest extends FormRequest
             $this->merge(['currency' => strtoupper((string) $this->input('currency'))]);
         }
 
+        if ((string) $this->route('module') === 'products' && is_array($this->input('variants'))) {
+            $this->merge([
+                'variants' => collect($this->input('variants'))
+                    ->map(function ($variant) {
+                        if (! is_array($variant)) {
+                            return $variant;
+                        }
+
+                        foreach ([
+                            'price_cents',
+                            'compare_at_price_cents',
+                            'cost_price_cents',
+                            'low_stock_threshold',
+                            'weight_grams',
+                            'image_file_index',
+                        ] as $field) {
+                            if (! filled($variant[$field] ?? null)) {
+                                $variant[$field] = null;
+                                continue;
+                            }
+
+                            $variant[$field] = (int) $variant[$field];
+                        }
+
+                        $variant['stock_quantity'] = filled($variant['stock_quantity'] ?? null)
+                            ? (int) $variant['stock_quantity']
+                            : 0;
+                        $variant['status'] = filled($variant['status'] ?? null)
+                            ? $variant['status']
+                            : 'active';
+
+                        return $variant;
+                    })
+                    ->values()
+                    ->all(),
+            ]);
+        }
+
         if ((string) $this->route('module') === 'discounts') {
             $this->merge([
                 'code' => filled($this->input('code')) ? strtoupper(trim((string) $this->input('code'))) : null,
@@ -301,9 +339,9 @@ class ProductModuleSaveRequest extends FormRequest
             'images.*.type' => ['nullable', 'string', 'max:50'],
             'images.*.sort_order' => ['nullable', 'integer', 'min:0'],
             'images.*.is_primary' => ['boolean'],
-            'featured_image_file' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'featured_image_file' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,avif,gif', 'max:10240'],
             'gallery_image_files' => ['nullable', 'array', 'max:10'],
-            'gallery_image_files.*' => ['file', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'gallery_image_files.*' => ['file', 'mimes:jpg,jpeg,png,webp,avif,gif', 'max:10240'],
             'tax_class' => ['nullable', 'string', 'max:100'],
             'stock_status' => ['nullable', 'string', 'max:50'],
             'backorders' => ['nullable', 'string', 'max:50'],
@@ -327,6 +365,8 @@ class ProductModuleSaveRequest extends FormRequest
             'variants' => ['nullable', 'array'],
             'variants.*.sku' => ['nullable', 'string', 'max:100'],
             'variants.*.barcode' => ['nullable', 'string', 'max:255'],
+            'variants.*.image_url' => ['nullable', 'string', 'max:2048'],
+            'variants.*.image_file_index' => ['nullable', 'integer', 'min:0'],
             'variants.*.price_cents' => ['nullable', 'integer', 'min:0'],
             'variants.*.compare_at_price_cents' => ['nullable', 'integer', 'min:0'],
             'variants.*.cost_price_cents' => ['nullable', 'integer', 'min:0'],
@@ -336,6 +376,8 @@ class ProductModuleSaveRequest extends FormRequest
             'variants.*.status' => ['required_with:variants', Rule::in(['active', 'inactive'])],
             'variants.*.attribute_values' => ['nullable', 'array'],
             'variants.*.attribute_values.*' => ['integer', 'exists:attribute_values,id'],
+            'variant_image_files' => ['nullable', 'array'],
+            'variant_image_files.*' => ['file', 'mimes:jpg,jpeg,png,webp,avif,gif', 'max:10240'],
         ];
     }
 

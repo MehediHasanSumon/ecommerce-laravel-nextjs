@@ -1,12 +1,10 @@
 "use client";
 
-import { GripVertical, ImagePlus, Loader2, Trash2, UploadCloud, X } from "lucide-react";
+import { ImagePlus, Loader2, UploadCloud, X } from "lucide-react";
 import * as React from "react";
 import type { ReactNode } from "react";
 import type { FieldErrors, UseFormReturn } from "react-hook-form";
 import { useWatch } from "react-hook-form";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -17,6 +15,10 @@ import {
 import type { Option } from "@/features/admin/shared/types";
 import type { ProductMediaItem, ProductWizardValues } from "@/features/admin/products/components/wizard/product-wizard-types";
 import { cn } from "@/utils/cn";
+
+const backendOrigin = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/auth")
+  .replace(/\/api\/auth\/?$/, "")
+  .replace(/\/api\/?$/, "");
 
 export const imageLimits = {
   maxSizeMb: 5,
@@ -127,17 +129,68 @@ export function MultiSelectField({
   options,
   values,
   onChange,
+  search,
+  onSearch,
+  loading,
 }: {
   title: string;
   options: Option[];
   values: number[];
   onChange: (values: number[]) => void;
+  search?: string;
+  onSearch?: (value: string) => void;
+  loading?: boolean;
 }) {
+  const [localSearch, setLocalSearch] = React.useState("");
+  const searchValue = search ?? localSearch;
+  const query = searchValue.trim().toLowerCase();
+  const selected = options.filter((option) => values.includes(Number(option.id)));
+  const filtered = onSearch ? options : options.filter((option) => !query || option.name.toLowerCase().includes(query));
+  const filteredIds = filtered.map((option) => Number(option.id));
+  const allFilteredSelected = filteredIds.length > 0 && filteredIds.every((id) => values.includes(id));
+
+  function selectAllFiltered() {
+    onChange(Array.from(new Set([...values, ...filteredIds])));
+  }
+
+  function unselectAll() {
+    onChange([]);
+  }
+
   return (
     <div className="space-y-2">
-      <p className="text-sm font-semibold">{title}</p>
-      <div className="grid max-h-56 gap-1 overflow-y-auto rounded-lg border border-border bg-background p-2 sm:grid-cols-2">
-        {options.length ? options.map((option) => {
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm font-semibold">{title}</p>
+        <p className="text-xs font-medium text-muted-foreground">{selected.length} selected</p>
+      </div>
+      <div className="max-h-72 overflow-y-auto rounded-lg border border-border bg-background">
+        <div className="sticky top-0 z-10 space-y-2 border-b border-border bg-background p-2">
+          <input
+            className="h-10 w-full rounded-lg border border-border bg-muted px-3 text-sm outline-none transition focus:border-primary focus:bg-background"
+            value={searchValue}
+            onChange={(event) => {
+              if (onSearch) {
+                onSearch(event.target.value);
+                return;
+              }
+              setLocalSearch(event.target.value);
+            }}
+            placeholder={`Search ${title.toLowerCase()}`}
+          />
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex gap-2">
+              <button type="button" className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold hover:bg-muted" onClick={selectAllFiltered} disabled={!filtered.length || allFilteredSelected}>
+                Select all
+              </button>
+              <button type="button" className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold hover:bg-muted" onClick={unselectAll} disabled={!values.length}>
+                Unselect all
+              </button>
+            </div>
+            {selected.length ? <span className="text-xs text-muted-foreground">{selected.map((item) => item.name).slice(0, 4).join(", ")}{selected.length > 4 ? ` +${selected.length - 4}` : ""}</span> : null}
+          </div>
+        </div>
+        <div className="grid gap-1 p-2 sm:grid-cols-2">
+        {loading ? <p className="px-2 py-2 text-sm text-muted-foreground">Searching...</p> : filtered.length ? filtered.map((option) => {
           const checked = values.includes(Number(option.id));
           return (
             <label key={option.id} className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted">
@@ -151,6 +204,7 @@ export function MultiSelectField({
             </label>
           );
         }) : <p className="px-2 py-2 text-sm text-muted-foreground">No options available.</p>}
+        </div>
       </div>
     </div>
   );
@@ -297,6 +351,14 @@ function validateImage(file: File) {
   return "";
 }
 
+function previewUrl(url: string) {
+  if (!url) return "";
+  if (url.startsWith("blob:") || url.startsWith("data:") || url.startsWith("http://") || url.startsWith("https://")) return url;
+  if (url.startsWith("/storage/")) return `${backendOrigin}${url}`;
+  if (url.startsWith("storage/")) return `${backendOrigin}/${url}`;
+  return `${backendOrigin}/storage/${url}`;
+}
+
 export function ProductImageUploader({
   value,
   onChange,
@@ -324,7 +386,6 @@ export function ProductImageUploader({
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm font-semibold">Featured Image</p>
-        {value ? <Button type="button" size="sm" variant="ghost" icon={<Trash2 className="h-4 w-4" />} onClick={() => handleFile(null)}>Remove</Button> : null}
       </div>
       <label
         className={cn(
@@ -340,7 +401,7 @@ export function ProductImageUploader({
         {value ? (
           <div className="w-full space-y-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={value.url} alt={value.alt_text || "Featured product preview"} className="mx-auto max-h-56 rounded-md object-contain" />
+            <img src={previewUrl(value.url)} alt={value.alt_text || "Featured product preview"} className="mx-auto max-h-56 rounded-md object-contain" />
             <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
               {value.status === "uploading" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />}
               <span>Click or drop an image to replace</span>
@@ -355,13 +416,6 @@ export function ProductImageUploader({
         )}
         <input type="file" accept={imageLimits.types.join(",")} className="sr-only" onChange={(event) => handleFile(event.target.files?.item(0) ?? null)} />
       </label>
-      {value ? (
-        <Input
-          label="Alt Text"
-          value={value.alt_text}
-          onChange={(event) => onChange({ ...value, alt_text: event.target.value })}
-        />
-      ) : null}
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
     </div>
   );
@@ -375,6 +429,7 @@ export function GalleryUploader({
   onChange: (images: ProductMediaItem[]) => void;
 }) {
   const [error, setError] = React.useState("");
+  const [draggedId, setDraggedId] = React.useState<string | null>(null);
 
   function addFiles(fileList: FileList | null) {
     setError("");
@@ -393,12 +448,15 @@ export function GalleryUploader({
     onChange([...values, ...next]);
   }
 
-  function move(index: number, direction: -1 | 1) {
-    const target = index + direction;
-    if (target < 0 || target >= values.length) return;
+  function reorder(activeId: string, overId: string) {
+    if (activeId === overId) return;
+    const activeIndex = values.findIndex((image) => image.id === activeId);
+    const overIndex = values.findIndex((image) => image.id === overId);
+    if (activeIndex < 0 || overIndex < 0) return;
     const next = [...values];
-    [next[index], next[target]] = [next[target], next[index]];
-    onChange(next.map((image, sort_order) => ({ ...image, sort_order })));
+    const [active] = next.splice(activeIndex, 1);
+    next.splice(overIndex, 0, active);
+    onChange(next.map((image, sort_order) => ({ ...image, sort_order: sort_order + 1 })));
   }
 
   return (
@@ -424,28 +482,83 @@ export function GalleryUploader({
       {values.length ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {values.map((image, index) => (
-            <div key={image.id} className="rounded-lg border border-border bg-background p-2">
+            <div
+              key={image.id}
+              draggable
+              className={cn("cursor-grab rounded-lg border border-border bg-background p-2 transition active:cursor-grabbing", draggedId === image.id && "opacity-60 ring-2 ring-primary/20")}
+              onDragStart={(event) => {
+                setDraggedId(image.id);
+                event.dataTransfer.effectAllowed = "move";
+                event.dataTransfer.setData("text/plain", image.id);
+              }}
+              onDragOver={(event) => {
+                event.preventDefault();
+                event.dataTransfer.dropEffect = "move";
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+                reorder(event.dataTransfer.getData("text/plain") || draggedId || "", image.id);
+                setDraggedId(null);
+              }}
+              onDragEnd={() => setDraggedId(null)}
+            >
               <div className="relative aspect-square overflow-hidden rounded-md bg-muted">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={image.url} alt={image.alt_text || "Product gallery preview"} className="h-full w-full object-cover" loading="lazy" />
+                <img src={previewUrl(image.url)} alt={image.alt_text || "Product gallery preview"} className="h-full w-full object-cover" loading="lazy" />
                 <button type="button" className="absolute right-2 top-2 rounded-full bg-background/90 p-1.5 shadow" aria-label="Remove image" onClick={() => onChange(values.filter((item) => item.id !== image.id))}>
                   <X className="h-4 w-4" />
                 </button>
               </div>
-              <div className="mt-2 flex items-center gap-1">
-                <Button type="button" size="icon" variant="ghost" className="h-8 w-8" title="Move earlier" icon={<GripVertical className="h-4 w-4" />} disabled={index === 0} onClick={() => move(index, -1)} />
-                <Button type="button" size="sm" variant="secondary" disabled={index === values.length - 1} onClick={() => move(index, 1)}>Move</Button>
-              </div>
-              <input
-                className="mt-2 h-9 w-full rounded-lg border border-border bg-background px-3 text-xs"
-                value={image.alt_text}
-                placeholder="Alt text"
-                onChange={(event) => onChange(values.map((item) => item.id === image.id ? { ...item, alt_text: event.target.value } : item))}
-              />
+              <p className="mt-2 truncate text-xs font-medium text-muted-foreground">Image {index + 1}</p>
             </div>
           ))}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+export function VariantImagePicker({
+  value,
+  onChange,
+}: {
+  value: ProductMediaItem | null;
+  onChange: (image: ProductMediaItem | null) => void;
+}) {
+  const [error, setError] = React.useState("");
+
+  function handleFile(file: File | null) {
+    setError("");
+    if (!file) {
+      onChange(null);
+      return;
+    }
+    const message = validateImage(file);
+    if (message) {
+      setError(message);
+      return;
+    }
+    onChange(fileToMedia(file, "variant", 0));
+  }
+
+  return (
+    <div className="space-y-2">
+      <p className="text-sm font-semibold">Variant Image</p>
+      <label className={cn("flex h-32 cursor-pointer items-center justify-center overflow-hidden rounded-xl border border-dashed border-border bg-muted/50 p-3 text-center transition hover:bg-muted", error && "border-destructive")}>
+        {value ? (
+          <div className="relative h-full w-full">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={previewUrl(value.url)} alt={value.alt_text || "Variant preview"} className="h-full w-full rounded-lg object-cover" />
+            <button type="button" className="absolute right-2 top-2 rounded-full bg-background/90 p-1.5 shadow" aria-label="Remove variant image" onClick={(event) => { event.preventDefault(); handleFile(null); }}>
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        ) : (
+          <span className="text-sm font-medium text-muted-foreground">Choose image</span>
+        )}
+        <input type="file" accept={imageLimits.types.join(",")} className="sr-only" onChange={(event) => handleFile(event.target.files?.item(0) ?? null)} />
+      </label>
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
     </div>
   );
 }

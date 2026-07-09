@@ -2,9 +2,9 @@
 
 import { createAuthAwareClient } from "@/lib/api-client";
 import type { AxiosInstance } from "axios";
-import type { ApiEnvelope, QueryState } from "@/features/admin/shared/types";
+import type { ApiEnvelope } from "@/features/admin/shared/types";
 
-export function cleanParams(query: Partial<QueryState>) {
+export function cleanParams(query: Record<string, unknown>) {
   return Object.fromEntries(
     Object.entries(query).filter(([, value]) => value !== undefined && value !== ""),
   );

@@ -90,13 +90,27 @@ class ProductModuleService
         return $deleted;
     }
 
-    public function options(): array
+    public function options(array $filters = []): array
     {
+        $attributeSearch = trim((string) ($filters['attribute_search'] ?? ''));
+
         return [
             'brands' => Brand::query()->orderBy('name')->get(['id', 'name']),
             'categories' => Category::query()->orderBy('name')->get(['id', 'name', 'parent_id']),
             'attributes' => ProductAttribute::query()->orderBy('sort_order')->orderBy('name')->get(['id', 'name', 'type']),
-            'attribute_values' => ProductAttributeValue::query()->with('attribute:id,name,type')->orderBy('sort_order')->get(['id', 'attribute_id', 'value', 'slug']),
+            'attribute_values' => ProductAttributeValue::query()
+                ->with('attribute:id,name,type')
+                ->when($attributeSearch !== '', function ($query) use ($attributeSearch): void {
+                    $query->where(function ($query) use ($attributeSearch): void {
+                        $query->where('value', 'like', "%{$attributeSearch}%")
+                            ->orWhere('display_value', 'like', "%{$attributeSearch}%")
+                            ->orWhereHas('attribute', fn ($attributeQuery) => $attributeQuery->where('name', 'like', "%{$attributeSearch}%"));
+                    });
+                })
+                ->orderBy('sort_order')
+                ->orderBy('value')
+                ->limit($attributeSearch !== '' ? 50 : 100)
+                ->get(['id', 'attribute_id', 'value', 'display_value', 'slug']),
             'tags' => Tag::query()->orderBy('name')->get(['id', 'name']),
             'warehouses' => Warehouse::query()->orderBy('name')->get(['id', 'name']),
             'products' => Product::query()
@@ -232,6 +246,7 @@ class ProductModuleService
         $specifications = $data['specifications'] ?? [];
         $seo = $data['seo'] ?? null;
         $variants = $data['variants'] ?? [];
+        $variantImageFiles = $data['variant_image_files'] ?? [];
         unset(
             $data['tags'],
             $data['attribute_values'],
@@ -246,7 +261,8 @@ class ProductModuleService
             $data['features'],
             $data['specifications'],
             $data['seo'],
-            $data['variants']
+            $data['variants'],
+            $data['variant_image_files']
         );
 
         $this->applySlug('products', $model, $data);
@@ -272,10 +288,14 @@ class ProductModuleService
         $model->variants()->delete();
         foreach ($variants as $variantData) {
             $variantAttributeValues = $variantData['attribute_values'] ?? [];
-            unset($variantData['attribute_values']);
+            $variantImageFileIndex = $variantData['image_file_index'] ?? null;
+            $variantImageUrl = $variantData['image_url'] ?? null;
+            unset($variantData['attribute_values'], $variantData['image_file_index'], $variantData['image_url']);
+            $variantData['stock_quantity'] = (int) ($variantData['stock_quantity'] ?? 0);
             $variantData['sku'] = $this->variantSku($model, $variantData, $variantAttributeValues, $existingVariantSkus);
             $variant = $model->variants()->create($variantData);
             $this->syncVariantAttributeValues($variant, $variantAttributeValues);
+            $this->createVariantImage($model, $variant, $variantImageUrl, $variantImageFiles[$variantImageFileIndex] ?? null);
         }
 
         return $this->find('products', $model->id);
@@ -370,6 +390,26 @@ class ProductModuleService
         sort($attributeValueIds);
 
         return implode('-', $attributeValueIds);
+    }
+
+    private function createVariantImage(Product $product, ProductVariant $variant, ?string $imageUrl, mixed $imageFile): void
+    {
+        if ($imageFile instanceof UploadedFile && $imageFile->isValid()) {
+            $imageUrl = $this->storePublicUpload($imageFile, 'products/variants');
+        }
+
+        if (! filled($imageUrl)) {
+            return;
+        }
+
+        $variant->images()->create([
+            'product_id' => $product->id,
+            'url' => $imageUrl,
+            'alt_text' => $product->name.' variant image',
+            'type' => 'variant',
+            'sort_order' => 0,
+            'is_primary' => true,
+        ]);
     }
 
     private function resolveProductTags(array $tags): array
@@ -469,7 +509,7 @@ class ProductModuleService
             'attributes' => $query->withCount('values'),
             'attribute-values' => $query->with('attribute:id,name,type'),
             'products' => $query->with($detailed
-                ? ['brand:id,name', 'category:id,name', 'tags:id,name', 'attributeValues:id,value,attribute_id,slug', 'images', 'features', 'specifications', 'seo', 'variants.attributeValues:id,value,attribute_id,slug']
+                ? ['brand:id,name', 'category:id,name', 'tags:id,name', 'attributeValues:id,value,attribute_id,slug', 'images', 'features', 'specifications', 'seo', 'variants.attributeValues:id,value,attribute_id,slug', 'variants.images']
                 : ['brand:id,name', 'category:id,name', 'tags:id,name']),
             'collections' => $query->with('products:id,name')->withCount('products'),
             'discounts' => $query->with(['products:id,name', 'categories:id,name', 'brands:id,name', 'excludedProducts:id,name', 'excludedCategories:id,name']),

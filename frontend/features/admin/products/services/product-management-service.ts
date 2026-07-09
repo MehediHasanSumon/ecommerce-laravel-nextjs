@@ -90,9 +90,9 @@ class ProductManagementService extends AdminApiService {
     );
   }
 
-  options() {
+  options(params?: { attribute_search?: string }) {
     return this.unwrap<{ options: ProductOptions }>(
-      this.client.get("/admin/product-options"),
+      this.client.get("/admin/product-options", { params: cleanParams(params ?? {}) }),
     );
   }
 

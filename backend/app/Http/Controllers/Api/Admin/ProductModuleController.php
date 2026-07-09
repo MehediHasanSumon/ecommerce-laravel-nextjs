@@ -12,6 +12,7 @@ use App\Http\Resources\Admin\ProductOptionResource;
 use App\Http\Responses\ApiResponse;
 use App\Services\Admin\ProductModuleService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class ProductModuleController extends Controller
 {
@@ -24,7 +25,7 @@ class ProductModuleController extends Controller
         return ApiResponse::success(
             [
                 'items' => $this->resourceCollection($module, $records),
-                'options' => $this->options(),
+                'options' => $this->options($request),
             ],
             'Records retrieved successfully.',
             200,
@@ -65,9 +66,9 @@ class ProductModuleController extends Controller
         return ApiResponse::success(['deleted' => $deleted], 'Selected records deleted successfully.');
     }
 
-    public function optionsOnly(): JsonResponse
+    public function optionsOnly(Request $request): JsonResponse
     {
-        return ApiResponse::success(['options' => $this->options()]);
+        return ApiResponse::success(['options' => $this->options($request)]);
     }
 
     private function resource(string $module, $record): array
@@ -86,9 +87,11 @@ class ProductModuleController extends Controller
         )->resolve();
     }
 
-    private function options(): array
+    private function options(?Request $request = null): array
     {
-        return collect($this->modules->options())
+        return collect($this->modules->options([
+            'attribute_search' => $request?->string('attribute_search')->toString(),
+        ]))
             ->map(fn ($items) => ProductOptionResource::collection($items)->resolve())
             ->all();
     }

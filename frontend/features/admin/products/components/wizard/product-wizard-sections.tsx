@@ -1,12 +1,13 @@
 "use client";
 
 import { Plus, Trash2 } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { UseFormReturn } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import type { ProductOptions } from "@/features/admin/products/types";
+import { productManagementService } from "@/features/admin/products/services/product-management-service";
 import { formatCurrency } from "@/utils/format";
 import {
   FieldGrid,
@@ -18,6 +19,7 @@ import {
   TagInputField,
   TextAreaField,
   ToggleField,
+  VariantImagePicker,
   useFieldValue,
 } from "@/features/admin/products/components/wizard/product-wizard-fields";
 import type { ProductVariantDraft, ProductWizardValues } from "@/features/admin/products/components/wizard/product-wizard-types";
@@ -70,9 +72,9 @@ export function PriceSection({ form }: SectionProps) {
     <div className="space-y-5">
       <SectionHeader title="Pricing" description="Set customer-facing pricing, margin inputs, currency, and tax behavior." />
       <FieldGrid>
-        <Input label="Regular Price (cents)" type="number" min={0} {...form.register("base_price_cents")} error={errors.base_price_cents?.message} />
-        <Input label="Sale Price (cents)" type="number" min={0} {...form.register("compare_at_price_cents")} error={errors.compare_at_price_cents?.message} />
-        <Input label="Cost Price (cents)" type="number" min={0} {...form.register("cost_price_cents")} error={errors.cost_price_cents?.message} />
+        <Input label="Regular Price" type="number" min={0} step="0.01" {...form.register("base_price_cents")} error={errors.base_price_cents?.message} />
+        <Input label="Sale Price" type="number" min={0} step="0.01" {...form.register("compare_at_price_cents")} error={errors.compare_at_price_cents?.message} />
+        <Input label="Cost Price" type="number" min={0} step="0.01" {...form.register("cost_price_cents")} error={errors.cost_price_cents?.message} />
         <Input label="Currency" maxLength={3} {...form.register("currency")} error={errors.currency?.message} />
         <SelectField
           label="Tax Class"
@@ -134,24 +136,64 @@ export function MediaSection({ form }: SectionProps) {
 export function VariantSection({ form, options }: SectionProps) {
   const variants = useFieldValue(form, "variants");
   const selectedAttributes = useFieldValue(form, "attribute_values");
+  const [attributeSearch, setAttributeSearch] = useState("");
+  const [attributeOptions, setAttributeOptions] = useState(options.attribute_values);
+  const [loadingAttributes, setLoadingAttributes] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setTimeout(async () => {
+      setLoadingAttributes(true);
+      try {
+        const response = await productManagementService.options({ attribute_search: attributeSearch });
+        setAttributeOptions(response.data.options.attribute_values ?? []);
+      } finally {
+        setLoadingAttributes(false);
+      }
+    }, 250);
+
+    return () => window.clearTimeout(timer);
+  }, [attributeSearch]);
+
+  useEffect(() => {
+    setAttributeOptions(options.attribute_values);
+  }, [options.attribute_values]);
+
+  const visibleAttributeOptions = useMemo(() => {
+    const selected = options.attribute_values.filter((value) => selectedAttributes.includes(Number(value.id)));
+    const merged = [...selected, ...attributeOptions];
+    return Array.from(new Map(merged.map((value) => [value.id, value])).values());
+  }, [attributeOptions, options.attribute_values, selectedAttributes]);
 
   function addVariant() {
     const next: ProductVariantDraft = {
       id: crypto.randomUUID(),
+      price_cents: undefined,
+      cost_price_cents: undefined,
+      stock_quantity: 0,
       status: "active",
-      attribute_values: selectedAttributes,
+      attribute_values: selectedAttributes ?? [],
     };
-    form.setValue("variants", [...variants, next], { shouldDirty: true });
+    form.clearErrors("variants");
+    form.setValue("variants", [...variants, next], { shouldDirty: true, shouldValidate: false });
   }
 
   function updateVariant(id: string, patch: Partial<ProductVariantDraft>) {
-    form.setValue("variants", variants.map((variant) => variant.id === id ? { ...variant, ...patch } : variant), { shouldDirty: true });
+    form.clearErrors("variants");
+    form.setValue("variants", variants.map((variant) => variant.id === id ? { ...variant, ...patch } : variant), { shouldDirty: true, shouldValidate: false });
   }
 
   return (
     <div className="space-y-5">
       <SectionHeader title="Attributes & Variants" description="Attach attribute values and generate sellable variant rows with price, stock, and images." />
-      <MultiSelectField title="Attributes" options={options.attribute_values.map((value) => ({ id: value.id, name: `${value.name}${value.type ? ` (${value.type})` : ""}` }))} values={selectedAttributes} onChange={(values) => form.setValue("attribute_values", values, { shouldDirty: true })} />
+      <MultiSelectField
+        title="Attributes"
+        options={visibleAttributeOptions.map((value) => ({ id: value.id, name: `${value.name}${value.type ? ` (${value.type})` : ""}` }))}
+        values={selectedAttributes}
+        search={attributeSearch}
+        loading={loadingAttributes}
+        onSearch={setAttributeSearch}
+        onChange={(values) => form.setValue("attribute_values", values, { shouldDirty: true })}
+      />
       <div className="flex justify-end">
         <Button type="button" size="sm" icon={<Plus className="h-4 w-4" />} onClick={addVariant}>Generate Variant</Button>
       </div>
@@ -163,10 +205,12 @@ export function VariantSection({ form, options }: SectionProps) {
               <Button type="button" size="icon" variant="ghost" title="Remove variant" icon={<Trash2 className="h-4 w-4" />} onClick={() => form.setValue("variants", variants.filter((item) => item.id !== variant.id), { shouldDirty: true })} />
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-3">
-              <Input label="Variant Price" type="number" value={variant.price_cents ?? ""} onChange={(event) => updateVariant(variant.id, { price_cents: event.target.value ? Number(event.target.value) : undefined })} />
-              <Input label="Variant Stock" type="number" value={variant.stock_quantity ?? ""} onChange={(event) => updateVariant(variant.id, { stock_quantity: event.target.value ? Number(event.target.value) : undefined })} />
-              <Input label="Variant Image URL" value={variant.image_url ?? ""} onChange={(event) => updateVariant(variant.id, { image_url: event.target.value })} />
+              <Input label="Variant Price" type="number" min={0} step="0.01" value={variant.price_cents ?? ""} onChange={(event) => updateVariant(variant.id, { price_cents: event.target.value ? Number(event.target.value) : undefined })} />
+              <Input label="Variant Stock" type="number" min={0} value={variant.stock_quantity ?? 0} onChange={(event) => updateVariant(variant.id, { stock_quantity: event.target.value ? Number(event.target.value) : 0 })} />
               <SelectField label="Status" value={variant.status} placeholder="Select status" options={[{ id: "active", name: "Active" }, { id: "inactive", name: "Inactive" }]} onChange={(value) => updateVariant(variant.id, { status: value as ProductVariantDraft["status"] })} />
+            </div>
+            <div className="mt-4">
+              <VariantImagePicker value={variant.variant_image ?? null} onChange={(image) => updateVariant(variant.id, { variant_image: image })} />
             </div>
           </div>
         )) : (
@@ -238,7 +282,7 @@ export function PublishSection({ form, options }: SectionProps) {
           <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
             <Summary label="Brand" value={optionName(options, "brands", values.brand_id)} />
             <Summary label="Category" value={optionName(options, "categories", values.subcategory_id || values.category_id)} />
-            <Summary label="Regular Price" value={formatCurrency(Number(values.base_price_cents || 0) / 100)} />
+            <Summary label="Regular Price" value={formatCurrency(Number(values.base_price_cents || 0))} />
             <Summary label="Stock" value={values.track_inventory ? String(values.stock_quantity || 0) : "Not tracked"} />
             <Summary label="Images" value={`${values.featured_image ? 1 : 0} featured, ${values.gallery_images.length} gallery`} />
             <Summary label="Variants" value={String(values.variants.length)} />
