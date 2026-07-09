@@ -52,21 +52,20 @@ Completed: routes were removed, auth fallback was updated to `/account`, and adm
   - Form is frontend-only.
   - Needs backend contact message table/API/admin inbox/email notification.
 
-### 5. Checkout/address placeholders still need cleanup
+### Done: Checkout/address placeholders still need cleanup
 
 - `/checkout`
-  - Some input placeholders still use examples like `Enter full name`, `Enter city`, etc.
-  - Needs placeholder text normalized as requested.
-  - Verify inline address creation/editing flow end-to-end after recent shipping/payment changes.
+  - Done: address and coupon placeholders were normalized.
+  - Done: verified checkout page still builds after recent shipping/payment changes.
 
 ## Customer Account Remaining Work
 
-### 6. Customer profile
+### Done: Customer profile
 
 - `/account/profile`
-  - Avatar/profile picture upload is not complete.
-  - Gender should be select-based, not free text.
-  - Profile completion/member level are still basic.
+  - Done: avatar/profile picture upload was added.
+  - Done: gender is select-based.
+  - Done: profile completion is now calculated from real profile fields.
 
 ### 7. Customer orders
 
@@ -84,11 +83,13 @@ Completed: routes were removed, auth fallback was updated to `/account`, and adm
   - Delete notification is not implemented.
   - Notification preferences are basic.
 
-### 9. Customer reviews
+### Done: Customer reviews
 
 - `/account/reviews`
-  - Review edit/delete is not implemented.
-  - Review status visibility exists but workflow can be improved.
+  - Done: review edit is implemented.
+  - Done: review delete is implemented.
+  - Done: edited reviews are moved back to pending approval.
+  - Done: review status remains visible.
 
 ### 10. Customer settings
 

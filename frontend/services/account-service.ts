@@ -21,6 +21,7 @@ export type AccountProfile = {
   avatar?: string | null;
   memberSince?: string | null;
   membershipLevel?: string | null;
+  profileCompletion?: number | null;
 };
 
 export type AccountDashboard = {
@@ -91,6 +92,15 @@ export const accountService = {
     return response.data.data.profile;
   },
 
+  async uploadAvatar(file: File) {
+    const formData = new FormData();
+    formData.append("avatar", file);
+    const response = await client.post<ApiEnvelope<{ profile: AccountProfile }>>("/account/profile/avatar", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return response.data.data.profile;
+  },
+
   async changePassword(payload: { current_password: string; password: string; password_confirmation: string }) {
     await client.put<ApiEnvelope<Record<string, never>>>("/account/password", payload);
   },
@@ -122,5 +132,14 @@ export const accountService = {
   async reviews() {
     const response = await client.get<ApiEnvelope<{ items: AccountReview[] }> & { meta: { pagination?: PaginationMeta } }>("/account/reviews");
     return response.data.data.items;
+  },
+
+  async updateReview(id: number, payload: { rating: number; comment: string }) {
+    const response = await client.put<ApiEnvelope<{ review: AccountReview }>>(`/account/reviews/${id}`, payload);
+    return response.data.data.review;
+  },
+
+  async deleteReview(id: number) {
+    await client.delete<ApiEnvelope<Record<string, never>>>(`/account/reviews/${id}`);
   },
 };

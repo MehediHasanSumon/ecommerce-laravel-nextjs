@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ChevronRight, Star, Edit2 } from "lucide-react";
+import { ChevronRight, Star, Edit2, Trash2, X, Save } from "lucide-react";
+import { toast } from "sonner";
 import { AnnouncementBar } from "@/components/layout/AnnouncementBar";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -13,10 +14,47 @@ import { accountService, type AccountReview } from "@/services/account-service";
 export default function ReviewsPage() {
   const [reviews, setReviews] = useState<AccountReview[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [savingId, setSavingId] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState({ rating: 5, comment: "" });
 
   useEffect(() => {
     accountService.reviews().then(setReviews).finally(() => setLoading(false));
   }, []);
+
+  function startEdit(review: AccountReview) {
+    setEditingId(review.id);
+    setEditForm({ rating: review.rating, comment: review.comment });
+  }
+
+  async function saveReview(reviewId: number) {
+    setSavingId(reviewId);
+    try {
+      const next = await accountService.updateReview(reviewId, editForm);
+      setReviews((current) => current.map((review) => review.id === reviewId ? next : review));
+      setEditingId(null);
+      toast.success("Review updated. It will appear publicly after approval.");
+    } catch {
+      toast.error("Unable to update review.");
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  async function deleteReview(reviewId: number) {
+    if (!window.confirm("Delete this review?")) return;
+    setDeletingId(reviewId);
+    try {
+      await accountService.deleteReview(reviewId);
+      setReviews((current) => current.filter((review) => review.id !== reviewId));
+      toast.success("Review deleted.");
+    } catch {
+      toast.error("Unable to delete review.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -50,26 +88,97 @@ export default function ReviewsPage() {
                   <div key={review.id} className="bg-card border border-border rounded-2xl p-5">
                     {review.product && (
                       <div className="flex items-center gap-3 mb-4 pb-4 border-b border-border">
-                        <div className="relative w-14 h-14 rounded-xl overflow-hidden bg-muted shrink-0">
-                          <Image src={review.product.thumbnail} alt={review.product.name} fill className="object-cover" />
-                        </div>
-                        <div>
+                        <Link href={`/products/${review.product.slug}`} className="relative w-14 h-14 rounded-xl overflow-hidden bg-muted shrink-0">
+                          <Image src={review.product.thumbnail} alt={review.product.name} fill unoptimized className="object-cover" />
+                        </Link>
+                        <Link href={`/products/${review.product.slug}`} className="min-w-0 hover:text-primary">
                           <p className="font-semibold text-sm">{review.product.name}</p>
                           <div className="flex gap-0.5 mt-1">
                             {Array.from({ length: 5 }).map((_, index) => (
                               <Star key={index} size={12} className={index < review.rating ? "fill-amber-400 text-amber-400" : "text-muted"} />
                             ))}
                           </div>
-                        </div>
+                        </Link>
                         <div className="ml-auto flex items-center gap-2">
                           <span className="text-xs text-muted-foreground">{review.createdAt ? new Date(review.createdAt).toLocaleDateString() : ""}</span>
-                          <Link href={`/products/${review.product.slug}`} className="p-1.5 hover:bg-muted rounded-lg transition-colors">
+                          <button type="button" onClick={() => startEdit(review)} className="p-1.5 hover:bg-muted rounded-lg transition-colors" aria-label="Edit review">
                             <Edit2 size={14} className="text-muted-foreground" />
-                          </Link>
+                          </button>
+                          <button type="button" disabled={deletingId === review.id} onClick={() => void deleteReview(review.id)} className="p-1.5 hover:bg-destructive/10 rounded-lg transition-colors disabled:opacity-50" aria-label="Delete review">
+                            <Trash2 size={14} className="text-destructive" />
+                          </button>
                         </div>
                       </div>
                     )}
-                    <p className="text-sm text-muted-foreground">{review.comment}</p>
+                    {!review.product ? (
+                      <div className="mb-4 flex items-center justify-between gap-3 border-b border-border pb-4">
+                        <p className="text-sm font-semibold text-muted-foreground">Product unavailable</p>
+                        <div className="flex items-center gap-2">
+                          <button type="button" onClick={() => startEdit(review)} className="p-1.5 hover:bg-muted rounded-lg transition-colors" aria-label="Edit review">
+                            <Edit2 size={14} className="text-muted-foreground" />
+                          </button>
+                          <button type="button" disabled={deletingId === review.id} onClick={() => void deleteReview(review.id)} className="p-1.5 hover:bg-destructive/10 rounded-lg transition-colors disabled:opacity-50" aria-label="Delete review">
+                            <Trash2 size={14} className="text-destructive" />
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
+                    {editingId === review.id ? (
+                      <div className="space-y-3">
+                        <div>
+                          <label className="mb-2 block text-sm font-semibold">Rating</label>
+                          <div className="flex gap-1">
+                            {Array.from({ length: 5 }).map((_, index) => {
+                              const value = index + 1;
+                              return (
+                                <button
+                                  key={value}
+                                  type="button"
+                                  onClick={() => setEditForm((current) => ({ ...current, rating: value }))}
+                                  className="rounded-lg p-1 transition-colors hover:bg-muted"
+                                  aria-label={`${value} star rating`}
+                                >
+                                  <Star
+                                    size={18}
+                                    className={value <= editForm.rating ? "fill-amber-400 text-amber-400" : "text-muted-foreground"}
+                                  />
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="mb-2 block text-sm font-semibold">Review</label>
+                          <textarea
+                            value={editForm.comment}
+                            onChange={(event) => setEditForm((current) => ({ ...current, comment: event.target.value }))}
+                            rows={4}
+                            className="w-full rounded-xl border border-transparent bg-muted px-4 py-3 text-sm outline-none transition-colors focus:border-primary focus:bg-background"
+                          />
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            disabled={savingId === review.id}
+                            onClick={() => void saveReview(review.id)}
+                            className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+                          >
+                            <Save size={14} />
+                            Save Review
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditingId(null)}
+                            className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-semibold transition-colors hover:bg-muted"
+                          >
+                            <X size={14} />
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">{review.comment}</p>
+                    )}
                     {review.replies?.length ? (
                       <div className="mt-4 space-y-3 border-l-2 border-border pl-4">
                         {review.replies.map((reply) => (
@@ -85,6 +194,7 @@ export default function ReviewsPage() {
                     ) : null}
                     <div className="flex items-center gap-2 mt-3 text-xs text-muted-foreground">
                       {review.verified && <span className="text-emerald-600 font-medium">Verified Purchase</span>}
+                      <span className="capitalize">{review.status}</span>
                     </div>
                   </div>
                 ))}

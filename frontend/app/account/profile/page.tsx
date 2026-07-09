@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { ChevronRight, Camera, Save } from "lucide-react";
 import { AnnouncementBar } from "@/components/layout/AnnouncementBar";
 import { Header } from "@/components/layout/Header";
@@ -9,12 +10,21 @@ import { Footer } from "@/components/layout/Footer";
 import { AccountSidebar } from "@/components/account/AccountSidebar";
 import { toast } from "sonner";
 import { DatePicker } from "@/components/ui/date-picker";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { accountService, type AccountProfile } from "@/services/account-service";
 import { getInitials } from "@/utils/sanitize";
+
+const genderOptions = [
+  { value: "male", label: "Male" },
+  { value: "female", label: "Female" },
+  { value: "other", label: "Other" },
+  { value: "prefer_not_to_say", label: "Prefer not to say" },
+];
 
 export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [profile, setProfile] = useState<AccountProfile | null>(null);
   const [form, setForm] = useState({ name: "", email: "", phone: "", birthDate: "", gender: "" });
   const [passwordForm, setPasswordForm] = useState({ current: "", password: "", confirmation: "" });
@@ -28,7 +38,7 @@ export default function ProfilePage() {
           email: next.email ?? "",
           phone: next.phone ?? "",
           birthDate: next.dateOfBirth ?? "",
-          gender: next.gender ?? "",
+          gender: next.gender ?? "prefer_not_to_say",
         });
       })
       .finally(() => setLoading(false));
@@ -43,7 +53,7 @@ export default function ProfilePage() {
         email: form.email,
         phone: form.phone,
         date_of_birth: form.birthDate,
-        gender: form.gender,
+        gender: form.gender || "prefer_not_to_say",
       });
       setProfile(next);
       toast.success("Profile updated successfully.");
@@ -51,6 +61,33 @@ export default function ProfilePage() {
       toast.error("Unable to update profile.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleAvatarChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      toast.error("Upload a JPG, PNG, or WebP image.");
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Profile picture must be 2MB or smaller.");
+      return;
+    }
+
+    setUploadingAvatar(true);
+    try {
+      const next = await accountService.uploadAvatar(file);
+      setProfile(next);
+      toast.success("Profile picture updated.");
+    } catch {
+      toast.error("Unable to upload profile picture.");
+    } finally {
+      setUploadingAvatar(false);
     }
   }
 
@@ -103,16 +140,37 @@ export default function ProfilePage() {
               <div className="flex items-center gap-5 mb-8 pb-8 border-b border-border">
                 <div className="relative">
                   <div className="w-20 h-20 rounded-full overflow-hidden bg-muted flex items-center justify-center">
-                    <span className="text-xl font-extrabold text-primary">{getInitials(profile?.name ?? "User")}</span>
+                    {profile?.avatar ? (
+                      <Image
+                        src={profile.avatar}
+                        alt={profile.name}
+                        width={80}
+                        height={80}
+                        unoptimized
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-xl font-extrabold text-primary">{getInitials(profile?.name ?? "User")}</span>
+                    )}
                   </div>
-                  <button type="button" className="absolute bottom-0 right-0 w-7 h-7 bg-primary text-primary-foreground rounded-full flex items-center justify-center hover:opacity-90 shadow-md">
+                  <label className="absolute bottom-0 right-0 w-7 h-7 cursor-pointer bg-primary text-primary-foreground rounded-full flex items-center justify-center hover:opacity-90 shadow-md">
                     <Camera size={12} />
-                  </button>
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      className="sr-only"
+                      disabled={uploadingAvatar}
+                      onChange={handleAvatarChange}
+                    />
+                  </label>
                 </div>
                 <div>
                   <p className="font-bold">{profile?.name}</p>
                   <p className="text-sm text-muted-foreground">Member since {profile?.memberSince ? new Date(profile.memberSince).toLocaleDateString() : "Not available"}</p>
                   <p className="text-xs text-primary mt-1">{profile?.membershipLevel ?? "Member"}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Profile completion {profile?.profileCompletion ?? 0}%
+                  </p>
                 </div>
               </div>
 
@@ -122,7 +180,6 @@ export default function ProfilePage() {
                     { label: "Full Name", key: "name", type: "text", placeholder: "Enter full name" },
                     { label: "Email Address", key: "email", type: "email", placeholder: "Enter email address" },
                     { label: "Phone Number", key: "phone", type: "tel", placeholder: "Enter phone number" },
-                    { label: "Gender", key: "gender", type: "text", placeholder: "Enter gender" },
                   ].map(({ label, key, type, placeholder }) => (
                     <div key={key}>
                       <label className="block text-sm font-semibold mb-2">{label}</label>
@@ -135,6 +192,24 @@ export default function ProfilePage() {
                       />
                     </div>
                   ))}
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">Gender</label>
+                    <Select
+                      value={form.gender || "prefer_not_to_say"}
+                      onValueChange={(value) => setForm((current) => ({ ...current, gender: value }))}
+                    >
+                      <SelectTrigger className="h-[46px] rounded-xl border-transparent bg-muted px-4 text-sm focus:border-primary focus:bg-background">
+                        <SelectValue placeholder="Select gender" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {genderOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <DatePicker label="Date of Birth" value={form.birthDate} onChange={(value) => setForm((current) => ({ ...current, birthDate: value }))} />
                 </div>
                 <div className="flex gap-3 pt-2">

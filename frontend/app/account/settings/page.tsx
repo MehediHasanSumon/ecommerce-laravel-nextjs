@@ -20,7 +20,8 @@ const defaultSettings: AccountSettings = {
 export default function SettingsPage() {
   const [settings, setSettings] = useState<AccountSettings>(defaultSettings);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [settingsSavingKey, setSettingsSavingKey] = useState<keyof AccountSettings | null>(null);
+  const [passwordSaving, setPasswordSaving] = useState(false);
   const [passwordForm, setPasswordForm] = useState({
     current_password: '',
     password: '',
@@ -35,9 +36,9 @@ export default function SettingsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const saveSettings = async (next: AccountSettings) => {
+  const saveSettings = async (key: keyof AccountSettings, next: AccountSettings) => {
     setSettings(next);
-    setSaving(true);
+    setSettingsSavingKey(key);
     try {
       const saved = await accountService.updateSettings(next);
       setSettings(saved);
@@ -45,13 +46,13 @@ export default function SettingsPage() {
     } catch {
       toast.error('Unable to save account settings.');
     } finally {
-      setSaving(false);
+      setSettingsSavingKey(null);
     }
   };
 
   const changePassword = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setSaving(true);
+    setPasswordSaving(true);
     try {
       await accountService.changePassword(passwordForm);
       setPasswordForm({ current_password: '', password: '', password_confirmation: '' });
@@ -59,7 +60,7 @@ export default function SettingsPage() {
     } catch {
       toast.error('Unable to change password.');
     } finally {
-      setSaving(false);
+      setPasswordSaving(false);
     }
   };
 
@@ -110,6 +111,12 @@ export default function SettingsPage() {
                     key: 'account_notifications',
                   },
                 ].map(({ title, desc, key }) => (
+                  (() => {
+                    const settingKey = key as keyof AccountSettings;
+                    const checked = Boolean(settings[settingKey]);
+                    const isSavingThis = settingsSavingKey === settingKey;
+
+                    return (
                   <div
                     key={key}
                     className="bg-card border border-border rounded-2xl p-5 flex items-center justify-between hover:shadow-sm transition-shadow"
@@ -120,16 +127,19 @@ export default function SettingsPage() {
                     </div>
                     <button
                       type="button"
-                      disabled={saving}
-                      onClick={() => saveSettings({ ...settings, [key]: !settings[key as keyof AccountSettings] })}
-                      className={`relative h-6 w-11 rounded-full transition-colors disabled:opacity-60 ${settings[key as keyof AccountSettings] ? 'bg-primary' : 'bg-muted'}`}
-                      aria-pressed={settings[key as keyof AccountSettings]}
+                      disabled={Boolean(settingsSavingKey)}
+                      onClick={() => void saveSettings(settingKey, { ...settings, [settingKey]: !checked })}
+                      className={`relative h-6 w-11 rounded-full transition-colors disabled:opacity-60 ${checked ? 'bg-primary' : 'bg-muted'}`}
+                      aria-pressed={checked}
+                      aria-busy={isSavingThis}
                     >
                       <span
-                        className={`absolute top-1 h-4 w-4 rounded-full bg-white transition-transform ${settings[key as keyof AccountSettings] ? 'left-6' : 'left-1'}`}
+                        className={`absolute top-1 h-4 w-4 rounded-full bg-white transition-transform ${checked ? 'left-6' : 'left-1'}`}
                       />
                     </button>
                   </div>
+                    );
+                  })()
                 ))}
 
                 <form onSubmit={changePassword} className="bg-card border border-border rounded-2xl p-5">
@@ -156,10 +166,10 @@ export default function SettingsPage() {
                   <div className="mt-4 flex justify-end">
                     <button
                       type="submit"
-                      disabled={saving}
+                      disabled={passwordSaving}
                       className="px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-60"
                     >
-                      {saving ? 'Saving...' : 'Update Password'}
+                      {passwordSaving ? 'Saving...' : 'Update Password'}
                     </button>
                   </div>
                 </form>

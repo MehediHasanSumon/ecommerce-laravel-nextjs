@@ -16,7 +16,9 @@ use App\Models\Wishlist;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\Rule;
 
 class AccountController extends Controller
 {
@@ -66,11 +68,27 @@ class AccountController extends Controller
             'email' => ['required', 'email', 'max:255', 'unique:users,email,'.$request->user()->id],
             'phone' => ['nullable', 'string', 'max:40'],
             'date_of_birth' => ['nullable', 'date'],
-            'gender' => ['nullable', 'string', 'max:30'],
+            'gender' => ['nullable', Rule::in(['male', 'female', 'other', 'prefer_not_to_say'])],
         ]);
         $request->user()->update($data);
 
         return ApiResponse::success(['profile' => $this->profilePayload($request->user()->fresh())], 'Profile updated successfully.');
+    }
+
+    public function uploadAvatar(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'avatar' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+        ]);
+
+        $user = $request->user();
+        $oldAvatar = $user->avatar;
+        $path = $data['avatar']->store('avatars', 'public');
+        $user->update(['avatar' => Storage::disk('public')->url($path)]);
+
+        $this->deleteOldAvatar($oldAvatar);
+
+        return ApiResponse::success(['profile' => $this->profilePayload($user->fresh())], 'Profile picture updated successfully.');
     }
 
     public function changePassword(Request $request): JsonResponse
@@ -158,22 +176,37 @@ class AccountController extends Controller
             ->paginate(10);
 
         return ApiResponse::success([
-            'items' => $reviews->map(fn ($review) => [
-                'id' => $review->id,
-                'rating' => $review->rating,
-                'comment' => $review->comment,
-                'verified' => (bool) $review->is_verified_purchase,
-                'status' => $review->status,
-                'createdAt' => optional($review->created_at)->toISOString(),
-                'replies' => $review->admin_reply ? [[
-                    'id' => 'admin-'.$review->id,
-                    'author' => 'Store',
-                    'comment' => $review->admin_reply,
-                    'createdAt' => optional($review->admin_replied_at ?: $review->updated_at)->toISOString(),
-                ]] : [],
-                'product' => $review->product ? ProductCardResource::make($review->product)->resolve() : null,
-            ])->values(),
+            'items' => $reviews->map(fn (ProductReview $review): array => $this->reviewPayload($review))->values(),
         ], meta: ['pagination' => $this->paginationMeta($reviews)]);
+    }
+
+    public function updateReview(Request $request, ProductReview $review): JsonResponse
+    {
+        abort_unless((int) $review->user_id === (int) $request->user()->id, 404);
+
+        $data = $request->validate([
+            'rating' => ['required', 'integer', 'min:1', 'max:5'],
+            'comment' => ['required', 'string', 'min:10', 'max:2000'],
+        ]);
+
+        $review->update([
+            'rating' => $data['rating'],
+            'comment' => $data['comment'],
+            'status' => 'pending',
+        ]);
+
+        return ApiResponse::success([
+            'review' => $this->reviewPayload($review->fresh(['product.category:id,name,slug', 'product.brand:id,name,slug', 'product.images', 'product.tags'])),
+        ], 'Review updated successfully. It will appear publicly after approval.');
+    }
+
+    public function deleteReview(Request $request, ProductReview $review): JsonResponse
+    {
+        abort_unless((int) $review->user_id === (int) $request->user()->id, 404);
+
+        $review->delete();
+
+        return ApiResponse::success([], 'Review deleted successfully.');
     }
 
     private function profilePayload($user): array
@@ -188,7 +221,47 @@ class AccountController extends Controller
             'avatar' => $user->avatar,
             'memberSince' => optional($user->created_at)->toISOString(),
             'membershipLevel' => 'Member',
+            'profileCompletion' => $this->profileCompletion($user),
         ];
+    }
+
+    private function reviewPayload(ProductReview $review): array
+    {
+        return [
+            'id' => $review->id,
+            'rating' => $review->rating,
+            'comment' => $review->comment,
+            'verified' => (bool) $review->is_verified_purchase,
+            'status' => $review->status,
+            'createdAt' => optional($review->created_at)->toISOString(),
+            'replies' => $review->admin_reply ? [[
+                'id' => 'admin-'.$review->id,
+                'author' => 'Store',
+                'comment' => $review->admin_reply,
+                'createdAt' => optional($review->admin_replied_at ?: $review->updated_at)->toISOString(),
+            ]] : [],
+            'product' => $review->product ? ProductCardResource::make($review->product)->resolve() : null,
+        ];
+    }
+
+    private function profileCompletion($user): int
+    {
+        $fields = ['name', 'email', 'phone', 'date_of_birth', 'gender', 'avatar'];
+        $completed = collect($fields)->filter(fn (string $field): bool => filled($user->{$field}))->count();
+
+        return (int) round(($completed / count($fields)) * 100);
+    }
+
+    private function deleteOldAvatar(?string $avatar): void
+    {
+        if (! $avatar || ! str_contains($avatar, '/storage/avatars/')) {
+            return;
+        }
+
+        $path = ltrim((string) parse_url($avatar, PHP_URL_PATH), '/');
+        if (str_starts_with($path, 'storage/')) {
+            Storage::disk('public')->delete(substr($path, strlen('storage/')));
+        }
     }
 
     private function settingsPayload($user): array

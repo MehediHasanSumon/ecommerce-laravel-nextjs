@@ -407,20 +407,20 @@ export default function CheckoutPage() {
                 )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {[
-                    { label: 'Full Name', key: 'fullName', placeholder: 'Enter full name', col: 2 },
+                    { label: 'Full Name', key: 'fullName', placeholder: 'Enter name', col: 2 },
                     {
                       label: 'Email',
                       key: 'email',
-                      placeholder: 'Enter email address',
+                      placeholder: 'Enter email',
                       type: 'email',
                     },
-                    { label: 'Phone', key: 'phone', placeholder: 'Enter phone number', type: 'tel' },
-                    { label: 'Street Address', key: 'address', placeholder: 'Enter street address', col: 2 },
+                    { label: 'Phone', key: 'phone', placeholder: 'Enter phone', type: 'tel' },
+                    { label: 'Street Address', key: 'address', placeholder: 'Enter address', col: 2 },
                     { label: 'City', key: 'city', placeholder: 'Enter city' },
                     { label: 'State', key: 'state', placeholder: 'Enter state' },
                     { label: 'District', key: 'district', placeholder: 'Enter district' },
-                    { label: 'Area / Zone', key: 'area', placeholder: 'Enter area or zone' },
-                    { label: 'ZIP Code', key: 'zip', placeholder: 'Enter ZIP code' },
+                    { label: 'Area / Zone', key: 'area', placeholder: 'Enter area' },
+                    { label: 'ZIP Code', key: 'zip', placeholder: 'Enter postal code' },
                     { label: 'Country', key: 'country', placeholder: 'Enter country' },
                   ].map(({ label, key, placeholder, col, type }) => (
                     <div key={key} className={col === 2 ? 'md:col-span-2' : ''}>
@@ -628,7 +628,7 @@ export default function CheckoutPage() {
                               void handleCouponApply();
                             }
                           }}
-                          placeholder="Enter coupon code"
+                          placeholder="Coupon code"
                           className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
                         />
                         <button
