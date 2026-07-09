@@ -27,22 +27,22 @@ function safeRedirectTarget(request: NextRequest) {
   const target = `${pathname}${search}`;
   return target.startsWith("/") && !target.startsWith("//")
     ? target
-    : routePaths.dashboard;
+    : routePaths.account;
 }
 
 function safePublicAuthRedirectTarget(request: NextRequest) {
   const target = request.nextUrl.searchParams.get("redirect");
 
   if (!target || !target.startsWith("/") || target.startsWith("//")) {
-    return routePaths.dashboard;
+    return routePaths.account;
   }
 
   try {
     const url = new URL(target, "http://local.test");
     const redirectTarget = `${url.pathname}${url.search}`;
-    return isRoute(url.pathname, publicAuthRoutes) ? routePaths.dashboard : redirectTarget;
+    return isRoute(url.pathname, publicAuthRoutes) ? routePaths.account : redirectTarget;
   } catch {
-    return routePaths.dashboard;
+    return routePaths.account;
   }
 }
 
@@ -176,7 +176,7 @@ export async function proxy(request: NextRequest) {
   if (publicAuthRoute && authenticated) {
     const dashboardUrl = request.nextUrl.clone();
     const redirectTarget = safePublicAuthRedirectTarget(request);
-    dashboardUrl.pathname = redirectTarget.split("?")[0] || routePaths.dashboard;
+    dashboardUrl.pathname = redirectTarget.split("?")[0] || routePaths.account;
     dashboardUrl.search = redirectTarget.includes("?") ? redirectTarget.slice(redirectTarget.indexOf("?")) : "";
     const response = NextResponse.redirect(dashboardUrl);
     if (refreshResponse) {
@@ -194,14 +194,10 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/dashboard/:path*",
     "/admin/:path*",
-    "/profile/:path*",
-    "/settings/:path*",
     "/account/:path*",
     "/wishlist/:path*",
     "/checkout/:path*",
-    "/order-success/:path*",
     "/login",
     "/register",
     "/forgot-password",

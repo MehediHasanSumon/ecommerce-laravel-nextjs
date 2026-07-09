@@ -22,7 +22,7 @@ export function LoginForm() {
   const searchParams = useSearchParams();
   const { login, isAuthenticated, isLoading, error, clearError, fetchCurrentUser } = useAuthStore();
   const [isCheckingSession, setIsCheckingSession] = useState(true);
-  const redirectTo = safeRedirect(searchParams.get("redirect"), routePaths.dashboard);
+  const redirectTo = safeRedirect(searchParams.get("redirect"), routePaths.account);
   const sessionExpired = searchParams.get("session") === "expired";
 
   const form = useForm<LoginFormValues>({

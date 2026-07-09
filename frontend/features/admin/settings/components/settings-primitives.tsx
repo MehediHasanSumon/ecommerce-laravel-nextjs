@@ -38,7 +38,7 @@ export function SettingsPageShell({
         <div className="mx-auto flex max-w-7xl flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-              <Link href={routePaths.dashboard} className="transition-colors hover:text-foreground">Dashboard</Link>
+              <Link href={routePaths.adminOrders} className="transition-colors hover:text-foreground">Dashboard</Link>
               <ChevronRight className="h-4 w-4" />
               <Link href={routePaths.adminSettingsCompany} className="transition-colors hover:text-foreground">Settings</Link>
               <ChevronRight className="h-4 w-4" />

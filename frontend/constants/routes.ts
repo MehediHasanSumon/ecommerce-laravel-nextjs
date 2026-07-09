@@ -1,12 +1,8 @@
 export const protectedRoutes = [
-  "/dashboard",
   "/admin",
-  "/profile",
-  "/settings",
   "/account",
   "/wishlist",
   "/checkout",
-  "/order-success",
 ] as const;
 export const publicAuthRoutes = [
   "/login",
@@ -21,7 +17,8 @@ export const routePaths = {
   register: "/register",
   forgotPassword: "/forgot-password",
   resetPassword: "/reset-password",
-  dashboard: "/dashboard",
+  account: "/account",
+  dashboard: "/admin/orders",
   dashboardUsers: "/admin/users",
   dashboardRoles: "/admin/roles",
   dashboardPermissions: "/admin/permissions",
@@ -56,6 +53,6 @@ export const routePaths = {
   adminUsers: "/admin/users",
   adminRoles: "/admin/roles",
   adminPermissions: "/admin/permissions",
-  profile: "/profile",
-  settings: "/settings",
+  profile: "/account/profile",
+  settings: "/account/settings",
 } as const;
