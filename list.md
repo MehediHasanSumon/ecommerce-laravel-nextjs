@@ -126,12 +126,11 @@ No admin pages found for:
 
 - `/admin/reviews`
   - Reply system exists now, but no separate threaded/multiple replies.
-  - Old DB tables/models still exist although UI/API removed them:
+  - Done: old review image/vote DB tables and models were permanently removed:
     - `product_review_images`
     - `product_review_votes`
     - `ProductReviewImage`
     - `ProductReviewVote`
-  - Decide: permanently drop/remove or keep for future.
 
 ### 14. Settings pages with placeholder/future text
 

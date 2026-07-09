@@ -4,8 +4,6 @@ namespace Database\Seeders;
 
 use App\Models\Product;
 use App\Models\ProductReview;
-use App\Models\ProductReviewImage;
-use App\Models\ProductReviewVote;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
@@ -14,8 +12,6 @@ class ProductReviewSeeder extends Seeder
     public function run(): void
     {
         $users = $this->seedReviewUsers();
-        ProductReviewVote::query()->delete();
-        ProductReviewImage::query()->delete();
         ProductReview::query()->delete();
 
         Product::query()->where('status', 'active')->inRandomOrder()->limit(120)->get()->each(function (Product $product) use ($users): void {
@@ -25,7 +21,7 @@ class ProductReviewSeeder extends Seeder
             for ($index = 0; $index < $reviewCount; $index++) {
                 $rating = fake()->numberBetween(3, 5);
                 $ratingTotal += $rating;
-                $review = ProductReview::query()->create([
+                ProductReview::query()->create([
                     'product_id' => $product->id,
                     'user_id' => $users->random()->id,
                     'order_item_id' => fake()->numberBetween(10000, 99999),

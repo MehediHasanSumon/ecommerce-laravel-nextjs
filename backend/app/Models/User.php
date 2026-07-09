@@ -47,11 +47,6 @@ class User extends Authenticatable
         return $this->hasMany(ProductReview::class);
     }
 
-    public function productReviewVotes(): HasMany
-    {
-        return $this->hasMany(ProductReviewVote::class);
-    }
-
     public function stockMovements(): HasMany
     {
         return $this->hasMany(StockMovement::class, 'created_by');
