@@ -192,12 +192,15 @@ export type CollectionDetailResponse = {
 
 export type ShippingMethod = {
   id: string;
+  zoneId?: string | null;
+  zoneName?: string | null;
   name: string;
   slug: string;
   description?: string | null;
   deliveryType?: string | null;
   estimatedDeliveryTime?: string | null;
   charge: number;
+  minimumOrderAmount?: number;
   sortOrder: number;
 };
 
@@ -357,11 +360,13 @@ export async function fetchProductDetail(
 }
 
 export async function fetchShippingMethods(
+  params: { country?: string; subtotal?: number } = {},
   options: { signal?: AbortSignal } = {},
 ): Promise<ShippingMethod[]> {
   const response = await axios.get<ApiEnvelope<{ items: ShippingMethod[] }>>(
     `${apiBaseUrl}/shipping-methods`,
     {
+      params,
       signal: options.signal,
       withCredentials: true,
       headers: {

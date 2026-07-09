@@ -13,6 +13,7 @@ use App\Models\Settings\StoreSetting;
 use App\Services\Commerce\CartService;
 use App\Services\Orders\OrderService;
 use App\Services\Payments\PaymentGatewayManager;
+use App\Services\Shipping\ShippingZoneMatcher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -24,6 +25,7 @@ class CheckoutService
         private readonly CartService $cartService,
         private readonly PaymentGatewayManager $payments,
         private readonly OrderService $orders,
+        private readonly ShippingZoneMatcher $shippingZones,
     ) {}
 
     public function place(Request $request, array $payload): array
@@ -41,7 +43,6 @@ class CheckoutService
                 throw ValidationException::withMessages(['cart' => ['Your cart is empty.']]);
             }
 
-            $shippingMethod = ShippingMethod::query()->where('status', true)->findOrFail($payload['shipping_method_id']);
             $paymentSetting = $this->payments->setting($payload['payment_method']);
             $gateway = $this->payments->gateway($payload['payment_method']);
             $gateway->assertConfigured($paymentSetting);
@@ -50,7 +51,25 @@ class CheckoutService
             $shippingAddress = (bool) ($payload['same_as_billing'] ?? true)
                 ? $billingAddress
                 : $this->resolveAddress($request, $payload, 'shipping');
+            $shippingZone = $this->shippingZones->findForCountry($shippingAddress['country'] ?? null);
+            if (! $shippingZone) {
+                throw ValidationException::withMessages(['shipping_method_id' => ['No shipping zone is available for the selected shipping country.']]);
+            }
+
+            $shippingMethod = ShippingMethod::query()
+                ->where('status', true)
+                ->where('shipping_zone_id', $shippingZone->id)
+                ->find($payload['shipping_method_id']);
+
+            if (! $shippingMethod) {
+                throw ValidationException::withMessages(['shipping_method_id' => ['The selected shipping method is not available for the shipping address.']]);
+            }
+
             $summary = $this->summary($cart, $shippingMethod);
+            $minimumOrderAmount = (int) ($shippingMethod->minimum_order_amount_cents ?? 0);
+            if ($minimumOrderAmount > 0 && $summary['subtotal_cents'] < $minimumOrderAmount) {
+                throw ValidationException::withMessages(['shipping_method_id' => ['The selected shipping method requires a higher order amount.']]);
+            }
             $currency = $this->currency();
 
             $order = Order::query()->create([
@@ -62,6 +81,8 @@ class CheckoutService
                 'payment_status' => 'pending',
                 'payment_method' => $paymentSetting->gateway,
                 'shipping_method_id' => $shippingMethod->id,
+                'shipping_zone_id' => $shippingZone->id,
+                'shipping_zone_name' => $shippingZone->name,
                 'shipping_method_name' => $shippingMethod->name,
                 'currency' => $currency,
                 'subtotal_cents' => $summary['subtotal_cents'],

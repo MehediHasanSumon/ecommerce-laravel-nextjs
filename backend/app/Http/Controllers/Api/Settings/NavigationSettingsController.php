@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Settings;
 
 use App\Models\Category;
 use App\Models\Product;
+use App\Models\Settings\ShippingMethod;
 use App\Http\Controllers\Controller;
 use App\Http\Responses\ApiResponse;
 use App\Http\Resources\Admin\Settings\CategoryDisplaySettingResource;
@@ -14,7 +15,6 @@ use App\Services\Admin\Settings\HomeFeatureCardSettingsService;
 use App\Services\Admin\Settings\BlogSettingsService;
 use App\Services\Admin\Settings\MaintenanceModeSettingsService;
 use App\Services\Admin\Settings\PaymentSettingsService;
-use App\Services\Admin\Settings\ShippingSettingsService;
 use App\Services\Admin\Settings\SocialMediaSettingsService;
 use App\Services\Admin\Settings\StoreSettingsService;
 use Illuminate\Http\JsonResponse;
@@ -32,7 +32,6 @@ class NavigationSettingsController extends Controller
         private readonly StoreSettingsService $storeSettings,
         private readonly SocialMediaSettingsService $socialMediaSettings,
         private readonly PaymentSettingsService $paymentSettings,
-        private readonly ShippingSettingsService $shippingSettings,
         private readonly MaintenanceModeSettingsService $maintenanceSettings,
     ) {}
 
@@ -54,7 +53,6 @@ class NavigationSettingsController extends Controller
         $blogSettings = $this->blogSettings->runtime();
         $social = $this->socialMediaSettings->all();
         $payments = $this->paymentSettings->all();
-        $shipping = $this->shippingSettings->get();
         $maintenance = $this->maintenanceSettings->get();
         $siteName = $company->company_name ?: $store->store_name;
         $currency = $company->currency;
@@ -72,7 +70,7 @@ class NavigationSettingsController extends Controller
             'reviews' => (bool) $store->enable_reviews,
             'stock_management' => (bool) $store->enable_stock_management,
             'guest_checkout' => (bool) $store->enable_guest_checkout,
-            'shipping' => (bool) $shipping->enable_shipping,
+            'shipping' => ShippingMethod::query()->where('status', true)->exists(),
             'payments' => $payments->contains('enabled', true),
             'maintenance' => (bool) $maintenance->enabled,
         ];
@@ -237,6 +235,23 @@ class NavigationSettingsController extends Controller
                 ],
             ],
             [
+                'key' => 'orders',
+                'label' => 'Orders',
+                'type' => 'single',
+                'items' => [
+                    ['label' => 'Order Management', 'href' => '/admin/orders', 'icon' => 'PackageCheck', 'enabled' => true],
+                ],
+            ],
+            [
+                'key' => 'products',
+                'label' => 'Product Management',
+                'icon' => 'Package',
+                'type' => 'single',
+                'items' => [
+                    ['label' => 'Product Management', 'href' => '/admin/products', 'icon' => 'Package', 'enabled' => $modules['products']],
+                ],
+            ],
+            [
                 'key' => 'users',
                 'label' => 'Users Management',
                 'icon' => 'UsersRound',
@@ -248,9 +263,9 @@ class NavigationSettingsController extends Controller
                 ],
             ],
             [
-                'key' => 'products',
-                'label' => 'Product Management',
-                'icon' => 'Package',
+                'key' => 'catalog',
+                'label' => 'Catalog',
+                'icon' => 'Layers3',
                 'type' => 'group',
                 'items' => [
                     ['label' => 'Brand Management', 'href' => '/admin/brands', 'icon' => 'Building2', 'enabled' => $modules['brands']],
@@ -258,13 +273,35 @@ class NavigationSettingsController extends Controller
                     ['label' => 'Attribute Management', 'href' => '/admin/attributes', 'icon' => 'Shapes', 'enabled' => $modules['products']],
                     ['label' => 'Attribute Value Management', 'href' => '/admin/attribute-values', 'icon' => 'Boxes', 'enabled' => $modules['products']],
                     ['label' => 'Tag Management', 'href' => '/admin/tags', 'icon' => 'Tags', 'enabled' => $modules['products']],
+                    ['label' => 'Review Management', 'href' => '/admin/reviews', 'icon' => 'Star', 'enabled' => $modules['reviews']],
+                ],
+            ],
+            [
+                'key' => 'inventory',
+                'label' => 'Inventory & Shipping',
+                'icon' => 'Warehouse',
+                'type' => 'group',
+                'items' => [
                     ['label' => 'Warehouse Management', 'href' => '/admin/warehouses', 'icon' => 'Warehouse', 'enabled' => $modules['stock_management']],
-                    ['label' => 'Product Management', 'href' => '/admin/products', 'icon' => 'Package', 'enabled' => $modules['products']],
+                ],
+            ],
+            [
+                'key' => 'marketing',
+                'label' => 'Marketing & Pricing',
+                'icon' => 'Megaphone',
+                'type' => 'group',
+                'items' => [
                     ['label' => 'Collection Management', 'href' => '/admin/collections', 'icon' => 'ShoppingBag', 'enabled' => $modules['products']],
                     ['label' => 'Currency Management', 'href' => '/admin/currencies', 'icon' => 'CircleDollarSign', 'enabled' => true],
                     ['label' => 'Discount Management', 'href' => '/admin/discounts', 'icon' => 'CirclePercent', 'enabled' => $modules['offers']],
-                    ['label' => 'Review Management', 'href' => '/admin/reviews', 'icon' => 'Star', 'enabled' => $modules['reviews']],
-                    ['label' => 'Order Management', 'href' => '/admin/orders', 'icon' => 'PackageCheck', 'enabled' => true],
+                ],
+            ],
+            [
+                'key' => 'content',
+                'label' => 'Content',
+                'icon' => 'Newspaper',
+                'type' => 'group',
+                'items' => [
                     ['label' => 'Blog Management', 'href' => '/admin/blogs', 'icon' => 'Newspaper', 'enabled' => true],
                 ],
             ],
@@ -282,7 +319,8 @@ class NavigationSettingsController extends Controller
                     ['label' => 'Email (SMTP)', 'href' => '/admin/settings/email', 'icon' => 'Mail', 'enabled' => true],
                     ['label' => 'SMS Provider', 'href' => '/admin/settings/sms', 'icon' => 'MessageSquareText', 'enabled' => true],
                     ['label' => 'Payment Settings', 'href' => '/admin/settings/payment', 'icon' => 'CreditCard', 'enabled' => true],
-                    ['label' => 'Shipping Settings', 'href' => '/admin/settings/shipping', 'icon' => 'PackageCheck', 'enabled' => $modules['shipping']],
+                    ['label' => 'Shipping Zones', 'href' => '/admin/settings/shipping-zones', 'icon' => 'MapPin', 'enabled' => true],
+                    ['label' => 'Shipping Methods', 'href' => '/admin/settings/shipping-methods', 'icon' => 'PackageCheck', 'enabled' => true],
                     ['label' => 'SEO Settings', 'href' => '/admin/settings/seo', 'icon' => 'Search', 'enabled' => true],
                     ['label' => 'Social Media', 'href' => '/admin/settings/social', 'icon' => 'Megaphone', 'enabled' => true],
                     ['label' => 'Localization', 'href' => '/admin/settings/localization', 'icon' => 'Globe2', 'enabled' => true],

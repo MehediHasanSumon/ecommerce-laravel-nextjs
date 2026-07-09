@@ -17,12 +17,16 @@ import {
   KeyRound,
   Heart,
   Home,
+  LayoutGrid,
   Layers3,
   LogOut,
   Mail,
+  MapPin,
+  Megaphone,
   Menu,
   MessageSquareText,
   Moon,
+  Newspaper,
   Package,
   PackageCheck,
   PanelLeftClose,
@@ -41,7 +45,6 @@ import {
   Sun,
   UserRound,
   Warehouse,
-  Ship,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -68,19 +71,34 @@ const usersManagementItems = [
 ];
 
 const productManagementItems = [
+  { href: routePaths.adminProducts, label: "Product Management", icon: Package },
+];
+
+const catalogManagementItems = [
   { href: routePaths.adminBrands, label: "Brand Management", icon: Building2 },
   { href: routePaths.adminCategories, label: "Category Management", icon: Layers3 },
   { href: routePaths.adminAttributes, label: "Attribute Management", icon: Shapes },
   { href: routePaths.adminAttributeValues, label: "Attribute Value Management", icon: Boxes },
   { href: routePaths.adminTags, label: "Tag Management", icon: Tags },
+  { href: routePaths.adminReviews, label: "Review Management", icon: Star },
+];
+
+const inventoryManagementItems = [
   { href: routePaths.adminWarehouses, label: "Warehouse Management", icon: Warehouse },
-  { href: routePaths.adminShippingMethods, label: "Shipping Management", icon: Ship },
-  { href: routePaths.adminProducts, label: "Product Management", icon: Package },
+];
+
+const marketingManagementItems = [
   { href: routePaths.adminCollections, label: "Collection Management", icon: ShoppingBag },
   { href: routePaths.adminCurrencies, label: "Currency Management", icon: CircleDollarSign },
   { href: routePaths.adminDiscounts, label: "Discount Management", icon: CirclePercent },
-  { href: routePaths.adminReviews, label: "Review Management", icon: Star },
+];
+
+const orderManagementItems = [
   { href: routePaths.adminOrders, label: "Order Management", icon: PackageCheck },
+];
+
+const contentManagementItems = [
+  { href: routePaths.adminBlogs, label: "Blog Management", icon: Newspaper },
 ];
 
 const settingsItems = [
@@ -91,7 +109,8 @@ const settingsItems = [
   { href: routePaths.adminSettingsEmail, label: "Email (SMTP)", icon: Mail },
   { href: routePaths.adminSettingsSms, label: "SMS Provider", icon: MessageSquareText },
   { href: routePaths.adminSettingsPayment, label: "Payment Settings", icon: CreditCard },
-  { href: routePaths.adminSettingsShipping, label: "Shipping Settings", icon: PackageCheck },
+  { href: routePaths.adminSettingsShippingZones, label: "Shipping Zones", icon: MapPin },
+  { href: routePaths.adminSettingsShippingMethods, label: "Shipping Methods", icon: PackageCheck },
   { href: routePaths.adminSettingsSeo, label: "SEO Settings", icon: Search },
   { href: routePaths.adminSettingsSocial, label: "Social Media", icon: Star },
   { href: routePaths.adminSettingsLocalization, label: "Localization", icon: Globe2 },
@@ -110,11 +129,15 @@ const iconMap = {
   Globe2,
   Heart,
   Home,
+  LayoutGrid,
   KeyRound,
   Layers3,
   LogOut,
   Mail,
+  MapPin,
+  Megaphone,
   MessageSquareText,
+  Newspaper,
   Package,
   PackageCheck,
   Search,
@@ -128,7 +151,6 @@ const iconMap = {
   Tags,
   UsersRound,
   Warehouse,
-  Ship,
 };
 
 function resolveIcon(name?: string) {
@@ -148,10 +170,14 @@ function renderIcon(name: string | undefined, className: string) {
     case "Globe2": return <Globe2 className={className} />;
     case "Heart": return <Heart className={className} />;
     case "KeyRound": return <KeyRound className={className} />;
+    case "LayoutGrid": return <LayoutGrid className={className} />;
     case "Layers3": return <Layers3 className={className} />;
     case "LogOut": return <LogOut className={className} />;
     case "Mail": return <Mail className={className} />;
+    case "MapPin": return <MapPin className={className} />;
+    case "Megaphone": return <Megaphone className={className} />;
     case "MessageSquareText": return <MessageSquareText className={className} />;
+    case "Newspaper": return <Newspaper className={className} />;
     case "Package": return <Package className={className} />;
     case "PackageCheck": return <PackageCheck className={className} />;
     case "Search": return <Search className={className} />;
@@ -165,7 +191,6 @@ function renderIcon(name: string | undefined, className: string) {
     case "Tags": return <Tags className={className} />;
     case "UsersRound": return <UsersRound className={className} />;
     case "Warehouse": return <Warehouse className={className} />;
-    case "Ship": return <Ship className={className} />;
     case "Home":
     default:
       return <Home className={className} />;
@@ -175,8 +200,13 @@ function renderIcon(name: string | undefined, className: string) {
 function fallbackAdminNavigation(): RuntimeNavigationGroup[] {
   return [
     { key: "main", label: "Main", type: "single", items: navItems.map((item) => ({ label: item.label, href: item.href, icon: item.icon.name, enabled: true })) },
+    { key: "orders", label: "Orders", type: "single", items: orderManagementItems.map((item) => ({ label: item.label, href: item.href, icon: item.icon.name, enabled: true })) },
+    { key: "products", label: "Products", type: "single", items: productManagementItems.map((item) => ({ label: item.label, href: item.href, icon: item.icon.name, enabled: true })) },
     { key: "users", label: "Users Management", icon: "UsersRound", type: "group", items: usersManagementItems.map((item) => ({ label: item.label, href: item.href, icon: item.icon.name, enabled: true })) },
-    { key: "products", label: "Product Management", icon: "Package", type: "group", items: productManagementItems.map((item) => ({ label: item.label, href: item.href, icon: item.icon.name, enabled: true })) },
+    { key: "catalog", label: "Catalog", icon: "Layers3", type: "group", items: catalogManagementItems.map((item) => ({ label: item.label, href: item.href, icon: item.icon.name, enabled: true })) },
+    { key: "inventory", label: "Inventory & Shipping", icon: "Warehouse", type: "group", items: inventoryManagementItems.map((item) => ({ label: item.label, href: item.href, icon: item.icon.name, enabled: true })) },
+    { key: "marketing", label: "Marketing & Pricing", icon: "Megaphone", type: "group", items: marketingManagementItems.map((item) => ({ label: item.label, href: item.href, icon: item.icon.name, enabled: true })) },
+    { key: "content", label: "Content", icon: "Newspaper", type: "group", items: contentManagementItems.map((item) => ({ label: item.label, href: item.href, icon: item.icon.name, enabled: true })) },
     { key: "settings", label: "Settings", icon: "Settings2", type: "group", items: settingsItems.map((item) => ({ label: item.label, href: item.href, icon: item.icon.name, enabled: true })) },
   ];
 }
@@ -434,7 +464,14 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
   const isLoading = useAuthStore((state) => state.isLoading);
   const activeItem =
     [...navItems, ...usersManagementItems].find((item) => item.href === pathname) ??
-    productManagementItems.find((item) => item.href === pathname || (item.href === routePaths.adminProducts && pathname.startsWith(`${routePaths.adminProducts}/`)) || (item.href === routePaths.adminOrders && pathname.startsWith(`${routePaths.adminOrders}/`))) ??
+    [
+      ...orderManagementItems,
+      ...productManagementItems,
+      ...catalogManagementItems,
+      ...inventoryManagementItems,
+      ...marketingManagementItems,
+      ...contentManagementItems,
+    ].find((item) => item.href === pathname || (item.href === routePaths.adminProducts && pathname.startsWith(`${routePaths.adminProducts}/`)) || (item.href === routePaths.adminOrders && pathname.startsWith(`${routePaths.adminOrders}/`))) ??
     settingsItems.find((item) => item.href === pathname) ??
     navItems[0];
 

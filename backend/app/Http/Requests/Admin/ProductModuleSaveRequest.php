@@ -6,7 +6,6 @@ use App\Models\Category;
 use App\Services\Admin\Settings\CategoryDisplaySettingsService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
@@ -53,18 +52,6 @@ class ProductModuleSaveRequest extends FormRequest
 
         if ((string) $this->route('module') === 'currencies' && filled($this->input('currency'))) {
             $this->merge(['currency' => strtoupper((string) $this->input('currency'))]);
-        }
-
-        if ((string) $this->route('module') === 'shipping-methods') {
-            $slug = $this->input('slug');
-            if (! filled($slug) && filled($this->input('name'))) {
-                $slug = Str::slug((string) $this->input('name'));
-            }
-
-            $this->merge([
-                'slug' => $slug,
-                'status' => $this->input('status', 'active'),
-            ]);
         }
 
         if ((string) $this->route('module') === 'discounts') {
@@ -157,16 +144,6 @@ class ProductModuleSaveRequest extends FormRequest
                 'currency' => ['required', 'string', 'size:3', Rule::unique('currencies', 'currency')->ignore($id)],
                 'symbol' => ['required', 'string', 'max:20'],
                 'status' => ['required', Rule::in(['active', 'inactive'])],
-            ],
-            'shipping-methods' => [
-                'name' => ['required', 'string', 'max:255'],
-                'slug' => ['required', 'string', 'max:255', Rule::unique('shipping_methods', 'slug')->ignore($id)],
-                'description' => ['nullable', 'string'],
-                'charge' => ['required', 'numeric', 'min:0'],
-                'delivery_type' => ['required', 'string', 'max:100'],
-                'estimated_delivery_time' => ['nullable', 'string', 'max:255'],
-                'status' => ['required', Rule::in(['active', 'inactive'])],
-                'sort_order' => ['nullable', 'integer', 'min:0'],
             ],
             'products' => $this->productRules($id),
             'collections' => [

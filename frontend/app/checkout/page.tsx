@@ -125,32 +125,12 @@ export default function CheckoutPage() {
   const couponMessage = useCartStore((s) => s.couponMessage);
   const couponMessageType = useCartStore((s) => s.couponMessageType);
   const couponLoading = useCartStore((s) => s.isCouponLoading);
+  const subtotal = getSubtotal();
 
   useEffect(() => {
     setMounted(true);
     initializeCart().catch(() => undefined);
   }, [initializeCart]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    setShippingLoading(true);
-
-    fetchShippingMethods({ signal: controller.signal })
-      .then((methods) => {
-        setShippingMethods(methods);
-        setSelectedShippingMethodId((current) => current || methods[0]?.id || '');
-      })
-      .catch(() => {
-        setShippingMethods([]);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) {
-          setShippingLoading(false);
-        }
-      });
-
-    return () => controller.abort();
-  }, []);
 
   useEffect(() => {
     let active = true;
@@ -179,6 +159,36 @@ export default function CheckoutPage() {
       active = false;
     };
   }, []);
+
+  const selectedBillingAddress = addresses.find((address) => address.id === selectedBillingAddressId) ?? null;
+  const selectedShippingCountry = selectedBillingAddress?.country || form.country || 'Bangladesh';
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setShippingLoading(true);
+
+    fetchShippingMethods({ country: selectedShippingCountry, subtotal }, { signal: controller.signal })
+      .then((methods) => {
+        if (controller.signal.aborted) {
+          return;
+        }
+        setShippingMethods(methods);
+        setSelectedShippingMethodId((current) => methods.some((method) => method.id === current) ? current : methods[0]?.id || '');
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setShippingMethods([]);
+          setSelectedShippingMethodId('');
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setShippingLoading(false);
+        }
+      });
+
+    return () => controller.abort();
+  }, [selectedShippingCountry, subtotal]);
 
   useEffect(() => {
     let active = true;
@@ -233,7 +243,6 @@ export default function CheckoutPage() {
     );
   }
 
-  const selectedBillingAddress = addresses.find((address) => address.id === selectedBillingAddressId) ?? null;
   const checkoutAddress = {
     fullName: form.fullName,
     email: form.email,
@@ -283,7 +292,6 @@ export default function CheckoutPage() {
   const couponDiscount = cart.summary?.couponDiscount ?? cart.coupon?.discount ?? 0;
   const hasCoupon = Boolean(cart.couponCode);
   const shippingAmount = cart.coupon?.freeShipping ? 0 : (selectedShippingMethod?.charge ?? 0);
-  const subtotal = getSubtotal();
   const tax = getTax();
   const total = Math.max(0, subtotal - couponDiscount + shippingAmount + tax);
   const couponActionLabel = couponInput.trim().length > 0 ? 'Apply' : 'Cancel';

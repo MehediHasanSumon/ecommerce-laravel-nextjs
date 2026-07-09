@@ -127,17 +127,6 @@ class ProductModuleResource extends JsonResource
                 'symbol' => $this->symbol,
                 'status' => $this->status,
             ],
-            \App\Models\Settings\ShippingMethod::class => $base + [
-                'name' => $this->name,
-                'slug' => $this->slug,
-                'description' => $this->description,
-                'charge' => round(((int) $this->rate_cents) / 100, 2),
-                'delivery_type' => $this->delivery_type ?: $this->type,
-                'estimated_delivery_time' => $this->estimated_delivery_time,
-                'status' => $this->status ? 'active' : 'inactive',
-                'sort_order' => $this->display_order,
-                'zone' => $this->whenLoaded('zone', fn () => $this->zone ? ['id' => $this->zone->id, 'name' => $this->zone->name] : null),
-            ],
             \App\Models\Discount::class => $base + [
                 'name' => $this->name,
                 'code' => $this->code,

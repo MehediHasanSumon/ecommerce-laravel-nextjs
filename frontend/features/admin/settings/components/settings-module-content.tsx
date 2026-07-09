@@ -104,19 +104,6 @@ type SocialMediaRow = {
   status: boolean;
 };
 
-type ShippingSettingsPayload = {
-  settings: {
-    enable_shipping: boolean;
-    enable_free_shipping: boolean;
-    free_shipping_minimum_amount: number;
-    default_weight_unit: string;
-    default_dimension_unit: string;
-  };
-  zones: Values[];
-  methods: Values[];
-  classes: Values[];
-};
-
 type Section = {
   title: string;
   description: string;
@@ -893,79 +880,6 @@ export function PaymentSettingsContent() {
   );
 }
 
-export function ShippingSettingsContent() {
-  const pathname = usePathname();
-  const defaultPayload = React.useMemo<ShippingSettingsPayload>(() => ({
-    settings: { enable_shipping: true, enable_free_shipping: false, free_shipping_minimum_amount: 0, default_weight_unit: "kg", default_dimension_unit: "cm" },
-    zones: [],
-    methods: [],
-    classes: [],
-  }), []);
-  const [payload, setPayload] = React.useState<ShippingSettingsPayload>(defaultPayload);
-  const [initial, setInitial] = React.useState<ShippingSettingsPayload>(defaultPayload);
-  const [loading, setLoading] = React.useState(true);
-  const [saving, setSaving] = React.useState(false);
-  const [resetOpen, setResetOpen] = React.useState(false);
-  const isDirty = JSON.stringify(payload) !== JSON.stringify(initial);
-  useUnsavedChanges(isDirty);
-
-  React.useEffect(() => {
-    settingsApi.get<ShippingSettingsPayload>("shipping")
-      .then((response) => {
-        const next = normalizeShippingPayload(response.data, defaultPayload);
-        setPayload(next);
-        setInitial(next);
-      })
-      .catch(() => toast.error("Could not load shipping settings."))
-      .finally(() => setLoading(false));
-  }, [defaultPayload]);
-
-  async function submit(event: React.FormEvent) {
-    event.preventDefault();
-    try {
-      setSaving(true);
-      const response = await settingsApi.update<ShippingSettingsPayload, ShippingSettingsPayload>("shipping", denormalizeShippingPayload(payload));
-      const next = normalizeShippingPayload(response.data, defaultPayload);
-      setPayload(next);
-      setInitial(next);
-      toast.success(response.message || "Shipping settings saved.");
-    } catch (error: unknown) {
-      toast.error(getApiError(error).message || "Unable to save shipping settings.");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <form onSubmit={submit}>
-      <SettingsPageShell title="Shipping Settings" description="Control shipping availability, units, free shipping threshold, zones, methods, and classes." icon={PackageCheck} actions={<FormActions isSaving={saving} isDirty={isDirty} onReset={() => setResetOpen(true)} />}>
-        <SettingsGrid>
-          <SettingsSubnav items={settingsNavItems} pathname={pathname} />
-          <div className="space-y-4">
-            {loading ? <SettingsLoading /> : (
-              <>
-                <SettingsSection title="General" description="Shipping status and measurement defaults." icon={PackageCheck}>
-                  <FormGrid>
-                    <ToggleSwitch label="Enable Shipping" checked={Boolean(payload.settings.enable_shipping)} onChange={(checked) => setPayload({ ...payload, settings: { ...payload.settings, enable_shipping: checked } })} />
-                    <ToggleSwitch label="Enable Free Shipping" checked={Boolean(payload.settings.enable_free_shipping)} onChange={(checked) => setPayload({ ...payload, settings: { ...payload.settings, enable_free_shipping: checked } })} />
-                    <TextInput label="Free Shipping Minimum Amount" type="number" value={payload.settings.free_shipping_minimum_amount ?? 0} onChange={(event) => setPayload({ ...payload, settings: { ...payload.settings, free_shipping_minimum_amount: Number(event.target.value || 0) } })} />
-                    <SelectInput label="Default Weight Unit" value={payload.settings.default_weight_unit} options={[{ label: "g", value: "g" }, { label: "kg", value: "kg" }, { label: "lb", value: "lb" }, { label: "oz", value: "oz" }]} onChange={(value) => setPayload({ ...payload, settings: { ...payload.settings, default_weight_unit: value } })} />
-                    <SelectInput label="Default Dimension Unit" value={payload.settings.default_dimension_unit} options={[{ label: "cm", value: "cm" }, { label: "m", value: "m" }, { label: "in", value: "in" }]} onChange={(value) => setPayload({ ...payload, settings: { ...payload.settings, default_dimension_unit: value } })} />
-                  </FormGrid>
-                </SettingsSection>
-                <EditableRows title="Shipping Zones" description="Zones are location groups like Bangladesh, Dhaka City, or International. Use them when you want different shipping rules by area." rows={payload.zones} addLabel="Add Zone" icon={MapPin} fields={[["name", "Name"], ["countries_text", "Countries"], ["states_text", "States"], ["postal_codes_text", "Postal Codes"]]} onChange={(zones) => setPayload({ ...payload, zones: zones.map(normalizeShippingZone) })} />
-                <EditableRows title="Shipping Methods" description="Methods are the actual delivery options customers choose at checkout. The amount entered here is shown as-is with your configured currency formatting." rows={payload.methods} addLabel="Add Method" icon={PackageCheck} fields={[["name", "Name"], ["code", "Code"], ["type", "Type"], ["rate", "Charge"], ["estimated_days_min", "Min Days"], ["estimated_days_max", "Max Days"]]} onChange={(methods) => setPayload({ ...payload, methods })} />
-                <EditableRows title="Shipping Classes" description="Classes are future-ready product shipping groups for extra charges like fragile, bulky, or oversized items. They are not driving checkout selection right now." rows={payload.classes} addLabel="Add Class" icon={PackageCheck} fields={[["name", "Name"], ["slug", "Slug"], ["description", "Description"], ["additional_fee", "Additional Fee"]]} onChange={(classes) => setPayload({ ...payload, classes })} />
-              </>
-            )}
-          </div>
-        </SettingsGrid>
-      </SettingsPageShell>
-      <ResetConfirmation open={resetOpen} onClose={() => setResetOpen(false)} onConfirm={() => { setPayload(initial); setResetOpen(false); }} />
-    </form>
-  );
-}
-
 export function SocialMediaSettingsContent() {
   const pathname = usePathname();
   const defaults = React.useMemo<SocialMediaRow[]>(() => ["facebook", "instagram", "linkedin", "x", "youtube", "tiktok", "pinterest"].map((platform, index) => ({ platform, url: `https://example.com/${platform}`, icon: platform, display_order: index, open_in_new_tab: true, status: index < 3 })), []);
@@ -1132,69 +1046,11 @@ function normalizeOutgoing(module: string, values: Values) {
   return values;
 }
 
-function normalizeShippingZone(row: Values) {
-  return {
-    ...row,
-    countries: row.countries ?? splitList(row.countries_text),
-    states: row.states ?? splitList(row.states_text),
-    postal_codes: row.postal_codes ?? splitList(row.postal_codes_text),
-  };
-}
-
-function splitList(value: unknown) {
-  return String(value ?? "").split(",").map((item) => item.trim()).filter(Boolean);
-}
-
 function editableNumericField(key: string) {
   return key.includes("days")
     || key === "display_order"
     || key === "rate"
-    || key === "additional_fee"
     || key === "free_shipping_minimum_amount";
-}
-
-function normalizeShippingPayload(source: ShippingSettingsPayload | Record<string, unknown>, defaults: ShippingSettingsPayload): ShippingSettingsPayload {
-  const payload = { ...defaults, ...source } as ShippingSettingsPayload & {
-    settings?: Record<string, unknown>;
-  };
-
-  return {
-    ...payload,
-    settings: {
-      enable_shipping: Boolean(payload.settings?.enable_shipping ?? defaults.settings.enable_shipping),
-      enable_free_shipping: Boolean(payload.settings?.enable_free_shipping ?? defaults.settings.enable_free_shipping),
-      free_shipping_minimum_amount: Number(payload.settings?.free_shipping_minimum_amount ?? payload.settings?.free_shipping_minimum_amount_cents ?? 0) / 100,
-      default_weight_unit: String(payload.settings?.default_weight_unit ?? defaults.settings.default_weight_unit),
-      default_dimension_unit: String(payload.settings?.default_dimension_unit ?? defaults.settings.default_dimension_unit),
-    },
-    zones: (payload.zones ?? []).map(normalizeShippingZone),
-    methods: (payload.methods ?? []).map((row) => ({
-      ...row,
-      rate: Number(row.rate ?? row.rate_cents ?? 0) / 100,
-    })),
-    classes: (payload.classes ?? []).map((row) => ({
-      ...row,
-      additional_fee: Number(row.additional_fee ?? row.additional_fee_cents ?? 0) / 100,
-    })),
-  };
-}
-
-function denormalizeShippingPayload(payload: ShippingSettingsPayload) {
-  return {
-    ...payload,
-    settings: {
-      ...payload.settings,
-      free_shipping_minimum_amount_cents: Math.round(Number(payload.settings.free_shipping_minimum_amount ?? 0) * 100),
-    },
-    methods: payload.methods.map((row) => ({
-      ...Object.fromEntries(Object.entries(row).filter(([key]) => key !== "rate")),
-      rate_cents: Math.round(Number(row.rate ?? 0) * 100),
-    })),
-    classes: payload.classes.map((row) => ({
-      ...Object.fromEntries(Object.entries(row).filter(([key]) => key !== "additional_fee")),
-      additional_fee_cents: Math.round(Number(row.additional_fee ?? 0) * 100),
-    })),
-  };
 }
 
 export const settingsModules = moduleConfigs;

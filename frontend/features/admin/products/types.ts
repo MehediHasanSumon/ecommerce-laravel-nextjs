@@ -7,7 +7,6 @@ export type ProductModule =
   | "attribute-values"
   | "tags"
   | "warehouses"
-  | "shipping-methods"
   | "products"
   | "collections"
   | "currencies"

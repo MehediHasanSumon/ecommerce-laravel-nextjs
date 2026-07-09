@@ -6,6 +6,7 @@ use App\Models\PaymentTransaction;
 use App\Models\Product;
 use App\Models\Settings\PaymentGatewaySetting;
 use App\Models\Settings\ShippingMethod;
+use App\Models\Settings\ShippingZone;
 use App\Models\User;
 
 function checkoutUserToken(User $user): string
@@ -26,6 +27,24 @@ function checkoutProduct(array $overrides = []): Product
         'track_inventory' => true,
         'stock_quantity' => 10,
         'published_at' => now(),
+    ], $overrides));
+}
+
+function checkoutShippingMethod(array $overrides = []): ShippingMethod
+{
+    $zone = ShippingZone::query()->create([
+        'name' => 'Bangladesh',
+        'countries' => ['Bangladesh'],
+        'status' => true,
+    ]);
+
+    return ShippingMethod::query()->create(array_merge([
+        'shipping_zone_id' => $zone->id,
+        'name' => 'Home Delivery',
+        'code' => 'home-delivery-'.uniqid(),
+        'type' => 'flat_rate',
+        'rate_cents' => 8000,
+        'status' => true,
     ], $overrides));
 }
 
@@ -64,13 +83,7 @@ it('places a cash on delivery order from the cart with server-side totals', func
     $user = User::factory()->create();
     $token = checkoutUserToken($user);
     $product = checkoutProduct();
-    $shipping = ShippingMethod::query()->create([
-        'name' => 'Home Delivery',
-        'code' => 'home-delivery-'.uniqid(),
-        'type' => 'flat_rate',
-        'rate_cents' => 8000,
-        'status' => true,
-    ]);
+    $shipping = checkoutShippingMethod();
     PaymentGatewaySetting::query()->create([
         'gateway' => 'cash_on_delivery',
         'enabled' => true,
@@ -111,12 +124,8 @@ it('rejects paypal checkout when company currency is unsupported instead of cras
     $user = User::factory()->create();
     $token = checkoutUserToken($user);
     $product = checkoutProduct();
-    $shipping = ShippingMethod::query()->create([
-        'name' => 'Home Delivery',
+    $shipping = checkoutShippingMethod([
         'code' => 'paypal-home-delivery-'.uniqid(),
-        'type' => 'flat_rate',
-        'rate_cents' => 8000,
-        'status' => true,
     ]);
     PaymentGatewaySetting::query()->create([
         'gateway' => 'paypal',

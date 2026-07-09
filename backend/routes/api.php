@@ -9,6 +9,8 @@ use App\Http\Controllers\Api\Admin\PermissionManagementController;
 use App\Http\Controllers\Api\Admin\OrderManagementController;
 use App\Http\Controllers\Api\Admin\ProductModuleController;
 use App\Http\Controllers\Api\Admin\RoleManagementController;
+use App\Http\Controllers\Api\Admin\ShippingMethodManagementController;
+use App\Http\Controllers\Api\Admin\ShippingZoneController;
 use App\Http\Controllers\Api\Admin\Settings\BlogSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\CompanySettingsController;
 use App\Http\Controllers\Api\Admin\Settings\CategoryDisplaySettingsController;
@@ -18,7 +20,6 @@ use App\Http\Controllers\Api\Admin\Settings\LocalizationSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\MaintenanceModeSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\PaymentSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\SeoSettingsController;
-use App\Http\Controllers\Api\Admin\Settings\ShippingSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\SmsProviderSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\SocialMediaSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\StoreSettingsController;
@@ -127,6 +128,12 @@ Route::prefix('admin')
         Route::get('/orders/{order}', [OrderManagementController::class, 'show']);
         Route::put('/orders/{order}', [OrderManagementController::class, 'update']);
 
+        Route::delete('/shipping-zones/bulk', [ShippingZoneController::class, 'bulkDestroy']);
+        Route::apiResource('shipping-zones', ShippingZoneController::class);
+
+        Route::delete('/shipping-methods/bulk', [ShippingMethodManagementController::class, 'bulkDestroy']);
+        Route::apiResource('shipping-methods', ShippingMethodManagementController::class);
+
         Route::post('/feature-cards/reorder', [HomeFeatureCardController::class, 'reorder']);
         Route::apiResource('feature-cards', HomeFeatureCardController::class);
 
@@ -156,9 +163,6 @@ Route::prefix('admin')
 
         Route::get('/settings/payment', [PaymentSettingsController::class, 'show']);
         Route::put('/settings/payment', [PaymentSettingsController::class, 'update']);
-
-        Route::get('/settings/shipping', [ShippingSettingsController::class, 'show']);
-        Route::put('/settings/shipping', [ShippingSettingsController::class, 'update']);
 
         Route::get('/settings/seo', [SeoSettingsController::class, 'show']);
         Route::put('/settings/seo', [SeoSettingsController::class, 'update']);

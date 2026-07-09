@@ -13,7 +13,6 @@ use App\Models\ProductCollection;
 use App\Models\ProductReview;
 use App\Models\Tag;
 use App\Models\Warehouse;
-use App\Models\Settings\ShippingMethod;
 use App\Services\Admin\Concerns\BuildsManagementQueries;
 use App\Services\Concerns\StoresPublicUploads;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -101,7 +100,6 @@ class ProductModuleService
                 ->with(['brand:id,name', 'category:id,name'])
                 ->orderBy('name')
                 ->get(['id', 'name', 'brand_id', 'category_id']),
-            'shipping_methods' => ShippingMethod::query()->orderBy('display_order')->orderBy('name')->get(['id', 'name']),
         ];
     }
 
@@ -153,15 +151,6 @@ class ProductModuleService
             $model->excludedCategories()->sync($excludedCategories);
 
             return $this->find($module, $model->id);
-        }
-
-        if ($module === 'shipping-methods') {
-            $data['status'] = ($data['status'] ?? 'inactive') === 'active';
-            $data['code'] = $data['slug'] ?? $data['code'] ?? null;
-            $data['type'] = $data['delivery_type'] ?? $data['type'] ?? 'flat_rate';
-            $data['rate_cents'] = isset($data['charge']) ? (int) round(((float) $data['charge']) * 100) : ($data['rate_cents'] ?? 0);
-            $data['display_order'] = $data['sort_order'] ?? $data['display_order'] ?? 0;
-            unset($data['charge'], $data['sort_order']);
         }
 
         $model->fill($data)->save();
@@ -322,7 +311,6 @@ class ProductModuleService
                 ? ['brand:id,name', 'category:id,name', 'tags:id,name', 'attributeValues:id,value,attribute_id,slug', 'images', 'features', 'specifications', 'seo', 'variants.attributeValues:id,value,attribute_id,slug']
                 : ['brand:id,name', 'category:id,name', 'tags:id,name']),
             'collections' => $query->with('products:id,name')->withCount('products'),
-            'shipping-methods' => $query->with('zone:id,name'),
             'discounts' => $query->with(['products:id,name', 'categories:id,name', 'brands:id,name', 'excludedProducts:id,name', 'excludedCategories:id,name']),
             'reviews' => $query->with(['product:id,name', 'user:id,name']),
             default => null,
@@ -338,7 +326,6 @@ class ProductModuleService
         $columns = match ($module) {
             'products' => ['name', 'sku', 'short_description'],
             'currencies' => ['country', 'currency', 'symbol'],
-            'shipping-methods' => ['name', 'slug', 'description', 'delivery_type', 'estimated_delivery_time'],
             'attribute-values' => ['value', 'slug', 'display_value'],
             'warehouses' => ['name', 'code', 'city', 'country'],
             'reviews' => ['title', 'comment'],
@@ -356,10 +343,6 @@ class ProductModuleService
     {
         $query
             ->when($filters['status'] ?? null, function ($query, string $status) use ($module) {
-                if ($module === 'shipping-methods') {
-                    return $query->where('status', $status === 'active');
-                }
-
                 return $query->where('status', $status);
             })
             ->when($filters['type'] ?? null, fn ($query, string $type) => $query->where($module === 'collections' ? 'collection_type' : 'type', $type))
@@ -374,19 +357,7 @@ class ProductModuleService
 
     private function sortColumn(string $module, string $sort): string
     {
-        if ($module !== 'shipping-methods') {
-            return $sort;
-        }
-
-        return match ($sort) {
-            'slug' => 'slug',
-            'charge' => 'rate_cents',
-            'delivery_type' => 'delivery_type',
-            'estimated_delivery_time' => 'estimated_delivery_time',
-            'sort_order' => 'display_order',
-            'status' => 'status',
-            default => 'created_at',
-        };
+        return $sort;
     }
 
     private function modelClass(string $module): string
@@ -401,7 +372,6 @@ class ProductModuleService
             'products' => Product::class,
             'collections' => ProductCollection::class,
             'currencies' => Currency::class,
-            'shipping-methods' => ShippingMethod::class,
             'discounts' => Discount::class,
             'reviews' => ProductReview::class,
             default => abort(404, 'Product module not found.'),

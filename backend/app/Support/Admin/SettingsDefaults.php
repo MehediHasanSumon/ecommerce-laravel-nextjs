@@ -182,17 +182,6 @@ class SettingsDefaults
         ];
     }
 
-    public static function shipping(): array
-    {
-        return [
-            'enable_shipping' => true,
-            'enable_free_shipping' => false,
-            'free_shipping_minimum_amount_cents' => 0,
-            'default_weight_unit' => 'kg',
-            'default_dimension_unit' => 'cm',
-        ];
-    }
-
     public static function smsProviders(): array
     {
         return [
@@ -235,28 +224,4 @@ class SettingsDefaults
             ->all();
     }
 
-    public static function shippingZones(): array
-    {
-        return [
-            ['name' => 'Bangladesh', 'countries' => ['BD'], 'states' => [], 'postal_codes' => [], 'status' => true, 'display_order' => 0],
-            ['name' => 'International', 'countries' => [], 'states' => [], 'postal_codes' => [], 'status' => false, 'display_order' => 10],
-        ];
-    }
-
-    public static function shippingMethods(): array
-    {
-        return [
-            ['zone' => 'Bangladesh', 'name' => 'Standard Delivery', 'code' => 'standard-delivery', 'type' => 'flat_rate', 'rate_cents' => 8000, 'estimated_days_min' => 2, 'estimated_days_max' => 5, 'status' => true, 'display_order' => 0],
-            ['zone' => 'Bangladesh', 'name' => 'Express Delivery', 'code' => 'express-delivery', 'type' => 'flat_rate', 'rate_cents' => 15000, 'estimated_days_min' => 1, 'estimated_days_max' => 2, 'status' => true, 'display_order' => 1],
-        ];
-    }
-
-    public static function shippingClasses(): array
-    {
-        return [
-            ['name' => 'Standard', 'slug' => 'standard', 'description' => 'Default shipping class for regular products.', 'additional_fee_cents' => 0, 'status' => true],
-            ['name' => 'Fragile', 'slug' => 'fragile', 'description' => 'Adds protective packing for fragile products.', 'additional_fee_cents' => 5000, 'status' => true],
-            ['name' => 'Oversized', 'slug' => 'oversized', 'description' => 'Adds handling fees for bulky or oversized products.', 'additional_fee_cents' => 10000, 'status' => true],
-        ];
-    }
 }

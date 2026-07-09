@@ -27,7 +27,8 @@ export const settingsNavItems: SettingNavItem[] = [
   { href: routePaths.adminSettingsEmail, label: "Email (SMTP)", description: "Mail driver and sender identity", icon: Mail },
   { href: routePaths.adminSettingsSms, label: "SMS Provider", description: "Twilio, Vonage, SSL Wireless", icon: MessageSquareText },
   { href: routePaths.adminSettingsPayment, label: "Payment Settings", description: "Payment gateways and credentials", icon: CreditCard },
-  { href: routePaths.adminSettingsShipping, label: "Shipping Settings", description: "Zones, classes, carrier rules", icon: PackageCheck },
+  { href: routePaths.adminSettingsShippingZones, label: "Shipping Zones", description: "Supported countries and delivery zones", icon: MapPin },
+  { href: routePaths.adminSettingsShippingMethods, label: "Shipping Methods", description: "Zone-based delivery methods and charges", icon: PackageCheck },
   { href: routePaths.adminSettingsSeo, label: "SEO Settings", description: "Meta defaults and indexing", icon: Search },
   { href: routePaths.adminSettingsSocial, label: "Social Media", description: "Social links and sharing", icon: Megaphone },
   { href: routePaths.adminSettingsLocalization, label: "Localization", description: "Timezone, language, currency", icon: Globe2 },
@@ -51,11 +52,6 @@ export const placeholderSettings = {
     title: "Payment Settings",
     description: "Payment gateway configuration placeholder for Stripe, SSLCommerz, COD, and future providers.",
     icon: CreditCard,
-  },
-  shipping: {
-    title: "Shipping Settings",
-    description: "Shipping zones, classes, package defaults, and carrier integrations placeholder.",
-    icon: PackageCheck,
   },
   seo: {
     title: "SEO Settings",
