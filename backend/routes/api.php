@@ -81,6 +81,8 @@ Route::middleware(['auth.cookie:access', 'throttle:public-settings'])->group(fun
     Route::post('/products/{product:slug}/reviews', [ProductCatalogController::class, 'storeReview']);
     Route::get('/orders', [OrderController::class, 'index']);
     Route::get('/orders/{order}', [OrderController::class, 'show']);
+    Route::post('/orders/{order}/cancel', [OrderController::class, 'cancel']);
+    Route::get('/orders/{order}/invoice', [OrderController::class, 'invoice']);
     Route::get('/account/dashboard', [AccountController::class, 'dashboard']);
     Route::get('/account/profile', [AccountController::class, 'profile']);
     Route::put('/account/profile', [AccountController::class, 'updateProfile']);
@@ -91,6 +93,7 @@ Route::middleware(['auth.cookie:access', 'throttle:public-settings'])->group(fun
     Route::get('/account/payment-history', [AccountController::class, 'paymentHistory']);
     Route::get('/account/notifications', [AccountController::class, 'notifications']);
     Route::post('/account/notifications/mark-read', [AccountController::class, 'markNotificationsRead']);
+    Route::delete('/account/notifications/{notification}', [AccountController::class, 'deleteNotification']);
     Route::get('/account/reviews', [AccountController::class, 'reviews']);
     Route::put('/account/reviews/{review}', [AccountController::class, 'updateReview']);
     Route::delete('/account/reviews/{review}', [AccountController::class, 'deleteReview']);

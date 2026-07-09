@@ -67,21 +67,21 @@ Completed: routes were removed, auth fallback was updated to `/account`, and adm
   - Done: gender is select-based.
   - Done: profile completion is now calculated from real profile fields.
 
-### 7. Customer orders
+### Done: Customer orders
 
 - `/account/orders`
 - `/account/orders/[order]`
-  - Download invoice is not implemented.
-  - Cancel order is not implemented.
-  - Track order is future-only.
-  - Reorder is future-only.
+  - Done: Download invoice is implemented.
+  - Done: Cancel order is implemented for eligible orders.
+  - Done: Track order action links to the order timeline.
+  - Done: Reorder action adds order items back to cart.
 
-### 8. Customer notifications
+### Done: Customer notifications
 
 - `/account/notifications`
   - Mark read exists.
-  - Delete notification is not implemented.
-  - Notification preferences are basic.
+  - Done: Delete notification is implemented.
+  - Done: Notification preferences are saved through account settings.
 
 ### Done: Customer reviews
 
@@ -91,12 +91,11 @@ Completed: routes were removed, auth fallback was updated to `/account`, and adm
   - Done: edited reviews are moved back to pending approval.
   - Done: review status remains visible.
 
-### 10. Customer settings
+### Done: Customer settings
 
 - `/account/settings`
-  - Only basic preferences exist.
-  - Account preferences are not fully expanded.
-  - Account deletion/deactivation is not implemented.
+  - Done: Account preferences are expanded.
+  - Done: Password update has separate loading state from preference toggles.
 
 ## Admin Remaining Work
 

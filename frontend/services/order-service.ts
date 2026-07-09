@@ -48,6 +48,8 @@ export type OrderDetail = OrderListItem & {
   customerNotes?: string | null;
   items: Array<{
     id: number;
+    productId?: number | null;
+    variantId?: number | null;
     productName: string;
     productSlug?: string | null;
     image?: string | null;
@@ -91,6 +93,17 @@ export async function fetchOrder(orderNumber: string) {
     headers: guestHeaders(),
   });
   return response.data.data.order;
+}
+
+export async function cancelOrder(orderNumber: string) {
+  const response = await client.post<ApiEnvelope<{ order: OrderDetail }>>(`/orders/${encodeURIComponent(orderNumber)}/cancel`, undefined, {
+    headers: guestHeaders(),
+  });
+  return response.data.data.order;
+}
+
+export function orderInvoiceUrl(orderNumber: string) {
+  return `${apiBaseUrl}/orders/${encodeURIComponent(orderNumber)}/invoice`;
 }
 
 export async function fetchPaymentResult(orderNumber: string) {

@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronRight, Bell, Package, Tag, Info, Star, Check } from "lucide-react";
+import { ChevronRight, Bell, Package, Tag, Info, Star, Check, Trash2 } from "lucide-react";
 import { AnnouncementBar } from "@/components/layout/AnnouncementBar";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { AccountSidebar } from "@/components/account/AccountSidebar";
 import { toast } from "sonner";
-import { accountService, type AccountNotification } from "@/services/account-service";
+import { accountService, type AccountNotification, type AccountSettings } from "@/services/account-service";
 
 function iconFor(type: string) {
   if (type === "order" || type === "shipping" || type === "payment") return Package;
@@ -20,13 +20,16 @@ function iconFor(type: string) {
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<AccountNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [prefs, setPrefs] = useState<Record<string, boolean>>({ orders: true, promos: true, reviews: true, newsletter: false, sms: false });
+  const [prefs, setPrefs] = useState<AccountSettings | null>(null);
+  const [savingPreference, setSavingPreference] = useState<keyof AccountSettings | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   useEffect(() => {
     accountService.notifications().then((data) => {
       setNotifications(data.items);
       setUnreadCount(data.unreadCount);
     });
+    accountService.settings().then(setPrefs).catch(() => null);
   }, []);
 
   const markAllRead = async () => {
@@ -34,6 +37,41 @@ export default function NotificationsPage() {
     setNotifications((prev) => prev.map((item) => ({ ...item, read: true })));
     setUnreadCount(0);
     toast.success("All notifications marked as read");
+  };
+
+  const deleteNotification = async (id: number) => {
+    setDeletingId(id);
+    try {
+      await accountService.deleteNotification(id);
+      setNotifications((current) => {
+        const deleted = current.find((item) => item.id === id);
+        if (deleted && !deleted.read) {
+          setUnreadCount((count) => Math.max(0, count - 1));
+        }
+        return current.filter((item) => item.id !== id);
+      });
+      toast.success("Notification deleted.");
+    } catch {
+      toast.error("Unable to delete notification.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const togglePreference = async (key: keyof AccountSettings) => {
+    if (!prefs) return;
+    const next = { ...prefs, [key]: !prefs[key] };
+    setPrefs(next);
+    setSavingPreference(key);
+    try {
+      setPrefs(await accountService.updateSettings(next));
+      toast.success("Notification preference saved.");
+    } catch {
+      setPrefs(prefs);
+      toast.error("Unable to save preference.");
+    } finally {
+      setSavingPreference(null);
+    }
   };
 
   return (
@@ -75,6 +113,15 @@ export default function NotificationsPage() {
                         <p className="text-xs text-muted-foreground mt-1">{item.createdAt ? new Date(item.createdAt).toLocaleString() : ""}</p>
                       </div>
                       {!item.read && <div className="w-2 h-2 rounded-full bg-primary shrink-0 mt-2" />}
+                      <button
+                        type="button"
+                        disabled={deletingId === item.id}
+                        onClick={() => void deleteNotification(item.id)}
+                        className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                        aria-label="Delete notification"
+                      >
+                        <Trash2 size={15} />
+                      </button>
                     </div>
                   );
                 }) : <div className="rounded-2xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">No notifications yet.</div>}
@@ -85,19 +132,29 @@ export default function NotificationsPage() {
               <h2 className="font-bold mb-5 flex items-center gap-2"><Bell size={16} /> Notification Preferences</h2>
               <div className="space-y-4">
                 {[
-                  ["orders", "Order Updates", "Shipping, delivery, and order status notifications"],
-                  ["promos", "Promotions & Deals", "Flash sales, coupon codes, and special offers"],
-                  ["reviews", "Review Requests", "Reminders to review purchased products"],
+                  ["order_updates", "Order Updates", "Shipping, delivery, and order status notifications"],
+                  ["promotional_notifications", "Promotions & Deals", "Flash sales, coupon codes, and special offers"],
+                  ["review_requests", "Review Requests", "Reminders to review purchased products"],
                   ["newsletter", "Newsletter", "Weekly curated content and new arrivals"],
-                  ["sms", "SMS Notifications", "Text message alerts for critical updates"],
-                ].map(([id, label, desc]) => (
+                  ["sms_notifications", "SMS Notifications", "Text message alerts for critical updates"],
+                ].map(([id, label, desc]) => {
+                  const key = id as keyof AccountSettings;
+                  const checked = Boolean(prefs?.[key]);
+                  return (
                   <div key={id} className="flex items-center justify-between py-2">
                     <div><p className="text-sm font-semibold">{label}</p><p className="text-xs text-muted-foreground">{desc}</p></div>
-                    <button onClick={() => setPrefs((p) => ({ ...p, [id]: !p[id] }))} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${prefs[id] ? "bg-primary" : "bg-muted"}`}>
-                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${prefs[id] ? "translate-x-6" : "translate-x-1"}`} />
+                    <button
+                      type="button"
+                      disabled={!prefs || Boolean(savingPreference)}
+                      onClick={() => void togglePreference(key)}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-60 ${checked ? "bg-primary" : "bg-muted"}`}
+                      aria-pressed={checked}
+                      aria-busy={savingPreference === key}
+                    >
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${checked ? "translate-x-6" : "translate-x-1"}`} />
                     </button>
                   </div>
-                ))}
+                )})}
               </div>
             </div>
           </div>

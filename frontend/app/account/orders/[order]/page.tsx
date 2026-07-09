@@ -5,21 +5,67 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useParams } from "next/navigation";
-import { CheckCircle2, ChevronRight, Clock3, CreditCard, MapPin, PackageCheck, Truck } from "lucide-react";
+import { CheckCircle2, ChevronRight, Clock3, CreditCard, Download, MapPin, PackageCheck, RotateCcw, Truck, XCircle } from "lucide-react";
+import { toast } from "sonner";
 import { AnnouncementBar } from "@/components/layout/AnnouncementBar";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { AccountSidebar } from "@/components/account/AccountSidebar";
-import { fetchOrder, type OrderDetail } from "@/services/order-service";
+import { cancelOrder, fetchOrder, orderInvoiceUrl, type OrderDetail } from "@/services/order-service";
+import { useCartStore } from "@/store/cartStore";
 import { formatPrice } from "@/utils/format";
 
 export default function AccountOrderDetailPage() {
   const params = useParams<{ order: string }>();
   const [order, setOrder] = useState<OrderDetail | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+  const [reordering, setReordering] = useState(false);
+  const addItem = useCartStore((state) => state.addItem);
 
   useEffect(() => {
     fetchOrder(decodeURIComponent(params.order)).then(setOrder).catch(() => setOrder(null));
   }, [params.order]);
+
+  const canCancel = order
+    ? ["pending", "confirmed"].includes(order.status)
+      && (order.shippingStatus ?? "pending") === "pending"
+      && order.paymentStatus !== "paid"
+    : false;
+
+  const handleCancel = async () => {
+    if (!order || !window.confirm("Cancel this order?")) return;
+    setCancelling(true);
+    try {
+      const next = await cancelOrder(order.orderNumber);
+      setOrder(next);
+      toast.success("Order cancelled.");
+    } catch {
+      toast.error("Unable to cancel this order.");
+    } finally {
+      setCancelling(false);
+    }
+  };
+
+  const handleReorder = async () => {
+    if (!order) return;
+    setReordering(true);
+    try {
+      for (const item of order.items) {
+        if (!item.productId) continue;
+        await addItem({
+          productId: Number(item.productId),
+          productVariantId: item.variantId ? Number(item.variantId) : undefined,
+          quantity: item.quantity,
+          selectedOptions: item.selection?.selected_options as Record<string, unknown> | undefined,
+        });
+      }
+      toast.success("Order items added to cart.");
+    } catch {
+      toast.error("Unable to reorder all items.");
+    } finally {
+      setReordering(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -36,9 +82,31 @@ export default function AccountOrderDetailPage() {
           <div className="min-w-0 flex-1">
             {!order ? <div className="h-72 animate-pulse rounded-2xl bg-muted" /> : (
               <div className="space-y-5">
-                <div>
-                  <h1 className="text-2xl font-extrabold">{order.orderNumber}</h1>
-                  <p className="mt-1 text-sm text-muted-foreground">Payment {order.paymentStatus} · Order {order.status}</p>
+                <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                  <div>
+                    <h1 className="text-2xl font-extrabold">{order.orderNumber}</h1>
+                    <p className="mt-1 text-sm text-muted-foreground">Payment {order.paymentStatus} · Order {order.status}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <a href={orderInvoiceUrl(order.orderNumber)} className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-semibold transition-colors hover:bg-muted">
+                      <Download size={15} />
+                      Download Invoice
+                    </a>
+                    <a href="#timeline" className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-semibold transition-colors hover:bg-muted">
+                      <Truck size={15} />
+                      Track Order
+                    </a>
+                    <button type="button" disabled={reordering} onClick={() => void handleReorder()} className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-semibold transition-colors hover:bg-muted disabled:opacity-50">
+                      <RotateCcw size={15} />
+                      Reorder
+                    </button>
+                    {canCancel ? (
+                      <button type="button" disabled={cancelling} onClick={() => void handleCancel()} className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50">
+                        <XCircle size={15} />
+                        Cancel Order
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
                 <section className="grid gap-3 md:grid-cols-3">
                   <InfoCard icon={<PackageCheck size={16} />} label="Order Status" value={label(order.status)} />
@@ -74,7 +142,7 @@ export default function AccountOrderDetailPage() {
                   </div>
                 </section>
                 <section className="grid gap-5 lg:grid-cols-2">
-                  <div className="rounded-2xl border border-border bg-card p-5">
+                  <div id="timeline" className="rounded-2xl border border-border bg-card p-5">
                     <h2 className="mb-4 flex items-center gap-2 font-bold"><Clock3 size={16} className="text-primary" /> Order Timeline</h2>
                     <Timeline order={order} />
                   </div>

@@ -74,6 +74,10 @@ export type AccountSettings = {
   order_updates: boolean;
   promotional_notifications: boolean;
   account_notifications: boolean;
+  review_requests: boolean;
+  newsletter: boolean;
+  sms_notifications: boolean;
+  product_recommendations: boolean;
 };
 
 export const accountService = {
@@ -127,6 +131,10 @@ export const accountService = {
 
   async markNotificationsRead() {
     await client.post<ApiEnvelope<Record<string, never>>>("/account/notifications/mark-read");
+  },
+
+  async deleteNotification(id: number) {
+    await client.delete<ApiEnvelope<Record<string, never>>>(`/account/notifications/${id}`);
   },
 
   async reviews() {

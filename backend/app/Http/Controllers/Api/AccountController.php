@@ -115,6 +115,10 @@ class AccountController extends Controller
             'order_updates' => ['required', 'boolean'],
             'promotional_notifications' => ['required', 'boolean'],
             'account_notifications' => ['required', 'boolean'],
+            'review_requests' => ['required', 'boolean'],
+            'newsletter' => ['required', 'boolean'],
+            'sms_notifications' => ['required', 'boolean'],
+            'product_recommendations' => ['required', 'boolean'],
         ]);
 
         $request->user()->update(['account_preferences' => $data]);
@@ -165,6 +169,15 @@ class AccountController extends Controller
     {
         CustomerNotification::query()->where('user_id', $request->user()->id)->whereNull('read_at')->update(['read_at' => now()]);
         return ApiResponse::success([], 'Notifications marked as read.');
+    }
+
+    public function deleteNotification(Request $request, CustomerNotification $notification): JsonResponse
+    {
+        abort_unless((int) $notification->user_id === (int) $request->user()->id, 404);
+
+        $notification->delete();
+
+        return ApiResponse::success([], 'Notification deleted successfully.');
     }
 
     public function reviews(Request $request): JsonResponse
@@ -271,6 +284,10 @@ class AccountController extends Controller
             'order_updates' => true,
             'promotional_notifications' => false,
             'account_notifications' => true,
+            'review_requests' => true,
+            'newsletter' => false,
+            'sms_notifications' => false,
+            'product_recommendations' => true,
         ];
 
         return array_merge($defaults, $user->account_preferences ?? []);

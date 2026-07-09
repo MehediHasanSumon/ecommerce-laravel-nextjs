@@ -15,6 +15,10 @@ const defaultSettings: AccountSettings = {
   order_updates: true,
   promotional_notifications: false,
   account_notifications: true,
+  review_requests: true,
+  newsletter: false,
+  sms_notifications: false,
+  product_recommendations: true,
 };
 
 export default function SettingsPage() {
@@ -109,6 +113,26 @@ export default function SettingsPage() {
                     title: 'Account Notifications',
                     desc: 'Receive important security and account activity messages',
                     key: 'account_notifications',
+                  },
+                  {
+                    title: 'Review Requests',
+                    desc: 'Receive reminders to review purchased products',
+                    key: 'review_requests',
+                  },
+                  {
+                    title: 'Newsletter',
+                    desc: 'Receive weekly curated content and new arrival updates',
+                    key: 'newsletter',
+                  },
+                  {
+                    title: 'SMS Notifications',
+                    desc: 'Receive text message alerts for critical account and order updates',
+                    key: 'sms_notifications',
+                  },
+                  {
+                    title: 'Product Recommendations',
+                    desc: 'Receive personalized product suggestions based on your activity',
+                    key: 'product_recommendations',
                   },
                 ].map(({ title, desc, key }) => (
                   (() => {
