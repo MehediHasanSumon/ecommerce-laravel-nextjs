@@ -7,17 +7,40 @@ import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { ProductCard } from '@/components/product/ProductCard';
 import { ProductGridSkeleton } from '@/components/skeleton';
-import { MOCK_PRODUCTS } from '@/mock/products';
+import { fetchProducts } from '@/services/catalog-service';
+import type { Product } from '@/types';
 
 export default function DealsPage() {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const [dealProducts, setDealProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  const dealProducts = MOCK_PRODUCTS.filter((p) => p.discount && p.discount > 0).sort(
-    (a, b) => (b.discount ?? 0) - (a.discount ?? 0)
-  );
+  useEffect(() => {
+    const controller = new AbortController();
+    setLoading(true);
+    setError(false);
+
+    fetchProducts(
+      {
+        on_sale: 1,
+        sort: 'discount_desc',
+        page: 1,
+        per_page: 24,
+      },
+      { signal: controller.signal },
+    )
+      .then((response) => setDealProducts(response.items))
+      .catch((err: unknown) => {
+        if ((err as { name?: string })?.name === 'CanceledError') return;
+        setDealProducts([]);
+        setError(true);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+
+    return () => controller.abort();
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">
@@ -43,8 +66,18 @@ export default function DealsPage() {
             <span className="text-foreground font-medium">Deals</span>
           </nav>
 
-          {!mounted ? (
+          {loading ? (
             <ProductGridSkeleton count={8} />
+          ) : error ? (
+            <div className="rounded-2xl border border-border bg-card p-8 text-center">
+              <h2 className="text-xl font-bold mb-2">Deals are temporarily unavailable</h2>
+              <p className="text-sm text-muted-foreground">Please try again in a moment.</p>
+            </div>
+          ) : dealProducts.length === 0 ? (
+            <div className="rounded-2xl border border-border bg-card p-8 text-center">
+              <h2 className="text-xl font-bold mb-2">No deals available right now</h2>
+              <p className="text-sm text-muted-foreground">Check back soon for new offers.</p>
+            </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
               {dealProducts.map((p) => (

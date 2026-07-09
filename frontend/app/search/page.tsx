@@ -8,27 +8,47 @@ import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { ProductCard } from '@/components/product/ProductCard';
 import { ProductGridSkeleton } from '@/components/skeleton';
-import { MOCK_PRODUCTS } from '@/mock/products';
+import { fetchProducts } from '@/services/catalog-service';
+import type { Product } from '@/types';
 
 function SearchResults() {
   const searchParams = useSearchParams();
   const query = searchParams.get('q') ?? '';
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const [results, setResults] = useState<Product[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  const results =
-    query.length > 0
-      ? MOCK_PRODUCTS.filter(
-          (p) =>
-            p.name.toLowerCase().includes(query.toLowerCase()) ||
-            p.description.toLowerCase().includes(query.toLowerCase()) ||
-            p.category.toLowerCase().includes(query.toLowerCase()) ||
-            p.brand.toLowerCase().includes(query.toLowerCase()) ||
-            p.tags.some((t) => t.toLowerCase().includes(query.toLowerCase()))
-        )
-      : MOCK_PRODUCTS;
+  useEffect(() => {
+    const controller = new AbortController();
+    setLoading(true);
+    setError(false);
+
+    fetchProducts(
+      {
+        search: query || undefined,
+        page: 1,
+        per_page: 24,
+        sort: query ? 'default' : 'newest',
+      },
+      { signal: controller.signal },
+    )
+      .then((response) => {
+        setResults(response.items);
+        setTotal(response.pagination.total);
+      })
+      .catch((err: unknown) => {
+        if ((err as { name?: string })?.name === 'CanceledError') return;
+        setResults([]);
+        setTotal(0);
+        setError(true);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [query]);
 
   return (
     <main className="max-w-7xl mx-auto px-4 py-8 pb-16">
@@ -44,11 +64,16 @@ function SearchResults() {
         <h1 className="text-2xl font-extrabold mb-1">
           {query ? `Results for "${query}"` : 'All Products'}
         </h1>
-        <p className="text-muted-foreground text-sm">{results.length} products found</p>
+        <p className="text-muted-foreground text-sm">{total} products found</p>
       </div>
 
-      {!mounted ? (
+      {loading ? (
         <ProductGridSkeleton count={8} />
+      ) : error ? (
+        <div className="rounded-2xl border border-border bg-card p-8 text-center">
+          <h2 className="text-xl font-bold mb-2">Search is temporarily unavailable</h2>
+          <p className="text-sm text-muted-foreground">Please try again in a moment.</p>
+        </div>
       ) : results.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 text-center">
           <div className="w-24 h-24 bg-muted rounded-full flex items-center justify-center mb-6">

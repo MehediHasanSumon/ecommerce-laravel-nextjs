@@ -5,7 +5,6 @@ import { createElement, useMemo, useState, useEffect } from 'react';
 import {
   ArrowRight,
   Star,
-  ShoppingBag,
   Zap,
   ChevronLeft,
   ChevronRight,
@@ -18,8 +17,7 @@ import { Footer } from '@/components/layout/Footer';
 import { ProductCard } from '@/components/product/ProductCard';
 import { ProductGridSkeleton } from '@/components/skeleton';
 import { useCountdown } from '@/hooks/useCountdown';
-import { HOMEPAGE_REVIEWS } from '@/mock/reviews';
-import { fetchHomePageSections, type HomePageSections } from '@/services/catalog-service';
+import { fetchHomePageSections, fetchPublicReviews, type HomePageSections, type PublicReview } from '@/services/catalog-service';
 import { fetchHomeBlogs, type BlogCard } from '@/services/blog-service';
 import {
   selectCategoryDisplaySettings,
@@ -30,74 +28,60 @@ import {
   useSettingsStore,
 } from '@/store/settings-store';
 
-const HERO_SLIDES = [
-  {
-    id: 1,
-    eyebrow: 'New Collection 2026',
-    title: 'Elevate Your\nEveryday Style',
-    description:
-      'Discover premium products crafted for those who demand excellence. Shop the latest drops from top brands.',
-    cta: 'Shop Now',
-    ctaHref: '/shop',
-    secondary: 'Explore Categories',
-    secondaryHref: '/categories',
-    image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=1200&auto=format&fit=crop',
-    gradient: 'from-slate-900 to-slate-700',
-    accent: 'text-rose-400',
-  },
-  {
-    id: 2,
-    eyebrow: 'Flash Sale — Up to 40% Off',
-    title: 'Premium Tech\nAt Your Reach',
-    description:
-      "Top-tier electronics, audio gear, and smart devices — now with exclusive deals you won't find anywhere else.",
-    cta: 'Shop Tech',
-    ctaHref: '/categories/electronics',
-    secondary: 'View Flash Sale',
-    secondaryHref: '/flash-sale',
-    image:
-      'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=1200&auto=format&fit=crop',
-    gradient: 'from-blue-950 to-slate-800',
-    accent: 'text-cyan-400',
-  },
-  {
-    id: 3,
-    eyebrow: 'Summer Active Collection',
-    title: 'Gear Up For\nGreatness',
-    description:
-      'From yoga mats to performance shorts — outfit your active lifestyle with the gear that keeps up with you.',
-    cta: 'Shop Sports',
-    ctaHref: '/categories/sports',
-    secondary: 'New Arrivals',
-    secondaryHref: '/new-arrivals',
-    image:
-      'https://images.unsplash.com/photo-1599447421416-3414500d18a5?w=1200&auto=format&fit=crop',
-    gradient: 'from-emerald-950 to-slate-800',
-    accent: 'text-emerald-400',
-  },
-];
-
-function HeroSlider() {
+function HeroSlider({
+  entries,
+  loading,
+}: {
+  entries: HomePageSections['collections'];
+  loading: boolean;
+}) {
   const [current, setCurrent] = useState(0);
   const [mounted, setMounted] = useState(false);
+  const slides = useMemo(
+    () =>
+      entries
+        .map((entry) => entry.collection)
+        .filter((collection) => Boolean(collection.bannerImage || collection.mobileBannerImage))
+        .sort((a, b) => a.homeSortOrder - b.homeSortOrder || b.priority - a.priority)
+        .slice(0, 5),
+    [entries]
+  );
+
   useEffect(() => {
     setMounted(true);
-    const timer = setInterval(() => setCurrent((c) => (c + 1) % HERO_SLIDES.length), 6000);
-    return () => clearInterval(timer);
   }, []);
 
-  const slide = HERO_SLIDES[current];
+  useEffect(() => {
+    if (slides.length <= 1) return;
+    const timer = setInterval(() => setCurrent((c) => (c + 1) % slides.length), 6000);
+    return () => clearInterval(timer);
+  }, [slides.length]);
+
+  useEffect(() => {
+    setCurrent(0);
+  }, [slides.length]);
+
+  if (loading) {
+    return <div className="h-[480px] animate-pulse rounded-2xl bg-muted md:h-[560px] lg:h-[620px]" />;
+  }
+
+  if (slides.length === 0) {
+    return null;
+  }
+
+  const slide = slides[current] ?? slides[0];
+  const image = slide.mobileBannerImage || slide.bannerImage;
   return (
     <div className="relative h-[480px] md:h-[560px] lg:h-[620px] rounded-2xl overflow-hidden">
-      <Image src={slide.image} alt="Hero" fill className="object-cover" priority />
-      <div className={`absolute inset-0 bg-gradient-to-r ${slide.gradient} opacity-80`} />
+      {image ? <Image src={image} alt={slide.title} fill unoptimized className="object-cover" priority /> : null}
+      <div className="absolute inset-0 bg-gradient-to-r from-slate-950 to-slate-800 opacity-80" />
       <div className="absolute inset-0 flex items-center">
         <div className="max-w-7xl mx-auto px-8 md:px-12 w-full">
           <div className="max-w-xl">
             <span
-              className={`text-sm font-bold uppercase tracking-widest mb-4 block ${slide.accent}`}
+              className="text-sm font-bold uppercase tracking-widest mb-4 block text-primary"
             >
-              {slide.eyebrow}
+              {slide.promotionalText || slide.subtitle || slide.name}
             </span>
             <h1
               suppressHydrationWarning
@@ -110,42 +94,40 @@ function HeroSlider() {
             </p>
             <div className="flex flex-wrap gap-3">
               <Link
-                href={slide.ctaHref}
+                href={slide.ctaUrl || slide.url || '/shop'}
                 className="inline-flex items-center gap-2 px-6 py-3 bg-white text-slate-900 rounded-xl font-bold text-sm hover:bg-white/90 transition-colors shadow-lg"
               >
-                {slide.cta} <ArrowRight size={15} />
-              </Link>
-              <Link
-                href={slide.secondaryHref}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-white/15 backdrop-blur-sm text-white rounded-xl font-semibold text-sm hover:bg-white/25 transition-colors border border-white/20"
-              >
-                {slide.secondary}
+                {slide.ctaText || 'Shop Now'} <ArrowRight size={15} />
               </Link>
             </div>
           </div>
         </div>
       </div>
-      <button
-        onClick={() => setCurrent((c) => (c - 1 + HERO_SLIDES.length) % HERO_SLIDES.length)}
-        className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-white/40 transition-colors"
-      >
-        <ChevronLeft size={20} />
-      </button>
-      <button
-        onClick={() => setCurrent((c) => (c + 1) % HERO_SLIDES.length)}
-        className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-white/40 transition-colors"
-      >
-        <ChevronRight size={20} />
-      </button>
-      <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2">
-        {HERO_SLIDES.map((_, i) => (
+      {slides.length > 1 ? (
+        <>
           <button
-            key={i}
-            onClick={() => setCurrent(i)}
-            className={`h-1.5 rounded-full transition-all duration-300 ${i === current ? 'w-8 bg-white' : 'w-1.5 bg-white/40'}`}
-          />
-        ))}
-      </div>
+            onClick={() => setCurrent((c) => (c - 1 + slides.length) % slides.length)}
+            className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-white/40 transition-colors"
+          >
+            <ChevronLeft size={20} />
+          </button>
+          <button
+            onClick={() => setCurrent((c) => (c + 1) % slides.length)}
+            className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-white/40 transition-colors"
+          >
+            <ChevronRight size={20} />
+          </button>
+          <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2">
+            {slides.map((slideItem, i) => (
+              <button
+                key={slideItem.id}
+                onClick={() => setCurrent(i)}
+                className={`h-1.5 rounded-full transition-all duration-300 ${i === current ? 'w-8 bg-white' : 'w-1.5 bg-white/40'}`}
+              />
+            ))}
+          </div>
+        </>
+      ) : null}
       {!mounted && <div className="absolute inset-0 bg-slate-900 animate-pulse" />}
     </div>
   );
@@ -251,6 +233,16 @@ function FeatureCardsSection() {
   );
 }
 
+function initials(name: string) {
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase() || 'CU';
+}
+
 function HomeCollectionSection({
   entry,
   loading,
@@ -350,6 +342,8 @@ export default function HomePage() {
   const [homeBlogs, setHomeBlogs] = useState<BlogCard[]>([]);
   const [homeBlogsEnabled, setHomeBlogsEnabled] = useState(false);
   const [homeBlogsLoading, setHomeBlogsLoading] = useState(true);
+  const [homeReviews, setHomeReviews] = useState<PublicReview[]>([]);
+  const [homeReviewsLoading, setHomeReviewsLoading] = useState(true);
   const homeCollections = homeData?.collections ?? [];
   const categoryDisplay = useSettingsStore(selectCategoryDisplaySettings);
   const runtimeCategories = useSettingsStore(selectRuntimeCategories);
@@ -392,6 +386,23 @@ export default function HomePage() {
 
   useEffect(() => {
     const controller = new AbortController();
+    setHomeReviewsLoading(true);
+
+    fetchPublicReviews({ per_page: 3 }, { signal: controller.signal })
+      .then((response) => setHomeReviews(response.items))
+      .catch((error: unknown) => {
+        if ((error as { name?: string })?.name === 'CanceledError') return;
+        setHomeReviews([]);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setHomeReviewsLoading(false);
+      });
+
+    return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
     setHomeLoading(true);
     setHomeError(false);
 
@@ -426,7 +437,7 @@ export default function HomePage() {
       <main className="max-w-7xl mx-auto px-4 pb-16">
         {/* Hero */}
         <section className="py-6">
-          <HeroSlider />
+          <HeroSlider entries={homeCollections} loading={homeLoading} />
         </section>
 
         {renderCollections('feature_cards', 'before')}
@@ -515,49 +526,6 @@ export default function HomePage() {
         ) : null}
 
         {renderCollections('promo_banners', 'before')}
-        {/* Promo banners */}
-        <section className="py-6 grid grid-cols-1 md:grid-cols-2 gap-5">
-          {[
-            {
-              src: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=800&auto=format&fit=crop',
-              color: 'from-slate-900/80',
-              accent: 'text-amber-400',
-              badge: 'New Season',
-              title: 'Bags & Carry-ons',
-              href: '/categories/bags',
-            },
-            {
-              src: 'https://images.unsplash.com/photo-1567401893414-76b7b1e5a7a5?w=800&auto=format&fit=crop',
-              color: 'from-emerald-900/80',
-              accent: 'text-emerald-300',
-              badge: 'Up to 40% Off',
-              title: 'Summer Clothing',
-              href: '/categories/clothing',
-            },
-          ].map((b) => (
-            <div key={b.title} className="relative rounded-2xl overflow-hidden h-52 group">
-              <Image
-                src={b.src}
-                alt={b.title}
-                fill
-                className="object-cover group-hover:scale-105 transition-transform duration-500"
-              />
-              <div className={`absolute inset-0 bg-gradient-to-r ${b.color} to-transparent`} />
-              <div className="absolute inset-0 flex flex-col justify-center px-8">
-                <span className={`text-xs font-bold uppercase tracking-widest mb-2 ${b.accent}`}>
-                  {b.badge}
-                </span>
-                <h3 className="text-2xl font-extrabold text-white mb-3">{b.title}</h3>
-                <Link
-                  href={b.href}
-                  className="inline-flex items-center gap-1.5 text-sm font-semibold text-white bg-white/20 backdrop-blur-sm hover:bg-white/30 px-4 py-2 rounded-xl transition-colors w-fit"
-                >
-                  Shop Now <ArrowRight size={13} />
-                </Link>
-              </div>
-            </div>
-          ))}
-        </section>
         {renderCollections('promo_banners', 'after')}
 
         {renderCollections('top_brands', 'before')}
@@ -643,43 +611,57 @@ export default function HomePage() {
             href="/reviews"
             linkLabel="All reviews"
           />
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {HOMEPAGE_REVIEWS.map((r) => (
-              <div
-                key={r.id}
-                className="bg-card border border-border rounded-2xl p-6 flex flex-col gap-4"
-              >
-                <div className="flex gap-0.5">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Star
-                      key={i}
-                      size={13}
-                      className={i < r.rating ? 'fill-amber-400 text-amber-400' : 'text-muted'}
-                    />
-                  ))}
-                </div>
-                <div>
-                  <p className="font-semibold text-sm mb-1">{r.title}</p>
-                  <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">
-                    &ldquo;{r.comment}&rdquo;
-                  </p>
-                </div>
-                <div className="flex items-center gap-3 pt-2 border-t border-border mt-auto">
-                  <Image
-                    src={r.user.avatar}
-                    alt={r.user.name}
-                    width={36}
-                    height={36}
-                    className="rounded-full"
-                  />
+          {homeReviewsLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6" aria-hidden="true">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <div key={index} className="h-56 animate-pulse rounded-2xl bg-muted" />
+              ))}
+            </div>
+          ) : homeReviews.length === 0 ? (
+            <div className="rounded-2xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
+              No customer reviews available right now.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {homeReviews.map((review) => (
+                <div
+                  key={review.id}
+                  className="bg-card border border-border rounded-2xl p-6 flex flex-col gap-4"
+                >
+                  <div className="flex gap-0.5">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Star
+                        key={i}
+                        size={13}
+                        className={i < review.rating ? 'fill-amber-400 text-amber-400' : 'text-muted'}
+                      />
+                    ))}
+                  </div>
                   <div>
-                    <p className="text-sm font-semibold">{r.user.name}</p>
-                    <p className="text-xs text-muted-foreground">{r.user.location}</p>
+                    {review.product ? (
+                      <Link href={`/products/${review.product.slug}`} className="font-semibold text-sm mb-1 line-clamp-1 hover:text-primary">
+                        {review.product.name}
+                      </Link>
+                    ) : null}
+                    <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">
+                      &ldquo;{review.comment}&rdquo;
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 pt-2 border-t border-border mt-auto">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                      {initials(review.user.name)}
+                    </span>
+                    <div>
+                      <p className="text-sm font-semibold">{review.user.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {review.verified ? 'Verified purchase' : 'Customer review'}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </section>
         {renderCollections('reviews', 'after')}
 
@@ -735,40 +717,6 @@ export default function HomePage() {
         {renderCollections('blog', 'after')}
 
         {renderCollections('newsletter', 'before')}
-        {/* App Download */}
-        <section className="py-10">
-          <div className="bg-gradient-to-br from-primary to-primary/80 rounded-3xl px-8 py-12 md:px-16 grid md:grid-cols-2 gap-8 items-center">
-            <div>
-              <span className="text-xs font-bold text-primary-foreground/60 uppercase tracking-widest">
-                Mobile App
-              </span>
-              <h2 className="text-3xl font-extrabold text-primary-foreground mt-2 mb-4">
-                Shop Smarter,
-                <br />
-                Anytime, Anywhere
-              </h2>
-              <p className="text-primary-foreground/80 mb-6 leading-relaxed">
-                Get exclusive app-only deals, track orders in real-time, and enjoy a seamless
-                experience on your phone.
-              </p>
-              <div className="flex flex-wrap gap-3">
-                {['App Store', 'Google Play'].map((store) => (
-                  <button
-                    key={store}
-                    className="flex items-center gap-2 bg-black text-white px-5 py-3 rounded-xl hover:bg-black/80 transition-colors text-sm font-medium"
-                  >
-                    {store}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="hidden md:flex justify-end">
-              <div className="w-56 h-56 bg-primary-foreground/10 rounded-3xl flex items-center justify-center">
-                <ShoppingBag size={72} className="text-primary-foreground/30" />
-              </div>
-            </div>
-          </div>
-        </section>
         {renderCollections('newsletter', 'after')}
       </main>
       {homeError && (

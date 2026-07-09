@@ -37,9 +37,10 @@ import {
   selectSettingsPending,
   useSettingsStore,
 } from '@/store/settings-store';
-import { MOCK_PRODUCTS } from '@/mock/products';
 import { NAV_LINKS } from '@/constants';
 import { formatPrice } from '@/utils/format';
+import { fetchProducts } from '@/services/catalog-service';
+import type { Product } from '@/types';
 import type { RuntimeCategory } from '@/types/settings';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
@@ -62,16 +63,10 @@ function ThemeToggle() {
 
 function SearchOverlay({ onClose }: { onClose: () => void }) {
   const [query, setQuery] = useState('');
+  const [results, setResults] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  const results =
-    query.length > 1
-      ? MOCK_PRODUCTS.filter(
-          (p) =>
-            p.name.toLowerCase().includes(query.toLowerCase()) ||
-            p.category.toLowerCase().includes(query.toLowerCase())
-        ).slice(0, 5)
-      : [];
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -81,6 +76,46 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
   }, [onClose]);
+
+  useEffect(() => {
+    const normalizedQuery = query.trim();
+    if (normalizedQuery.length <= 1) {
+      setResults([]);
+      setIsLoading(false);
+      setHasSearched(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      setIsLoading(true);
+      fetchProducts(
+        {
+          search: normalizedQuery,
+          page: 1,
+          per_page: 5,
+        },
+        { signal: controller.signal },
+      )
+        .then((response) => {
+          setResults(response.items);
+          setHasSearched(true);
+        })
+        .catch((err: unknown) => {
+          if ((err as { name?: string })?.name === 'CanceledError') return;
+          setResults([]);
+          setHasSearched(true);
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setIsLoading(false);
+        });
+    }, 250);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [query]);
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" onClick={onClose}>
@@ -108,7 +143,22 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
             </button>
           </div>
 
-          {results.length > 0 && (
+          {isLoading && (
+            <div className="mt-3 space-y-1 pb-2" aria-hidden="true">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <div key={index} className="flex items-center gap-3 rounded-lg p-2">
+                  <span className="h-12 w-12 shrink-0 animate-pulse rounded-lg bg-muted" />
+                  <span className="flex-1 space-y-2">
+                    <span className="block h-4 w-2/3 animate-pulse rounded bg-muted" />
+                    <span className="block h-3 w-1/3 animate-pulse rounded bg-muted" />
+                  </span>
+                  <span className="h-4 w-14 animate-pulse rounded bg-muted" />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {!isLoading && results.length > 0 && (
             <div className="mt-3 space-y-1 pb-2">
               {results.map((product) => (
                 <Link
@@ -137,7 +187,7 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
             </div>
           )}
 
-          {query.length > 1 && results.length === 0 && (
+          {!isLoading && query.length > 1 && hasSearched && results.length === 0 && (
             <p className="text-center text-muted-foreground py-4 text-sm">
               No results for &ldquo;{query}&rdquo;
             </p>

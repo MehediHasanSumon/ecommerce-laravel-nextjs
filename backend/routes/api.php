@@ -49,6 +49,7 @@ Route::get('/brands/{slug}', [BrandCatalogController::class, 'show'])->where('sl
 Route::get('/collections/{slug}', [CollectionCatalogController::class, 'show'])->where('slug', '[A-Za-z0-9\\-]+')->middleware('throttle:public-settings');
 Route::get('/products', [ProductCatalogController::class, 'index'])->middleware('throttle:public-settings');
 Route::get('/products/{slug}', [ProductCatalogController::class, 'show'])->where('slug', '[A-Za-z0-9\\-]+')->middleware('throttle:public-settings');
+Route::get('/reviews', [ProductCatalogController::class, 'reviews'])->middleware('throttle:public-settings');
 Route::get('/shipping-methods', [ShippingMethodController::class, 'index'])->middleware('throttle:public-settings');
 Route::match(['get', 'post'], '/payments/{gateway}/callback/{result?}', [PaymentCallbackController::class, 'callback'])->name('payments.callback');
 Route::post('/payments/{gateway}/webhook', [PaymentCallbackController::class, 'webhook'])->name('payments.webhook');

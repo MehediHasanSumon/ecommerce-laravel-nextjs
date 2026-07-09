@@ -4,48 +4,47 @@ Scope: authorization/permission policy work বাদ দিয়ে এই তা
 
 ## High Priority
 
-### 1. Mock/static product data still used
+### Done: Mock/static product data still used
 
 - `/search`
-  - Uses `frontend/mock/products.ts`.
-  - Needs backend `/products` search API integration with pagination/filter/sort.
+  - Done: now uses backend `/products` search API with pagination/filter/sort support.
 
 - `/deals`
-  - Uses `frontend/mock/products.ts`.
-  - Needs database-driven discounted/active collection or product query.
+  - Done: now uses database-driven sale product query through `/products?on_sale=1&sort=discount_desc`.
 
 - `Header` search dropdown
-  - Uses `frontend/mock/products.ts`.
-  - Needs live product search/suggestion API.
+  - Done: now uses live product search/suggestion API.
 
 - `/`
-  - Customer reviews section uses `frontend/mock/reviews.ts`.
-  - Hero slides, promo banners, mobile app block are hardcoded.
-  - Needs database/admin-driven hero/banner/review/content settings or remove static sections.
+  - Done: customer reviews now use approved backend reviews.
+  - Done: hero slides now use collection banner data.
+  - Done: hardcoded promo banner and mobile app blocks were removed.
+  - Done: old mock product/review/order files were removed.
 
-### 2. Broken/missing public pages linked from footer/nav
+### Done: Broken/missing public pages linked from footer/nav
 
 These links exist in `frontend/constants/index.ts` or homepage but no matching page exists:
 
-- `/careers`
-- `/press`
-- `/shipping-policy`
-- `/return-policy`
-- `/size-guide`
-- `/cookies`
-- `/gift-cards`
-- `/reviews`
+- Done: `/careers`
+- Done: `/press`
+- Done: `/shipping-policy`
+- Done: `/return-policy`
+- Done: `/size-guide`
+- Done: `/cookies`
+- Done: `/gift-cards`
+- Done: `/reviews`
+  - Done: includes backend-driven approved reviews and URL pagination with 12 reviews per page.
 
-### 3. Legacy duplicate pages need removal or redirect
+### Done: Legacy duplicate pages need removal or redirect
 
 These routes duplicate newer account/payment flows or use old/static behavior:
 
-- `/dashboard`
-- `/profile`
-- `/settings`
-- `/order-success`
+- Done: `/dashboard`
+- Done: `/profile`
+- Done: `/settings`
+- Done: `/order-success`
 
-Recommended: redirect to `/account`, `/account/profile`, `/account/settings`, and `/payment/success` or remove if unused.
+Completed: routes were removed, auth fallback was updated to `/account`, and admin links no longer point to the deleted routes.
 
 ### 4. Contact page is static
 
@@ -185,7 +184,7 @@ If the final target is “no modal-based CRUD”, these still need separate crea
 - `/payment/cancel`
   - Pages exist.
   - Retry payment flow needs gateway-specific end-to-end validation.
-  - Old `/order-success` should be removed/redirected.
+  - Done: old `/order-success` route was removed.
 
 ## Storefront Remaining Work
 
@@ -255,11 +254,10 @@ Need focused tests for:
 - Review submission/reply flow
 - Admin order status updates
 - Product CRUD with select fields
-- Storefront search/deals once made dynamic
+- Done: Storefront search/deals once made dynamic
 
 ### 26. Existing test issue
 
 `php artisan test --filter=Product` previously failed because of duplicate `collections.slug = new-arrivals` in test/seed data.
 
 Needs test fixture cleanup before relying on full backend test suite.
-

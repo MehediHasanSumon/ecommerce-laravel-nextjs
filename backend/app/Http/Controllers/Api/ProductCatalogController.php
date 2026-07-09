@@ -30,8 +30,9 @@ class ProductCatalogController extends Controller
             'price_min' => ['nullable', 'numeric', 'min:0'],
             'price_max' => ['nullable', 'numeric', 'min:0'],
             'availability' => ['nullable', Rule::in(['in_stock', 'out_of_stock'])],
+            'on_sale' => ['nullable', 'boolean'],
             'rating' => ['nullable', 'numeric', 'min:0', 'max:5'],
-            'sort' => ['nullable', Rule::in(['default', 'newest', 'oldest', 'price_asc', 'price_desc', 'name_asc', 'name_desc', 'best_selling', 'highest_rated', 'most_popular', 'featured'])],
+            'sort' => ['nullable', Rule::in(['default', 'newest', 'oldest', 'price_asc', 'price_desc', 'discount_desc', 'name_asc', 'name_desc', 'best_selling', 'highest_rated', 'most_popular', 'featured'])],
             'page' => ['nullable', 'integer', 'min:1'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:48'],
         ]);
@@ -95,6 +96,9 @@ class ProductCatalogController extends Controller
             ->when($request->query('availability') === 'out_of_stock', fn ($query) => $query->where('track_inventory', true)->where(function ($query): void {
                 $query->whereNull('stock_quantity')->orWhere('stock_quantity', '<=', 0);
             }))
+            ->when($request->boolean('on_sale'), fn ($query) => $query
+                ->whereNotNull('compare_at_price_cents')
+                ->whereColumn('compare_at_price_cents', '>', 'base_price_cents'))
             ->when($request->filled('rating'), fn ($query) => $query->where('rating_average', '>=', (float) $request->query('rating')));
 
         foreach ($attributeFilters as $slug => $values) {
@@ -155,6 +159,57 @@ class ProductCatalogController extends Controller
         return ApiResponse::success(ProductDetailResource::make($product)->resolve());
     }
 
+    public function reviews(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:24'],
+        ]);
+
+        $reviews = ProductReview::query()
+            ->where('status', 'approved')
+            ->with([
+                'user:id,name,email',
+                'product.brand:id,name,slug',
+                'product.category:id,parent_id,name,slug',
+                'product.images:id,product_id,url,is_primary,sort_order',
+                'product.tags:id,name',
+            ])
+            ->whereHas('product', fn ($query) => $query->where('status', 'active'))
+            ->latest()
+            ->paginate((int) ($validated['per_page'] ?? 12))
+            ->withQueryString();
+
+        return ApiResponse::success([
+            'items' => $reviews->getCollection()
+                ->map(fn (ProductReview $review): array => [
+                    'id' => (string) $review->id,
+                    'rating' => (int) $review->rating,
+                    'comment' => $review->comment,
+                    'verified' => (bool) $review->is_verified_purchase,
+                    'createdAt' => optional($review->created_at)->toISOString(),
+                    'user' => [
+                        'id' => (string) $review->user?->id,
+                        'name' => $review->user?->name ?: 'Customer',
+                    ],
+                    'product' => $review->product
+                        ? ProductCardResource::make($review->product)->resolve()
+                        : null,
+                ])
+                ->values()
+                ->all(),
+        ], meta: [
+            'pagination' => [
+                'current_page' => $reviews->currentPage(),
+                'last_page' => $reviews->lastPage(),
+                'per_page' => $reviews->perPage(),
+                'total' => $reviews->total(),
+                'from' => $reviews->firstItem(),
+                'to' => $reviews->lastItem(),
+            ],
+        ]);
+    }
+
     public function storeReview(Request $request, Product $product): JsonResponse
     {
         abort_unless($product->status === 'active', 404);
@@ -207,6 +262,9 @@ class ProductCatalogController extends Controller
             'oldest' => $query->oldest('published_at')->oldest('created_at'),
             'price_asc' => $query->orderBy('base_price_cents')->orderBy('name'),
             'price_desc' => $query->orderByDesc('base_price_cents')->orderBy('name'),
+            'discount_desc' => $query
+                ->orderByRaw('(compare_at_price_cents - base_price_cents) desc')
+                ->orderByDesc('published_at'),
             'name_asc' => $query->orderBy('name'),
             'name_desc' => $query->orderByDesc('name'),
             'best_selling', 'most_popular' => $query->orderByDesc('review_count')->orderByDesc('rating_average'),
@@ -278,6 +336,7 @@ class ProductCatalogController extends Controller
                 ['label' => 'Oldest', 'value' => 'oldest'],
                 ['label' => 'Price: Low to High', 'value' => 'price_asc'],
                 ['label' => 'Price: High to Low', 'value' => 'price_desc'],
+                ['label' => 'Biggest Discount', 'value' => 'discount_desc'],
                 ['label' => 'Name: A to Z', 'value' => 'name_asc'],
                 ['label' => 'Name: Z to A', 'value' => 'name_desc'],
                 ['label' => 'Best Selling', 'value' => 'best_selling'],

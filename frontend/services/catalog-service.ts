@@ -45,6 +45,7 @@ export type ProductQueryParams = {
   price_min?: number | string;
   price_max?: number | string;
   availability?: string;
+  on_sale?: boolean | string | number;
   rating?: number | string;
   sort?: string;
   page?: number | string;
@@ -54,6 +55,21 @@ export type ProductQueryParams = {
 export type ProductListResponse = {
   items: Product[];
   filters: ProductFilterMetadata;
+  pagination: PaginationMeta;
+};
+
+export type PublicReview = {
+  id: string;
+  rating: number;
+  comment: string;
+  verified: boolean;
+  createdAt: string;
+  user: { id: string; name: string };
+  product: Product | null;
+};
+
+export type PublicReviewListResponse = {
+  items: PublicReview[];
   pagination: PaginationMeta;
 };
 
@@ -333,6 +349,33 @@ export async function fetchProducts(
       current_page: 1,
       last_page: 1,
       per_page: Number(params.per_page ?? 24),
+      total: response.data.data.items.length,
+      from: response.data.data.items.length ? 1 : null,
+      to: response.data.data.items.length || null,
+    },
+  };
+}
+
+export async function fetchPublicReviews(
+  params: { page?: number | string; per_page?: number | string } = {},
+  options: { signal?: AbortSignal } = {},
+): Promise<PublicReviewListResponse> {
+  const response = await axios.get<ApiEnvelope<{ items: PublicReview[] }>>(`${apiBaseUrl}/reviews`, {
+    params,
+    signal: options.signal,
+    withCredentials: true,
+    headers: {
+      Accept: "application/json",
+      "X-Requested-With": "XMLHttpRequest",
+    },
+  });
+
+  return {
+    items: response.data.data.items,
+    pagination: response.data.meta.pagination ?? {
+      current_page: 1,
+      last_page: 1,
+      per_page: Number(params.per_page ?? 12),
       total: response.data.data.items.length,
       from: response.data.data.items.length ? 1 : null,
       to: response.data.data.items.length || null,
