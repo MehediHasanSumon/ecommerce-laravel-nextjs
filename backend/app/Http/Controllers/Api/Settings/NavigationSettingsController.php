@@ -303,6 +303,22 @@ class NavigationSettingsController extends Controller
                 'type' => 'group',
                 'items' => [
                     ['label' => 'Blog Management', 'href' => '/admin/blogs', 'icon' => 'Newspaper', 'enabled' => true],
+                    ['label' => 'Contact Inbox', 'href' => '/admin/contact-messages', 'icon' => 'Mail', 'enabled' => true],
+                ],
+            ],
+            [
+                'key' => 'reports',
+                'label' => 'Reports & Analytics',
+                'icon' => 'BarChart3',
+                'type' => 'group',
+                'items' => [
+                    ['label' => 'Sales Reports', 'href' => '/admin/reports/sales', 'icon' => 'BarChart3', 'enabled' => true],
+                    ['label' => 'Revenue Analytics', 'href' => '/admin/reports/revenue', 'icon' => 'CircleDollarSign', 'enabled' => true],
+                    ['label' => 'Product Performance', 'href' => '/admin/reports/product-performance', 'icon' => 'Package', 'enabled' => true],
+                    ['label' => 'Customer Analytics', 'href' => '/admin/reports/customer-analytics', 'icon' => 'UsersRound', 'enabled' => true],
+                    ['label' => 'Payment Reports', 'href' => '/admin/reports/payment', 'icon' => 'CreditCard', 'enabled' => true],
+                    ['label' => 'Shipping Reports', 'href' => '/admin/reports/shipping', 'icon' => 'PackageCheck', 'enabled' => true],
+                    ['label' => 'Inventory Reports', 'href' => '/admin/reports/inventory', 'icon' => 'Warehouse', 'enabled' => true],
                 ],
             ],
             [

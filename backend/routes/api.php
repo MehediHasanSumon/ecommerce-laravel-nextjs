@@ -5,9 +5,11 @@ use App\Http\Controllers\Api\AccountController;
 use App\Http\Controllers\Api\Admin\HomeFeatureCardController;
 use App\Http\Controllers\Api\Admin\BlogCommentManagementController;
 use App\Http\Controllers\Api\Admin\BlogManagementController;
+use App\Http\Controllers\Api\Admin\ContactMessageManagementController;
 use App\Http\Controllers\Api\Admin\PermissionManagementController;
 use App\Http\Controllers\Api\Admin\OrderManagementController;
 use App\Http\Controllers\Api\Admin\ProductModuleController;
+use App\Http\Controllers\Api\Admin\ReportsController;
 use App\Http\Controllers\Api\Admin\RoleManagementController;
 use App\Http\Controllers\Api\Admin\ShippingMethodManagementController;
 use App\Http\Controllers\Api\Admin\ShippingZoneController;
@@ -30,6 +32,7 @@ use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\CheckoutController;
 use App\Http\Controllers\Api\CollectionCatalogController;
 use App\Http\Controllers\Api\ContentPageController;
+use App\Http\Controllers\Api\ContactMessageController;
 use App\Http\Controllers\Api\CustomerAddressController;
 use App\Http\Controllers\Api\HomePageController;
 use App\Http\Controllers\Api\OrderController;
@@ -53,6 +56,7 @@ Route::get('/products', [ProductCatalogController::class, 'index'])->middleware(
 Route::get('/products/{slug}', [ProductCatalogController::class, 'show'])->where('slug', '[A-Za-z0-9\\-]+')->middleware('throttle:public-settings');
 Route::get('/reviews', [ProductCatalogController::class, 'reviews'])->middleware('throttle:public-settings');
 Route::get('/shipping-methods', [ShippingMethodController::class, 'index'])->middleware('throttle:public-settings');
+Route::post('/contact-messages', [ContactMessageController::class, 'store'])->middleware('throttle:public-settings');
 Route::match(['get', 'post'], '/payments/{gateway}/callback/{result?}', [PaymentCallbackController::class, 'callback'])->name('payments.callback');
 Route::post('/payments/{gateway}/webhook', [PaymentCallbackController::class, 'webhook'])->name('payments.webhook');
 Route::middleware(['auth.cookie.optional:access', 'throttle:public-settings'])->group(function (): void {
@@ -126,6 +130,10 @@ Route::prefix('admin')
         Route::get('/blog-comments', [BlogCommentManagementController::class, 'index']);
         Route::put('/blog-comments/{comment}', [BlogCommentManagementController::class, 'update']);
         Route::delete('/blog-comments/{comment}', [BlogCommentManagementController::class, 'destroy']);
+        Route::get('/contact-messages', [ContactMessageManagementController::class, 'index']);
+        Route::put('/contact-messages/{contactMessage}', [ContactMessageManagementController::class, 'update']);
+        Route::delete('/contact-messages/{contactMessage}', [ContactMessageManagementController::class, 'destroy']);
+        Route::get('/reports/{type}', [ReportsController::class, 'show'])->where('type', '[A-Za-z0-9\\-]+');
 
         Route::delete('/roles/bulk', [RoleManagementController::class, 'bulkDestroy']);
         Route::apiResource('roles', RoleManagementController::class);

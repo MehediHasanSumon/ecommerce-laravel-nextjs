@@ -5,6 +5,8 @@ import { AnnouncementBar } from '@/components/layout/AnnouncementBar';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { toast } from 'sonner';
+import { submitContactMessage } from '@/services/contact-service';
+import { toAppError } from '@/lib/errors';
 import {
   Select,
   SelectContent,
@@ -21,16 +23,21 @@ const CONTACT_INFO = [
 ];
 
 export default function ContactPage() {
-  const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' });
+  const [form, setForm] = useState({ name: '', email: '', phone: '', subject: '', message: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    await new Promise((r) => setTimeout(r, 1000));
-    setIsSubmitting(false);
-    toast.success("Message sent! We'll get back to you within 24 hours.");
-    setForm({ name: '', email: '', subject: '', message: '' });
+    try {
+      await submitContactMessage(form);
+      toast.success("Message sent! We'll get back to you within 24 hours.");
+      setForm({ name: '', email: '', phone: '', subject: '', message: '' });
+    } catch (error) {
+      toast.error(toAppError(error).message || 'Unable to send message.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -82,11 +89,11 @@ export default function ContactPage() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 {[
-                  { key: 'name', label: 'Your Name', placeholder: 'John Doe' },
+                  { key: 'name', label: 'Your Name', placeholder: 'Enter name' },
                   {
                     key: 'email',
                     label: 'Email Address',
-                    placeholder: 'john@example.com',
+                    placeholder: 'Enter email',
                     type: 'email',
                   },
                 ].map(({ key, label, placeholder, type }) => (
@@ -104,6 +111,18 @@ export default function ContactPage() {
                     />
                   </div>
                 ))}
+              </div>
+              <div>
+                <label className="block text-xs font-semibold mb-1.5 text-muted-foreground uppercase tracking-wide">
+                  Phone
+                </label>
+                <input
+                  type="text"
+                  value={form.phone}
+                  onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                  placeholder="Enter phone"
+                  className="w-full px-4 py-3 bg-muted border border-transparent rounded-xl text-sm focus:border-primary focus:bg-background outline-none transition-colors"
+                />
               </div>
               <div>
                 <label className="block text-xs font-semibold mb-1.5 text-muted-foreground uppercase tracking-wide">
@@ -140,7 +159,7 @@ export default function ContactPage() {
                 <textarea
                   value={form.message}
                   onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))}
-                  placeholder="Describe your issue or question in detail..."
+                  placeholder="Enter message"
                   rows={5}
                   required
                   className="w-full px-4 py-3 bg-muted border border-transparent rounded-xl text-sm focus:border-primary focus:bg-background outline-none transition-colors resize-none"

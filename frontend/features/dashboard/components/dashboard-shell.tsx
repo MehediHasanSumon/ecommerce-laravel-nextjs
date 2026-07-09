@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   BadgeCheck,
+  BarChart3,
   Bell,
   Boxes,
   Building2,
@@ -99,6 +100,17 @@ const orderManagementItems = [
 
 const contentManagementItems = [
   { href: routePaths.adminBlogs, label: "Blog Management", icon: Newspaper },
+  { href: routePaths.adminContactMessages, label: "Contact Inbox", icon: Mail },
+];
+
+const reportManagementItems = [
+  { href: routePaths.adminReportsSales, label: "Sales Reports", icon: BarChart3 },
+  { href: routePaths.adminReportsRevenue, label: "Revenue Analytics", icon: CircleDollarSign },
+  { href: routePaths.adminReportsProductPerformance, label: "Product Performance", icon: Package },
+  { href: routePaths.adminReportsCustomerAnalytics, label: "Customer Analytics", icon: UsersRound },
+  { href: routePaths.adminReportsPayment, label: "Payment Reports", icon: CreditCard },
+  { href: routePaths.adminReportsShipping, label: "Shipping Reports", icon: PackageCheck },
+  { href: routePaths.adminReportsInventory, label: "Inventory Reports", icon: Warehouse },
 ];
 
 const settingsItems = [
@@ -120,6 +132,7 @@ const settingsItems = [
 const iconMap = {
   Bell,
   BadgeCheck,
+  BarChart3,
   Boxes,
   Building2,
   ChevronDown,
@@ -162,6 +175,7 @@ function renderIcon(name: string | undefined, className: string) {
   switch (name) {
     case "Bell": return <Bell className={className} />;
     case "BadgeCheck": return <BadgeCheck className={className} />;
+    case "BarChart3": return <BarChart3 className={className} />;
     case "Boxes": return <Boxes className={className} />;
     case "Building2": return <Building2 className={className} />;
     case "CirclePercent": return <CirclePercent className={className} />;
@@ -207,6 +221,7 @@ function fallbackAdminNavigation(): RuntimeNavigationGroup[] {
     { key: "inventory", label: "Inventory & Shipping", icon: "Warehouse", type: "group", items: inventoryManagementItems.map((item) => ({ label: item.label, href: item.href, icon: item.icon.name, enabled: true })) },
     { key: "marketing", label: "Marketing & Pricing", icon: "Megaphone", type: "group", items: marketingManagementItems.map((item) => ({ label: item.label, href: item.href, icon: item.icon.name, enabled: true })) },
     { key: "content", label: "Content", icon: "Newspaper", type: "group", items: contentManagementItems.map((item) => ({ label: item.label, href: item.href, icon: item.icon.name, enabled: true })) },
+    { key: "reports", label: "Reports & Analytics", icon: "BarChart3", type: "group", items: reportManagementItems.map((item) => ({ label: item.label, href: item.href, icon: item.icon.name, enabled: true })) },
     { key: "settings", label: "Settings", icon: "Settings2", type: "group", items: settingsItems.map((item) => ({ label: item.label, href: item.href, icon: item.icon.name, enabled: true })) },
   ];
 }
@@ -471,6 +486,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
       ...inventoryManagementItems,
       ...marketingManagementItems,
       ...contentManagementItems,
+      ...reportManagementItems,
     ].find((item) => item.href === pathname || (item.href === routePaths.adminProducts && pathname.startsWith(`${routePaths.adminProducts}/`)) || (item.href === routePaths.adminOrders && pathname.startsWith(`${routePaths.adminOrders}/`))) ??
     settingsItems.find((item) => item.href === pathname) ??
     navItems[0];

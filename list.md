@@ -2,27 +2,7 @@
 
 Scope: authorization/permission policy work বাদ দিয়ে এই তালিকা করা হয়েছে। নিচের আইটেমগুলো frontend page, backend flow, static/mock data, integration, cleanup, and production polish হিসেবে বাকি আছে।
 
-## High Priority
-
-### Contact page is static
-
-- `/contact`
-  - Form is frontend-only.
-  - Needs backend contact message table/API/admin inbox/email notification.
-
 ## Admin Remaining Work
-
-### Reports/analytics pages missing
-
-No admin pages found for:
-
-- Sales reports
-- Revenue analytics
-- Product performance
-- Customer analytics
-- Payment reports
-- Shipping reports
-- Inventory reports
 
 ### Order management needs next production layer
 
