@@ -2,6 +2,7 @@
 
 import { format, parseISO } from "date-fns";
 import { CalendarIcon, X } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -42,6 +43,7 @@ export function DatePicker({
   className,
   onChange,
 }: DatePickerProps) {
+  const [open, setOpen] = useState(false);
   const selected = toDate(value);
   const displayValue = selected ? format(selected, "PPP") : placeholder;
 
@@ -49,7 +51,7 @@ export function DatePicker({
     <label className={cn("block space-y-2", className)}>
       {label ? <span className="text-sm font-semibold text-foreground">{label}</span> : null}
       <div className="flex gap-2">
-        <Popover>
+        <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
             <Button
               type="button"
@@ -70,7 +72,13 @@ export function DatePicker({
               mode="single"
               navLayout="around"
               selected={selected}
-              onSelect={(date) => date && onChange(toIsoDate(date))}
+              onSelect={(date) => {
+                if (!date) {
+                  return;
+                }
+                onChange(toIsoDate(date));
+                setOpen(false);
+              }}
             />
           </PopoverContent>
         </Popover>
@@ -83,7 +91,10 @@ export function DatePicker({
             disabled={disabled}
             aria-label="Clear date"
             icon={<X className="h-4 w-4" />}
-            onClick={() => onChange("")}
+            onClick={() => {
+              onChange("");
+              setOpen(false);
+            }}
           />
         ) : null}
       </div>

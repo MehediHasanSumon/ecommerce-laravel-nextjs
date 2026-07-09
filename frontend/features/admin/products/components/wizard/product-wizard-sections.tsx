@@ -3,6 +3,7 @@
 import { Plus, Trash2 } from "lucide-react";
 import type { UseFormReturn } from "react-hook-form";
 import { Button } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import type { ProductOptions } from "@/features/admin/products/types";
 import { formatCurrency } from "@/utils/format";
@@ -251,7 +252,7 @@ export function PublishSection({ form, options }: SectionProps) {
           </div>
           <div className="mt-5 space-y-3">
             <SelectField label="Status" value={useFieldValue(form, "status")} placeholder="Select status" options={statusOptions} onChange={(value) => form.setValue("status", value as ProductWizardValues["status"], { shouldDirty: true })} />
-            <Input label="Publish Date" type="date" {...form.register("published_at")} />
+            <DatePicker label="Publish Date" value={useFieldValue(form, "published_at") || null} onChange={(value) => form.setValue("published_at", value, { shouldDirty: true })} />
           </div>
         </div>
       </div>

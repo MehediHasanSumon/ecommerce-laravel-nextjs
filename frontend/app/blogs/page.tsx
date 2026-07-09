@@ -9,6 +9,7 @@ import { AnnouncementBar } from "@/components/layout/AnnouncementBar";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { fetchBlogs, type BlogCard, type BlogListResponse } from "@/services/blog-service";
 
 export default function BlogsPage() {
@@ -77,11 +78,16 @@ export default function BlogsPage() {
               <input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Search blogs..." className="min-w-0 flex-1 bg-transparent text-sm outline-none" />
             </form>
           ) : <span />}
-          <select value={sort} onChange={(event) => updateQuery({ sort: event.target.value, page: 1 })} className="h-10 rounded-xl border border-border bg-background px-3 text-sm">
-            <option value="latest">Latest</option>
-            <option value="oldest">Oldest</option>
-            <option value="most_viewed">Most Viewed</option>
-          </select>
+          <Select value={sort} onValueChange={(value) => updateQuery({ sort: value, page: 1 })}>
+            <SelectTrigger className="h-10 rounded-xl border-border bg-background px-3 text-sm md:w-40" aria-label="Sort blogs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="latest">Latest</SelectItem>
+              <SelectItem value="oldest">Oldest</SelectItem>
+              <SelectItem value="most_viewed">Most Viewed</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         {loading ? (

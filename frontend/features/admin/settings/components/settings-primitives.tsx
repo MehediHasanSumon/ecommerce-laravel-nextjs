@@ -7,6 +7,7 @@ import { AlertTriangle, CheckCircle2, ChevronRight, ImagePlus, Loader2, RotateCc
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { routePaths } from "@/constants/routes";
 import { cn } from "@/utils/cn";
 
@@ -183,17 +184,20 @@ export function SelectInput({
       <span className="flex items-center gap-1 text-sm font-semibold text-foreground">
         {label}{required ? <span className="text-destructive">*</span> : null}
       </span>
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        aria-invalid={Boolean(error)}
-        className={cn(
-          "h-11 w-full rounded-lg border border-border bg-background px-3 text-sm transition hover:bg-muted/60 focus:ring-2 focus:ring-ring",
-          error && "border-destructive focus:border-destructive",
-        )}
-      >
-        {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-      </select>
+      <Select value={value} onValueChange={onChange} required={required}>
+        <SelectTrigger
+          aria-invalid={Boolean(error)}
+          className={cn(
+            "h-11 rounded-lg border-border bg-background px-3 text-sm transition hover:bg-muted/60 focus:ring-2 focus:ring-ring",
+            error && "border-destructive focus:border-destructive",
+          )}
+        >
+          <SelectValue placeholder={`Select ${label.toLowerCase()}`} />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
+        </SelectContent>
+      </Select>
       {helper ? <p className="text-xs leading-5 text-muted-foreground">{helper}</p> : null}
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
     </label>

@@ -258,36 +258,36 @@ function FilterModal({
             <>
               <label className="space-y-2 text-sm font-semibold">
                 <span>Status</span>
-                <Select value={draft.status} onValueChange={(value) => setDraft({ ...draft, status: value })}>
+                <Select value={draft.status || "all"} onValueChange={(value) => setDraft({ ...draft, status: value === "all" ? "" : value })}>
                   <SelectTrigger className="h-11 rounded-lg px-3 text-sm">
                     <SelectValue placeholder="Any status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Any status</SelectItem>
+                    <SelectItem value="all">Any status</SelectItem>
                     {statuses.map((status) => <SelectItem key={status} value={status}>{statusLabel(status)}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </label>
               <label className="space-y-2 text-sm font-semibold">
                 <span>Role</span>
-                <Select value={draft.role} onValueChange={(value) => setDraft({ ...draft, role: value })}>
+                <Select value={draft.role || "all"} onValueChange={(value) => setDraft({ ...draft, role: value === "all" ? "" : value })}>
                   <SelectTrigger className="h-11 rounded-lg px-3 text-sm">
                     <SelectValue placeholder="Any role" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Any role</SelectItem>
+                    <SelectItem value="all">Any role</SelectItem>
                     {roles.map((role) => <SelectItem key={role.id} value={role.name}>{role.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </label>
               <label className="space-y-2 text-sm font-semibold">
                 <span>Email Verified</span>
-                <Select value={draft.email_verified} onValueChange={(value) => setDraft({ ...draft, email_verified: value })}>
+                <Select value={draft.email_verified || "all"} onValueChange={(value) => setDraft({ ...draft, email_verified: value === "all" ? "" : value })}>
                   <SelectTrigger className="h-11 rounded-lg px-3 text-sm">
                     <SelectValue placeholder="Any state" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Any state</SelectItem>
+                    <SelectItem value="all">Any state</SelectItem>
                     <SelectItem value="yes">Verified</SelectItem>
                     <SelectItem value="no">Not verified</SelectItem>
                   </SelectContent>

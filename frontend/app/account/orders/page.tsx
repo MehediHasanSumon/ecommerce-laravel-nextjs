@@ -8,6 +8,7 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { AccountSidebar } from "@/components/account/AccountSidebar";
 import { OrderCardSkeleton } from "@/components/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { fetchOrders, type OrderListItem } from "@/services/order-service";
 import type { PaginationMeta } from "@/features/admin/shared/types";
 import { selectCurrencyFingerprint, useSettingsStore } from "@/store/settings-store";
@@ -74,21 +75,24 @@ export default function OrdersPage() {
                   className="w-full rounded-xl border border-border bg-background py-2 pl-9 pr-3 text-sm outline-none focus:border-primary"
                 />
               </div>
-              <select
+              <Select
                 value={filter}
-                onChange={(event) => {
-                  setFilter(event.target.value);
+                onValueChange={(value) => {
+                  setFilter(value);
                   setPage(1);
                 }}
-                className="h-10 rounded-xl border border-border bg-background px-3 text-sm font-medium outline-none transition-colors focus:border-primary sm:w-56"
-                aria-label="Filter orders by status"
               >
-                {filters.map((status) => (
-                  <option key={status} value={status}>
-                    {status === "all" ? "All Orders" : ORDER_STATUS_LABELS[status] ?? status.replaceAll("_", " ")}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="h-10 rounded-xl border-border bg-background px-3 text-sm font-medium sm:w-56" aria-label="Filter orders by status">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {filters.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {status === "all" ? "All Orders" : ORDER_STATUS_LABELS[status] ?? status.replaceAll("_", " ")}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <button type="submit" className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90">
                 Search
               </button>

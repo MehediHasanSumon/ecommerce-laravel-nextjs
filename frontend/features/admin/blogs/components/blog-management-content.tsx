@@ -398,10 +398,10 @@ function BlogFilterModal({ open, filters, onClose, onApply }: { open: boolean; f
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           <label className="space-y-2 text-sm font-semibold">
             <span>Status</span>
-            <Select value={draft.status} onValueChange={(status) => setDraft({ ...draft, status })}>
+            <Select value={draft.status || "all"} onValueChange={(status) => setDraft({ ...draft, status: status === "all" ? "" : status })}>
               <SelectTrigger className="h-11 rounded-lg px-3 text-sm"><SelectValue placeholder="Any status" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Any status</SelectItem>
+                <SelectItem value="all">Any status</SelectItem>
                 {statuses.map((status) => <SelectItem key={status} value={status}>{statusLabel(status)}</SelectItem>)}
               </SelectContent>
             </Select>

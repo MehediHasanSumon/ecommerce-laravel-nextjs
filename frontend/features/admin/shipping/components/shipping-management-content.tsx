@@ -82,10 +82,10 @@ function FilterModal({ open, status, zoneId, zones, showZones, onClose, onApply 
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           <label className="space-y-2 text-sm font-semibold">
             <span>Status</span>
-            <Select value={draft.status} onValueChange={(value) => setDraft((current) => ({ ...current, status: value }))}>
+            <Select value={draft.status || "all"} onValueChange={(value) => setDraft((current) => ({ ...current, status: value === "all" ? "" : value }))}>
               <SelectTrigger className="h-11 rounded-lg px-3 text-sm"><SelectValue placeholder="Any status" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Any status</SelectItem>
+                <SelectItem value="all">Any status</SelectItem>
                 {statuses.map((item) => <SelectItem key={item} value={item}>{statusLabel(item)}</SelectItem>)}
               </SelectContent>
             </Select>
@@ -93,10 +93,10 @@ function FilterModal({ open, status, zoneId, zones, showZones, onClose, onApply 
           {showZones ? (
             <label className="space-y-2 text-sm font-semibold">
               <span>Shipping Zone</span>
-              <Select value={draft.shipping_zone_id} onValueChange={(value) => setDraft((current) => ({ ...current, shipping_zone_id: value }))}>
+              <Select value={draft.shipping_zone_id || "all"} onValueChange={(value) => setDraft((current) => ({ ...current, shipping_zone_id: value === "all" ? "" : value }))}>
                 <SelectTrigger className="h-11 rounded-lg px-3 text-sm"><SelectValue placeholder="Any zone" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Any zone</SelectItem>
+                  <SelectItem value="all">Any zone</SelectItem>
                   {zones.map((zone) => <SelectItem key={zone.id} value={String(zone.id)}>{zone.name}</SelectItem>)}
                 </SelectContent>
               </Select>

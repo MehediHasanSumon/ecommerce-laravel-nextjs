@@ -661,12 +661,12 @@ function FieldControl({ field, form, item, options }: { field: FieldConfig; form
     return (
       <label className="block space-y-1.5 text-sm font-semibold">
         <span>{field.label}</span>
-        <Select value={value ? String(value) : ""} onValueChange={(next) => form.setValue(field.name, numericIfOption(next), { shouldDirty: true })}>
+        <Select value={value ? String(value) : "none"} onValueChange={(next) => form.setValue(field.name, next === "none" ? "" : numericIfOption(next), { shouldDirty: true })}>
           <SelectTrigger className="h-10 rounded-lg px-3 text-sm">
             <SelectValue placeholder={`Select ${field.label.toLowerCase()}`} />
           </SelectTrigger>
           <SelectContent>
-            {field.optional ? <SelectItem value="">None</SelectItem> : null}
+            {field.optional ? <SelectItem value="none">None</SelectItem> : null}
             {opts.map((option) => <SelectItem key={option.id ?? option.name} value={String(option.id ?? option.name)}>{option.name}</SelectItem>)}
           </SelectContent>
         </Select>
@@ -882,16 +882,26 @@ function MultiSelect({ options, values, onChange }: { options: Array<Option & Re
           onChange={(event) => setSearch(event.target.value)}
         />
         {brands.length ? (
-          <select className="h-9 rounded-lg border border-border bg-background px-2 text-sm" value={brandId} onChange={(event) => setBrandId(event.target.value)}>
-            <option value="">All brands</option>
-            {brands.map((brand) => <option key={brand.id} value={brand.id}>{brand.name}</option>)}
-          </select>
+          <Select value={brandId || "all"} onValueChange={(value) => setBrandId(value === "all" ? "" : value)}>
+            <SelectTrigger className="h-9 rounded-lg border-border bg-background px-2 text-sm sm:w-40" aria-label="Filter products by brand">
+              <SelectValue placeholder="All brands" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All brands</SelectItem>
+              {brands.map((brand) => <SelectItem key={brand.id} value={String(brand.id)}>{brand.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
         ) : null}
         {categories.length ? (
-          <select className="h-9 rounded-lg border border-border bg-background px-2 text-sm" value={categoryId} onChange={(event) => setCategoryId(event.target.value)}>
-            <option value="">All categories</option>
-            {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
-          </select>
+          <Select value={categoryId || "all"} onValueChange={(value) => setCategoryId(value === "all" ? "" : value)}>
+            <SelectTrigger className="h-9 rounded-lg border-border bg-background px-2 text-sm sm:w-44" aria-label="Filter products by category">
+              <SelectValue placeholder="All categories" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All categories</SelectItem>
+              {categories.map((category) => <SelectItem key={category.id} value={String(category.id)}>{category.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
         ) : null}
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
@@ -1030,10 +1040,10 @@ function CompactSelect({ label, value, options, onChange }: { label: string; val
   return (
     <label className="space-y-2 text-sm font-semibold">
       <span>{label}</span>
-      <Select value={value} onValueChange={onChange}>
+      <Select value={value || "all"} onValueChange={(next) => onChange(next === "all" ? "" : next)}>
         <SelectTrigger className="h-10 rounded-lg px-3 text-sm"><SelectValue placeholder={`Any ${label.toLowerCase()}`} /></SelectTrigger>
         <SelectContent>
-          <SelectItem value="">Any {label.toLowerCase()}</SelectItem>
+          <SelectItem value="all">Any {label.toLowerCase()}</SelectItem>
           {options.map((option) => <SelectItem key={option} value={option}>{statusLabel(option)}</SelectItem>)}
         </SelectContent>
       </Select>
@@ -1045,10 +1055,10 @@ function CompactOptionSelect({ label, value, options, onChange }: { label: strin
   return (
     <label className="space-y-2 text-sm font-semibold">
       <span>{label}</span>
-      <Select value={value} onValueChange={onChange}>
+      <Select value={value || "all"} onValueChange={(next) => onChange(next === "all" ? "" : next)}>
         <SelectTrigger className="h-10 rounded-lg px-3 text-sm"><SelectValue placeholder={`Any ${label.toLowerCase()}`} /></SelectTrigger>
         <SelectContent>
-          <SelectItem value="">Any {label.toLowerCase()}</SelectItem>
+          <SelectItem value="all">Any {label.toLowerCase()}</SelectItem>
           {options.map((option) => <SelectItem key={option.id} value={String(option.id)}>{option.name}</SelectItem>)}
         </SelectContent>
       </Select>
