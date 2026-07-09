@@ -89,7 +89,10 @@ export const ORDER_STATUS_LABELS: Record<string, string> = {
   pending: 'Pending',
   confirmed: 'Confirmed',
   processing: 'Processing',
+  packed: 'Packed',
+  ready_for_shipment: 'Ready for shipment',
   shipped: 'Shipped',
+  out_for_delivery: 'Out for delivery',
   delivered: 'Delivered',
   cancelled: 'Cancelled',
   refunded: 'Refunded',
@@ -99,8 +102,17 @@ export const ORDER_STATUS_COLORS: Record<string, string> = {
   pending: 'text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20',
   confirmed: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20',
   processing: 'text-purple-600 bg-purple-50 dark:bg-purple-900/20',
+  packed: 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20',
+  ready_for_shipment: 'text-sky-600 bg-sky-50 dark:bg-sky-900/20',
   shipped: 'text-cyan-600 bg-cyan-50 dark:bg-cyan-900/20',
+  out_for_delivery: 'text-teal-600 bg-teal-50 dark:bg-teal-900/20',
   delivered: 'text-green-600 bg-green-50 dark:bg-green-900/20',
   cancelled: 'text-red-600 bg-red-50 dark:bg-red-900/20',
   refunded: 'text-orange-600 bg-orange-50 dark:bg-orange-900/20',
 };
+
+export function formatOrderStatus(status: string) {
+  const label = ORDER_STATUS_LABELS[status] ?? status.replaceAll('_', ' ').replaceAll('-', ' ');
+
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}

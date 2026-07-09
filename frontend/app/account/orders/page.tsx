@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronRight, Eye, Package, Search } from "lucide-react";
+import { ChevronRight, Package, Search } from "lucide-react";
 import { AnnouncementBar } from "@/components/layout/AnnouncementBar";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -13,7 +13,7 @@ import { fetchOrders, type OrderListItem } from "@/services/order-service";
 import type { PaginationMeta } from "@/features/admin/shared/types";
 import { selectCurrencyFingerprint, useSettingsStore } from "@/store/settings-store";
 import { formatPrice } from "@/utils/format";
-import { ORDER_STATUS_COLORS, ORDER_STATUS_LABELS } from "@/constants";
+import { ORDER_STATUS_COLORS, formatOrderStatus } from "@/constants";
 
 export default function OrdersPage() {
   useSettingsStore(selectCurrencyFingerprint);
@@ -88,7 +88,7 @@ export default function OrdersPage() {
                 <SelectContent>
                   {filters.map((status) => (
                     <SelectItem key={status} value={status}>
-                      {status === "all" ? "All Orders" : ORDER_STATUS_LABELS[status] ?? status.replaceAll("_", " ")}
+                      {status === "all" ? "All Orders" : formatOrderStatus(status)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -109,29 +109,36 @@ export default function OrdersPage() {
               </div>
             ) : (
               <div className="space-y-4">
-                {orders.map((order) => (
-                  <div key={order.id} className="overflow-hidden rounded-2xl border border-border bg-card transition-shadow hover:shadow-sm">
-                    <div className="border-b border-border p-5">
-                      <div>
-                        <p className="text-sm font-bold">{order.orderNumber}</p>
-                        <p className="mt-0.5 text-xs text-muted-foreground">{order.placedAt ? new Date(order.placedAt).toLocaleDateString() : "Not set"}</p>
-                      </div>
-                    </div>
-                    <div className="p-5">
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex items-center gap-3">
-                          <span className={`rounded-full px-3 py-1 text-xs font-semibold ${ORDER_STATUS_COLORS[order.paymentStatus] ?? "bg-muted text-muted-foreground"}`}>
-                            {ORDER_STATUS_LABELS[order.paymentStatus] ?? order.paymentStatus}
-                          </span>
-                          <span className="font-bold">{formatPrice(order.summary.total)}</span>
+                <div className="overflow-hidden rounded-2xl border border-border bg-card">
+                  <div className="divide-y divide-border">
+                    {orders.map((order) => (
+                      <Link
+                        key={order.id}
+                        href={`/account/orders/${order.orderNumber}`}
+                        className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">
+                          <Package size={18} className="text-muted-foreground" />
                         </div>
-                        <Link href={`/account/orders/${order.orderNumber}`} className="inline-flex items-center gap-1.5 rounded-xl bg-muted px-4 py-2 text-sm font-medium transition-colors hover:bg-primary hover:text-primary-foreground">
-                          <Eye size={14} /> View Details
-                        </Link>
-                      </div>
-                    </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold">{order.orderNumber}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {order.itemsCount ?? 0} items · {order.placedAt ? new Date(order.placedAt).toLocaleDateString() : "Not set"}
+                          </p>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${ORDER_STATUS_COLORS[order.status] ?? "bg-muted text-muted-foreground"}`}>
+                            {formatOrderStatus(order.status)}
+                          </span>
+                          <p className="mt-1 text-sm font-bold">{formatPrice(order.summary.total)}</p>
+                        </div>
+                        <span className="shrink-0 rounded-lg p-2">
+                          <ChevronRight size={16} className="text-muted-foreground" />
+                        </span>
+                      </Link>
+                    ))}
                   </div>
-                ))}
+                </div>
                 {pagination && pagination.last_page > 1 && (
                   <div className="flex items-center justify-between pt-2">
                     <p className="text-xs text-muted-foreground">

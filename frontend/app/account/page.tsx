@@ -14,7 +14,7 @@ import { useWishlistStore } from "@/store/wishlistStore";
 import { selectCurrencyFingerprint, useSettingsStore } from "@/store/settings-store";
 import { accountService, type AccountDashboard } from "@/services/account-service";
 import { formatPrice } from "@/utils/format";
-import { ORDER_STATUS_COLORS, ORDER_STATUS_LABELS } from "@/constants";
+import { ORDER_STATUS_COLORS, formatOrderStatus } from "@/constants";
 
 function StatCard({
   icon: Icon,
@@ -111,7 +111,11 @@ export default function AccountDashboardPage() {
               ) : recentOrders.length ? (
                 <div className="divide-y divide-border">
                   {recentOrders.map((order) => (
-                    <div key={order.id} className="flex items-center gap-4 px-5 py-4 hover:bg-muted/50 transition-colors">
+                    <Link
+                      key={order.id}
+                      href={`/account/orders/${order.orderNumber}`}
+                      className="flex items-center gap-4 px-5 py-4 hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
                       <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
                         <Package size={18} className="text-muted-foreground" />
                       </div>
@@ -121,14 +125,14 @@ export default function AccountDashboardPage() {
                       </div>
                       <div className="text-right shrink-0">
                         <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${ORDER_STATUS_COLORS[order.status] ?? "bg-muted text-muted-foreground"}`}>
-                          {ORDER_STATUS_LABELS[order.status] ?? order.status}
+                          {formatOrderStatus(order.status)}
                         </span>
                         <p className="text-sm font-bold mt-1">{formatPrice(order.summary.total)}</p>
                       </div>
-                      <Link href={`/account/orders/${order.orderNumber}`} className="shrink-0 p-2 hover:bg-muted rounded-lg transition-colors">
+                      <span className="shrink-0 p-2">
                         <ChevronRight size={16} className="text-muted-foreground" />
-                      </Link>
-                    </div>
+                      </span>
+                    </Link>
                   ))}
                 </div>
               ) : (

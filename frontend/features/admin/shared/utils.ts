@@ -28,7 +28,13 @@ export function formatDate(value: string | null) {
 }
 
 export function statusLabel(value: string) {
-  return value.charAt(0).toUpperCase() + value.slice(1);
+  const label = value.replaceAll("_", " ").replaceAll("-", " ").trim().toLowerCase();
+
+  if (!label) {
+    return "";
+  }
+
+  return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
 export function exportCsv(filename: string, rows: Array<Record<string, string | number>>) {
