@@ -1,5 +1,10 @@
+import { ProtectedPage } from "@/components/layout/protected-page";
 import { ReportContent } from "@/features/admin/reports/components/report-content";
 
 export default function ShippingReportsPage() {
-  return <ReportContent type="shipping" />;
+  return (
+    <ProtectedPage>
+      <ReportContent type="shipping" />
+    </ProtectedPage>
+  );
 }
