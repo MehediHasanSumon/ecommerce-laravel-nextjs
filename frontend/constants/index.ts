@@ -2,8 +2,8 @@ export const APP_NAME = 'LuxeCart';
 export const APP_DESCRIPTION = 'Premium Shopping Experience';
 export const APP_URL = process.env.NEXT_PUBLIC_CREATE_APP_URL ?? 'http://localhost:4000';
 
-export const CURRENCY = 'USD';
-export const CURRENCY_SYMBOL = '$';
+export const CURRENCY = 'BDT';
+export const CURRENCY_SYMBOL = '৳';
 
 export const FREE_SHIPPING_THRESHOLD = 75;
 export const TAX_RATE = 0.08;

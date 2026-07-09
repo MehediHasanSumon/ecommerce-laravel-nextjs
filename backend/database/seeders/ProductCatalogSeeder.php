@@ -57,8 +57,8 @@ class ProductCatalogSeeder extends Seeder
                 'name' => 'UrbanThread Essential Cotton T-Shirt',
                 'category' => 'Fashion Men',
                 'brand' => 'UrbanThread',
-                'price' => 2900,
-                'cost' => 1150,
+                'price' => 95000,
+                'cost' => 52000,
                 'variant_attributes' => ['Color' => ['Red', 'Blue', 'Black'], 'Size' => ['S', 'M', 'L']],
                 'tags' => ['Best Seller', 'Lightweight', 'Free Shipping'],
             ],
@@ -66,8 +66,8 @@ class ProductCatalogSeeder extends Seeder
                 'name' => 'NexaTech Nova 14 Pro Laptop',
                 'category' => 'Electronics Laptops',
                 'brand' => 'NexaTech',
-                'price' => 129900,
-                'cost' => 95000,
+                'price' => 12990000,
+                'cost' => 10800000,
                 'variant_attributes' => ['RAM' => ['16GB', '32GB'], 'Storage' => ['512GB', '1TB']],
                 'tags' => ['Creator Gear', 'Professional', 'Online Exclusive'],
             ],
@@ -75,8 +75,8 @@ class ProductCatalogSeeder extends Seeder
                 'name' => 'Auralux QuietWave Wireless Headphones',
                 'category' => 'Electronics Audio',
                 'brand' => 'Auralux Audio',
-                'price' => 18900,
-                'cost' => 8700,
+                'price' => 1890000,
+                'cost' => 1180000,
                 'variant_attributes' => ['Color' => ['Black', 'White', 'Navy']],
                 'tags' => ['Noise Cancelling', 'Wireless', 'Travel Ready'],
             ],
@@ -84,8 +84,8 @@ class ProductCatalogSeeder extends Seeder
                 'name' => 'CloudDesk Ergonomic Task Chair',
                 'category' => 'Home & Living Furniture',
                 'brand' => 'CloudDesk',
-                'price' => 34900,
-                'cost' => 18000,
+                'price' => 2450000,
+                'cost' => 1580000,
                 'variant_attributes' => ['Color' => ['Black', 'Gray'], 'Material' => ['Leather', 'Polyester']],
                 'tags' => ['Work From Home', 'Ergonomic', 'Premium'],
             ],
@@ -93,8 +93,8 @@ class ProductCatalogSeeder extends Seeder
                 'name' => 'StudioBloom Digital Product Photography Course',
                 'category' => 'Books & Media Digital Downloads',
                 'brand' => 'StudioBloom',
-                'price' => 7900,
-                'cost' => 1200,
+                'price' => 250000,
+                'cost' => 65000,
                 'product_type' => 'digital',
                 'track_inventory' => false,
                 'variant_attributes' => ['Subscription Length' => ['Monthly', 'Annual']],
@@ -111,30 +111,79 @@ class ProductCatalogSeeder extends Seeder
     private function seedGeneratedProducts(): void
     {
         $templates = [
-            ['prefix' => 'Aurora', 'category' => 'Electronics Mobile Phones', 'brand' => 'NexaTech', 'attributes' => ['Color' => ['Black', 'White'], 'Storage' => ['128GB', '256GB']]],
-            ['prefix' => 'Summit', 'category' => 'Sports & Outdoors Camping', 'brand' => 'EverTrail', 'attributes' => ['Color' => ['Green', 'Gray'], 'Capacity' => ['1L', '2L']]],
-            ['prefix' => 'Metro', 'category' => 'Fashion Shoes', 'brand' => 'StrideWorks', 'attributes' => ['Color' => ['Black', 'White'], 'Shoe Size' => ['8', '9', '10', '11']]],
-            ['prefix' => 'Hearth', 'category' => 'Home & Living Kitchen', 'brand' => 'TerraCook', 'attributes' => ['Material' => ['Stainless Steel', 'Ceramic'], 'Capacity' => ['500ml', '1L']]],
-            ['prefix' => 'Glow', 'category' => 'Beauty & Personal Care Skincare', 'brand' => 'BrightNest', 'attributes' => ['Scent' => ['Unscented', 'Citrus Bloom']]],
-            ['prefix' => 'Focus', 'category' => 'Office & Tech Desk Setup', 'brand' => 'CloudDesk', 'attributes' => ['Finish' => ['Matte', 'Natural']]],
-            ['prefix' => 'Playwise', 'category' => 'Toys & Kids Learning Toys', 'brand' => 'Horizon Kids', 'attributes' => ['Age Group' => ['Toddler', 'Kids']]],
-            ['prefix' => 'Roast', 'category' => 'Grocery & Gourmet Coffee', 'brand' => 'PureSip', 'attributes' => ['Flavor' => ['Vanilla', 'Hazelnut', 'Chocolate']]],
+            [
+                'category' => 'Electronics Mobile Phones',
+                'brand' => 'NexaTech',
+                'products' => ['Aurora 5G Smartphone', 'Nova Max Android Phone', 'Edge Lite Dual SIM Phone', 'Pulse Pro Camera Phone'],
+                'price_range' => [14500, 72000],
+                'attributes' => ['Color' => ['Black', 'White'], 'Storage' => ['128GB', '256GB']],
+            ],
+            [
+                'category' => 'Sports & Outdoors Camping',
+                'brand' => 'EverTrail',
+                'products' => ['Summit Camping Tent', 'TrailPro Sleeping Bag', 'RidgeLine Hiking Backpack', 'CampMate LED Lantern'],
+                'price_range' => [1200, 12500],
+                'attributes' => ['Color' => ['Green', 'Gray'], 'Capacity' => ['1L', '2L']],
+            ],
+            [
+                'category' => 'Fashion Shoes',
+                'brand' => 'StrideWorks',
+                'products' => ['Metro Knit Sneakers', 'StrideFlex Running Shoes', 'DailyWalk Canvas Shoes', 'Urban Sole Trainers'],
+                'price_range' => [1350, 8500],
+                'attributes' => ['Color' => ['Black', 'White'], 'Shoe Size' => ['8', '9', '10', '11']],
+            ],
+            [
+                'category' => 'Home & Living Kitchen',
+                'brand' => 'TerraCook',
+                'products' => ['Hearth Nonstick Cookware Set', 'TerraCook Stainless Kettle', 'Bistro Ceramic Dinner Set', 'QuickPrep Blender Jar'],
+                'price_range' => [650, 9500],
+                'attributes' => ['Material' => ['Stainless Steel', 'Ceramic'], 'Capacity' => ['500ml', '1L']],
+            ],
+            [
+                'category' => 'Beauty & Personal Care Skincare',
+                'brand' => 'BrightNest',
+                'products' => ['Glow Daily Face Serum', 'BrightNest Hydrating Moisturizer', 'CalmCare Sunscreen SPF 50', 'FreshSkin Cleanser'],
+                'price_range' => [450, 3200],
+                'attributes' => ['Scent' => ['Unscented', 'Citrus Bloom']],
+            ],
+            [
+                'category' => 'Office & Tech Desk Setup',
+                'brand' => 'CloudDesk',
+                'products' => ['Focus Adjustable Laptop Stand', 'CloudDesk Monitor Riser', 'DeskFlow Cable Organizer', 'ErgoPad Wrist Rest'],
+                'price_range' => [550, 6500],
+                'attributes' => ['Finish' => ['Matte', 'Natural']],
+            ],
+            [
+                'category' => 'Toys & Kids Learning Toys',
+                'brand' => 'Horizon Kids',
+                'products' => ['Playwise Alphabet Blocks', 'Junior STEM Puzzle Kit', 'Little Builder Shape Sorter', 'Kids Counting Board'],
+                'price_range' => [350, 2800],
+                'attributes' => ['Age Group' => ['Toddler', 'Kids']],
+            ],
+            [
+                'category' => 'Grocery & Gourmet Coffee',
+                'brand' => 'PureSip',
+                'products' => ['Roast Premium Coffee Beans', 'PureSip Hazelnut Ground Coffee', 'Morning Blend Instant Coffee', 'Cafe Gold Espresso Roast'],
+                'price_range' => [320, 1850],
+                'attributes' => ['Flavor' => ['Vanilla', 'Hazelnut', 'Chocolate']],
+            ],
         ];
 
         $existing = Product::query()->where('sku', 'like', 'LC-%')->count();
         for ($index = $existing; $index < self::TARGET_PRODUCTS; $index++) {
             $template = $templates[$index % count($templates)];
-            $name = $template['prefix'].' '.fake()->unique()->words(fake()->numberBetween(2, 4), true);
+            $name = $template['products'][$index % count($template['products'])].' Series '.str_pad((string) ($index + 1), 3, '0', STR_PAD_LEFT);
+            $price = $this->priceForTemplate($template);
             $config = [
                 'name' => Str::title($name),
                 'category' => $template['category'],
                 'brand' => $template['brand'],
-                'price' => fake()->numberBetween(1800, 149900),
-                'cost' => fake()->numberBetween(700, 90000),
+                'price' => $price,
+                'cost' => (int) round($price * fake()->numberBetween(55, 78) / 100),
                 'variant_attributes' => $index % 3 === 0 ? $template['attributes'] : [],
                 'tags' => $this->tags->random(fake()->numberBetween(2, 5))->pluck('name')->all(),
-                'product_type' => $index % 20 === 0 ? 'digital' : 'physical',
-                'track_inventory' => $index % 20 !== 0,
+                'product_type' => 'physical',
+                'track_inventory' => true,
             ];
 
             $product = $this->upsertProduct($config, $index, false);
@@ -148,7 +197,8 @@ class ProductCatalogSeeder extends Seeder
         $brand = $this->brands->firstWhere('name', $config['brand']) ?? $this->brands->random();
         $category = $this->categories->firstWhere('slug', Str::slug($config['category'])) ?? $this->categories->random();
         $price = (int) $config['price'];
-        $salePrice = $index % 4 === 0 ? max(500, $price - fake()->numberBetween(300, 5000)) : null;
+        $salePrice = $index % 4 === 0 ? (int) round($price * fake()->numberBetween(82, 94) / 100) : null;
+        $basePrice = $salePrice ?: $price;
         $stock = ($config['track_inventory'] ?? true) ? fake()->numberBetween(12, 240) : null;
         $status = $index % 19 === 0 ? 'draft' : ($index % 37 === 0 ? 'archived' : 'active');
 
@@ -163,10 +213,10 @@ class ProductCatalogSeeder extends Seeder
                 'product_type' => $config['product_type'] ?? 'physical',
                 'status' => $status,
                 'sku' => 'LC-'.strtoupper(Str::slug($slug, '')).'-'.str_pad((string) ($index + 1), 4, '0', STR_PAD_LEFT),
-                'base_price_cents' => $price,
+                'base_price_cents' => $basePrice,
                 'compare_at_price_cents' => $salePrice ? $price : null,
-                'cost_price_cents' => min((int) $config['cost'], $price),
-                'currency' => 'USD',
+                'cost_price_cents' => min((int) $config['cost'], $basePrice),
+                'currency' => 'BDT',
                 'track_inventory' => (bool) ($config['track_inventory'] ?? true),
                 'stock_quantity' => $stock,
                 'low_stock_threshold' => $stock ? fake()->numberBetween(5, 15) : null,
@@ -175,7 +225,7 @@ class ProductCatalogSeeder extends Seeder
                 'is_best_seller' => $curated || $index % 13 === 0,
                 'is_flash_sale' => $salePrice !== null,
                 'flash_sale_ends_at' => $salePrice ? now()->addDays(fake()->numberBetween(3, 21)) : null,
-                'free_shipping' => $price > 5000 || $index % 5 === 0,
+                'free_shipping' => $basePrice > 300000 || $index % 5 === 0,
                 'published_at' => $status === 'active' ? now()->subDays(fake()->numberBetween(1, 120)) : null,
             ]
         );
@@ -365,6 +415,17 @@ class ProductCatalogSeeder extends Seeder
             $result = $append;
         }
         return $result;
+    }
+
+    private function priceForTemplate(array $template): int
+    {
+        [$min, $max] = $template['price_range'];
+        $amount = fake()->numberBetween($min, $max);
+        $rounded = $amount < 1000
+            ? round($amount / 10) * 10
+            : round($amount / 100) * 100;
+
+        return (int) $rounded * 100;
     }
 
     private function featuresFor(Product $product): array
