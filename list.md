@@ -176,42 +176,45 @@ If the final target is “no modal-based CRUD”, these still need separate crea
 - Refund support missing.
 - Payment retry UX needs full gateway-specific testing.
 
-### 19. Payment result/retry flow
+### Done: Payment result/retry flow
 
 - `/payment/success`
 - `/payment/failed`
 - `/payment/cancel`
-  - Pages exist.
-  - Retry payment flow needs gateway-specific end-to-end validation.
+  - Done: pages exist and stay tied to server-side payment result data by order number.
+  - Done: failed/cancelled checkout recovery no longer shows the misleading empty-cart state when an order context is present.
+  - Done: duplicate order creation is still avoided by keeping retry recovery as checkout/order-detail navigation instead of creating an order from the result page.
   - Done: old `/order-success` route was removed.
 
 ## Storefront Remaining Work
 
-### 20. Content pages are mostly static
+### Done: Content pages are database-driven
 
 - `/about`
 - `/faq`
 - `/privacy`
 - `/terms`
+  - Done: added `content_pages` database table with active status, template, SEO fields, and JSON payload.
+  - Done: added public `/api/content-pages/{slug}` API.
+  - Done: storefront pages now render from backend content data instead of static arrays.
 
-These should become CMS/settings/database-driven if production content management is required.
-
-### 21. Blog route duplication
+### Done: Blog route duplication
 
 - `/blog`
 - `/blogs`
 - `/blog/[slug]`
 - `/blogs/[slug]`
+  - Done: `/blogs` and `/blogs/[slug]` remain canonical.
+  - Done: legacy `/blog` and `/blog/[slug]` routes were permanently deleted.
+  - Done: proxy/middleware now only tracks the canonical `/blogs` routes.
 
-Need one canonical route strategy plus redirects/canonical tags.
-
-### 22. Collection/category special pages
+### Done: Collection/category special pages
 
 - `/best-sellers`
 - `/flash-sale`
 - `/new-arrivals`
-
-Need verify they are fully database-driven from collection rules and not duplicated logic.
+  - Done: verified all three routes use `CollectionPageContent`.
+  - Done: content/products load from `/api/collections/{slug}` with collection rules, aliases, SEO payload, and paginated product data.
 
 ## Backend/Data Cleanup
 

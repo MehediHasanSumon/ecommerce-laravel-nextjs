@@ -29,6 +29,7 @@ use App\Http\Controllers\Api\BlogCatalogController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\CheckoutController;
 use App\Http\Controllers\Api\CollectionCatalogController;
+use App\Http\Controllers\Api\ContentPageController;
 use App\Http\Controllers\Api\CustomerAddressController;
 use App\Http\Controllers\Api\HomePageController;
 use App\Http\Controllers\Api\OrderController;
@@ -47,6 +48,7 @@ Route::get('/blogs/{slug}', [BlogCatalogController::class, 'show'])->where('slug
 Route::get('/brands', [BrandCatalogController::class, 'index'])->middleware('throttle:public-settings');
 Route::get('/brands/{slug}', [BrandCatalogController::class, 'show'])->where('slug', '[A-Za-z0-9\\-]+')->middleware('throttle:public-settings');
 Route::get('/collections/{slug}', [CollectionCatalogController::class, 'show'])->where('slug', '[A-Za-z0-9\\-]+')->middleware('throttle:public-settings');
+Route::get('/content-pages/{slug}', [ContentPageController::class, 'show'])->where('slug', '[A-Za-z0-9\\-]+')->middleware('throttle:public-settings');
 Route::get('/products', [ProductCatalogController::class, 'index'])->middleware('throttle:public-settings');
 Route::get('/products/{slug}', [ProductCatalogController::class, 'show'])->where('slug', '[A-Za-z0-9\\-]+')->middleware('throttle:public-settings');
 Route::get('/reviews', [ProductCatalogController::class, 'reviews'])->middleware('throttle:public-settings');

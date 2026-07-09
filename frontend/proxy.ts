@@ -148,7 +148,7 @@ async function authenticate(request: NextRequest) {
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const blogRoute = pathname === "/blogs" || pathname.startsWith("/blogs/") || pathname === "/blog" || pathname.startsWith("/blog/");
+  const blogRoute = pathname === "/blogs" || pathname.startsWith("/blogs/");
 
   if (blogRoute && !await isBlogEnabled(request)) {
     const notFoundUrl = request.nextUrl.clone();
@@ -203,6 +203,5 @@ export const config = {
     "/forgot-password",
     "/reset-password",
     "/blogs/:path*",
-    "/blog/:path*",
   ],
 };

@@ -113,6 +113,7 @@ export default function CheckoutPage() {
   const router = useRouter();
   const paymentStatus = searchParams.get('payment');
   const paymentOrderNumber = searchParams.get('order');
+  const isPaymentRecovery = paymentStatus === 'failed' || paymentStatus === 'cancelled' || paymentStatus === 'cancel';
 
   const items = useCartStore((s) => s.items);
   const cart = useCartStore((s) => s.cart);
@@ -220,6 +221,43 @@ export default function CheckoutPage() {
 
   if (!mounted || !cartInitialized) {
     return <CheckoutSkeleton />;
+  }
+
+  if (items.length === 0 && isPaymentRecovery) {
+    return (
+      <div className="min-h-screen bg-background">
+        <AnnouncementBar />
+        <Header />
+        <main className="max-w-7xl mx-auto px-4 py-24 text-center">
+          <CreditCard size={64} className="mx-auto text-muted-foreground opacity-30 mb-6" />
+          <h1 className="text-2xl font-bold mb-4">
+            {paymentStatus === 'cancelled' || paymentStatus === 'cancel' ? 'Payment cancelled' : 'Payment failed'}
+          </h1>
+          <p className="mx-auto mb-8 max-w-xl text-muted-foreground">
+            {paymentOrderNumber
+              ? `Order ${paymentOrderNumber} was not completed. Review the order details or return to the shop to start a new checkout.`
+              : 'Your payment was not completed. Return to the shop to start a new checkout.'}
+          </p>
+          <div className="flex flex-col justify-center gap-3 sm:flex-row">
+            {paymentOrderNumber ? (
+              <Link
+                href={`/account/orders/${encodeURIComponent(paymentOrderNumber)}`}
+                className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-semibold hover:opacity-90"
+              >
+                View Order Details
+              </Link>
+            ) : null}
+            <Link
+              href="/shop"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-border px-6 py-3 font-semibold transition-colors hover:bg-muted"
+            >
+              Continue Shopping
+            </Link>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
   }
 
   if (items.length === 0) {
@@ -335,7 +373,7 @@ export default function CheckoutPage() {
 
         <StepIndicator current={step} />
 
-        {paymentStatus === 'failed' || paymentStatus === 'cancelled' || paymentStatus === 'cancel' ? (
+        {isPaymentRecovery ? (
           <div className="mb-6 rounded-2xl border border-destructive/20 bg-destructive/5 p-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
