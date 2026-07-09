@@ -1,4 +1,4 @@
-export const APP_NAME = 'LuxeCart';
+export const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME ?? 'Ecommerce';
 export const APP_DESCRIPTION = 'Premium Shopping Experience';
 export const APP_URL = process.env.NEXT_PUBLIC_CREATE_APP_URL ?? 'http://localhost:4000';
 

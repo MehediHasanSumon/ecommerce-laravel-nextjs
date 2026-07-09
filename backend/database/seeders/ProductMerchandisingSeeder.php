@@ -22,6 +22,8 @@ class ProductMerchandisingSeeder extends Seeder
 
     private function seedCollections(): void
     {
+        $appName = config('app.name', 'Ecommerce');
+
         $collections = [
             [
                 'name' => 'New Season Essentials',
@@ -143,11 +145,11 @@ class ProductMerchandisingSeeder extends Seeder
                     'promotional_text' => $data['discount_enabled'] ?? false ? 'Limited time offer' : null,
                     'cta_text' => 'Shop now',
                     'cta_url' => '/collections/'.$slug,
-                    'meta_title' => $data['name'].' | LuxeCart',
-                    'meta_description' => 'Shop '.$data['name'].' at LuxeCart.',
+                    'meta_title' => $data['name'].' | '.$appName,
+                    'meta_description' => 'Shop '.$data['name'].' at '.$appName.'.',
                     'canonical_url' => 'https://example.com/collections/'.$slug,
                     'og_title' => $data['name'],
-                    'og_description' => 'Discover '.$data['name'].' at LuxeCart.',
+                    'og_description' => 'Discover '.$data['name'].' at '.$appName.'.',
                     'og_image_url' => 'collections/'.$slug.'/cover.webp',
                     'starts_at' => now()->subDays(15),
                     'ends_at' => $index % 3 === 0 ? now()->addDays(45) : null,
@@ -321,7 +323,7 @@ class ProductMerchandisingSeeder extends Seeder
             'Premium Gift Guide' => 'Polished picks for memorable gifting',
             'Back to School' => 'Student-ready essentials for a new term',
             'Eco Friendly Finds' => 'Lower-impact options from trusted brands',
-            default => 'Curated products from LuxeCart',
+            default => 'Curated products from '.config('app.name', 'Ecommerce'),
         };
     }
 

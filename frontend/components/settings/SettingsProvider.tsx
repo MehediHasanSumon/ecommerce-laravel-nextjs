@@ -3,7 +3,6 @@
 import { useEffect } from "react";
 import {
   selectCompanyFavicon,
-  selectCompanyName,
   selectSettingsPending,
   useSettingsStore,
 } from "@/store/settings-store";
@@ -11,17 +10,11 @@ import {
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const fetchSettings = useSettingsStore((state) => state.fetchSettings);
   const favicon = useSettingsStore(selectCompanyFavicon);
-  const siteName = useSettingsStore(selectCompanyName);
   const settingsPending = useSettingsStore(selectSettingsPending);
 
   useEffect(() => {
     void fetchSettings();
   }, [fetchSettings]);
-
-  useEffect(() => {
-    if (!siteName) return;
-    document.title = siteName;
-  }, [siteName]);
 
   useEffect(() => {
     if (!favicon) return;

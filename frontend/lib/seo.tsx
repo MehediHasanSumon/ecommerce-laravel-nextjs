@@ -5,6 +5,7 @@ const apiBaseUrl = (
 ).replace(/\/auth\/?$/, "");
 
 const appUrl = (process.env.NEXT_PUBLIC_CREATE_APP_URL ?? "http://localhost:4000").replace(/\/$/, "");
+const appName = process.env.NEXT_PUBLIC_APP_NAME ?? process.env.APP_NAME ?? "Ecommerce";
 
 export type SeoMetadataPayload = {
   siteName?: string | null;
@@ -156,7 +157,7 @@ function fallbackPayload(title: string, description: string, path: string, robot
       description,
       url: `${appUrl}${path}`,
       type: "website",
-      siteName: "Store",
+      siteName: appName,
     },
     twitter: {
       card: "summary_large_image",
@@ -169,7 +170,7 @@ function fallbackPayload(title: string, description: string, path: string, robot
 function mergeDefaults(payload: SeoMetadataPayload, defaults: SeoMetadataPayload | null): SeoMetadataPayload {
   if (!defaults) return payload;
   const siteName = defaults.siteName ?? payload.siteName;
-  const title = payload.title?.includes(siteName ?? "") ? payload.title : `${payload.title} | ${siteName ?? "Store"}`;
+  const title = payload.title?.includes(siteName ?? "") ? payload.title : `${payload.title} | ${siteName ?? appName}`;
 
   return {
     ...defaults,

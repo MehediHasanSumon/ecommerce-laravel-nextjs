@@ -10,6 +10,8 @@ class CollectionResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        $appName = config('app.name', 'Ecommerce');
+
         return [
             'id' => (string) $this->id,
             'slug' => $this->slug,
@@ -41,7 +43,7 @@ class CollectionResource extends JsonResource
             'url' => "/collections/{$this->slug}",
             'aliases' => $this->route_aliases ?: [],
             'seo' => [
-                'title' => $this->meta_title ?: "{$this->name} | LuxeCart",
+                'title' => $this->meta_title ?: "{$this->name} | {$appName}",
                 'description' => $this->meta_description ?: $this->description,
                 'keywords' => $this->meta_keywords,
                 'canonicalUrl' => $this->canonical_url ?: url("/collections/{$this->slug}"),

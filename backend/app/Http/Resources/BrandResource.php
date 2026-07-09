@@ -10,6 +10,8 @@ class BrandResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        $appName = config('app.name', 'Ecommerce');
+
         return [
             'id' => (string) $this->id,
             'slug' => $this->slug,
@@ -21,8 +23,8 @@ class BrandResource extends JsonResource
             'featured' => (bool) $this->is_featured,
             'website' => $this->website_url,
             'seo' => [
-                'title' => $this->meta_title ?: "{$this->name} | LuxeCart",
-                'description' => $this->meta_description ?: $this->description ?: "Shop {$this->name} products at LuxeCart.",
+                'title' => $this->meta_title ?: "{$this->name} | {$appName}",
+                'description' => $this->meta_description ?: $this->description ?: "Shop {$this->name} products at {$appName}.",
                 'keywords' => $this->meta_keywords,
                 'canonicalUrl' => $this->canonical_url ?: url("/brands/{$this->slug}"),
                 'ogTitle' => $this->og_title ?: $this->meta_title,

@@ -273,7 +273,7 @@ class ProductCatalogSeeder extends Seeder
         ProductSeo::query()->updateOrCreate(
             ['product_id' => $product->id],
             [
-                'meta_title' => $product->name.' | LuxeCart',
+                'meta_title' => $product->name.' | '.config('app.name', 'Ecommerce'),
                 'meta_description' => $product->short_description,
                 'canonical_url' => 'https://example.com/products/'.$product->slug,
                 'og_image_url' => "{$imageBase}/featured.webp",

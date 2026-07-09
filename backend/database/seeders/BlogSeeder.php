@@ -17,6 +17,8 @@ class BlogSeeder extends Seeder
     public function run(): void
     {
         DB::transaction(function (): void {
+            $appName = config('app.name', 'Ecommerce');
+
             $author = User::query()->firstOrCreate(
                 ['email' => 'editor@luxecart.test'],
                 [
@@ -40,8 +42,8 @@ class BlogSeeder extends Seeder
                 'allow_comments' => true,
                 'enable_related' => true,
                 'enable_search' => true,
-                'default_meta_title' => 'LuxeCart Blog',
-                'default_meta_description' => 'Buying guides, product care tips, and shopping inspiration from LuxeCart.',
+                'default_meta_title' => $appName.' Blog',
+                'default_meta_description' => 'Buying guides, product care tips, and shopping inspiration from '.$appName.'.',
                 'open_graph_image' => 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=1200&auto=format&fit=crop',
                 'canonical_url' => rtrim((string) config('app.url'), '/').'/blogs',
                 'updated_by' => $author->id,
@@ -57,7 +59,7 @@ class BlogSeeder extends Seeder
                         'featured_image' => $post['image'],
                         'excerpt' => $post['excerpt'],
                         'content' => $content,
-                        'meta_title' => $post['title'].' | LuxeCart Blog',
+                        'meta_title' => $post['title'].' | '.$appName.' Blog',
                         'meta_description' => Str::limit($post['excerpt'], 155, ''),
                         'open_graph_image' => $post['image'],
                         'status' => 'published',

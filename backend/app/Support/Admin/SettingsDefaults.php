@@ -129,10 +129,12 @@ class SettingsDefaults
 
     public static function seo(): array
     {
+        $appName = config('app.name', 'Ecommerce');
+
         return [
-            'site_title' => 'LuxeCart',
-            'meta_title' => 'LuxeCart - Modern Online Shopping',
-            'meta_description' => 'Shop curated fashion, electronics, lifestyle products, and daily essentials at LuxeCart.',
+            'site_title' => $appName,
+            'meta_title' => $appName.' - Modern Online Shopping',
+            'meta_description' => 'Shop curated fashion, electronics, lifestyle products, and daily essentials at '.$appName.'.',
             'meta_keywords' => 'online shopping,ecommerce,luxecart,bangladesh',
             'canonical_url' => config('app.url'),
             'robots_index' => true,
@@ -140,12 +142,12 @@ class SettingsDefaults
             'robots_archive' => true,
             'enable_sitemap' => true,
             'sitemap_url' => rtrim((string) config('app.url'), '/').'/sitemap.xml',
-            'og_title' => 'LuxeCart',
-            'og_description' => 'Discover quality products and reliable delivery from LuxeCart.',
+            'og_title' => $appName,
+            'og_description' => 'Discover quality products and reliable delivery from '.$appName.'.',
             'og_image' => null,
             'twitter_card_type' => 'summary_large_image',
-            'twitter_title' => 'LuxeCart',
-            'twitter_description' => 'Discover quality products and reliable delivery from LuxeCart.',
+            'twitter_title' => $appName,
+            'twitter_description' => 'Discover quality products and reliable delivery from '.$appName.'.',
             'twitter_image' => null,
             'google_analytics_id' => null,
             'google_tag_manager_id' => null,
