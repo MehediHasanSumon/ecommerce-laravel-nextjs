@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { ChevronRight, Eye, Filter, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -216,7 +217,39 @@ export function AdminOrderDetailContent({ orderNumber }: { orderNumber: string }
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] text-sm">
             <thead className="text-left text-xs uppercase text-muted-foreground"><tr>{["Product", "SKU", "Qty", "Unit", "Discount", "Line Total"].map((head) => <th key={head} className="py-2">{head}</th>)}</tr></thead>
-            <tbody>{order.items.map((item) => <tr key={item.id} className="border-t border-border"><td className="py-3 font-medium">{item.productName}</td><td>{item.sku ?? "-"}</td><td>{item.quantity}</td><td>{formatPrice(item.unitPrice)}</td><td>{formatPrice(item.lineDiscount)}</td><td className="font-semibold">{formatPrice(item.lineSubtotal - item.lineDiscount)}</td></tr>)}</tbody>
+            <tbody>
+              {order.items.map((item) => {
+                const productContent = (
+                  <div className="flex items-center gap-3">
+                    <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-muted">
+                      {item.image ? (
+                        <Image src={item.image} alt={item.productName} fill unoptimized className="object-cover" />
+                      ) : (
+                        <div className="h-full w-full bg-muted" />
+                      )}
+                    </div>
+                    <span className="font-medium transition-colors group-hover:text-primary">{item.productName}</span>
+                  </div>
+                );
+
+                return (
+                  <tr key={item.id} className="border-t border-border">
+                    <td className="py-3">
+                      {item.productSlug ? (
+                        <Link href={`/products/${item.productSlug}`} className="group inline-flex">
+                          {productContent}
+                        </Link>
+                      ) : productContent}
+                    </td>
+                    <td>{item.sku ?? "-"}</td>
+                    <td>{item.quantity}</td>
+                    <td>{formatPrice(item.unitPrice)}</td>
+                    <td>{formatPrice(item.lineDiscount)}</td>
+                    <td className="font-semibold">{formatPrice(item.lineSubtotal - item.lineDiscount)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
           </table>
         </div>
       </Panel>
