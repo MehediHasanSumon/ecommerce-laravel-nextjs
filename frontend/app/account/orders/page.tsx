@@ -111,22 +111,20 @@ export default function OrdersPage() {
               <div className="space-y-4">
                 {orders.map((order) => (
                   <div key={order.id} className="overflow-hidden rounded-2xl border border-border bg-card transition-shadow hover:shadow-sm">
-                    <div className="flex items-center justify-between border-b border-border p-5">
+                    <div className="border-b border-border p-5">
                       <div>
                         <p className="text-sm font-bold">{order.orderNumber}</p>
                         <p className="mt-0.5 text-xs text-muted-foreground">{order.placedAt ? new Date(order.placedAt).toLocaleDateString() : "Not set"}</p>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <span className={`rounded-full px-3 py-1 text-xs font-semibold ${ORDER_STATUS_COLORS[order.status] ?? "bg-muted text-muted-foreground"}`}>
-                          {ORDER_STATUS_LABELS[order.status] ?? order.status}
-                        </span>
-                        <span className="font-bold">{formatPrice(order.summary.total)}</span>
-                      </div>
                     </div>
                     <div className="p-5">
-                      <p className="text-sm font-medium">{order.itemsCount ?? 0} items · {order.paymentMethod.replaceAll("_", " ")}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">Payment: {order.paymentStatus} · Shipping: {order.shippingStatus}</p>
-                      <div className="mt-4 flex items-center gap-3 border-t border-border pt-4">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className={`rounded-full px-3 py-1 text-xs font-semibold ${ORDER_STATUS_COLORS[order.paymentStatus] ?? "bg-muted text-muted-foreground"}`}>
+                            {ORDER_STATUS_LABELS[order.paymentStatus] ?? order.paymentStatus}
+                          </span>
+                          <span className="font-bold">{formatPrice(order.summary.total)}</span>
+                        </div>
                         <Link href={`/account/orders/${order.orderNumber}`} className="inline-flex items-center gap-1.5 rounded-xl bg-muted px-4 py-2 text-sm font-medium transition-colors hover:bg-primary hover:text-primary-foreground">
                           <Eye size={14} /> View Details
                         </Link>
