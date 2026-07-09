@@ -3,8 +3,10 @@
 namespace App\Services\Orders;
 
 use App\Models\Order;
+use App\Models\OrderRefund;
 use App\Models\OrderStatusHistory;
 use App\Models\PaymentTransaction;
+use App\Models\ShippingLog;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -122,7 +124,60 @@ class OrderService
             'items.variant.images:id,product_variant_id,url,is_primary,sort_order',
             'transactions' => fn ($query) => $query->latest(),
             'histories' => fn ($query) => $query->latest(),
+            'refunds' => fn ($query) => $query->latest(),
+            'shippingLogs' => fn ($query) => $query->latest(),
         ]);
+    }
+
+    public function bulkUpdate(array $ids, array $data, ?int $userId = null): int
+    {
+        $orders = Order::query()->whereIn('id', $ids)->orWhereIn('order_number', $ids)->get();
+        foreach ($orders as $order) {
+            $this->updateStatuses($order, $data, $userId);
+        }
+        return $orders->count();
+    }
+
+    public function refund(Order $order, int $amountCents, string $reason, ?string $note = null, ?int $userId = null): Order
+    {
+        $refunded = (int) $order->refunds()->whereIn('status', ['pending', 'processed'])->sum('amount_cents');
+        if ($amountCents <= 0 || $amountCents > max(0, $order->total_cents - $refunded)) {
+            throw ValidationException::withMessages(['amount' => ['Invalid refund amount.']]);
+        }
+
+        OrderRefund::query()->create([
+            'order_id' => $order->id,
+            'user_id' => $userId,
+            'amount_cents' => $amountCents,
+            'status' => 'processed',
+            'reason' => $reason,
+            'note' => $note,
+            'processed_at' => now(),
+        ]);
+
+        $newStatus = ($refunded + $amountCents) >= $order->total_cents ? 'refunded' : 'partially_refunded';
+        $order->update(['payment_status' => $newStatus, 'status' => $newStatus === 'refunded' ? 'refunded' : $order->status]);
+        $this->record($order->fresh(), 'refund', $newStatus, null, 'Refund processed', $note, ['amount_cents' => $amountCents, 'reason' => $reason], $userId);
+
+        return $this->findAdmin($order->id);
+    }
+
+    public function logShipment(Order $order, array $data, ?int $userId = null): Order
+    {
+        ShippingLog::query()->create([
+            'order_id' => $order->id,
+            'user_id' => $userId,
+            'status' => $data['status'],
+            'courier' => $data['courier'] ?? null,
+            'tracking_number' => $data['tracking_number'] ?? null,
+            'tracking_url' => $data['tracking_url'] ?? null,
+            'note' => $data['note'] ?? null,
+            'shipped_at' => in_array($data['status'], ['shipped', 'delivered'], true) ? now() : null,
+            'delivered_at' => $data['status'] === 'delivered' ? now() : null,
+        ]);
+        $this->updateStatuses($order, ['shipping_status' => $data['status'], 'note' => $data['note'] ?? null], $userId);
+
+        return $this->findAdmin($order->id);
     }
 
     private function applyFilters(Builder $query, array $filters): void

@@ -27,6 +27,22 @@ class OrderManagementService extends AdminApiService {
   update(order: string, payload: { status?: string; payment_status?: string; shipping_status?: string; admin_notes?: string | null; note?: string }) {
     return this.unwrap<{ order: OrderDetail }>(this.client.put(`/admin/orders/${encodeURIComponent(order)}`, payload));
   }
+
+  bulkUpdate(payload: { ids: Array<string | number>; status?: string; payment_status?: string; shipping_status?: string; note?: string }) {
+    return this.unwrap<{ updated: number }>(this.client.put("/admin/orders/bulk", payload));
+  }
+
+  refund(order: string, payload: { amount: number; reason: string; note?: string }) {
+    return this.unwrap<{ order: OrderDetail }>(this.client.post(`/admin/orders/${encodeURIComponent(order)}/refund`, payload));
+  }
+
+  shippingLog(order: string, payload: { status: string; courier?: string; tracking_number?: string; tracking_url?: string; note?: string }) {
+    return this.unwrap<{ order: OrderDetail }>(this.client.post(`/admin/orders/${encodeURIComponent(order)}/shipping-log`, payload));
+  }
+
+  invoiceUrl(order: string) {
+    return `${this.client.defaults.baseURL}/admin/orders/${encodeURIComponent(order)}/invoice`;
+  }
 }
 
 export const orderManagementService = new OrderManagementService();

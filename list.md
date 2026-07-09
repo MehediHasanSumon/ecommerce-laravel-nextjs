@@ -2,50 +2,6 @@
 
 Scope: authorization/permission policy work বাদ দিয়ে এই তালিকা করা হয়েছে। নিচের আইটেমগুলো frontend page, backend flow, static/mock data, integration, cleanup, and production polish হিসেবে বাকি আছে।
 
-## Admin Remaining Work
-
-### Order management needs next production layer
-
-- `/admin/orders`
-- `/admin/orders/[order]`
-  - Invoice generation/download missing.
-  - Refund workflow missing.
-  - Shipment/courier tracking missing.
-  - Shipping logs are not implemented.
-  - Bulk order actions are not implemented.
-  - Admin notes UI exists partially in backend but not fully surfaced.
-
-### Product/review cleanup
-
-- `/admin/reviews`
-  - Reply system exists now, but no separate threaded/multiple replies.
-
-### Settings pages with placeholder/future text
-
-- `/admin/settings/sms`
-  - Firebase phone auth is still described as placeholder.
-  - Custom SMS has example URL default.
-
-- `/admin/settings/payment`
-  - Some gateway implementations are configuration-driven, but not all are equally production-complete.
-  - Settings navigation description still mentions placeholder/future providers.
-
-### Admin module UX consistency follow-up
-
-Most CRUD pages exist, but some still use generic drawer-based CRUD instead of dedicated pages:
-
-- Brands
-- Categories
-- Attributes
-- Attribute Values
-- Tags
-- Warehouses
-- Currencies
-- Discounts
-- Reviews
-
-If the final target is “no modal-based CRUD”, these still need separate create/edit/detail pages.
-
 ## Payment Gateway Remaining Work
 
 ### Rocket

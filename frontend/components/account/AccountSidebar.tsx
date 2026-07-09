@@ -52,10 +52,6 @@ export function AccountSidebar({ active }: AccountSidebarProps) {
           </div>
           <p className="font-bold text-sm">{user?.name ?? 'Customer'}</p>
           <p className="text-xs text-muted-foreground">{user?.email ?? ''}</p>
-          <div className="flex items-center justify-center gap-1 mt-2">
-            <span className="text-xs font-semibold text-amber-500">Member</span>
-            <Star size={11} className="fill-amber-500 text-amber-500" />
-          </div>
         </div>
 
         {/* Navigation */}

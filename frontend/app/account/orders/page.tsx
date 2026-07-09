@@ -2,7 +2,8 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronRight, Download, Package, Search, XCircle } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ChevronRight, Package, Search, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { AnnouncementBar } from "@/components/layout/AnnouncementBar";
 import { Header } from "@/components/layout/Header";
@@ -10,7 +11,7 @@ import { Footer } from "@/components/layout/Footer";
 import { AccountSidebar } from "@/components/account/AccountSidebar";
 import { OrderCardSkeleton } from "@/components/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { cancelOrder, fetchOrders, orderInvoiceUrl, type OrderListItem } from "@/services/order-service";
+import { cancelOrder, fetchOrders, type OrderListItem } from "@/services/order-service";
 import type { PaginationMeta } from "@/features/admin/shared/types";
 import { selectCurrencyFingerprint, useSettingsStore } from "@/store/settings-store";
 import { formatPrice } from "@/utils/format";
@@ -18,6 +19,7 @@ import { ORDER_STATUS_COLORS, formatOrderStatus } from "@/constants";
 
 export default function OrdersPage() {
   useSettingsStore(selectCurrencyFingerprint);
+  const router = useRouter();
   const [orders, setOrders] = useState<OrderListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
@@ -135,6 +137,15 @@ export default function OrdersPage() {
                     {orders.map((order) => (
                       <div
                         key={order.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => router.push(`/account/orders/${order.orderNumber}`)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            router.push(`/account/orders/${order.orderNumber}`);
+                          }
+                        }}
                         className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">
@@ -153,34 +164,21 @@ export default function OrdersPage() {
                           <p className="mt-1 text-sm font-bold">{formatPrice(order.summary.total)}</p>
                         </div>
                         <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-                          <a
-                            href={orderInvoiceUrl(order.orderNumber)}
-                            className="inline-flex h-9 items-center gap-1 rounded-lg border border-border px-3 text-xs font-semibold transition-colors hover:bg-muted"
-                          >
-                            <Download size={13} />
-                            Invoice
-                          </a>
                           {canCancel(order) ? (
                             <button
                               type="button"
                               disabled={cancellingOrder === order.orderNumber}
-                              onClick={() => void handleCancel(order.orderNumber)}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                void handleCancel(order.orderNumber);
+                              }}
                               className="inline-flex h-9 items-center gap-1 rounded-lg border border-border px-3 text-xs font-semibold text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
                             >
                               <XCircle size={13} />
                               Cancel
                             </button>
                           ) : null}
-                          <Link
-                            href={`/account/orders/${order.orderNumber}`}
-                            className="inline-flex h-9 items-center gap-1 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90"
-                          >
-                            View Details
-                          </Link>
                         </div>
-                        <Link href={`/account/orders/${order.orderNumber}`} className="shrink-0 rounded-lg p-2" aria-label={`View ${order.orderNumber}`}>
-                          <ChevronRight size={16} className="text-muted-foreground" />
-                        </Link>
                       </div>
                     ))}
                   </div>

@@ -65,6 +65,23 @@ class OrderDetailResource extends JsonResource
                 'note' => $history->note,
                 'createdAt' => optional($history->created_at)->toISOString(),
             ])->values(),
+            'refunds' => $this->whenLoaded('refunds', fn () => $this->refunds->map(fn ($refund) => [
+                'id' => $refund->id,
+                'amount' => round($refund->amount_cents / 100, 2),
+                'status' => $refund->status,
+                'reason' => $refund->reason,
+                'note' => $refund->note,
+                'processedAt' => optional($refund->processed_at)->toISOString(),
+            ])->values()),
+            'shippingLogs' => $this->whenLoaded('shippingLogs', fn () => $this->shippingLogs->map(fn ($log) => [
+                'id' => $log->id,
+                'status' => $log->status,
+                'courier' => $log->courier,
+                'trackingNumber' => $log->tracking_number,
+                'trackingUrl' => $log->tracking_url,
+                'note' => $log->note,
+                'createdAt' => optional($log->created_at)->toISOString(),
+            ])->values()),
         ];
     }
 

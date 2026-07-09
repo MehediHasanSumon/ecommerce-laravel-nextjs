@@ -50,7 +50,7 @@ export const placeholderSettings = {
   },
   payment: {
     title: "Payment Settings",
-    description: "Payment gateway configuration placeholder for Stripe, SSLCommerz, COD, and future providers.",
+    description: "Configure active payment gateways, checkout display, credentials, webhooks, and sandbox/live mode.",
     icon: CreditCard,
   },
   seo: {

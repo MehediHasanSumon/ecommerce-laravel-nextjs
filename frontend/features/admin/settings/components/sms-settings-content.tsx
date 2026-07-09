@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { SettingsGrid, SettingsPageShell, SettingsSection, SettingsSubnav, FormGrid, TextInput, SelectInput, ToggleSwitch, ResetConfirmation, FormActions, StatusPill, saveWithToast, testWithToast, useUnsavedChanges } from "@/features/admin/settings/components/settings-primitives";
 import { settingsNavItems } from "@/features/admin/settings/components/settings-navigation";
 
-type ProviderKey = "twilio" | "vonage" | "ssl_wireless" | "bulksmsbd" | "firebase" | "custom";
+type ProviderKey = "twilio" | "vonage" | "ssl_wireless" | "bulksmsbd" | "custom";
 type ProviderConfig = {
   api_key: string;
   api_secret: string;
@@ -21,19 +21,17 @@ const providerLabels: Record<ProviderKey, string> = {
   vonage: "Vonage (Nexmo)",
   ssl_wireless: "SSL Wireless",
   bulksmsbd: "BulkSMSBD",
-  firebase: "Firebase SMS",
   custom: "Custom API",
 };
 
 const defaults: { default_provider: ProviderKey; providers: Record<ProviderKey, ProviderConfig> } = {
   default_provider: "ssl_wireless",
   providers: {
-    twilio: { api_key: "ACxxxxxxxx", api_secret: "twilio-token", sender_id: "LuxeCart", base_url: "https://api.twilio.com", enabled: false },
-    vonage: { api_key: "vonage-key", api_secret: "vonage-secret", sender_id: "LuxeCart", base_url: "https://rest.nexmo.com", enabled: false },
-    ssl_wireless: { api_key: "ssl-key", api_secret: "ssl-secret", sender_id: "LuxeCart", base_url: "https://sms.sslwireless.com", enabled: true },
-    bulksmsbd: { api_key: "bulksmsbd-key", api_secret: "bulksmsbd-secret", sender_id: "LuxeCart", base_url: "https://bulksmsbd.net/api", enabled: false },
-    firebase: { api_key: "", api_secret: "", sender_id: "Firebase", base_url: "", enabled: false },
-    custom: { api_key: "", api_secret: "", sender_id: "", base_url: "https://example.com/sms/send", enabled: false },
+    twilio: { api_key: "", api_secret: "", sender_id: "", base_url: "https://api.twilio.com", enabled: false },
+    vonage: { api_key: "", api_secret: "", sender_id: "", base_url: "https://rest.nexmo.com", enabled: false },
+    ssl_wireless: { api_key: "", api_secret: "", sender_id: "", base_url: "https://sms.sslwireless.com", enabled: true },
+    bulksmsbd: { api_key: "", api_secret: "", sender_id: "", base_url: "https://bulksmsbd.net/api", enabled: false },
+    custom: { api_key: "", api_secret: "", sender_id: "", base_url: "", enabled: false },
   },
 };
 
@@ -87,7 +85,7 @@ export function SmsSettingsContent() {
                 const config = values.providers[provider];
                 const active = values.default_provider === provider;
                 return (
-                  <SettingsSection key={provider} title={providerLabels[provider]} description={provider === "firebase" ? "Placeholder for Firebase phone authentication workflows." : "Provider credentials, sender identity, endpoint, and status."} icon={MessageSquareText}>
+                  <SettingsSection key={provider} title={providerLabels[provider]} description="Provider credentials, sender identity, endpoint, and status." icon={MessageSquareText}>
                     <div className="mb-4 flex items-center justify-between gap-3">
                       <StatusPill ok={active} label={active ? "Active Provider" : "Standby"} />
                       <ToggleSwitch label="Enable" checked={config.enabled} onChange={(checked) => updateProvider(provider, { enabled: checked })} />

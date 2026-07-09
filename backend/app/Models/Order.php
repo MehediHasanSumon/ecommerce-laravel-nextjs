@@ -60,4 +60,14 @@ class Order extends Model
     {
         return $this->hasMany(OrderStatusHistory::class);
     }
+
+    public function refunds(): HasMany
+    {
+        return $this->hasMany(OrderRefund::class);
+    }
+
+    public function shippingLogs(): HasMany
+    {
+        return $this->hasMany(ShippingLog::class);
+    }
 }

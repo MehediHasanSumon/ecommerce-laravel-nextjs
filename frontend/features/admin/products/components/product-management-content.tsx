@@ -398,6 +398,7 @@ export const productModuleConfigs: Record<ProductModule, ModuleConfig> = {
       { key: "product", label: "Product", render: (item) => optionName(item.product) },
       { key: "rating", label: "Rating", sortable: true },
       { key: "comment", label: "Comment", render: (item) => <span className="line-clamp-2 text-sm text-muted-foreground">{String(item.comment ?? "")}</span> },
+      { key: "replies", label: "Replies", render: (item) => Array.isArray(item.replies) ? item.replies.length : 0 },
       { key: "status", label: "Status", sortable: true, render: (item) => <StatusBadge value={String(item.status ?? "pending")} /> },
       { key: "created_at", label: "Created At", sortable: true, render: (item) => formatDate(item.created_at) },
     ],

@@ -166,6 +166,17 @@ class ProductModuleService
 
         $model->fill($data)->save();
 
+        if ($module === 'reviews' && ! empty($data['admin_reply'])) {
+            $latestReply = $model->replies()->latest()->first();
+            if (! $latestReply || $latestReply->comment !== $data['admin_reply']) {
+                $model->replies()->create([
+                    'user_id' => auth()->id(),
+                    'comment' => $data['admin_reply'],
+                    'status' => 'published',
+                ]);
+            }
+        }
+
         if ($module === 'categories') {
             $this->clearCategoryCaches();
         }
@@ -323,7 +334,7 @@ class ProductModuleService
                 : ['brand:id,name', 'category:id,name', 'tags:id,name']),
             'collections' => $query->with('products:id,name')->withCount('products'),
             'discounts' => $query->with(['products:id,name', 'categories:id,name', 'brands:id,name', 'excludedProducts:id,name', 'excludedCategories:id,name']),
-            'reviews' => $query->with(['product:id,name', 'user:id,name']),
+            'reviews' => $query->with(['product:id,name', 'user:id,name', 'replies.user:id,name']),
             default => null,
         };
     }

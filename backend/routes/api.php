@@ -142,8 +142,12 @@ Route::prefix('admin')
         Route::apiResource('permissions', PermissionManagementController::class);
 
         Route::get('/orders', [OrderManagementController::class, 'index']);
+        Route::put('/orders/bulk', [OrderManagementController::class, 'bulkUpdate']);
         Route::get('/orders/{order}', [OrderManagementController::class, 'show']);
         Route::put('/orders/{order}', [OrderManagementController::class, 'update']);
+        Route::post('/orders/{order}/refund', [OrderManagementController::class, 'refund']);
+        Route::post('/orders/{order}/shipping-log', [OrderManagementController::class, 'shippingLog']);
+        Route::get('/orders/{order}/invoice', [OrderManagementController::class, 'invoice']);
 
         Route::delete('/shipping-zones/bulk', [ShippingZoneController::class, 'bulkDestroy']);
         Route::apiResource('shipping-zones', ShippingZoneController::class);

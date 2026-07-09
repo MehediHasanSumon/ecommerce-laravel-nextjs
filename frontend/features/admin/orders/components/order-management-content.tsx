@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ChevronRight, Eye, Filter, Search } from "lucide-react";
+import { ChevronRight, Download, Eye, Filter, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +32,8 @@ export function OrderManagementContent() {
   const [items, setItems] = useState<OrderListItem[]>([]);
   const [pagination, setPagination] = useState<PaginationMeta | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [bulkStatus, setBulkStatus] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -47,6 +49,7 @@ export function OrderManagementContent() {
       });
       setItems(response.data.orders);
       setPagination(response.meta.pagination ?? null);
+      setSelected([]);
     } catch (error) {
       toast.error(toAppError(error).message);
     } finally {
@@ -57,6 +60,18 @@ export function OrderManagementContent() {
   useEffect(() => { void load(); }, [load]);
 
   const rows = useMemo(() => items, [items]);
+  const allSelected = rows.length > 0 && rows.every((order) => selected.includes(order.id));
+
+  async function applyBulkUpdate() {
+    if (!selected.length || !bulkStatus) return;
+    try {
+      await orderManagementService.bulkUpdate({ ids: selected, status: bulkStatus, note: "Bulk status update from admin order list." });
+      toast.success("Selected orders updated.");
+      await load();
+    } catch (error) {
+      toast.error(toAppError(error).message);
+    }
+  }
 
   return (
     <div className="space-y-5">
@@ -91,6 +106,14 @@ export function OrderManagementContent() {
               <SelectContent>{paymentStatuses.map((status) => <SelectItem key={status || "any"} value={status || "any"}>{label(status)}</SelectItem>)}</SelectContent>
             </Select>
             <Button size="sm" variant="secondary" icon={<Filter className="h-4 w-4" />} onClick={() => setQuery({ status: "", email_verified: "", search: "", page: 1 })}>Reset</Button>
+            <Select value={bulkStatus || "none"} onValueChange={(value) => setBulkStatus(value === "none" ? "" : value)}>
+              <SelectTrigger className="h-10 w-[180px] rounded-lg px-3 text-sm"><SelectValue placeholder="Bulk action" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Bulk status</SelectItem>
+                {orderStatuses.filter(Boolean).map((status) => <SelectItem key={status} value={status}>{label(status)}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Button size="sm" disabled={!selected.length || !bulkStatus} onClick={applyBulkUpdate}>Apply Bulk</Button>
           </div>
         </div>
 
@@ -98,14 +121,16 @@ export function OrderManagementContent() {
           <table className="w-full min-w-[900px] text-left text-sm">
             <thead className="bg-muted/60 text-xs uppercase text-muted-foreground">
               <tr>
+                <th className="px-4 py-3"><input type="checkbox" checked={allSelected} onChange={() => setSelected(allSelected ? [] : rows.map((order) => order.id))} aria-label="Select all orders" /></th>
                 {["Order", "Customer", "Total", "Payment", "Order Status", "Shipping", "Date", ""].map((head) => <th key={head} className="px-4 py-3">{head}</th>)}
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                Array.from({ length: 5 }).map((_, index) => <tr key={index} className="border-t border-border"><td colSpan={8} className="px-4 py-4"><div className="h-5 animate-pulse rounded bg-muted" /></td></tr>)
+                Array.from({ length: 5 }).map((_, index) => <tr key={index} className="border-t border-border"><td colSpan={9} className="px-4 py-4"><div className="h-5 animate-pulse rounded bg-muted" /></td></tr>)
               ) : rows.length ? rows.map((order) => (
                 <tr key={order.id} className="border-t border-border hover:bg-muted/40">
+                  <td className="px-4 py-3"><input type="checkbox" checked={selected.includes(order.id)} onChange={() => setSelected((current) => current.includes(order.id) ? current.filter((id) => id !== order.id) : [...current, order.id])} aria-label={`Select ${order.orderNumber}`} /></td>
                   <td className="px-4 py-3 font-semibold">{order.orderNumber}</td>
                   <td className="px-4 py-3">{order.customer?.name ?? "Guest"}<p className="text-xs text-muted-foreground">{order.customer?.email}</p></td>
                   <td className="px-4 py-3 font-semibold">{formatPrice(order.summary.total)}</td>
@@ -117,7 +142,7 @@ export function OrderManagementContent() {
                 </tr>
               )) : (
                 <tr>
-                  <td colSpan={8} className="h-48 text-center">
+                  <td colSpan={9} className="h-48 text-center">
                     <div className="mx-auto max-w-sm">
                       <p className="font-semibold">No records found</p>
                       <p className="mt-1 text-sm text-muted-foreground">Try changing filters or wait for new checkout orders.</p>
@@ -160,11 +185,15 @@ export function OrderManagementContent() {
 export function AdminOrderDetailContent({ orderNumber }: { orderNumber: string }) {
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [saving, setSaving] = useState(false);
+  const [note, setNote] = useState("");
+  const [refund, setRefund] = useState({ amount: "", reason: "", note: "" });
+  const [shippingLog, setShippingLog] = useState({ status: "shipped", courier: "", tracking_number: "", tracking_url: "", note: "" });
 
   const load = useCallback(async () => {
     try {
       const response = await orderManagementService.show(orderNumber);
       setOrder(response.data.order);
+      setNote(response.data.order.adminNotes ?? "");
     } catch (error) {
       toast.error(toAppError(error).message);
     }
@@ -198,6 +227,7 @@ export function AdminOrderDetailContent({ orderNumber }: { orderNumber: string }
           <p className="mt-1 text-sm text-muted-foreground">{order.customer.name} · {formatPrice(order.summary.total)}</p>
         </div>
         <Link href="/admin/orders"><Button variant="secondary">Back to Orders</Button></Link>
+        <a href={orderManagementService.invoiceUrl(order.orderNumber)} target="_blank" rel="noreferrer"><Button icon={<Download className="h-4 w-4" />}>Download Invoice</Button></a>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -264,6 +294,56 @@ export function AdminOrderDetailContent({ orderNumber }: { orderNumber: string }
           <Summary label="Shipping" value={order.summary.shipping} />
           <Summary label="Tax" value={order.summary.tax} />
           <Summary label="Grand Total" value={order.summary.total} strong />
+        </Panel>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Panel title="Admin Notes">
+          <textarea value={note} onChange={(event) => setNote(event.target.value)} rows={6} className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary" />
+          <Button className="mt-3" size="sm" isLoading={saving} onClick={async () => {
+            setSaving(true);
+            try {
+              const response = await orderManagementService.update(order.orderNumber, { admin_notes: note, note: "Admin notes updated." });
+              setOrder(response.data.order);
+              toast.success("Admin notes saved.");
+            } catch (error) { toast.error(toAppError(error).message); } finally { setSaving(false); }
+          }}>Save Notes</Button>
+        </Panel>
+        <Panel title="Refund Workflow">
+          <div className="space-y-3">
+            <Input label="Amount" type="number" value={refund.amount} onChange={(event) => setRefund((current) => ({ ...current, amount: event.target.value }))} />
+            <Input label="Reason" value={refund.reason} onChange={(event) => setRefund((current) => ({ ...current, reason: event.target.value }))} />
+            <textarea placeholder="Refund note" value={refund.note} onChange={(event) => setRefund((current) => ({ ...current, note: event.target.value }))} rows={3} className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary" />
+            <Button size="sm" disabled={!refund.amount || !refund.reason} onClick={async () => {
+              try {
+                const response = await orderManagementService.refund(order.orderNumber, { amount: Number(refund.amount), reason: refund.reason, note: refund.note });
+                setOrder(response.data.order);
+                setRefund({ amount: "", reason: "", note: "" });
+                toast.success("Refund recorded.");
+              } catch (error) { toast.error(toAppError(error).message); }
+            }}>Record Refund</Button>
+          </div>
+          <div className="mt-4 space-y-2">{order.refunds?.map((item) => <p key={item.id} className="text-sm text-muted-foreground">{formatPrice(item.amount)} • {label(item.status)} • {item.reason}</p>)}</div>
+        </Panel>
+        <Panel title="Shipment / Courier Tracking">
+          <div className="space-y-3">
+            <Select value={shippingLog.status} onValueChange={(value) => setShippingLog((current) => ({ ...current, status: value }))}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>{["pending", "processing", "shipped", "delivered", "returned"].map((item) => <SelectItem key={item} value={item}>{label(item)}</SelectItem>)}</SelectContent>
+            </Select>
+            <Input label="Courier" value={shippingLog.courier} onChange={(event) => setShippingLog((current) => ({ ...current, courier: event.target.value }))} />
+            <Input label="Tracking Number" value={shippingLog.tracking_number} onChange={(event) => setShippingLog((current) => ({ ...current, tracking_number: event.target.value }))} />
+            <Input label="Tracking URL" value={shippingLog.tracking_url} onChange={(event) => setShippingLog((current) => ({ ...current, tracking_url: event.target.value }))} />
+            <textarea placeholder="Shipping note" value={shippingLog.note} onChange={(event) => setShippingLog((current) => ({ ...current, note: event.target.value }))} rows={3} className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary" />
+            <Button size="sm" onClick={async () => {
+              try {
+                const response = await orderManagementService.shippingLog(order.orderNumber, shippingLog);
+                setOrder(response.data.order);
+                toast.success("Shipping log added.");
+              } catch (error) { toast.error(toAppError(error).message); }
+            }}>Add Shipping Log</Button>
+          </div>
+          <div className="mt-4 space-y-2">{order.shippingLogs?.map((item) => <p key={item.id} className="text-sm text-muted-foreground">{label(item.status)} • {item.courier ?? "No courier"} • {item.trackingNumber ?? "No tracking"}</p>)}</div>
         </Panel>
       </div>
     </div>

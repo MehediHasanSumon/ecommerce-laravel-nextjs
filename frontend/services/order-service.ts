@@ -78,6 +78,8 @@ export type OrderDetail = OrderListItem & {
     note?: string | null;
     createdAt?: string | null;
   }>;
+  refunds?: Array<{ id: number; amount: number; status: string; reason?: string | null; note?: string | null; processedAt?: string | null }>;
+  shippingLogs?: Array<{ id: number; status: string; courier?: string | null; trackingNumber?: string | null; trackingUrl?: string | null; note?: string | null; createdAt?: string | null }>;
 };
 
 export async function fetchOrders(params: Record<string, string | number | undefined> = {}): Promise<OrderListResponse> {
