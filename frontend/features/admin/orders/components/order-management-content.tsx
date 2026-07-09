@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Eye, Search } from "lucide-react";
+import { ChevronRight, Eye, Filter, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,7 @@ import { formatPrice } from "@/utils/format";
 
 const orderStatuses = ["", "pending", "confirmed", "processing", "packed", "ready_for_shipment", "shipped", "out_for_delivery", "delivered", "cancelled", "refunded"];
 const paymentStatuses = ["", "pending", "paid", "failed", "cancelled", "refunded", "partially_refunded"];
+const pageSizes = [10, 20, 50, 100];
 
 function label(value: string) {
   return value ? value.replaceAll("_", " ").replace(/\b\w/g, (char) => char.toUpperCase()) : "Any";
@@ -58,25 +59,38 @@ export function OrderManagementContent() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-bold">Order Management</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Track orders, payments, shipping status, and customer lifecycle events.</p>
+      <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+        <span>Dashboard</span>
+        <ChevronRight className="h-4 w-4" />
+        <span>Orders</span>
+        <ChevronRight className="h-4 w-4" />
+        <span className="font-medium text-foreground">Order Management</span>
       </div>
 
-      <div className="rounded-xl border border-border bg-card">
-        <div className="grid gap-3 border-b border-border p-4 md:grid-cols-[1fr_180px_180px]">
+      <section className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-extrabold tracking-tight">Order Management</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Track orders, payments, shipping status, and customer lifecycle events.</p>
+        </div>
+      </section>
+
+      <div className="rounded-lg border border-border bg-card">
+        <div className="flex flex-col gap-3 border-b border-border p-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input className="pl-9" placeholder="Search orders or customers" value={query.search} onChange={(event) => setQuery({ search: event.target.value, page: 1 }, { replace: true })} />
+            <Input className="h-10 rounded-lg pl-9 lg:w-80" placeholder="Search orders or customers" value={query.search} onChange={(event) => setQuery({ search: event.target.value, page: 1 }, { replace: true })} />
           </div>
-          <Select value={query.status || "any"} onValueChange={(value) => setQuery({ status: value === "any" ? "" : value, page: 1 })}>
-            <SelectTrigger><SelectValue placeholder="Order status" /></SelectTrigger>
-            <SelectContent>{orderStatuses.map((status) => <SelectItem key={status || "any"} value={status || "any"}>{label(status)}</SelectItem>)}</SelectContent>
-          </Select>
-          <Select value={query.email_verified || "any"} onValueChange={(value) => setQuery({ email_verified: value === "any" ? "" : value, page: 1 })}>
-            <SelectTrigger><SelectValue placeholder="Payment status" /></SelectTrigger>
-            <SelectContent>{paymentStatuses.map((status) => <SelectItem key={status || "any"} value={status || "any"}>{label(status)}</SelectItem>)}</SelectContent>
-          </Select>
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={query.status || "any"} onValueChange={(value) => setQuery({ status: value === "any" ? "" : value, page: 1 })}>
+              <SelectTrigger className="h-10 w-[180px] rounded-lg px-3 text-sm"><SelectValue placeholder="Order status" /></SelectTrigger>
+              <SelectContent>{orderStatuses.map((status) => <SelectItem key={status || "any"} value={status || "any"}>{label(status)}</SelectItem>)}</SelectContent>
+            </Select>
+            <Select value={query.email_verified || "any"} onValueChange={(value) => setQuery({ email_verified: value === "any" ? "" : value, page: 1 })}>
+              <SelectTrigger className="h-10 w-[180px] rounded-lg px-3 text-sm"><SelectValue placeholder="Payment status" /></SelectTrigger>
+              <SelectContent>{paymentStatuses.map((status) => <SelectItem key={status || "any"} value={status || "any"}>{label(status)}</SelectItem>)}</SelectContent>
+            </Select>
+            <Button size="sm" variant="secondary" icon={<Filter className="h-4 w-4" />} onClick={() => setQuery({ status: "", email_verified: "", search: "", page: 1 })}>Reset</Button>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
@@ -101,16 +115,39 @@ export function OrderManagementContent() {
                   <td className="px-4 py-3 text-right"><Link href={`/admin/orders/${order.orderNumber}`}><Button size="sm" variant="secondary" icon={<Eye className="h-4 w-4" />}>View</Button></Link></td>
                 </tr>
               )) : (
-                <tr><td colSpan={8} className="h-44 text-center text-muted-foreground">No orders found.</td></tr>
+                <tr>
+                  <td colSpan={8} className="h-48 text-center">
+                    <div className="mx-auto max-w-sm">
+                      <p className="font-semibold">No records found</p>
+                      <p className="mt-1 text-sm text-muted-foreground">Try changing filters or wait for new checkout orders.</p>
+                    </div>
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>
         </div>
 
-        <div className="flex items-center justify-between border-t border-border p-4 text-sm">
-          <span className="text-muted-foreground">Total Records: <strong className="text-foreground">{pagination?.total ?? 0}</strong></span>
-          <div className="flex gap-2">
+        <div className="flex flex-col gap-3 border-t border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-muted-foreground">Total Records: <span className="font-semibold text-foreground">{pagination?.total ?? 0}</span></p>
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={String(pagination?.per_page ?? query.per_page)} onValueChange={(value) => setQuery({ per_page: Number(value), page: 1 })}>
+              <SelectTrigger className="h-9 w-[110px] rounded-lg px-2 text-sm" aria-label="Rows per page">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {pageSizes.map((size) => <SelectItem key={size} value={String(size)}>{size} / page</SelectItem>)}
+              </SelectContent>
+            </Select>
             <Button size="sm" variant="secondary" disabled={(pagination?.current_page ?? 1) <= 1} onClick={() => setQuery({ page: query.page - 1 })}>Previous</Button>
+            {Array.from({ length: Math.min(pagination?.last_page ?? 1, 5) }, (_, index) => {
+              const current = pagination?.current_page ?? 1;
+              const last = pagination?.last_page ?? 1;
+              const start = Math.max(1, Math.min(current - 2, last - 4));
+              const pageNumber = start + index;
+              if (pageNumber > last) return null;
+              return <Button key={pageNumber} size="sm" variant={pageNumber === current ? "primary" : "secondary"} onClick={() => setQuery({ page: pageNumber })}>{pageNumber}</Button>;
+            })}
             <Button size="sm" variant="secondary" disabled={(pagination?.current_page ?? 1) >= (pagination?.last_page ?? 1)} onClick={() => setQuery({ page: query.page + 1 })}>Next</Button>
           </div>
         </div>

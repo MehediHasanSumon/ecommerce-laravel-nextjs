@@ -50,6 +50,37 @@ function StepIndicator({ current }: { current: number }) {
   );
 }
 
+function CheckoutSkeleton() {
+  return (
+    <div className="min-h-screen bg-background">
+      <AnnouncementBar />
+      <Header />
+      <main className="max-w-5xl mx-auto px-4 py-8 pb-16">
+        <div className="mb-6 h-5 w-40 rounded bg-muted animate-pulse" />
+        <div className="mb-8 flex items-center justify-center gap-3">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div key={index} className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-full bg-muted animate-pulse" />
+              <div className="hidden h-4 w-16 rounded bg-muted animate-pulse md:block" />
+              {index < 2 && <div className="h-0.5 w-10 rounded bg-muted animate-pulse md:w-16" />}
+            </div>
+          ))}
+        </div>
+        <div className="grid gap-8 lg:grid-cols-5">
+          <div className="space-y-4 lg:col-span-3">
+            <div className="h-[28rem] rounded-2xl bg-muted animate-pulse" />
+          </div>
+          <div className="space-y-4 lg:col-span-2">
+            <div className="h-44 rounded-2xl bg-muted animate-pulse" />
+            <div className="h-72 rounded-2xl bg-muted animate-pulse" />
+          </div>
+        </div>
+      </main>
+      <Footer />
+    </div>
+  );
+}
+
 export default function CheckoutPage() {
   useSettingsStore(selectCurrencyFingerprint);
   const searchParams = useSearchParams();
@@ -88,6 +119,7 @@ export default function CheckoutPage() {
   const getSubtotal = useCartStore((s) => s.getSubtotal);
   const getTax = useCartStore((s) => s.getTax);
   const initializeCart = useCartStore((s) => s.initialize);
+  const cartInitialized = useCartStore((s) => s.initialized);
   const applyCoupon = useCartStore((s) => s.applyCoupon);
   const removeCoupon = useCartStore((s) => s.removeCoupon);
   const couponMessage = useCartStore((s) => s.couponMessage);
@@ -176,17 +208,8 @@ export default function CheckoutPage() {
     }
   }, [cart.couponCode]);
 
-  if (!mounted) {
-    return (
-      <div className="min-h-screen bg-background">
-        <AnnouncementBar />
-        <Header />
-        <main className="max-w-4xl mx-auto px-4 py-10">
-          <div className="h-96 bg-muted rounded-2xl animate-pulse" />
-        </main>
-        <Footer />
-      </div>
-    );
+  if (!mounted || !cartInitialized) {
+    return <CheckoutSkeleton />;
   }
 
   if (items.length === 0) {

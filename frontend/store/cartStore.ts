@@ -309,9 +309,16 @@ export const useCartStore = create<CartStore>()((set, get) => ({
   async syncAfterAuth() {
     const requestVersion = get().requestVersion;
     const guestToken = ensureGuestToken(get().guestToken, set);
-    const cart = await cartService.mergeCart(guestToken);
-    if (get().requestVersion === requestVersion && activeCartMode() === 'authenticated') {
-      applyCartState(set, cart);
+    set({ isLoading: true });
+    try {
+      const cart = await cartService.mergeCart(guestToken);
+      if (get().requestVersion === requestVersion && activeCartMode() === 'authenticated') {
+        applyCartState(set, cart);
+      }
+    } finally {
+      if (get().requestVersion === requestVersion) {
+        set({ initialized: true, isLoading: false });
+      }
     }
   },
 

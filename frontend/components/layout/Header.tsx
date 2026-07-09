@@ -325,17 +325,18 @@ export function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
-  const [authResolved, setAuthResolved] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
   const accountMenuRef = useRef<HTMLDivElement>(null);
 
   const cartItemCount = useCartStore((s) => s.getItemCount());
+  const cartInitialized = useCartStore((s) => s.initialized);
   const wishlistItemCount = useWishlistStore((s) => s.items.length);
+  const wishlistInitialized = useWishlistStore((s) => s.initialized);
   const initializeCart = useCartStore((s) => s.initialize);
   const initializeWishlist = useWishlistStore((s) => s.initialize);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const authLoading = useAuthStore((state) => state.isLoading);
+  const authInitialized = useAuthStore((state) => state.initialized);
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
   const fetchCurrentUser = useAuthStore((state) => state.fetchCurrentUser);
@@ -344,9 +345,26 @@ export function Header() {
   useSettingsStore(selectCurrencyFingerprint);
 
   useEffect(() => {
-    initializeCart().catch(() => undefined);
-    initializeWishlist().catch(() => undefined);
-  }, [initializeCart, initializeWishlist]);
+    let active = true;
+
+    async function bootstrapNavbar() {
+      await fetchCurrentUser().catch(() => null);
+      if (!active) {
+        return;
+      }
+
+      await Promise.all([
+        initializeCart().catch(() => undefined),
+        initializeWishlist().catch(() => undefined),
+      ]);
+    }
+
+    void bootstrapNavbar();
+
+    return () => {
+      active = false;
+    };
+  }, [fetchCurrentUser, initializeCart, initializeWishlist]);
   const settingsNavLinks = useSettingsStore(selectFrontendNavigation);
   const categoryDisplay = useSettingsStore(selectCategoryDisplaySettings);
   const runtimeCategories = useSettingsStore(selectRuntimeCategories);
@@ -375,31 +393,6 @@ export function Header() {
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
-
-  useEffect(() => {
-    let active = true;
-
-    async function resolveAuth() {
-      if (isAuthenticated || user) {
-        if (active) setAuthResolved(true);
-        return;
-      }
-
-      try {
-        await fetchCurrentUser();
-      } catch {
-        // Keep the account icon inert until the session check completes.
-      } finally {
-        if (active) setAuthResolved(true);
-      }
-    }
-
-    void resolveAuth();
-
-    return () => {
-      active = false;
-    };
-  }, [fetchCurrentUser, isAuthenticated, user]);
 
   useEffect(() => {
     if (!isCategoryDropdownOpen) return;
@@ -453,9 +446,10 @@ export function Header() {
     router.push('/');
   }
 
-  const isAuthPending = !authResolved || authLoading;
+  const isNavbarLoading =
+    isSettingsLoading || !authInitialized || !cartInitialized || !wishlistInitialized;
 
-  if (isSettingsLoading) {
+  if (isNavbarLoading) {
     return <HeaderSkeleton isScrolled={isScrolled} />;
   }
 
@@ -628,16 +622,7 @@ export function Header() {
               </Link>
 
               {/* User Menu */}
-              {isAuthPending ? (
-                <button
-                  type="button"
-                  disabled
-                  className="hidden rounded-lg p-2 text-muted-foreground opacity-60 md:block"
-                  aria-label="Account loading"
-                >
-                  <User size={20} />
-                </button>
-              ) : isAuthenticated && user ? (
+              {isAuthenticated && user ? (
                 <div
                   ref={accountMenuRef}
                   className="relative hidden md:block"
@@ -788,23 +773,13 @@ export function Header() {
                 })}
               </nav>
               <div className="mt-4 pt-4 border-t border-border space-y-1">
-                {isAuthPending ? (
-                  <button
-                    type="button"
-                    disabled
-                    className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left opacity-60"
-                  >
-                    <User size={18} /> My Account
-                  </button>
-                ) : (
-                  <Link
-                    href={isAuthenticated ? "/account" : "/login"}
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="flex items-center gap-3 rounded-xl px-4 py-3 transition-colors hover:bg-muted"
-                  >
-                    <User size={18} /> My Account
-                  </Link>
-                )}
+                <Link
+                  href={isAuthenticated ? "/account" : "/login"}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="flex items-center gap-3 rounded-xl px-4 py-3 transition-colors hover:bg-muted"
+                >
+                  <User size={18} /> My Account
+                </Link>
                 {isAuthenticated ? (
                   <Link
                     href="/account/orders"
@@ -824,15 +799,7 @@ export function Header() {
               </div>
             </div>
             <div className="p-4 border-t border-border">
-              {isAuthPending ? (
-                <button
-                  type="button"
-                  disabled
-                  className="block w-full rounded-xl bg-muted py-2.5 text-center text-sm font-medium text-muted-foreground"
-                >
-                  Loading Account
-                </button>
-              ) : isAuthenticated ? (
+              {isAuthenticated ? (
                 <button
                   type="button"
                   onClick={async () => {

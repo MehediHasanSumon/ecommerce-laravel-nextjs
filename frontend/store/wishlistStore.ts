@@ -100,9 +100,14 @@ export const useWishlistStore = create<WishlistStore>()((set, get) => ({
   },
 
   async syncAfterAuth() {
-    const guestToken = ensureGuestToken(get().guestToken, set);
-    const wishlist = await wishlistService.mergeWishlist(guestToken);
-    applyWishlistState(set, wishlist);
+    set({ isLoading: true });
+    try {
+      const guestToken = ensureGuestToken(get().guestToken, set);
+      const wishlist = await wishlistService.mergeWishlist(guestToken);
+      applyWishlistState(set, wishlist);
+    } finally {
+      set({ initialized: true, isLoading: false });
+    }
   },
 
   async addItem(product) {

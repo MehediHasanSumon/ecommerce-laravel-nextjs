@@ -45,7 +45,7 @@ export default function CartPage() {
   useSettingsStore(selectCurrencyFingerprint);
   const [mounted, setMounted] = useState(false);
   const initialize = useCartStore((s) => s.initialize);
-  const storeLoading = useCartStore((s) => s.isLoading);
+  const cartInitialized = useCartStore((s) => s.initialized);
   useEffect(() => {
     setMounted(true);
     initialize().catch(() => undefined);
@@ -65,7 +65,7 @@ export default function CartPage() {
     toast(`${name} removed from cart`, { icon: '🗑️' });
   };
 
-  if (!mounted || storeLoading) {
+  if (!mounted || !cartInitialized) {
     return (
       <div className="min-h-screen bg-background">
         <AnnouncementBar />

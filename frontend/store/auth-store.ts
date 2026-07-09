@@ -14,6 +14,9 @@ import { useCartStore } from "@/store/cartStore";
 import { useWishlistStore } from "@/store/wishlistStore";
 
 const AUTH_LOGOUT_EVENT_KEY = "luxecart-auth-logout";
+const AUTH_USER_CACHE_KEY = "luxecart-auth-user";
+
+let currentUserPromise: Promise<User | null> | null = null;
 
 function broadcastLogout() {
   if (typeof window === "undefined") {
@@ -27,6 +30,7 @@ type AuthState = {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  initialized: boolean;
   error: string | null;
   login: (payload: LoginPayload) => Promise<User>;
   register: (payload: RegisterPayload) => Promise<User>;
@@ -41,10 +45,40 @@ function messageFrom(error: unknown) {
   return toAppError(error).message;
 }
 
+function readCachedUser(): User | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const raw = window.sessionStorage.getItem(AUTH_USER_CACHE_KEY);
+    return raw ? (JSON.parse(raw) as User) : null;
+  } catch {
+    window.sessionStorage.removeItem(AUTH_USER_CACHE_KEY);
+    return null;
+  }
+}
+
+function writeCachedUser(user: User | null) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  if (user) {
+    window.sessionStorage.setItem(AUTH_USER_CACHE_KEY, JSON.stringify(user));
+    return;
+  }
+
+  window.sessionStorage.removeItem(AUTH_USER_CACHE_KEY);
+}
+
+const cachedUser = readCachedUser();
+
 export const useAuthStore = create<AuthState>((set) => ({
-  user: null,
-  isAuthenticated: false,
+  user: cachedUser,
+  isAuthenticated: Boolean(cachedUser),
   isLoading: false,
+  initialized: false,
   error: null,
 
   async login(payload) {
@@ -52,18 +86,20 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       await useCartStore.getState().resetAfterLogout();
       const user = await authService.login(payload);
+      writeCachedUser(user);
       set({ user, isAuthenticated: true });
       await Promise.all([
         useCartStore.getState().syncAfterAuth().catch(() => undefined),
         useWishlistStore.getState().syncAfterAuth().catch(() => undefined),
       ]);
-      set({ user, isAuthenticated: true, isLoading: false });
+      set({ user, isAuthenticated: true, isLoading: false, initialized: true });
       return user;
     } catch (error) {
       set({
         user: null,
         isAuthenticated: false,
         isLoading: false,
+        initialized: true,
         error: messageFrom(error),
       });
       throw error;
@@ -75,15 +111,16 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       await useCartStore.getState().resetAfterLogout();
       const user = await authService.register(payload);
+      writeCachedUser(user);
       set({ user, isAuthenticated: true });
       await Promise.all([
         useCartStore.getState().syncAfterAuth().catch(() => undefined),
         useWishlistStore.getState().syncAfterAuth().catch(() => undefined),
       ]);
-      set({ user, isAuthenticated: true, isLoading: false });
+      set({ user, isAuthenticated: true, isLoading: false, initialized: true });
       return user;
     } catch (error) {
-      set({ isLoading: false, error: messageFrom(error) });
+      set({ isLoading: false, initialized: true, error: messageFrom(error) });
       throw error;
     }
   },
@@ -95,7 +132,8 @@ export const useAuthStore = create<AuthState>((set) => ({
     } catch {
       // Local state must be cleared even if the server session already expired.
     } finally {
-      set({ user: null, isAuthenticated: false, isLoading: false });
+      writeCachedUser(null);
+      set({ user: null, isAuthenticated: false, isLoading: false, initialized: true });
       await useCartStore.getState().resetAfterLogout({ reloadGuest: true });
       broadcastLogout();
     }
@@ -105,10 +143,10 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isLoading: true, error: null });
     try {
       const message = await authService.forgotPassword(payload);
-      set({ isLoading: false });
+      set({ isLoading: false, initialized: true });
       return message;
     } catch (error) {
-      set({ isLoading: false, error: messageFrom(error) });
+      set({ isLoading: false, initialized: true, error: messageFrom(error) });
       throw error;
     }
   },
@@ -117,39 +155,53 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isLoading: true, error: null });
     try {
       const message = await authService.resetPassword(payload);
-      set({ user: null, isAuthenticated: false, isLoading: false });
+      writeCachedUser(null);
+      set({ user: null, isAuthenticated: false, isLoading: false, initialized: true });
       return message;
     } catch (error) {
-      set({ isLoading: false, error: messageFrom(error) });
+      set({ isLoading: false, initialized: true, error: messageFrom(error) });
       throw error;
     }
   },
 
   async fetchCurrentUser() {
+    if (currentUserPromise) {
+      return currentUserPromise;
+    }
+
     set({ isLoading: true, error: null });
-    try {
+
+    currentUserPromise = (async () => {
       const session = await authService.session();
 
       if (!session.authenticated) {
-        set({ user: null, isAuthenticated: false, isLoading: false });
+        writeCachedUser(null);
+        set({ user: null, isAuthenticated: false, isLoading: false, initialized: true });
         await useCartStore.getState().resetAfterLogout({ reloadGuest: true });
         return null;
       }
 
       const user = await authService.me();
+      writeCachedUser(user);
       set({ user, isAuthenticated: true });
       await Promise.all([
         useCartStore.getState().syncAfterAuth().catch(() => undefined),
         useWishlistStore.getState().syncAfterAuth().catch(() => undefined),
       ]);
-      set({ user, isAuthenticated: true, isLoading: false });
+      set({ user, isAuthenticated: true, isLoading: false, initialized: true });
       return user;
+    })();
+
+    try {
+      return await currentUserPromise;
     } catch (error) {
       const appError = toAppError(error);
+      writeCachedUser(null);
       set({
         user: null,
         isAuthenticated: false,
         isLoading: false,
+        initialized: true,
         error:
           appError.status === 401 || appError.status === 403 ? null : appError.message,
       });
@@ -160,6 +212,8 @@ export const useAuthStore = create<AuthState>((set) => ({
       }
 
       throw new AppError(appError.message, appError.status, appError.validationErrors);
+    } finally {
+      currentUserPromise = null;
     }
   },
 
@@ -178,8 +232,10 @@ if (typeof window !== "undefined") {
       user: null,
       isAuthenticated: false,
       isLoading: false,
+      initialized: true,
       error: null,
     });
+    writeCachedUser(null);
     void useCartStore.getState().resetAfterLogout({ reloadGuest: true });
   });
 }
