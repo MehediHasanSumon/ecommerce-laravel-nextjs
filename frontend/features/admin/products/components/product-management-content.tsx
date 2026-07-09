@@ -19,7 +19,6 @@ import {
   Download,
   Edit3,
   Filter,
-  Loader2,
   Plus,
   Search,
   Trash2,
@@ -43,6 +42,7 @@ import { productManagementService } from "@/features/admin/products/services/pro
 import type { ProductModule, ProductModulePayload, ProductOptions, ProductRecord } from "@/features/admin/products/types";
 import type { Option, PaginationMeta, QueryState } from "@/features/admin/shared/types";
 import { exportCsv, formatDate, statusLabel } from "@/features/admin/shared/utils";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import { toAppError } from "@/lib/errors";
 import { selectCategoryDisplaySettings, selectCurrencySettings, useSettingsStore } from "@/store/settings-store";
 import type { RuntimeCategoryDisplaySettings } from "@/types/settings";
@@ -1268,7 +1268,7 @@ function ManagementPage({
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={config.columns.length + 2} className="h-48 text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" /></td></tr>
+                <TableSkeleton rows={6} columns={config.columns.length} selectable actions />
               ) : table.getRowModel().rows.length ? table.getRowModel().rows.map((row) => (
                 <tr key={row.original.id} className="border-t border-border hover:bg-muted/40">
                   <td className="px-4 py-3"><input type="checkbox" checked={selected.includes(row.original.id)} onChange={() => onToggle(row.original.id)} aria-label={`Select row ${row.original.id}`} /></td>

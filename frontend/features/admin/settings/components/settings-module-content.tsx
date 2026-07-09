@@ -15,7 +15,6 @@ import {
   MessageSquareText,
   PackageCheck,
   Plus,
-  RotateCcw,
   Search,
   Send,
   ShieldAlert,
@@ -30,7 +29,6 @@ import {
   FormActions,
   FormGrid,
   ImageDropzone,
-  LoadingInline,
   ResetConfirmation,
   SelectInput,
   SettingsGrid,
@@ -44,6 +42,7 @@ import {
   useUnsavedChanges,
 } from "@/features/admin/settings/components/settings-primitives";
 import { settingsApi } from "@/features/admin/settings/services/settings-service";
+import { SettingsSectionSkeleton } from "@/components/ui/skeleton";
 
 type FieldType = "text" | "email" | "url" | "number" | "password" | "textarea" | "select" | "toggle" | "image" | "date";
 type SettingValue = string | number | boolean | null | undefined | string[] | Record<string, unknown> | Array<Record<string, unknown>>;
@@ -1052,9 +1051,7 @@ function EditableRows({ title, description, rows, addLabel, icon: Icon, fields, 
 
 function SettingsLoading() {
   return (
-    <SettingsSection title="Loading Settings" description="Fetching the latest saved configuration from the backend." icon={RotateCcw}>
-      <LoadingInline label="Loading settings..." />
-    </SettingsSection>
+    <SettingsSectionSkeleton fields={6} />
   );
 }
 

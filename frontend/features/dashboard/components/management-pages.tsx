@@ -18,7 +18,6 @@ import {
   Download,
   Edit3,
   Filter,
-  Loader2,
   Plus,
   Search,
   Trash2,
@@ -42,6 +41,7 @@ import { useUrlQueryState } from "@/features/admin/shared/hooks/use-url-query-st
 import { userService } from "@/features/admin/users/services/user-service";
 import { toAppError } from "@/lib/errors";
 import { cn } from "@/utils/cn";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import type { Option, PaginationMeta } from "@/features/admin/shared/types";
 import type { ManagedPermission } from "@/features/admin/permissions/types";
 import type { ManagedRole } from "@/features/admin/roles/types";
@@ -607,14 +607,7 @@ function ManagementPage<T extends { id: number }>({
             </thead>
             <tbody>
               {loading ? (
-                <tr>
-                  <td colSpan={columns.length + 2} className="h-48 text-center">
-                    <div className="inline-flex items-center gap-2 text-sm text-muted-foreground">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Loading records...
-                    </div>
-                  </td>
-                </tr>
+                <TableSkeleton rows={6} columns={columns.length} selectable actions />
               ) : table.getRowModel().rows.length ? table.getRowModel().rows.map((row) => {
                 const item = row.original;
                 return (
