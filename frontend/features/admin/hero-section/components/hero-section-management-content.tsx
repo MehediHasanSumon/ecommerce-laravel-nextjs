@@ -367,38 +367,39 @@ function SimpleSlideFields({ slide, onChange }: { slide: HeroSlide; onChange: (s
 
 function CanvasBuilder({ slide, onChange }: { slide: HeroSlide; onChange: (slide: HeroSlide) => void }) {
   const [device, setDevice] = useState<HeroDevice>("desktop");
-  const [selected, setSelected] = useState<number | null>(slide.elements[0]?.z_index ?? null);
+  const [selected, setSelected] = useState<number[]>(slide.elements[0] ? [slide.elements[0].z_index] : []);
   const [history, setHistory] = useState<HeroSlide[]>([]);
   const [future, setFuture] = useState<HeroSlide[]>([]);
   const [layersOpen, setLayersOpen] = useState(true);
-  const selectedElement = slide.elements.find((element) => element.z_index === selected) ?? slide.elements[0] ?? null;
+  const selectedElements = slide.elements.filter((element) => selected.includes(element.z_index));
+  const selectedElement = selectedElements[0] ?? slide.elements[0] ?? null;
 
-  function commit(next: HeroSlide) {
+  const commit = useCallback((next: HeroSlide) => {
     setHistory((current) => [...current.slice(-19), slide]);
     setFuture([]);
     onChange(next);
-  }
+  }, [onChange, slide]);
 
-  function undo() {
+  const undo = useCallback(() => {
     const previous = history.at(-1);
     if (!previous) return;
     setHistory((current) => current.slice(0, -1));
     setFuture((current) => [slide, ...current]);
     onChange(previous);
-  }
+  }, [history, onChange, slide]);
 
-  function redo() {
+  const redo = useCallback(() => {
     const next = future[0];
     if (!next) return;
     setFuture((current) => current.slice(1));
     setHistory((current) => [...current, slide]);
     onChange(next);
-  }
+  }, [future, onChange, slide]);
 
   function addElement(type: HeroElementType) {
     const element = createElement(type, slide.elements.length);
     commit({ ...slide, elements: [...slide.elements, element] });
-    setSelected(element.z_index);
+    setSelected([element.z_index]);
   }
 
   function updateElement(target: HeroSlideElement, patch: Partial<HeroSlideElement>) {
@@ -414,22 +415,115 @@ function CanvasBuilder({ slide, onChange }: { slide: HeroSlide; onChange: (slide
     const nextZ = Math.max(0, ...slide.elements.map((element) => element.z_index)) + 1;
     const copy = { ...target, id: undefined, name: `${target.name} Copy`, z_index: nextZ };
     commit({ ...slide, elements: [...slide.elements, copy] });
-    setSelected(nextZ);
+    setSelected([nextZ]);
   }
 
   function deleteElement(target: HeroSlideElement) {
     commit({ ...slide, elements: slide.elements.filter((element) => element !== target) });
-    setSelected(null);
+    setSelected([]);
   }
 
   function layer(target: HeroSlideElement, direction: -1 | 1) {
     updateElement(target, { z_index: Math.max(0, target.z_index + direction) });
   }
 
+  function layerSelected(direction: -1 | 1) {
+    if (!selected.length) return;
+    commit({
+      ...slide,
+      elements: slide.elements.map((element) => (
+        selected.includes(element.z_index)
+          ? { ...element, z_index: Math.max(0, element.z_index + direction) }
+          : element
+      )),
+    });
+  }
+
+  function selectElement(z: number | null, additive = false) {
+    if (z === null) {
+      setSelected([]);
+      return;
+    }
+
+    setSelected((current) => {
+      if (!additive) return [z];
+      return current.includes(z) ? current.filter((item) => item !== z) : [...current, z];
+    });
+  }
+
+  const updateSelectedBoxes = useCallback((patch: (box: HeroElementBox) => Partial<HeroElementBox>) => {
+    if (!selected.length) return;
+    commit({
+      ...slide,
+      elements: slide.elements.map((element) => {
+        if (!selected.includes(element.z_index) || element.locked) return element;
+        const current = element.responsive[device];
+        return { ...element, responsive: { ...element.responsive, [device]: { ...current, ...patch(current) } } };
+      }),
+    });
+  }, [commit, device, selected, slide]);
+
+  const moveSelected = useCallback((dx: number, dy: number) => {
+    updateSelectedBoxes((box) => ({ x: Math.max(0, box.x + dx), y: Math.max(0, box.y + dy) }));
+  }, [updateSelectedBoxes]);
+
+  useEffect(() => {
+    setSelected((current) => current.filter((z) => slide.elements.some((element) => element.z_index === z)));
+  }, [slide.elements]);
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      const target = event.target as HTMLElement | null;
+      const editing = target && (["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName) || target.isContentEditable);
+      if (editing) return;
+
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
+        event.preventDefault();
+        if (event.shiftKey) {
+          redo();
+        } else {
+          undo();
+        }
+        return;
+      }
+
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "y") {
+        event.preventDefault();
+        redo();
+        return;
+      }
+
+      if (event.key === "Delete" || event.key === "Backspace") {
+        if (!selected.length) return;
+        event.preventDefault();
+        commit({ ...slide, elements: slide.elements.filter((element) => !selected.includes(element.z_index)) });
+        setSelected([]);
+        return;
+      }
+
+      const step = event.shiftKey ? 10 : 1;
+      const movement = {
+        ArrowUp: [0, -step],
+        ArrowDown: [0, step],
+        ArrowLeft: [-step, 0],
+        ArrowRight: [step, 0],
+      }[event.key] as [number, number] | undefined;
+
+      if (!movement || !selected.length) return;
+      event.preventDefault();
+      moveSelected(movement[0], movement[1]);
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [commit, future, history, moveSelected, redo, selected, slide, undo]);
+
   return (
     <div className="mt-4 space-y-4">
-      <div className="grid gap-3 md:grid-cols-2">
-        <ImagePicker label="Canvas Background Image" value={slide.background_image ?? ""} onChange={(background_image) => onChange({ ...slide, background_image })} />
+      <div className="grid gap-3 md:grid-cols-2 md:grid-rows-3">
+        <div className="md:row-span-3 [&>div]:h-full [&>div]:space-y-2 [&_label]:!h-[calc(100%-1.75rem)]">
+          <ImagePicker label="Canvas Background Image" value={slide.background_image ?? ""} onChange={(background_image) => onChange({ ...slide, background_image })} />
+        </div>
         <TextInput label="Background Color" value={slide.background_color ?? ""} onChange={(event) => onChange({ ...slide, background_color: event.target.value })} />
         <TextInput label="Background Gradient" value={slide.background_gradient ?? ""} onChange={(event) => onChange({ ...slide, background_gradient: event.target.value })} />
         <TextInput label="Overlay Opacity" type="number" min={0} max={100} value={slide.canvas_overlay_opacity} onChange={(event) => onChange({ ...slide, canvas_overlay_opacity: Number(event.target.value || 0) })} />
@@ -454,21 +548,21 @@ function CanvasBuilder({ slide, onChange }: { slide: HeroSlide; onChange: (slide
         {selectedElement ? (
           <>
             <Button size="icon" variant="ghost" aria-label="Duplicate" icon={<Copy className="h-4 w-4" />} onClick={() => duplicateElement(selectedElement)} />
-            <Button size="icon" variant="ghost" aria-label="Delete" icon={<Trash2 className="h-4 w-4" />} onClick={() => deleteElement(selectedElement)} />
-            <Button size="icon" variant="ghost" aria-label="Bring forward" icon={<ArrowUp className="h-4 w-4" />} onClick={() => layer(selectedElement, 1)} />
-            <Button size="icon" variant="ghost" aria-label="Send backward" icon={<SendToBack className="h-4 w-4" />} onClick={() => layer(selectedElement, -1)} />
-            <Button size="icon" variant="ghost" aria-label="Align left" icon={<AlignLeft className="h-4 w-4" />} onClick={() => updateBox(selectedElement, { x: 0 })} />
-            <Button size="icon" variant="ghost" aria-label="Align center" icon={<AlignCenter className="h-4 w-4" />} onClick={() => updateBox(selectedElement, { x: Math.round((slide.canvas_size[device].width - selectedElement.responsive[device].width) / 2) })} />
-            <Button size="icon" variant="ghost" aria-label="Align right" icon={<AlignRight className="h-4 w-4" />} onClick={() => updateBox(selectedElement, { x: slide.canvas_size[device].width - selectedElement.responsive[device].width })} />
+            <Button size="icon" variant="ghost" aria-label="Delete" icon={<Trash2 className="h-4 w-4" />} onClick={() => selectedElements.length > 1 ? (commit({ ...slide, elements: slide.elements.filter((element) => !selected.includes(element.z_index)) }), setSelected([])) : deleteElement(selectedElement)} />
+            <Button size="icon" variant="ghost" aria-label="Bring forward" icon={<ArrowUp className="h-4 w-4" />} onClick={() => selectedElements.length > 1 ? layerSelected(1) : layer(selectedElement, 1)} />
+            <Button size="icon" variant="ghost" aria-label="Send backward" icon={<SendToBack className="h-4 w-4" />} onClick={() => selectedElements.length > 1 ? layerSelected(-1) : layer(selectedElement, -1)} />
+            <Button size="icon" variant="ghost" aria-label="Align left" icon={<AlignLeft className="h-4 w-4" />} onClick={() => updateSelectedBoxes(() => ({ x: 0 }))} />
+            <Button size="icon" variant="ghost" aria-label="Align center" icon={<AlignCenter className="h-4 w-4" />} onClick={() => updateSelectedBoxes((box) => ({ x: Math.round((slide.canvas_size[device].width - box.width) / 2) }))} />
+            <Button size="icon" variant="ghost" aria-label="Align right" icon={<AlignRight className="h-4 w-4" />} onClick={() => updateSelectedBoxes((box) => ({ x: slide.canvas_size[device].width - box.width }))} />
           </>
         ) : null}
       </div>
 
       <div className={cn("grid gap-4", layersOpen ? "xl:grid-cols-[minmax(0,1fr)_320px]" : "xl:grid-cols-1")}>
-        <CanvasStage slide={slide} device={device} selected={selected} onSelect={setSelected} onChange={commit} />
+        <CanvasStage slide={slide} device={device} selected={selected} onSelect={selectElement} onChange={commit} />
         {layersOpen ? (
           <div className="space-y-3">
-            <LayerManager slide={slide} selected={selected} onSelect={setSelected} onChange={commit} onClose={() => setLayersOpen(false)} />
+            <LayerManager slide={slide} selected={selected} onSelect={selectElement} onChange={commit} onClose={() => setLayersOpen(false)} />
             {selectedElement ? <ElementInspector element={selectedElement} device={device} onChange={(patch) => updateElement(selectedElement, patch)} onBoxChange={(box) => updateBox(selectedElement, box)} /> : null}
           </div>
         ) : null}
@@ -477,7 +571,7 @@ function CanvasBuilder({ slide, onChange }: { slide: HeroSlide; onChange: (slide
   );
 }
 
-function CanvasStage({ slide, device, selected, onSelect, onChange }: { slide: HeroSlide; device: HeroDevice; selected: number | null; onSelect: (z: number | null) => void; onChange: (slide: HeroSlide) => void }) {
+function CanvasStage({ slide, device, selected, onSelect, onChange }: { slide: HeroSlide; device: HeroDevice; selected: number[]; onSelect: (z: number | null, additive?: boolean) => void; onChange: (slide: HeroSlide) => void }) {
   const size = slide.canvas_size[device];
   const scale = device === "desktop" ? 0.66 : device === "tablet" ? 0.78 : 1;
   const stageRef = useRef<HTMLDivElement>(null);
@@ -485,6 +579,8 @@ function CanvasStage({ slide, device, selected, onSelect, onChange }: { slide: H
   function moveElement(target: HeroSlideElement, start: PointerEvent<HTMLElement>, mode: "move" | "resize") {
     if (target.locked) return;
     start.preventDefault();
+    const activeZ = mode === "move" && selected.includes(target.z_index) ? selected : [target.z_index];
+    const origins = new Map(slide.elements.map((element) => [element.z_index, element.responsive[device]]));
     const origin = target.responsive[device];
     const startX = start.clientX;
     const startY = start.clientY;
@@ -492,10 +588,21 @@ function CanvasStage({ slide, device, selected, onSelect, onChange }: { slide: H
     const move = (event: globalThis.PointerEvent) => {
       const dx = Math.round((event.clientX - startX) / scale);
       const dy = Math.round((event.clientY - startY) / scale);
-      const nextBox = mode === "move"
+      const nextTargetBox = mode === "move"
         ? { ...origin, x: Math.max(0, origin.x + dx), y: Math.max(0, origin.y + dy) }
         : { ...origin, width: Math.max(24, origin.width + dx), height: Math.max(20, origin.height + dy) };
-      onChange({ ...slide, elements: slide.elements.map((element) => element === target ? { ...element, responsive: { ...element.responsive, [device]: nextBox } } : element) });
+      onChange({
+        ...slide,
+        elements: slide.elements.map((element) => {
+          if (mode === "resize") {
+            return element === target ? { ...element, responsive: { ...element.responsive, [device]: nextTargetBox } } : element;
+          }
+          if (!activeZ.includes(element.z_index) || element.locked) return element;
+          const elementOrigin = origins.get(element.z_index) ?? element.responsive[device];
+          const nextBox = { ...elementOrigin, x: Math.max(0, elementOrigin.x + dx), y: Math.max(0, elementOrigin.y + dy) };
+          return { ...element, responsive: { ...element.responsive, [device]: nextBox } };
+        }),
+      });
     };
     const up = () => {
       window.removeEventListener("pointermove", move);
@@ -530,10 +637,10 @@ function CanvasStage({ slide, device, selected, onSelect, onChange }: { slide: H
               key={`${element.id ?? element.name}-${element.z_index}`}
               onPointerDown={(event) => {
                 event.stopPropagation();
-                onSelect(element.z_index);
+                onSelect(element.z_index, event.ctrlKey || event.metaKey);
                 moveElement(element, event, "move");
               }}
-              className={cn("absolute cursor-move border", selected === element.z_index ? "border-primary" : "border-transparent", element.locked && "cursor-not-allowed")}
+              className={cn("absolute cursor-move border", selected.includes(element.z_index) ? "border-primary" : "border-transparent", selected.length > 1 && selected.includes(element.z_index) && "ring-1 ring-primary/40", element.locked && "cursor-not-allowed")}
               style={{
                 left: box.x * scale,
                 top: box.y * scale,
@@ -544,7 +651,7 @@ function CanvasStage({ slide, device, selected, onSelect, onChange }: { slide: H
               }}
             >
               <CanvasElement element={element} />
-              {selected === element.z_index && !element.locked ? (
+              {selected.includes(element.z_index) && selected.length === 1 && !element.locked ? (
                 <button
                   type="button"
                   aria-label="Resize element"
@@ -609,7 +716,7 @@ function CanvasElement({ element }: { element: HeroSlideElement }) {
   );
 }
 
-function LayerManager({ slide, selected, onSelect, onChange, onClose }: { slide: HeroSlide; selected: number | null; onSelect: (z: number) => void; onChange: (slide: HeroSlide) => void; onClose: () => void }) {
+function LayerManager({ slide, selected, onSelect, onChange, onClose }: { slide: HeroSlide; selected: number[]; onSelect: (z: number, additive?: boolean) => void; onChange: (slide: HeroSlide) => void; onClose: () => void }) {
   function patch(target: HeroSlideElement, patchValue: Partial<HeroSlideElement>) {
     onChange({ ...slide, elements: slide.elements.map((element) => element === target ? { ...element, ...patchValue } : element) });
   }
@@ -622,8 +729,8 @@ function LayerManager({ slide, selected, onSelect, onChange, onClose }: { slide:
       </div>
       <div className="max-h-72 overflow-auto p-2">
         {slide.elements.slice().sort((a, b) => b.z_index - a.z_index).map((element) => (
-          <div key={`${element.name}-${element.z_index}`} className={cn("flex items-center gap-2 rounded-lg p-2", selected === element.z_index && "bg-primary/10")}>
-            <button type="button" className="min-w-0 flex-1 text-left text-sm font-medium" onClick={() => onSelect(element.z_index)}>{element.name}</button>
+          <div key={`${element.name}-${element.z_index}`} className={cn("flex items-center gap-2 rounded-lg p-2", selected.includes(element.z_index) && "bg-primary/10")}>
+            <button type="button" className="min-w-0 flex-1 text-left text-sm font-medium" onClick={(event) => onSelect(element.z_index, event.ctrlKey || event.metaKey)}>{element.name}</button>
             <Button size="icon" variant="ghost" aria-label="Toggle hidden" icon={element.hidden ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />} onClick={() => patch(element, { hidden: !element.hidden })} />
             <Button size="icon" variant="ghost" aria-label="Toggle locked" icon={element.locked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />} onClick={() => patch(element, { locked: !element.locked })} />
           </div>

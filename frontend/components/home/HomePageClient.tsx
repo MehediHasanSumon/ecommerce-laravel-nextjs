@@ -439,7 +439,7 @@ function HomeCollectionSection({
   const products = entry?.items ?? [];
   const isFlashSale = Boolean(collection?.startsAt && collection?.endsAt);
   const isTrending = collection?.ruleKey === 'trending';
-  const href = collection?.aliases?.[0] ?? collection?.url ?? '/shop';
+  const href = collection?.slug ? `/collections/${collection.slug}` : collection?.url ?? '/shop';
 
   if (!loading && (!collection || products.length === 0)) {
     return null;
