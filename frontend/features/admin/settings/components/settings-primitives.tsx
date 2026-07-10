@@ -278,7 +278,7 @@ export function ImageDropzone({
     <div className="space-y-2">
       <p className="text-sm font-semibold">{label}</p>
       <label
-        className={cn("flex min-h-36 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-border bg-muted/50 p-3 text-center transition hover:bg-muted", error && "border-destructive")}
+        className={cn("relative flex h-36 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-lg border border-dashed border-border bg-muted/50 p-3 text-center transition hover:bg-muted", error && "border-destructive")}
         onDragOver={(event) => event.preventDefault()}
         onDrop={(event) => {
           event.preventDefault();
@@ -304,7 +304,15 @@ export function ImageDropzone({
             <p className="mt-1 text-xs text-muted-foreground">Drag and drop or click to browse.</p>
           </div>
         )}
-        <input type="file" accept="image/png,image/jpeg,image/webp,image/x-icon" className="sr-only" onChange={(event) => handleFile(event.target.files?.item(0) ?? null)} />
+        <input
+          type="file"
+          accept="image/png,image/jpeg,image/webp,image/x-icon"
+          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+          onChange={(event) => {
+            handleFile(event.target.files?.item(0) ?? null);
+            event.currentTarget.value = "";
+          }}
+        />
       </label>
       {value ? (
         <Button type="button" variant="ghost" size="sm" aria-label={`Remove ${label}`} icon={<X className="h-4 w-4" />} onClick={() => onChange("")}>

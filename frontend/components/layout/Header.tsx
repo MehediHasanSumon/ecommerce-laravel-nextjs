@@ -173,6 +173,7 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
                       src={product.thumbnail}
                       alt={product.name}
                       fill
+                      unoptimized
                       className="object-cover"
                     />
                   </div>
@@ -194,22 +195,6 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
             </p>
           )}
 
-          <div className="mt-3 pt-3 border-t border-border">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-              Popular Searches
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {['Sneakers', 'Headphones', 'Backpack', 'Smartwatch', 'Keyboard'].map((term) => (
-                <button
-                  key={term}
-                  onClick={() => setQuery(term)}
-                  className="rounded-full bg-muted px-3 py-1.5 text-xs transition-colors hover:bg-primary hover:text-primary-foreground"
-                >
-                  {term}
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
     </div>

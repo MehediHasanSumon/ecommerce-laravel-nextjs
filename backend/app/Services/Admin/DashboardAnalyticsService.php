@@ -19,6 +19,7 @@ use App\Services\Admin\Settings\BrandSettingsService;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class DashboardAnalyticsService
 {
@@ -224,7 +225,7 @@ class DashboardAnalyticsService
                 'id' => $row->product_id,
                 'name' => $row->product_name,
                 'sku' => $row->sku,
-                'image' => $row->image,
+                'image' => $this->assetUrl($row->image),
                 'sold_quantity' => (int) $row->sold_quantity,
                 'revenue' => $this->money($row->revenue),
             ])
@@ -460,5 +461,22 @@ class DashboardAnalyticsService
     private function label(string $value): string
     {
         return str($value)->replace(['_', '-'], ' ')->title()->toString();
+    }
+
+    private function assetUrl(?string $path): ?string
+    {
+        if (! $path) {
+            return null;
+        }
+
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
+        if (str_starts_with($path, '/storage/') || str_starts_with($path, 'storage/')) {
+            return url($path);
+        }
+
+        return Storage::disk('public')->url($path);
     }
 }
