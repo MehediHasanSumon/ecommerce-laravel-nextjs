@@ -19,6 +19,7 @@ import { ProductGridSkeleton } from '@/components/skeleton';
 import { useCountdown } from '@/hooks/useCountdown';
 import { fetchHomePageSections, fetchPublicReviews, type HomePageSections, type PublicReview } from '@/services/catalog-service';
 import { fetchHomeBlogs, type BlogCard } from '@/services/blog-service';
+import type { HeroDevice, HeroSectionPayload, HeroSlide, HeroSlideElement } from '@/features/admin/hero-section/types';
 import {
   selectCategoryDisplaySettings,
   selectFeatureCardSettings,
@@ -30,106 +31,287 @@ import {
 } from '@/store/settings-store';
 
 function HeroSlider({
-  entries,
+  hero,
   loading,
 }: {
-  entries: HomePageSections['collections'];
+  hero?: HeroSectionPayload;
   loading: boolean;
 }) {
   const [current, setCurrent] = useState(0);
   const [mounted, setMounted] = useState(false);
-  const slides = useMemo(
-    () =>
-      entries
-        .map((entry) => entry.collection)
-        .filter((collection) => Boolean(collection.bannerImage || collection.mobileBannerImage))
-        .sort((a, b) => a.homeSortOrder - b.homeSortOrder || b.priority - a.priority)
-        .slice(0, 5),
-    [entries]
-  );
+  const slides = useMemo(() => hero?.slides?.filter((slide) => slide.status) ?? [], [hero?.slides]);
+  const settings = hero?.settings;
+  const simpleMode = settings?.mode !== 'advanced';
+  const activeSlides = settings?.enabled === false ? [] : slides;
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
   useEffect(() => {
-    if (slides.length <= 1) return;
-    const timer = setInterval(() => setCurrent((c) => (c + 1) % slides.length), 6000);
+    if (!settings?.slider_autoplay || activeSlides.length <= 1) return;
+    const timer = setInterval(() => setCurrent((c) => nextIndex(c, activeSlides.length, settings.infinite_loop)), settings.autoplay_delay);
     return () => clearInterval(timer);
-  }, [slides.length]);
+  }, [activeSlides.length, settings?.autoplay_delay, settings?.infinite_loop, settings?.slider_autoplay]);
 
   useEffect(() => {
     setCurrent(0);
-  }, [slides.length]);
+  }, [activeSlides.length]);
 
   if (loading) {
     return <div className="h-[480px] animate-pulse rounded-2xl bg-muted md:h-[560px] lg:h-[620px]" />;
   }
 
-  if (slides.length === 0) {
+  if (activeSlides.length === 0) {
     return null;
   }
 
-  const slide = slides[current] ?? slides[0];
-  const image = slide.mobileBannerImage || slide.bannerImage;
-  return (
-    <div className="relative h-[480px] md:h-[560px] lg:h-[620px] rounded-2xl overflow-hidden">
-      {image ? <Image src={image} alt={slide.title} fill unoptimized className="object-cover" priority /> : null}
-      <div className="absolute inset-0 bg-gradient-to-r from-slate-950 to-slate-800 opacity-80" />
-      <div className="absolute inset-0 flex items-center">
-        <div className="max-w-7xl mx-auto px-8 md:px-12 w-full">
-          <div className="max-w-xl">
-            <span
-              className="text-sm font-bold uppercase tracking-widest mb-4 block text-primary"
-            >
-              {slide.promotionalText || slide.subtitle || slide.name}
-            </span>
-            <h1
-              suppressHydrationWarning
-              className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-white leading-tight mb-5 whitespace-pre-line"
-            >
-              {slide.title}
-            </h1>
-            <p className="text-base md:text-lg text-white/80 mb-8 max-w-sm leading-relaxed">
-              {slide.description}
-            </p>
-            <div className="flex flex-wrap gap-3">
-              <Link
-                href={slide.ctaUrl || slide.url || '/shop'}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-white text-slate-900 rounded-xl font-bold text-sm hover:bg-white/90 transition-colors shadow-lg"
-              >
-                {slide.ctaText || 'Shop Now'} <ArrowRight size={15} />
-              </Link>
+  if (!simpleMode && activeSlides.length > 0) {
+    return (
+      <AdvancedHeroSlider
+        slides={activeSlides}
+        current={current}
+        settings={settings}
+        mounted={mounted}
+        onPrevious={() => setCurrent((c) => previousIndex(c, activeSlides.length, settings?.infinite_loop ?? true))}
+        onNext={() => setCurrent((c) => nextIndex(c, activeSlides.length, settings?.infinite_loop ?? true))}
+        onSelect={setCurrent}
+      />
+    );
+  }
+
+  if (activeSlides.length > 0) {
+    const slide = activeSlides[current] ?? activeSlides[0];
+    const image = slide.mobile_image || slide.background_image;
+    const alignClass = slide.text_alignment === 'center' ? 'mx-auto text-center' : slide.text_alignment === 'right' ? 'ml-auto text-right' : '';
+    return (
+      <div className="relative h-[480px] md:h-[560px] lg:h-[620px] rounded-2xl overflow-hidden">
+        {image ? <Image src={image} alt={slide.title || slide.name || 'Hero slide'} fill unoptimized className="object-cover" priority={!settings?.lazy_load_images} /> : null}
+        {slide.overlay ? <div className="absolute inset-0 bg-gradient-to-r from-slate-950 to-slate-800" style={{ opacity: slide.overlay_opacity / 100 }} /> : null}
+        <div className="absolute inset-0 flex items-center">
+          <div className="max-w-7xl mx-auto px-8 md:px-12 w-full">
+            <div className={`max-w-xl ${alignClass}`}>
+              {slide.subtitle ? (
+                <span className="text-sm font-bold uppercase tracking-widest mb-4 block text-primary">
+                  {slide.subtitle}
+                </span>
+              ) : null}
+              {slide.title ? (
+                <h1 suppressHydrationWarning className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-white leading-tight mb-5 whitespace-pre-line">
+                  {slide.title}
+                </h1>
+              ) : null}
+              {slide.description ? <p className="text-base md:text-lg text-white/80 mb-8 max-w-sm leading-relaxed">{slide.description}</p> : null}
+              <div className={`flex flex-wrap gap-3 ${slide.text_alignment === 'center' ? 'justify-center' : slide.text_alignment === 'right' ? 'justify-end' : ''}`}>
+                {slide.primary_button_text ? (
+                  <Link href={slide.primary_button_url || '/shop'} className="inline-flex items-center gap-2 px-6 py-3 bg-white text-slate-900 rounded-xl font-bold text-sm hover:bg-white/90 transition-colors shadow-lg">
+                    {slide.primary_button_text} <ArrowRight size={15} />
+                  </Link>
+                ) : null}
+                {slide.secondary_button_text ? (
+                  <Link href={slide.secondary_button_url || '/shop'} className="inline-flex items-center gap-2 px-6 py-3 bg-white/15 text-white rounded-xl font-bold text-sm hover:bg-white/25 transition-colors">
+                    {slide.secondary_button_text}
+                  </Link>
+                ) : null}
+              </div>
             </div>
           </div>
         </div>
+        <HeroControls
+          count={activeSlides.length}
+          current={current}
+          showNavigation={settings?.show_navigation ?? true}
+          showPagination={settings?.show_pagination ?? true}
+          onPrevious={() => setCurrent((c) => previousIndex(c, activeSlides.length, settings?.infinite_loop ?? true))}
+          onNext={() => setCurrent((c) => nextIndex(c, activeSlides.length, settings?.infinite_loop ?? true))}
+          onSelect={setCurrent}
+        />
+        {!mounted && <div className="absolute inset-0 bg-slate-900 animate-pulse" />}
       </div>
-      {slides.length > 1 ? (
+    );
+  }
+
+  return null;
+}
+
+function previousIndex(current: number, length: number, loop: boolean) {
+  if (length <= 1) return 0;
+  if (current <= 0) return loop ? length - 1 : 0;
+  return current - 1;
+}
+
+function nextIndex(current: number, length: number, loop: boolean) {
+  if (length <= 1) return 0;
+  if (current >= length - 1) return loop ? 0 : length - 1;
+  return current + 1;
+}
+
+function HeroControls({
+  count,
+  current,
+  showNavigation,
+  showPagination,
+  onPrevious,
+  onNext,
+  onSelect,
+  ids,
+}: {
+  count: number;
+  current: number;
+  showNavigation: boolean;
+  showPagination: boolean;
+  onPrevious: () => void;
+  onNext: () => void;
+  onSelect: (index: number) => void;
+  ids?: string[];
+}) {
+  if (count <= 1) return null;
+  return (
+    <>
+      {showNavigation ? (
         <>
-          <button
-            onClick={() => setCurrent((c) => (c - 1 + slides.length) % slides.length)}
-            className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-white/40 transition-colors"
-          >
+          <button onClick={onPrevious} className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-white/40 transition-colors" aria-label="Previous hero slide">
             <ChevronLeft size={20} />
           </button>
-          <button
-            onClick={() => setCurrent((c) => (c + 1) % slides.length)}
-            className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-white/40 transition-colors"
-          >
+          <button onClick={onNext} className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-white/40 transition-colors" aria-label="Next hero slide">
             <ChevronRight size={20} />
           </button>
-          <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2">
-            {slides.map((slideItem, i) => (
-              <button
-                key={slideItem.id}
-                onClick={() => setCurrent(i)}
-                className={`h-1.5 rounded-full transition-all duration-300 ${i === current ? 'w-8 bg-white' : 'w-1.5 bg-white/40'}`}
-              />
-            ))}
-          </div>
         </>
       ) : null}
+      {showPagination ? (
+        <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2">
+          {Array.from({ length: count }).map((_, i) => (
+            <button key={ids?.[i] ?? i} onClick={() => onSelect(i)} className={`h-1.5 rounded-full transition-all duration-300 ${i === current ? 'w-8 bg-white' : 'w-1.5 bg-white/40'}`} aria-label={`Go to hero slide ${i + 1}`} />
+          ))}
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+function AdvancedHeroSlider({
+  slides,
+  current,
+  settings,
+  mounted,
+  onPrevious,
+  onNext,
+  onSelect,
+}: {
+  slides: HeroSlide[];
+  current: number;
+  settings?: HeroSectionPayload['settings'];
+  mounted: boolean;
+  onPrevious: () => void;
+  onNext: () => void;
+  onSelect: (index: number) => void;
+}) {
+  const slide = slides[current] ?? slides[0];
+  const device = useHeroDevice();
+  return (
+    <div className="relative h-[480px] md:h-[560px] lg:h-[620px] rounded-2xl overflow-hidden">
+      <AdvancedSlide slide={slide} device={device} />
+      <HeroControls
+        count={slides.length}
+        current={current}
+        showNavigation={settings?.show_navigation ?? true}
+        showPagination={settings?.show_pagination ?? true}
+        onPrevious={onPrevious}
+        onNext={onNext}
+        onSelect={onSelect}
+        ids={slides.map((item) => String(item.id))}
+      />
       {!mounted && <div className="absolute inset-0 bg-slate-900 animate-pulse" />}
+    </div>
+  );
+}
+
+function useHeroDevice(): HeroDevice {
+  const [device, setDevice] = useState<HeroDevice>('desktop');
+
+  useEffect(() => {
+    const update = () => {
+      setDevice(window.innerWidth < 640 ? 'mobile' : window.innerWidth < 1024 ? 'tablet' : 'desktop');
+    };
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+
+  return device;
+}
+
+function AdvancedSlide({ slide, device }: { slide: HeroSlide; device: HeroDevice }) {
+  const size = slide.canvas_size?.[device] ?? slide.canvas_size?.desktop ?? { width: 1280, height: 620 };
+  return (
+    <div
+      className="absolute inset-0"
+      style={{
+        backgroundColor: slide.background_color || '#0f172a',
+        backgroundImage: slide.background_image ? `url(${slide.background_image})` : slide.background_gradient || undefined,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }}
+    >
+      {slide.background_overlay ? <div className="absolute inset-0 bg-black" style={{ opacity: slide.canvas_overlay_opacity / 100 }} /> : null}
+      {slide.elements
+        .filter((element) => !element.hidden)
+        .sort((a, b) => a.z_index - b.z_index)
+        .map((element) => <AdvancedElement key={`${element.id}-${element.z_index}`} element={element} device={device} size={size} />)}
+    </div>
+  );
+}
+
+function AdvancedElement({ element, device, size }: { element: HeroSlideElement; device: HeroDevice; size: { width: number; height: number } }) {
+  const box = element.responsive?.[device] ?? element.responsive?.desktop;
+  if (!box) return null;
+  const style = element.style ?? {};
+  const frame = {
+    left: `${(box.x / size.width) * 100}%`,
+    top: `${(box.y / size.height) * 100}%`,
+    width: `${(box.width / size.width) * 100}%`,
+    height: `${(box.height / size.height) * 100}%`,
+    zIndex: element.z_index,
+    opacity: Number(style.opacity ?? 1),
+    transform: `rotate(${box.rotation ?? 0}deg)`,
+  };
+
+  if (element.type === 'image') {
+    return element.content.src ? (
+      <div className="absolute" style={frame}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={element.content.src} alt={element.content.alt ?? ''} loading="lazy" className="h-full w-full object-cover" style={{ borderRadius: style.borderRadius as number, boxShadow: String(style.boxShadow ?? '') }} />
+      </div>
+    ) : null;
+  }
+
+  if (element.type === 'button') {
+    return (
+      <Link href={element.content.url || '/shop'} target={element.content.target || '_self'} className="absolute flex items-center justify-center font-bold transition-colors" style={{ ...frame, background: String(style.backgroundColor ?? '#fff'), color: String(style.textColor ?? '#111'), borderRadius: style.borderRadius as number, padding: String(style.padding ?? '12px 22px'), border: String(style.border ?? '0 solid transparent'), boxShadow: String(style.boxShadow ?? '') }}>
+        {element.content.text}
+      </Link>
+    );
+  }
+
+  if (element.type === 'shape') {
+    return <div className="absolute" style={{ ...frame, background: String(style.backgroundColor ?? '#fff'), borderRadius: style.borderRadius as number, border: String(style.border ?? '0 solid transparent'), boxShadow: String(style.boxShadow ?? '') }} />;
+  }
+
+  return (
+    <div
+      className="absolute overflow-hidden"
+      style={{
+        ...frame,
+        color: String(style.color ?? '#fff'),
+        fontFamily: String(style.fontFamily ?? 'Inter, sans-serif'),
+        fontSize: `clamp(14px, ${(Number(style.fontSize ?? 16) / size.width) * 100}vw, ${Number(style.fontSize ?? 16)}px)`,
+        fontWeight: Number(style.fontWeight ?? 600),
+        lineHeight: Number(style.lineHeight ?? 1.2),
+        letterSpacing: Number(style.letterSpacing ?? 0),
+        textAlign: style.textAlign as 'left' | 'center' | 'right',
+      }}
+    >
+      {element.content.text}
     </div>
   );
 }
@@ -439,7 +621,7 @@ export default function HomePage() {
       <main className="max-w-7xl mx-auto px-4 pb-16">
         {/* Hero */}
         <section className="py-6">
-          <HeroSlider entries={homeCollections} loading={homeLoading} />
+          <HeroSlider hero={homeData?.hero} loading={homeLoading} />
         </section>
 
         {renderCollections('feature_cards', 'before')}

@@ -5,6 +5,7 @@ import { createAuthAwareClient } from "@/lib/api-client";
 import type { ApiEnvelope, PaginationMeta } from "@/features/admin/shared/types";
 import type { Product } from "@/types";
 import type { Brand } from "@/types";
+import type { HeroSectionPayload } from "@/features/admin/hero-section/types";
 
 const apiBaseUrl = (
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/auth"
@@ -132,6 +133,7 @@ export type ProductDetailResponse = {
 };
 
 export type HomePageSections = {
+  hero: HeroSectionPayload;
   settings: Record<string, { enabled: boolean; limit?: number; displayOrder?: number; algorithm?: string }>;
   collections: Array<{ collection: CollectionSummary; items: Product[] }>;
   sections: {

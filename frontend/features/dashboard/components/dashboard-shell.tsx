@@ -115,6 +115,7 @@ const reportManagementItems = [
 
 const settingsItems = [
   { href: routePaths.adminSettingsCompany, label: "Company Settings", icon: Building2 },
+  { href: routePaths.adminSettingsHeroSection, label: "Hero Section", icon: LayoutGrid },
   { href: routePaths.adminSettingsCategories, label: "Category Display", icon: Layers3 },
   { href: routePaths.adminSettingsHomeFeatureCards, label: "Feature Cards", icon: BadgeCheck },
   { href: routePaths.adminSettingsBrand, label: "Brand Settings", icon: Building2 },

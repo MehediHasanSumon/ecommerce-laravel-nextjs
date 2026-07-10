@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\AccountController;
 use App\Http\Controllers\Api\Admin\HomeFeatureCardController;
+use App\Http\Controllers\Api\Admin\HeroSectionController;
 use App\Http\Controllers\Api\Admin\BlogCommentManagementController;
 use App\Http\Controllers\Api\Admin\BlogManagementController;
 use App\Http\Controllers\Api\Admin\ContactMessageManagementController;
@@ -168,6 +169,15 @@ Route::prefix('admin')
 
         Route::post('/feature-cards/reorder', [HomeFeatureCardController::class, 'reorder']);
         Route::apiResource('feature-cards', HomeFeatureCardController::class);
+
+        Route::get('/settings/hero-section', [HeroSectionController::class, 'show']);
+        Route::put('/settings/hero-section', [HeroSectionController::class, 'updateSettings']);
+        Route::post('/settings/hero-section/upload', [HeroSectionController::class, 'upload']);
+        Route::post('/hero-slides/reorder', [HeroSectionController::class, 'reorderSlides']);
+        Route::post('/hero-slides/{slide}/duplicate', [HeroSectionController::class, 'duplicateSlide']);
+        Route::post('/hero-slides', [HeroSectionController::class, 'storeSlide']);
+        Route::put('/hero-slides/{slide}', [HeroSectionController::class, 'updateSlide']);
+        Route::delete('/hero-slides/{slide}', [HeroSectionController::class, 'destroySlide']);
 
         Route::get('/settings/company', [CompanySettingsController::class, 'show']);
         Route::put('/settings/company', [CompanySettingsController::class, 'update']);

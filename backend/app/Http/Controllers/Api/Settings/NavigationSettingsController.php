@@ -332,6 +332,7 @@ class NavigationSettingsController extends Controller
                 'type' => 'group',
                 'items' => [
                     ['label' => 'Company Settings', 'href' => '/admin/settings/company', 'icon' => 'Building2', 'enabled' => true],
+                    ['label' => 'Hero Section', 'href' => '/admin/settings/hero-section', 'icon' => 'LayoutGrid', 'enabled' => true],
                     ['label' => 'Category Display', 'href' => '/admin/settings/categories', 'icon' => 'LayoutGrid', 'enabled' => true],
                     ['label' => 'Feature Cards', 'href' => '/admin/settings/home-feature-cards', 'icon' => 'BadgeCheck', 'enabled' => true],
                     ['label' => 'Blog Settings', 'href' => '/admin/settings/blog', 'icon' => 'Newspaper', 'enabled' => true],

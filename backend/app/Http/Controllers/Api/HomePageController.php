@@ -10,6 +10,7 @@ use App\Http\Responses\ApiResponse;
 use App\Models\Brand;
 use App\Models\Product;
 use App\Services\Admin\Settings\BrandSettingsService;
+use App\Services\Admin\HeroSectionService;
 use App\Services\Collections\CollectionProductResolver;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -17,10 +18,10 @@ use Illuminate\Support\Facades\Cache;
 
 class HomePageController extends Controller
 {
-    public function show(CollectionProductResolver $collections, BrandSettingsService $brandSettings): JsonResponse
+    public function show(CollectionProductResolver $collections, BrandSettingsService $brandSettings, HeroSectionService $hero): JsonResponse
     {
         $brandRuntime = $brandSettings->runtime();
-        $cacheKey = 'home-page:product-brand-sections:v3:'.((int) $brandRuntime['enabled']).':'.((int) $brandRuntime['show_on_home']);
+        $cacheKey = 'home-page:product-brand-sections:v4:'.((int) $brandRuntime['enabled']).':'.((int) $brandRuntime['show_on_home']);
 
         $payload = Cache::remember($cacheKey, now()->addMinutes(5), function () use ($collections, $brandRuntime): array {
             $showBrands = (bool) ($brandRuntime['enabled'] && $brandRuntime['show_on_home']);
@@ -55,6 +56,7 @@ class HomePageController extends Controller
                 ],
             ];
         });
+        $payload['hero'] = $hero->runtime();
 
         return ApiResponse::success($payload);
     }

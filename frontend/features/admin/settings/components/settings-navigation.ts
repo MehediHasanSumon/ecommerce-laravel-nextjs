@@ -20,6 +20,7 @@ import type { SettingNavItem } from "@/features/admin/settings/components/settin
 
 export const settingsNavItems: SettingNavItem[] = [
   { href: routePaths.adminSettingsCompany, label: "Company Settings", description: "Legal, branding, invoice, security", icon: Building2 },
+  { href: routePaths.adminSettingsHeroSection, label: "Hero Section", description: "Home hero slider and canvas builder", icon: LayoutGrid },
   { href: routePaths.adminSettingsCategories, label: "Category Display", description: "Home section, navbar dropdown, category routes", icon: LayoutGrid },
   { href: routePaths.adminSettingsHomeFeatureCards, label: "Feature Cards", description: "Home service highlight cards", icon: BadgeCheck },
   { href: routePaths.adminSettingsBlog, label: "Blog Settings", description: "Blog feature, layout, comments, SEO", icon: Newspaper },
