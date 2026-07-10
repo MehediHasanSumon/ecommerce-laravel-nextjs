@@ -16,6 +16,7 @@ class PaymentMethodResource extends JsonResource
             'gateway' => $this->gateway,
             'name' => $config['display_name'] ?? Str::headline(str_replace('_', ' ', $this->gateway)),
             'description' => $config['checkout_description'] ?? null,
+            'logoUrl' => $config['logo_url'] ?? null,
             'sandboxMode' => (bool) $this->sandbox_mode,
             'sortOrder' => (int) $this->display_order,
         ];

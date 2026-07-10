@@ -40,6 +40,7 @@ export type PaymentMethod = {
   gateway: string;
   name: string;
   description?: string | null;
+  logoUrl?: string | null;
   sandboxMode: boolean;
   sortOrder: number;
 };

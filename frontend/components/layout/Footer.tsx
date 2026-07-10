@@ -1,11 +1,14 @@
 "use client";
 
 import Link from 'next/link';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Mail, MapPin, Phone } from 'lucide-react';
 import { BrandLogo } from '@/components/settings/BrandLogo';
 import { subscribeToNewsletter } from '@/services/catalog-service';
+import { fetchPaymentMethods, type PaymentMethod } from '@/services/checkout-service';
 import { selectBranding, selectCompanyName, selectFrontendNavigation, selectSettingsPending, selectSocialLinks, useSettingsStore } from '@/store/settings-store';
+
+const hiddenFooterPaymentGateways = new Set(['cash_on_delivery', 'home_delivery']);
 
 function SocialIcon({
   href,
@@ -29,11 +32,26 @@ function SocialIcon({
   );
 }
 
+function PaymentMethodBadge({ method }: { method: PaymentMethod }) {
+  const label = method.name || method.gateway.replace(/_/g, ' ');
+
+  return (
+    <span className="inline-flex h-9 max-w-full items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 text-xs font-semibold text-foreground">
+      {method.logoUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={method.logoUrl} alt="" className="h-4 max-w-16 object-contain" loading="lazy" />
+      ) : null}
+      <span className="truncate">{label}</span>
+    </span>
+  );
+}
+
 export function Footer() {
   const [email, setEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState<'success' | 'error'>('success');
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const branding = useSettingsStore(selectBranding);
   const siteName = useSettingsStore(selectCompanyName);
   const navigation = useSettingsStore(selectFrontendNavigation);
@@ -55,6 +73,30 @@ export function Footer() {
     { label: 'Privacy', href: '/privacy' },
     { label: 'Terms', href: '/terms' },
   ];
+  const acceptedPaymentMethods = useMemo(
+    () => paymentMethods.filter((method) => !hiddenFooterPaymentGateways.has(method.gateway.toLowerCase())),
+    [paymentMethods],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetchPaymentMethods()
+      .then((methods) => {
+        if (!cancelled) {
+          setPaymentMethods(methods);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPaymentMethods([]);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function handleSubscribe(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -198,6 +240,16 @@ export function Footer() {
             ) : (
               <p className="mt-3 text-xs text-muted-foreground">No spam ever. Unsubscribe anytime.</p>
             )}
+            {acceptedPaymentMethods.length ? (
+              <div className="mt-6 max-w-sm">
+                <h3 className="mb-3 text-sm font-semibold">We accept</h3>
+                <div className="flex flex-wrap gap-2">
+                  {acceptedPaymentMethods.map((method) => (
+                    <PaymentMethodBadge key={method.gateway} method={method} />
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
