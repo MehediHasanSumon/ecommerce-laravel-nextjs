@@ -18,7 +18,7 @@ export const routePaths = {
   forgotPassword: "/forgot-password",
   resetPassword: "/reset-password",
   account: "/account",
-  dashboard: "/admin/orders",
+  dashboard: "/admin/dashboard",
   dashboardUsers: "/admin/users",
   dashboardRoles: "/admin/roles",
   dashboardPermissions: "/admin/permissions",

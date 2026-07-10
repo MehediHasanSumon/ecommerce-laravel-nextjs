@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\Admin\HomeFeatureCardController;
 use App\Http\Controllers\Api\Admin\BlogCommentManagementController;
 use App\Http\Controllers\Api\Admin\BlogManagementController;
 use App\Http\Controllers\Api\Admin\ContactMessageManagementController;
+use App\Http\Controllers\Api\Admin\DashboardController;
 use App\Http\Controllers\Api\Admin\PermissionManagementController;
 use App\Http\Controllers\Api\Admin\OrderManagementController;
 use App\Http\Controllers\Api\Admin\ProductModuleController;
@@ -127,6 +128,8 @@ Route::prefix('auth')->group(function (): void {
 Route::prefix('admin')
     ->middleware(['auth.cookie:access', 'throttle:admin-api'])
     ->group(function (): void {
+        Route::get('/dashboard', [DashboardController::class, 'show']);
+
         Route::delete('/users/bulk', [UserManagementController::class, 'bulkDestroy']);
         Route::apiResource('users', UserManagementController::class);
 

@@ -235,7 +235,7 @@ class NavigationSettingsController extends Controller
                 'label' => 'Main',
                 'type' => 'single',
                 'items' => [
-                    ['label' => 'Dashboard', 'href' => '/dashboard', 'icon' => 'Home', 'enabled' => true],
+                    ['label' => 'Dashboard', 'href' => '/admin/dashboard', 'icon' => 'Home', 'enabled' => true],
                 ],
             ],
             [
