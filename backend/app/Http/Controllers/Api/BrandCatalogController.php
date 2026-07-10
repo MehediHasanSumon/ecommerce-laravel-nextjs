@@ -61,9 +61,14 @@ class BrandCatalogController extends Controller
         ]);
     }
 
-    public function show(string $slug): JsonResponse
+    public function show(string $slug, Request $request): JsonResponse
     {
         abort_unless($this->brandSettings->enabled(), 404);
+
+        $validated = $request->validate([
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:48'],
+        ]);
 
         $brand = Brand::query()
             ->where('slug', $slug)
@@ -86,7 +91,8 @@ class BrandCatalogController extends Controller
             ])
             ->orderByDesc('is_featured')
             ->latest('published_at')
-            ->paginate(24);
+            ->paginate((int) ($validated['per_page'] ?? 12))
+            ->withQueryString();
 
         return ApiResponse::success([
             'brand' => BrandResource::make($brand)->resolve(),

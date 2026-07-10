@@ -302,11 +302,13 @@ export async function fetchCollectionDetail(
 
 export async function fetchBrandDetail(
   slug: string,
+  params: { page?: number | string; per_page?: number | string } = {},
   options: { signal?: AbortSignal } = {},
 ): Promise<BrandDetailResponse> {
   const response = await axios.get<ApiEnvelope<{ brand: BrandDetailResponse["brand"]; products: Product[] }>>(
     `${apiBaseUrl}/brands/${encodeURIComponent(slug)}`,
     {
+      params,
       signal: options.signal,
       withCredentials: true,
       headers: {
@@ -322,7 +324,7 @@ export async function fetchBrandDetail(
     pagination: response.data.meta.pagination ?? {
       current_page: 1,
       last_page: 1,
-      per_page: 24,
+      per_page: Number(params.per_page ?? 12),
       total: response.data.data.products.length,
       from: response.data.data.products.length ? 1 : null,
       to: response.data.data.products.length || null,

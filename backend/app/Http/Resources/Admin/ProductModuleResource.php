@@ -32,8 +32,7 @@ class ProductModuleResource extends JsonResource
                 'og_image_url' => $this->og_image_url,
                 'is_featured' => (bool) $this->is_featured,
                 'status' => $this->status,
-                'products_count' => app(\App\Services\Collections\CollectionProductResolver::class)->resolvedProductCount($this->resource),
-                'assigned_products_count' => $this->products_count ?? 0,
+                'products_count' => $this->products_count ?? 0,
             ],
             \App\Models\Category::class => $base + [
                 'parent_id' => $this->parent_id,

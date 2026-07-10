@@ -4,6 +4,7 @@ namespace App\Services\Admin\Settings;
 
 use App\Models\Settings\BrandSetting;
 use App\Services\Admin\Settings\Concerns\ManagesSingletonSettings;
+use App\Services\Seo\SeoMetadataService;
 use App\Support\Admin\SettingsDefaults;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
@@ -64,6 +65,6 @@ class BrandSettingsService
         Cache::forget('settings.navigation.runtime');
         Cache::forget('home-page:product-brand-sections');
         Cache::forget('home-page:product-brand-sections:v2');
-        Cache::forget('seo.sitemap.entries.v1');
+        SeoMetadataService::invalidateCache();
     }
 }

@@ -276,8 +276,17 @@ export function BlogManagementContent() {
 function BlogDrawer({ open, mode, blog, authors, onClose, onSubmit }: { open: boolean; mode: "create" | "edit"; blog: ManagedBlog | null; authors: Option[]; onClose: () => void; onSubmit: (values: BlogPayload) => Promise<void> }) {
   const [form, setForm] = useState<BlogPayload>(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [customSeo, setCustomSeo] = useState(false);
 
   useEffect(() => {
+    const nextCustomSeo = Boolean(blog && [
+      blog.meta_title,
+      blog.meta_description,
+      blog.meta_keywords,
+      blog.canonical_url,
+      blog.open_graph_image,
+    ].some((value) => String(value ?? "").trim()));
+    setCustomSeo(nextCustomSeo);
     setForm(blog ? {
       title: blog.title,
       featured_image: blog.featured_image,
@@ -308,7 +317,14 @@ function BlogDrawer({ open, mode, blog, authors, onClose, onSubmit }: { open: bo
           event.preventDefault();
           setSaving(true);
           try {
-            await onSubmit(form);
+            await onSubmit(customSeo ? form : {
+              ...form,
+              meta_title: null,
+              meta_description: null,
+              meta_keywords: null,
+              canonical_url: null,
+              open_graph_image: null,
+            });
           } finally {
             setSaving(false);
           }
@@ -350,19 +366,27 @@ function BlogDrawer({ open, mode, blog, authors, onClose, onSubmit }: { open: bo
             <span>Full Content</span>
             <textarea required value={form.content} onChange={(event) => setForm((current) => ({ ...current, content: event.target.value }))} className="min-h-56 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
           </label>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Input label="Meta Title" value={form.meta_title ?? ""} onChange={(event) => setForm((current) => ({ ...current, meta_title: event.target.value }))} />
-            <Input label="Canonical URL" value={form.canonical_url ?? ""} onChange={(event) => setForm((current) => ({ ...current, canonical_url: event.target.value }))} />
-            <Input label="Open Graph Image" value={form.open_graph_image ?? ""} onChange={(event) => setForm((current) => ({ ...current, open_graph_image: event.target.value }))} />
-          </div>
-          <label className="space-y-1.5 text-sm font-semibold">
-            <span>Meta Keywords</span>
-            <textarea value={form.meta_keywords ?? ""} onChange={(event) => setForm((current) => ({ ...current, meta_keywords: event.target.value }))} className="min-h-16 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+          <label className="flex items-center justify-between rounded-lg border border-border p-3 text-sm font-semibold">
+            Enable Custom SEO
+            <input type="checkbox" checked={customSeo} onChange={(event) => setCustomSeo(event.target.checked)} />
           </label>
-          <label className="space-y-1.5 text-sm font-semibold">
-            <span>Meta Description</span>
-            <textarea value={form.meta_description ?? ""} onChange={(event) => setForm((current) => ({ ...current, meta_description: event.target.value }))} className="min-h-20 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
-          </label>
+          {customSeo ? (
+            <>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Input label="Meta Title" value={form.meta_title ?? ""} onChange={(event) => setForm((current) => ({ ...current, meta_title: event.target.value }))} />
+                <Input label="Canonical URL" value={form.canonical_url ?? ""} onChange={(event) => setForm((current) => ({ ...current, canonical_url: event.target.value }))} />
+                <Input label="Open Graph Image" value={form.open_graph_image ?? ""} onChange={(event) => setForm((current) => ({ ...current, open_graph_image: event.target.value }))} />
+              </div>
+              <label className="space-y-1.5 text-sm font-semibold">
+                <span>Meta Keywords</span>
+                <textarea value={form.meta_keywords ?? ""} onChange={(event) => setForm((current) => ({ ...current, meta_keywords: event.target.value }))} className="min-h-16 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+              </label>
+              <label className="space-y-1.5 text-sm font-semibold">
+                <span>Meta Description</span>
+                <textarea value={form.meta_description ?? ""} onChange={(event) => setForm((current) => ({ ...current, meta_description: event.target.value }))} className="min-h-20 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+              </label>
+            </>
+          ) : null}
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="flex items-center justify-between rounded-lg border border-border p-3 text-sm font-semibold">
               Featured Blog

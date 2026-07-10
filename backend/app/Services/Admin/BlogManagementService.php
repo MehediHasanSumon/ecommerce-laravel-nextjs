@@ -5,6 +5,7 @@ namespace App\Services\Admin;
 use App\Models\Blog;
 use App\Services\Admin\Concerns\BuildsManagementQueries;
 use App\Services\Admin\Settings\BlogSettingsService;
+use App\Services\Seo\SeoMetadataService;
 use App\Support\Identifiers\SlugGenerator;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
@@ -49,7 +50,10 @@ class BlogManagementService
             $data['reading_time_minutes'] = $this->readingTime($data['content']);
             $data = $this->normalizePublishDates($data);
 
-            return Blog::query()->create($data)->load('author:id,name,email');
+            $blog = Blog::query()->create($data)->load('author:id,name,email');
+            SeoMetadataService::invalidateCache();
+
+            return $blog;
         });
     }
 
@@ -68,6 +72,7 @@ class BlogManagementService
 
             $data['updated_by'] = $userId;
             $blog->fill($this->normalizePublishDates($data))->save();
+            SeoMetadataService::invalidateCache();
 
             return $blog->refresh()->load('author:id,name,email');
         });
@@ -76,11 +81,15 @@ class BlogManagementService
     public function delete(Blog $blog): void
     {
         $blog->delete();
+        SeoMetadataService::invalidateCache();
     }
 
     public function bulkDelete(array $ids): int
     {
-        return Blog::query()->whereIn('id', $ids)->delete();
+        $deleted = Blog::query()->whereIn('id', $ids)->delete();
+        SeoMetadataService::invalidateCache();
+
+        return $deleted;
     }
 
     private function readingTime(string $content): int

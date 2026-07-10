@@ -1,7 +1,8 @@
 'use client';
-import { use, useState, useEffect } from 'react';
+import { use, useCallback, useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ChevronRight, ExternalLink } from 'lucide-react';
 import { AnnouncementBar } from '@/components/layout/AnnouncementBar';
 import { Header } from '@/components/layout/Header';
@@ -13,12 +14,16 @@ import { selectBrandsEnabled, selectSettingsPending, useSettingsStore } from '@/
 
 export default function BrandDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const brandsEnabled = useSettingsStore(selectBrandsEnabled);
   const settingsPending = useSettingsStore(selectSettingsPending);
   const [mounted, setMounted] = useState(false);
   const [data, setData] = useState<BrandDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  const page = Math.max(1, Number(searchParams.get('page') ?? 1) || 1);
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -33,7 +38,7 @@ export default function BrandDetailPage({ params }: { params: Promise<{ slug: st
     setLoading(true);
     setLoadError(false);
 
-    fetchBrandDetail(slug, { signal: controller.signal })
+    fetchBrandDetail(slug, { page, per_page: 12 }, { signal: controller.signal })
       .then((response) => setData(response))
       .catch((error: unknown) => {
         if ((error as { name?: string })?.name === 'CanceledError') return;
@@ -45,10 +50,26 @@ export default function BrandDetailPage({ params }: { params: Promise<{ slug: st
       });
 
     return () => controller.abort();
-  }, [brandsEnabled, settingsPending, slug]);
+  }, [brandsEnabled, page, settingsPending, slug]);
 
   const brand = data?.brand ?? null;
   const products = data?.products ?? [];
+  const pagination = data?.pagination ?? null;
+
+  const goToPage = useCallback((nextPage: number) => {
+    const params = new URLSearchParams(searchParams);
+    if (nextPage <= 1) {
+      params.delete('page');
+    } else {
+      params.set('page', String(nextPage));
+    }
+    router.replace(params.toString() ? `${pathname}?${params.toString()}` : pathname, { scroll: false });
+  }, [pathname, router, searchParams]);
+
+  useEffect(() => {
+    if (!data || loading || data.pagination.last_page < 1 || page <= data.pagination.last_page) return;
+    goToPage(data.pagination.last_page);
+  }, [data, goToPage, loading, page]);
 
   useEffect(() => {
     if (!brand?.seo) return;
@@ -167,13 +188,49 @@ export default function BrandDetailPage({ params }: { params: Promise<{ slug: st
           ) : (
             <>
               <p className="text-sm text-muted-foreground mb-6">
-                {products.length} products from {brand.name}
+                {pagination?.total ?? products.length} products from {brand.name}
               </p>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
                 {products.map((p) => (
                   <ProductCard key={p.id} product={p} />
                 ))}
               </div>
+              {pagination && pagination.last_page > 1 ? (
+                <nav className="mt-8 flex flex-wrap items-center justify-center gap-2" aria-label="Brand pagination">
+                  <button
+                    type="button"
+                    disabled={pagination.current_page <= 1}
+                    onClick={() => goToPage(pagination.current_page - 1)}
+                    className="rounded-xl border border-border px-3 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-muted"
+                  >
+                    Previous
+                  </button>
+                  {Array.from({ length: Math.min(pagination.last_page, 5) }, (_, index) => {
+                    const start = Math.max(1, Math.min(pagination.current_page - 2, pagination.last_page - 4));
+                    const pageNumber = start + index;
+                    if (pageNumber > pagination.last_page) return null;
+                    return (
+                      <button
+                        key={pageNumber}
+                        type="button"
+                        aria-current={pageNumber === pagination.current_page ? 'page' : undefined}
+                        onClick={() => goToPage(pageNumber)}
+                        className={`rounded-xl border border-border px-3 py-2 text-sm font-medium hover:bg-muted ${pageNumber === pagination.current_page ? 'bg-primary text-primary-foreground hover:bg-primary' : ''}`}
+                      >
+                        {pageNumber}
+                      </button>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    disabled={pagination.current_page >= pagination.last_page}
+                    onClick={() => goToPage(pagination.current_page + 1)}
+                    className="rounded-xl border border-border px-3 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 hover:bg-muted"
+                  >
+                    Next
+                  </button>
+                </nav>
+              ) : null}
             </>
           )}
         </div>

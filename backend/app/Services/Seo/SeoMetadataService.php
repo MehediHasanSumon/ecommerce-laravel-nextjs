@@ -8,6 +8,7 @@ use App\Models\Category;
 use App\Models\ContentPage;
 use App\Models\Product;
 use App\Models\ProductCollection;
+use App\Models\Settings\CompanySetting;
 use App\Services\Admin\Settings\BrandSettingsService;
 use App\Services\Admin\Settings\SeoSettingsService;
 use Illuminate\Support\Facades\Cache;
@@ -16,6 +17,8 @@ use Illuminate\Support\Str;
 
 class SeoMetadataService
 {
+    private const CACHE_VERSION_KEY = 'seo.metadata.version';
+
     public function __construct(
         private readonly SeoSettingsService $settings,
         private readonly BrandSettingsService $brandSettings,
@@ -23,11 +26,14 @@ class SeoMetadataService
 
     public function defaults(): array
     {
-        return Cache::remember('seo.metadata.defaults.v1', now()->addMinutes(10), function (): array {
+        return Cache::remember("seo.metadata.defaults.{$this->cacheVersion()}", now()->addMinutes(10), function (): array {
             $settings = $this->settings->get();
+            $company = CompanySetting::query()->with('currency')->first();
             $siteName = $settings->site_title ?: config('app.name');
             $canonicalDomain = rtrim((string) ($settings->canonical_url ?: config('app.url')), '/');
             $robots = $this->robots((bool) $settings->robots_index, (bool) $settings->robots_follow);
+            $favicon = $this->versionedAssetUrl($company?->favicon, optional($company?->updated_at)->timestamp);
+            $defaultImage = $this->assetUrl($settings->og_image) ?: $this->assetUrl($company?->logo);
 
             return [
                 'siteName' => $siteName,
@@ -38,10 +44,11 @@ class SeoMetadataService
                 'canonicalDomain' => $canonicalDomain,
                 'canonicalUrl' => $canonicalDomain,
                 'robots' => $robots,
+                'favicon' => $favicon,
                 'openGraph' => [
                     'title' => $settings->og_title ?: $settings->meta_title ?: $siteName,
                     'description' => $settings->og_description ?: $settings->meta_description,
-                    'image' => $this->assetUrl($settings->og_image),
+                    'image' => $defaultImage,
                     'type' => 'website',
                     'siteName' => $siteName,
                 ],
@@ -49,7 +56,7 @@ class SeoMetadataService
                     'card' => $settings->twitter_card_type ?: 'summary_large_image',
                     'title' => $settings->twitter_title ?: $settings->og_title ?: $settings->meta_title ?: $siteName,
                     'description' => $settings->twitter_description ?: $settings->og_description ?: $settings->meta_description,
-                    'image' => $this->assetUrl($settings->twitter_image ?: $settings->og_image),
+                    'image' => $this->assetUrl($settings->twitter_image) ?: $defaultImage,
                 ],
                 'sitemapEnabled' => (bool) $settings->enable_sitemap,
                 'sitemapUrl' => $settings->sitemap_url,
@@ -59,7 +66,7 @@ class SeoMetadataService
 
     public function entity(string $type, string $slug): ?array
     {
-        return Cache::remember("seo.metadata.entity.{$type}.{$slug}.v1", now()->addMinutes(10), fn () => match ($type) {
+        return Cache::remember("seo.metadata.entity.{$type}.{$slug}.{$this->cacheVersion()}", now()->addMinutes(10), fn () => match ($type) {
             'product' => $this->product($slug),
             'category' => $this->category($slug),
             'brand' => $this->brandSettings->enabled() ? $this->brand($slug) : null,
@@ -72,7 +79,7 @@ class SeoMetadataService
 
     public function sitemapEntries(): array
     {
-        return Cache::remember('seo.sitemap.entries.v1', now()->addMinutes(15), function (): array {
+        return Cache::remember("seo.sitemap.entries.{$this->cacheVersion()}", now()->addMinutes(15), function (): array {
             $defaults = $this->defaults();
             $base = $defaults['canonicalDomain'];
             $brandsEnabled = $this->brandSettings->enabled();
@@ -114,12 +121,21 @@ class SeoMetadataService
         });
     }
 
+    public static function invalidateCache(): void
+    {
+        $version = (int) Cache::get(self::CACHE_VERSION_KEY, 1);
+
+        Cache::forever(self::CACHE_VERSION_KEY, $version + 1);
+        Cache::forget('seo.metadata.defaults.v1');
+        Cache::forget('seo.sitemap.entries.v1');
+    }
+
     private function product(string $slug): ?array
     {
         $product = Product::query()
             ->where('slug', $slug)
             ->where('status', 'active')
-            ->with(['brand:id,name,slug', 'category:id,name,slug', 'images:id,product_id,url,is_primary,sort_order', 'seo'])
+            ->with(['brand:id,name,slug', 'category:id,name,slug', 'tags:id,name', 'images:id,product_id,url,is_primary,sort_order', 'seo'])
             ->first();
 
         if (! $product) {
@@ -158,7 +174,7 @@ class SeoMetadataService
             path: "/products/{$product->slug}",
             image: $image,
             type: 'product',
-            keywords: $product->seo?->meta_keywords,
+            keywords: $product->seo?->meta_keywords ?: $this->keywords([$product->name, $product->brand?->name, $product->category?->name, ...$product->tags->pluck('name')->all()]),
             canonicalUrl: $product->seo?->canonical_url,
             structuredData: $structuredData,
         );
@@ -176,7 +192,7 @@ class SeoMetadataService
             description: $category->meta_description ?: $category->description,
             path: "/categories/{$category->slug}",
             image: $this->assetUrl($category->og_image_url ?: $category->image_url),
-            keywords: $category->meta_keywords,
+            keywords: $category->meta_keywords ?: $this->keywords([$category->name]),
             canonicalUrl: $category->canonical_url,
         );
     }
@@ -197,7 +213,7 @@ class SeoMetadataService
             description: $brand->meta_description ?: $brand->description,
             path: "/brands/{$brand->slug}",
             image: $this->assetUrl($brand->og_image_url ?: $brand->logo_url ?: $brand->cover_image_url),
-            keywords: $brand->meta_keywords,
+            keywords: $brand->meta_keywords ?: $this->keywords([$brand->name]),
             canonicalUrl: $brand->canonical_url,
             structuredData: [
                 '@context' => 'https://schema.org',
@@ -222,7 +238,7 @@ class SeoMetadataService
             description: $collection->meta_description ?: $collection->description,
             path: "/collections/{$collection->slug}",
             image: $this->assetUrl($collection->og_image_url ?: $collection->banner_image_url),
-            keywords: $collection->meta_keywords,
+            keywords: $collection->meta_keywords ?: $this->keywords([$collection->name, $collection->display_title, $collection->subtitle, $collection->promotional_text]),
             canonicalUrl: $collection->canonical_url,
             structuredData: [
                 '@context' => 'https://schema.org',
@@ -246,7 +262,7 @@ class SeoMetadataService
             path: "/blogs/{$blog->slug}",
             image: $this->assetUrl($blog->open_graph_image ?: $blog->featured_image),
             type: 'article',
-            keywords: $blog->meta_keywords,
+            keywords: $blog->meta_keywords ?: $this->keywords([$blog->title, $blog->excerpt]),
             canonicalUrl: $blog->canonical_url,
             structuredData: [
                 '@context' => 'https://schema.org',
@@ -273,7 +289,7 @@ class SeoMetadataService
             description: $page->meta_description ?: $page->description,
             path: "/{$page->slug}",
             image: $this->assetUrl($page->og_image_url),
-            keywords: $page->meta_keywords,
+            keywords: $page->meta_keywords ?: $this->keywords([$page->title]),
             canonicalUrl: $page->canonical_url,
         );
     }
@@ -313,6 +329,11 @@ class SeoMetadataService
         return ($index ? 'index' : 'noindex').','.($follow ? 'follow' : 'nofollow');
     }
 
+    private function cacheVersion(): string
+    {
+        return 'v'.((int) Cache::get(self::CACHE_VERSION_KEY, 1));
+    }
+
     private function entry(string $url, mixed $updatedAt = null): array
     {
         return [
@@ -338,5 +359,29 @@ class SeoMetadataService
         }
 
         return Storage::disk('public')->url($path);
+    }
+
+    private function versionedAssetUrl(?string $path, ?int $version): ?string
+    {
+        $url = $this->assetUrl($path);
+        if (! $url) {
+            return null;
+        }
+
+        return $url.(str_contains($url, '?') ? '&' : '?').'v='.($version ?: time());
+    }
+
+    private function keywords(array $parts): ?string
+    {
+        $words = collect($parts)
+            ->filter()
+            ->flatMap(fn ($part) => preg_split('/[,\s|]+/', Str::lower(strip_tags((string) $part))) ?: [])
+            ->map(fn ($word) => trim((string) $word, " \t\n\r\0\x0B.-_"))
+            ->filter(fn ($word) => Str::length($word) > 2)
+            ->unique()
+            ->take(12)
+            ->values();
+
+        return $words->isEmpty() ? null : $words->implode(', ');
     }
 }

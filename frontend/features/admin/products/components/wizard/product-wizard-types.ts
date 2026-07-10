@@ -57,6 +57,7 @@ export type ProductWizardValues = {
   attribute_values: number[];
   variants: ProductVariantDraft[];
   seo: {
+    custom_enabled: boolean;
     meta_title: string;
     meta_description: string;
     meta_keywords: string;
@@ -126,6 +127,7 @@ export const productWizardSchema = z.object({
   attribute_values: z.array(z.number()),
   variants: z.array(z.any()),
   seo: z.object({
+    custom_enabled: z.boolean(),
     meta_title: z.string().max(255, "Meta title must be 255 characters or fewer.").optional(),
     meta_description: z.string().optional(),
     meta_keywords: z.string().optional(),
@@ -165,7 +167,7 @@ export const stepFields: Record<ProductWizardStepId, Array<keyof ProductWizardVa
   inventory: ["stock_quantity", "stock_status", "low_stock_threshold", "track_inventory", "backorders", "min_order_quantity", "max_order_quantity"],
   media: ["featured_image", "gallery_images"],
   variants: ["attribute_values", "variants"],
-  seo: ["seo.meta_title", "seo.meta_description", "seo.meta_keywords", "seo.canonical_url", "seo.og_image_url"],
+  seo: ["seo.custom_enabled", "seo.meta_title", "seo.meta_description", "seo.meta_keywords", "seo.canonical_url", "seo.og_image_url"],
   shipping: ["shipping.weight_grams", "shipping.length_cm", "shipping.width_cm", "shipping.height_cm", "shipping.shipping_class", "shipping.package_info"],
   publish: ["status", "published_at"],
 };
@@ -197,6 +199,7 @@ export function emptyProductWizardValues(): ProductWizardValues {
     attribute_values: [],
     variants: [],
     seo: {
+      custom_enabled: false,
       meta_title: "",
       meta_description: "",
       meta_keywords: "",
@@ -296,6 +299,12 @@ export function valuesFromProduct(record?: ProductRecord | null, options?: Produ
       };
     }) : [],
     seo: {
+      custom_enabled: Boolean(
+        String((record.seo as Record<string, unknown> | null)?.meta_title ?? "").trim()
+        || String((record.seo as Record<string, unknown> | null)?.meta_description ?? "").trim()
+        || String((record.seo as Record<string, unknown> | null)?.canonical_url ?? "").trim()
+        || String((record.seo as Record<string, unknown> | null)?.og_image_url ?? "").trim()
+      ),
       meta_title: String((record.seo as Record<string, unknown> | null)?.meta_title ?? ""),
       meta_description: String((record.seo as Record<string, unknown> | null)?.meta_description ?? ""),
       meta_keywords: "",
@@ -391,12 +400,13 @@ export function productPayloadFromValues(values: ProductWizardValues, publish: b
     images,
     featured_image_file: values.featured_image?.file,
     gallery_image_files: values.gallery_images.map((image) => image.file).filter(Boolean),
-    seo: {
+    seo: values.seo.custom_enabled ? {
       meta_title: values.seo.meta_title || null,
       meta_description: values.seo.meta_description || null,
+      meta_keywords: values.seo.meta_keywords || null,
       canonical_url: values.seo.canonical_url || null,
       og_image_url: values.seo.og_image_url || null,
-    },
+    } : null,
     specifications: [
       values.shipping.weight_grams !== "" ? { group_name: "Shipping", name: "Weight", value: `${values.shipping.weight_grams} g`, sort_order: 0 } : null,
       values.shipping.length_cm !== "" || values.shipping.width_cm !== "" || values.shipping.height_cm !== ""

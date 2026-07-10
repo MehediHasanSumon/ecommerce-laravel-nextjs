@@ -17,12 +17,7 @@ const geistMono = Geist_Mono({
 });
 
 export async function generateMetadata(): Promise<Metadata> {
-  const metadata = await defaultMetadata();
-
-  return {
-    ...metadata,
-    icons: { icon: "/favicon.png" },
-  };
+  return defaultMetadata();
 }
 
 export default function RootLayout({

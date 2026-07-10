@@ -17,6 +17,7 @@ use App\Models\Warehouse;
 use App\Services\Admin\Concerns\BuildsManagementQueries;
 use App\Services\Admin\Settings\BrandSettingsService;
 use App\Services\Concerns\StoresPublicUploads;
+use App\Services\Seo\SeoMetadataService;
 use App\Support\Identifiers\SkuGenerator;
 use App\Support\Identifiers\SlugGenerator;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -90,6 +91,7 @@ class ProductModuleService
         if (in_array($module, ['collections', 'currencies'], true)) {
             $this->clearCollectionCaches();
         }
+        $this->clearSeoCaches($module);
     }
 
     public function bulkDelete(string $module, array $ids): int
@@ -104,6 +106,7 @@ class ProductModuleService
         if (in_array($module, ['collections', 'currencies'], true)) {
             $this->clearCollectionCaches();
         }
+        $this->clearSeoCaches($module);
 
         return $deleted;
     }
@@ -161,6 +164,7 @@ class ProductModuleService
             $model->fill($data)->save();
             $model->products()->sync(collect($products)->mapWithKeys(fn ($item) => [$item['id'] => ['sort_order' => $item['sort_order'] ?? 0]])->all());
             $this->clearCollectionCaches();
+            $this->clearSeoCaches($module);
 
             return $this->find($module, $model->id);
         }
@@ -219,6 +223,7 @@ class ProductModuleService
         if ($module === 'categories') {
             $this->clearCategoryCaches();
         }
+        $this->clearSeoCaches($module);
 
         return $this->find($module, $model->id);
     }
@@ -307,6 +312,7 @@ class ProductModuleService
         }
 
         $this->variantEngine->sync($model, $variants);
+        $this->clearSeoCaches('products');
 
         return $this->find('products', $model->id);
     }
@@ -544,5 +550,12 @@ class ProductModuleService
     {
         cache()->forget('home-page:product-brand-sections');
         cache()->forget('home-page:product-brand-sections:v2');
+    }
+
+    private function clearSeoCaches(string $module): void
+    {
+        if (in_array($module, ['products', 'brands', 'categories', 'collections', 'tags'], true)) {
+            SeoMetadataService::invalidateCache();
+        }
     }
 }

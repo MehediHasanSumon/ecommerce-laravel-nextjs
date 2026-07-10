@@ -1,32 +1,15 @@
 "use client";
 
 import { useEffect } from "react";
-import {
-  selectCompanyFavicon,
-  selectSettingsPending,
-  useSettingsStore,
-} from "@/store/settings-store";
+import { selectSettingsPending, useSettingsStore } from "@/store/settings-store";
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const fetchSettings = useSettingsStore((state) => state.fetchSettings);
-  const favicon = useSettingsStore(selectCompanyFavicon);
   const settingsPending = useSettingsStore(selectSettingsPending);
 
   useEffect(() => {
     void fetchSettings();
   }, [fetchSettings]);
-
-  useEffect(() => {
-    if (!favicon) return;
-
-    let link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
-    if (!link) {
-      link = document.createElement("link");
-      link.rel = "icon";
-      document.head.appendChild(link);
-    }
-    link.href = favicon;
-  }, [favicon]);
 
   if (settingsPending) {
     return <GlobalSettingsSkeleton />;

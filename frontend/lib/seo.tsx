@@ -30,6 +30,7 @@ export type SeoMetadataPayload = {
     image?: string | null;
   } | null;
   structuredData?: Record<string, unknown> | null;
+  favicon?: string | null;
 };
 
 type ApiEnvelope<T> = { data: T };
@@ -126,7 +127,7 @@ async function metadataFromPayload(payload: SeoMetadataPayload): Promise<Metadat
 
 async function fetchDefaults(): Promise<SeoMetadataPayload | null> {
   try {
-    const response = await fetch(`${apiBaseUrl}/seo/defaults`, { next: { revalidate: 600 } });
+    const response = await fetch(`${apiBaseUrl}/seo/defaults`, { cache: "no-store" });
     if (!response.ok) return null;
     const json = (await response.json()) as ApiEnvelope<{ metadata: SeoMetadataPayload }>;
     return json.data.metadata;
@@ -137,7 +138,7 @@ async function fetchDefaults(): Promise<SeoMetadataPayload | null> {
 
 async function fetchEntity(type: string, slug: string): Promise<SeoMetadataPayload | null> {
   try {
-    const response = await fetch(`${apiBaseUrl}/seo/${type}/${encodeURIComponent(slug)}`, { next: { revalidate: 600 } });
+    const response = await fetch(`${apiBaseUrl}/seo/${type}/${encodeURIComponent(slug)}`, { cache: "no-store" });
     if (!response.ok) return null;
     const json = (await response.json()) as ApiEnvelope<{ metadata: SeoMetadataPayload }>;
     return json.data.metadata;
@@ -223,6 +224,11 @@ function toMetadata(payload: SeoMetadataPayload): Metadata {
       description: payload.twitter?.description ?? payload.description ?? undefined,
       images: twitterImage ? [twitterImage] : undefined,
     },
+    icons: payload.favicon ? {
+      icon: [{ url: payload.favicon }],
+      shortcut: [{ url: payload.favicon }],
+      apple: [{ url: payload.favicon }],
+    } : undefined,
   };
 }
 

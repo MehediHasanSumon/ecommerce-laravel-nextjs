@@ -324,16 +324,27 @@ export function VariantSection({ form, options }: SectionProps) {
 
 export function SeoSection({ form }: SectionProps) {
   const errors = form.formState.errors.seo;
+  const customSeo = useFieldValue(form, "seo").custom_enabled;
   return (
     <div className="space-y-5">
-      <SectionHeader title="SEO" description="Tune search metadata and social sharing assets." />
-      <FieldGrid>
-        <Input label="Meta Title" {...form.register("seo.meta_title")} error={errors?.meta_title?.message} />
-        <Input label="Canonical URL" {...form.register("seo.canonical_url")} error={errors?.canonical_url?.message} />
-        <Input label="Meta Keywords" {...form.register("seo.meta_keywords")} />
-        <Input label="Open Graph Image" {...form.register("seo.og_image_url")} />
-      </FieldGrid>
-      <TextAreaField label="Meta Description" rows={4} {...form.register("seo.meta_description")} error={errors?.meta_description?.message} />
+      <SectionHeader title="SEO" description="Search metadata is generated automatically unless custom SEO is enabled." />
+      <ToggleField
+        label="Enable Custom SEO"
+        description="Override the automatic title, description, canonical URL, keywords, or social image."
+        checked={customSeo}
+        onChange={(checked) => form.setValue("seo.custom_enabled", checked, { shouldDirty: true })}
+      />
+      {customSeo ? (
+        <>
+          <FieldGrid>
+            <Input label="Meta Title" {...form.register("seo.meta_title")} error={errors?.meta_title?.message} />
+            <Input label="Canonical URL" {...form.register("seo.canonical_url")} error={errors?.canonical_url?.message} />
+            <Input label="Meta Keywords" {...form.register("seo.meta_keywords")} />
+            <Input label="Open Graph Image" {...form.register("seo.og_image_url")} />
+          </FieldGrid>
+          <TextAreaField label="Meta Description" rows={4} {...form.register("seo.meta_description")} error={errors?.meta_description?.message} />
+        </>
+      ) : null}
     </div>
   );
 }
@@ -368,7 +379,7 @@ export function PublishSection({ form, options }: SectionProps) {
     { label: "Pricing", complete: values.base_price_cents !== "" },
     { label: "Inventory", complete: !values.track_inventory || values.stock_quantity !== "" },
     { label: "Media", complete: Boolean(values.featured_image || values.gallery_images.length) },
-    { label: "SEO", complete: Boolean(values.seo.meta_title || values.seo.meta_description) },
+    { label: "SEO", complete: true },
   ];
 
   return (

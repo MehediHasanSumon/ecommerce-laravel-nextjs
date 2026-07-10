@@ -505,6 +505,7 @@ function categoryFieldsForMode(fields: FieldConfig[], settings: RuntimeCategoryD
 
 function defaultValues(config: ModuleConfig, item?: ProductRecord | null): ProductModulePayload {
   const values: ProductModulePayload = {};
+  const hasSeoFields = config.fields.some((field) => field.tab === "SEO" && field.name !== "route_aliases");
   config.fields.forEach((field) => {
     const current = nestedValue(item ?? {}, field.name);
     if (current !== undefined && current !== null) {
@@ -523,6 +524,9 @@ function defaultValues(config: ModuleConfig, item?: ProductRecord | null): Produ
     else if (field.name === "discount_apply_to") values[field.name] = "entire_collection";
     else values[field.name] = "";
   });
+  if (hasSeoFields) {
+    values.seo_override = hasExistingSeoOverride(item);
+  }
   return values;
 }
 
@@ -562,7 +566,13 @@ function setNestedValue(target: ProductModulePayload, path: string, value: unkno
 
 function toPayload(values: ProductModulePayload, config: ModuleConfig): ProductModulePayload {
   const payload: ProductModulePayload = {};
+  const customSeoEnabled = values.seo_override === true;
   config.fields.forEach((field) => {
+    if (field.name === "seo_override") return;
+    if (field.tab === "SEO" && field.name !== "route_aliases" && !customSeoEnabled) {
+      setNestedValue(payload, field.name, null);
+      return;
+    }
     const value = values[field.name];
     if (value === "" || value === undefined) {
       if (!field.optional) setNestedValue(payload, field.name, value);
@@ -611,7 +621,12 @@ export function ProductForm({
   const [activeTab, setActiveTab] = useState(config.fields[0]?.tab ?? "Main");
   const watchedValues = useWatch({ control: form.control }) as ProductModulePayload;
   const tabs = [...new Set(config.fields.map((field) => field.tab ?? "Main"))];
-  const visibleFields = config.fields.filter((field) => (field.tab ?? "Main") === activeTab && (!field.showWhen || field.showWhen(watchedValues)));
+  const customSeoEnabled = watchedValues.seo_override === true;
+  const visibleFields = config.fields.filter((field) => {
+    if ((field.tab ?? "Main") !== activeTab) return false;
+    if (field.tab === "SEO" && field.name !== "route_aliases" && !customSeoEnabled) return false;
+    return !field.showWhen || field.showWhen(watchedValues);
+  });
 
   async function handleSubmit(values: ProductModulePayload) {
     await onSubmit(toPayload(values, config));
@@ -637,6 +652,17 @@ export function ProductForm({
         </div>
       ) : null}
       <div className="grid gap-4">
+        {activeTab === "SEO" ? (
+          <label className="flex items-center gap-2 rounded-lg border border-border p-3 text-sm font-semibold">
+            <input
+              type="checkbox"
+              checked={customSeoEnabled}
+              onChange={(event) => form.setValue("seo_override", event.target.checked, { shouldDirty: true })}
+              className="h-4 w-4 rounded border-border"
+            />
+            <span>Enable Custom SEO</span>
+          </label>
+        ) : null}
         {visibleFields.map((field) => (
           <FieldControl key={field.name} field={field} form={form} item={item} options={options} />
         ))}
@@ -648,6 +674,20 @@ export function ProductForm({
       </div>
     </form>
   );
+}
+
+function hasExistingSeoOverride(item?: ProductRecord | null) {
+  if (!item) return false;
+
+  return [
+    "meta_title",
+    "meta_description",
+    "meta_keywords",
+    "canonical_url",
+    "og_title",
+    "og_description",
+    "og_image_url",
+  ].some((key) => Boolean(String(item[key] ?? "").trim()));
 }
 
 function FieldControl({ field, form, item, options }: { field: FieldConfig; form: ReturnType<typeof useForm<ProductModulePayload>>; item?: ProductRecord | null; options: ProductOptions }) {
