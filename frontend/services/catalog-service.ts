@@ -237,6 +237,23 @@ export async function fetchHomePageSections(
   return response.data.data;
 }
 
+export async function subscribeToNewsletter(email: string): Promise<string> {
+  const response = await axios.post<ApiEnvelope<{ subscriber: { id: number; email: string; status: string } }>>(
+    `${apiBaseUrl}/newsletter/subscribe`,
+    { email },
+    {
+      withCredentials: true,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "X-Requested-With": "XMLHttpRequest",
+      },
+    },
+  );
+
+  return response.data.message;
+}
+
 export async function fetchBrands(
   params: { search?: string; page?: number | string; per_page?: number | string } = {},
   options: { signal?: AbortSignal } = {},

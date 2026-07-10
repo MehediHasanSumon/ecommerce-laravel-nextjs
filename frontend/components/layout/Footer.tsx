@@ -1,8 +1,10 @@
 "use client";
 
 import Link from 'next/link';
+import { useState, type FormEvent } from 'react';
 import { Mail, MapPin, Phone } from 'lucide-react';
 import { BrandLogo } from '@/components/settings/BrandLogo';
+import { subscribeToNewsletter } from '@/services/catalog-service';
 import { selectBranding, selectCompanyName, selectFrontendNavigation, selectSettingsPending, selectSocialLinks, useSettingsStore } from '@/store/settings-store';
 
 function SocialIcon({
@@ -28,6 +30,10 @@ function SocialIcon({
 }
 
 export function Footer() {
+  const [email, setEmail] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [message, setMessage] = useState('');
+  const [messageType, setMessageType] = useState<'success' | 'error'>('success');
   const branding = useSettingsStore(selectBranding);
   const siteName = useSettingsStore(selectCompanyName);
   const navigation = useSettingsStore(selectFrontendNavigation);
@@ -50,17 +56,36 @@ export function Footer() {
     { label: 'Terms', href: '/terms' },
   ];
 
+  async function handleSubscribe(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const value = email.trim();
+
+    if (!value) {
+      setMessageType('error');
+      setMessage('Enter your email address.');
+      return;
+    }
+
+    setSubmitting(true);
+    setMessage('');
+
+    try {
+      const responseMessage = await subscribeToNewsletter(value);
+      setEmail('');
+      setMessageType('success');
+      setMessage(responseMessage);
+    } catch (error: unknown) {
+      const maybeAxios = error as { response?: { data?: { message?: string; errors?: { email?: string[] } } } };
+      setMessageType('error');
+      setMessage(maybeAxios.response?.data?.errors?.email?.[0] ?? maybeAxios.response?.data?.message ?? 'Subscription failed. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   if (isLoading) {
     return (
       <footer className="border-t border-border bg-background">
-        <div className="bg-primary py-12">
-          <div className="mx-auto max-w-7xl space-y-4 px-4 text-center">
-            <span className="mx-auto block h-8 w-8 animate-pulse rounded-lg bg-primary-foreground/20" />
-            <span className="mx-auto block h-7 w-56 animate-pulse rounded bg-primary-foreground/20" />
-            <span className="mx-auto block h-4 w-80 max-w-full animate-pulse rounded bg-primary-foreground/20" />
-            <span className="mx-auto block h-11 w-full max-w-md animate-pulse rounded-xl bg-primary-foreground/20" />
-          </div>
-        </div>
         <div className="mx-auto grid max-w-7xl grid-cols-1 gap-8 px-4 py-12 md:grid-cols-2 lg:grid-cols-6">
           <div className="space-y-4 lg:col-span-2">
             <span className="block h-8 w-40 animate-pulse rounded bg-muted" />
@@ -76,6 +101,11 @@ export function Footer() {
               <span className="block h-4 w-16 animate-pulse rounded bg-muted" />
             </div>
           ))}
+          <div className="space-y-3 lg:col-span-2">
+            <span className="block h-5 w-32 animate-pulse rounded bg-muted" />
+            <span className="block h-4 w-64 animate-pulse rounded bg-muted" />
+            <span className="block h-10 w-full animate-pulse rounded-xl bg-muted" />
+          </div>
         </div>
       </footer>
     );
@@ -83,28 +113,6 @@ export function Footer() {
 
   return (
     <footer className="bg-background border-t border-border">
-      {/* Newsletter */}
-      <div className="bg-primary text-primary-foreground py-12">
-        <div className="max-w-7xl mx-auto px-4 text-center">
-          <Mail size={32} className="mx-auto mb-4 opacity-80" />
-          <h2 className="text-2xl font-bold mb-2">Stay in the Loop</h2>
-          <p className="opacity-80 mb-6 max-w-md mx-auto">
-            Get updates from {siteName || 'our store'} delivered straight to your inbox.
-          </p>
-          <div className="mx-auto flex max-w-md flex-col gap-2 sm:flex-row">
-            <input
-              type="email"
-              placeholder="Enter your email address"
-              className="min-w-0 flex-1 rounded-xl border border-white/30 bg-white/20 px-4 py-2.5 text-sm text-white transition-colors placeholder:text-white/60 focus:border-white/60"
-            />
-            <button className="whitespace-nowrap rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-primary transition-colors hover:bg-white/90">
-              Subscribe
-            </button>
-          </div>
-          <p className="text-xs opacity-60 mt-3">No spam ever. Unsubscribe anytime.</p>
-        </div>
-      </div>
-
       {/* Main Footer */}
       <div className="max-w-7xl mx-auto px-4 py-12">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-8">
@@ -142,7 +150,7 @@ export function Footer() {
           </div>
 
           {/* Links */}
-          {[
+          {[ 
             { title: 'Navigation', links: footerLinks },
             { title: 'Legal', links: legalLinks },
           ].map(({ title, links }) => (
@@ -162,6 +170,35 @@ export function Footer() {
               </ul>
             </div>
           ))}
+
+          {/* Newsletter */}
+          <div className="lg:col-span-2">
+            <div className="mb-4 flex items-center gap-2">
+              <Mail size={18} className="text-muted-foreground" />
+              <h3 className="font-semibold text-sm">Stay in the Loop</h3>
+            </div>
+            <p className="mb-4 max-w-sm text-sm leading-relaxed text-muted-foreground">
+              Get updates from {siteName || 'our store'} delivered straight to your inbox.
+            </p>
+            <form onSubmit={handleSubscribe} className="flex max-w-sm flex-col gap-2 sm:flex-row lg:flex-col xl:flex-row">
+              <input
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="Enter your email address"
+                disabled={submitting}
+                className="min-w-0 flex-1 rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus:border-primary disabled:cursor-not-allowed disabled:opacity-70"
+              />
+              <button disabled={submitting} className="whitespace-nowrap rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-70">
+                {submitting ? 'Subscribing...' : 'Subscribe'}
+              </button>
+            </form>
+            {message ? (
+              <p className={`mt-3 text-xs ${messageType === 'success' ? 'text-muted-foreground' : 'text-destructive'}`}>{message}</p>
+            ) : (
+              <p className="mt-3 text-xs text-muted-foreground">No spam ever. Unsubscribe anytime.</p>
+            )}
+          </div>
         </div>
       </div>
 

@@ -901,8 +901,6 @@ export default function HomePage() {
         ) : null}
         {renderCollections('blog', 'after')}
 
-        {renderCollections('newsletter', 'before')}
-        {renderCollections('newsletter', 'after')}
       </main>
       {homeError && (
         <div className="sr-only" role="status">
