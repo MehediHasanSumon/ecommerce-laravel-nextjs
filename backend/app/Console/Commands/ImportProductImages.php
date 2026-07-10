@@ -146,7 +146,6 @@ class ImportProductImages extends Command
                 foreach ($paths as $index => $path) {
                     ProductImage::query()->create([
                         'product_id' => $product->id,
-                        'product_variant_id' => null,
                         'url' => $path,
                         'alt_text' => $product->name.' image '.($index + 1),
                         'type' => $index === 0 ? 'featured' : 'gallery',

@@ -137,7 +137,7 @@ class ProductCatalogController extends Controller
                 'brand:id,name,slug',
                 'category:id,parent_id,name,slug',
                 'category.parent:id,name,slug',
-                'images:id,product_id,product_variant_id,url,alt_text,type,is_primary,sort_order',
+                'images:id,product_id,url,alt_text,type,is_primary,sort_order',
                 'tags:id,name',
                 'features:id,product_id,value,sort_order',
                 'specifications:id,product_id,group_name,name,value,sort_order',
@@ -145,7 +145,6 @@ class ProductCatalogController extends Controller
                 'attributeValues.attribute:id,name,slug,type',
                 'variants' => fn ($query) => $query->where('status', 'active')->orderBy('id'),
                 'variants.attributeValues.attribute:id,name,slug,type',
-                'variants.images:id,product_id,product_variant_id,url,alt_text,type,is_primary,sort_order',
                 'reviews' => fn ($query) => $query->where('status', 'approved')->latest()->limit(20),
                 'reviews.user:id,name,email',
                 'relatedProducts' => fn ($query) => $query

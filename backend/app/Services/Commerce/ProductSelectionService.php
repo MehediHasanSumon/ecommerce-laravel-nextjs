@@ -23,7 +23,6 @@ class ProductSelectionService
             ->with([
                 'brand:id,name,slug',
                 'images:id,product_id,url,is_primary,sort_order',
-                'variants.images:id,product_variant_id,url,is_primary,sort_order',
                 'variants.attributeValues.attribute:id,name,slug',
             ])
             ->findOrFail($payload['product_id']);
@@ -33,7 +32,7 @@ class ProductSelectionService
         $variant = null;
         if (! empty($payload['product_variant_id'])) {
             $variant = $product->variants()
-                ->with(['images:id,product_variant_id,url,is_primary,sort_order', 'attributeValues.attribute:id,name,slug'])
+                ->with(['attributeValues.attribute:id,name,slug'])
                 ->where('status', 'active')
                 ->find($payload['product_variant_id']);
 
@@ -73,7 +72,7 @@ class ProductSelectionService
         $activeCollection = $this->collections->activeCollectionForProduct($product);
         $discountedPrice = $this->applyCollectionDiscount($unitPrice, $activeCollection?->discount_type, $activeCollection?->discount_value);
 
-        $selectedImage = $this->resolveImage($product, $variant);
+        $selectedImage = $this->resolveImage($product);
         $itemKey = sha1(json_encode([
             'product_id' => (int) $product->id,
             'variant_id' => $variant?->id,
@@ -183,13 +182,8 @@ class ProductSelectionService
         };
     }
 
-    private function resolveImage(Product $product, ?ProductVariant $variant): ?string
+    private function resolveImage(Product $product): ?string
     {
-        $variantImage = $variant?->images->sortBy('sort_order')->first()?->url;
-        if ($variantImage) {
-            return $this->assetUrl($variantImage);
-        }
-
         return $this->assetUrl(
             $product->images->firstWhere('is_primary', true)?->url
                 ?: $product->images->sortBy('sort_order')->first()?->url

@@ -17,7 +17,6 @@ import {
   TagInputField,
   TextAreaField,
   ToggleField,
-  VariantImagePicker,
   useFieldValue,
 } from "@/features/admin/products/components/wizard/product-wizard-fields";
 import type { ProductVariantDraft, ProductWizardValues } from "@/features/admin/products/components/wizard/product-wizard-types";
@@ -199,6 +198,10 @@ export function VariantSection({ form, options }: SectionProps) {
   }
 
   useEffect(() => {
+    if (selectedAttributes.length > 0 && generatedCombinations.length === 0) {
+      return;
+    }
+
     const existingByKey = new Map(variants.map((variant) => [variantKey(variant.attribute_values), variant]));
     const generated: ProductVariantDraft[] = generatedCombinations.map((combination) => {
       const key = variantKey(combination);
@@ -211,7 +214,6 @@ export function VariantSection({ form, options }: SectionProps) {
         stock_quantity: "" as const,
         track_inventory: null,
         status: "active" as const,
-        variant_image: null,
         attribute_values: combination,
       };
     });
@@ -223,7 +225,7 @@ export function VariantSection({ form, options }: SectionProps) {
       form.setValue("variants", generated, { shouldDirty: true, shouldValidate: false });
       setOpenVariantIds((ids) => ids.filter((id) => generated.some((variant) => variant.id === id)));
     }
-  }, [form, generatedCombinations, variants]);
+  }, [form, generatedCombinations, selectedAttributes, variants]);
 
   function updateVariant(id: string, patch: Partial<ProductVariantDraft>) {
     form.clearErrors("variants");
@@ -301,9 +303,6 @@ export function VariantSection({ form, options }: SectionProps) {
                   <SelectField label="Track Inventory" value={variant.track_inventory === null || variant.track_inventory === undefined ? "inherit" : String(variant.track_inventory)} placeholder="Select inventory behavior" options={[{ id: "inherit", name: "Use product setting" }, { id: "true", name: "Track inventory" }, { id: "false", name: "Do not track" }]} onChange={(value) => updateVariant(variant.id, { track_inventory: value === "inherit" ? null : value === "true" })} />
                   <Input label="Quantity" type="number" min={0} placeholder="Use product stock" value={variant.stock_quantity ?? ""} onChange={(event) => updateVariant(variant.id, { stock_quantity: event.target.value ? Number(event.target.value) : "" })} />
                   <SelectField label="Status" value={variant.status} placeholder="Select status" options={[{ id: "active", name: "Active" }, { id: "inactive", name: "Inactive" }]} onChange={(value) => updateVariant(variant.id, { status: value as ProductVariantDraft["status"] })} />
-                </div>
-                <div className="mt-4">
-                  <VariantImagePicker value={variant.variant_image ?? null} onChange={(image) => updateVariant(variant.id, { variant_image: image })} />
                 </div>
               </div>
             ) : null}

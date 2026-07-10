@@ -28,7 +28,6 @@ class OrderDetailResource extends JsonResource
             'customerNotes' => $this->customer_notes,
             'items' => $this->items->map(function ($item): array {
                 $selection = (array) ($item->selection_snapshot ?? []);
-                $variantImage = $item->variant?->images?->sortBy('sort_order')->first()?->url;
                 $productImage = $item->product?->images?->firstWhere('is_primary', true)?->url
                     ?: $item->product?->images?->sortBy('sort_order')->first()?->url;
 
@@ -38,7 +37,7 @@ class OrderDetailResource extends JsonResource
                     'variantId' => $item->product_variant_id,
                     'productName' => $item->product_name,
                     'productSlug' => $item->product?->slug,
-                    'image' => $this->assetUrl($selection['selected_image'] ?? $variantImage ?? $productImage),
+                    'image' => $this->assetUrl($selection['selected_image'] ?? $productImage),
                     'sku' => $item->sku,
                     'quantity' => (int) $item->quantity,
                     'unitPrice' => round($item->unit_price_cents / 100, 2),

@@ -166,12 +166,6 @@ class ProductDetailResource extends JsonResource
             'stockStatus' => $this->stockStatus((int) ($variant->stock_quantity ?? $this->stock_quantity ?? 0)),
             'trackInventory' => (bool) ($variant->track_inventory ?? $this->track_inventory),
             'options' => $options,
-            'images' => $variant->images
-                ->sortBy('sort_order')
-                ->map(fn ($image): ?string => $this->assetUrl($image->url))
-                ->filter()
-                ->values()
-                ->all(),
         ];
     }
 

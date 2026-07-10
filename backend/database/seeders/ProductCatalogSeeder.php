@@ -341,15 +341,6 @@ class ProductCatalogSeeder extends Seeder
                 );
             }
 
-            ProductImage::query()->create([
-                'product_id' => $product->id,
-                'product_variant_id' => $variant->id,
-                'url' => 'variants/'.$product->slug.'/variant-'.($index + 1).'.webp',
-                'alt_text' => $product->name.' variant '.($index + 1),
-                'type' => 'variant',
-                'sort_order' => $index,
-                'is_primary' => false,
-            ]);
         }
     }
 

@@ -248,7 +248,6 @@ class ProductModuleService
         $specifications = $data['specifications'] ?? [];
         $seo = $data['seo'] ?? null;
         $variants = $data['variants'] ?? [];
-        $variantImageFiles = $data['variant_image_files'] ?? [];
         unset(
             $data['tags'],
             $data['attribute_values'],
@@ -264,7 +263,6 @@ class ProductModuleService
             $data['specifications'],
             $data['seo'],
             $data['variants'],
-            $data['variant_image_files']
         );
 
         $this->applySlug('products', $model, $data);
@@ -286,7 +284,7 @@ class ProductModuleService
             $model->seo()->delete();
         }
 
-        $this->variantEngine->sync($model, $variants, $variantImageFiles);
+        $this->variantEngine->sync($model, $variants);
 
         return $this->find('products', $model->id);
     }
@@ -439,7 +437,7 @@ class ProductModuleService
             'attributes' => $query->withCount('values'),
             'attribute-values' => $query->with('attribute:id,name,type'),
             'products' => $query->with($detailed
-                ? ['brand:id,name', 'category:id,name', 'tags:id,name', 'attributeValues:id,value,attribute_id,slug', 'images', 'features', 'specifications', 'seo', 'variants.attributeValues:id,value,attribute_id,slug', 'variants.images']
+                ? ['brand:id,name', 'category:id,name', 'tags:id,name', 'attributeValues:id,value,attribute_id,slug', 'images', 'features', 'specifications', 'seo', 'variants.attributeValues:id,value,attribute_id,slug']
                 : ['brand:id,name', 'category:id,name', 'tags:id,name']),
             'collections' => $query->with('products:id,name')->withCount('products'),
             'discounts' => $query->with(['products:id,name', 'categories:id,name', 'brands:id,name', 'excludedProducts:id,name', 'excludedCategories:id,name']),

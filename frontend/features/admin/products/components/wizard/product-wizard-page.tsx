@@ -49,10 +49,7 @@ function stripFileValues(values: ProductWizardValues): ProductWizardValues {
     ...values,
     featured_image: values.featured_image ? { ...values.featured_image, file: undefined } : null,
     gallery_images: values.gallery_images.map((image) => ({ ...image, file: undefined })),
-    variants: values.variants.map((variant) => ({
-      ...variant,
-      variant_image: variant.variant_image ? { ...variant.variant_image, file: undefined } : null,
-    })),
+    variants: values.variants,
   };
 }
 

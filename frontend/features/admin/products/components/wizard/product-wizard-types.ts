@@ -12,7 +12,7 @@ export type ProductMediaItem = {
   file?: File;
   alt_text: string;
   caption?: string;
-  type: "featured" | "gallery" | "og" | "variant";
+  type: "featured" | "gallery" | "og";
   sort_order: number;
   is_primary: boolean;
   progress?: number;
@@ -28,7 +28,6 @@ export type ProductVariantDraft = {
   stock_quantity?: number | "";
   track_inventory?: boolean | null;
   status: "active" | "inactive";
-  variant_image?: ProductMediaItem | null;
   attribute_values: number[];
 };
 
@@ -252,24 +251,6 @@ function mediaFromRecord(record: ProductRecord): { featured: ProductMediaItem | 
   };
 }
 
-function variantImageFromRecord(item: Record<string, unknown>, index: number): ProductMediaItem | null {
-  const images = Array.isArray(item.images) ? item.images as Array<Record<string, unknown>> : [];
-  const image = images.find((entry) => Boolean(entry.is_primary)) ?? images[0];
-  if (!image?.url) return null;
-
-  return {
-    id: String(image.id ?? `variant-image-${index}`),
-    url: String(image.url),
-    alt_text: String(image.alt_text ?? ""),
-    caption: "",
-    type: "variant",
-    sort_order: Number(image.sort_order ?? 0),
-    is_primary: true,
-    progress: 100,
-    status: "ready",
-  };
-}
-
 export function valuesFromProduct(record?: ProductRecord | null, options?: ProductOptions): ProductWizardValues {
   const values = emptyProductWizardValues();
   if (!record) return values;
@@ -311,7 +292,6 @@ export function valuesFromProduct(record?: ProductRecord | null, options?: Produ
         stock_quantity: item.stock_quantity === null || item.stock_quantity === undefined ? "" : quantityInput(item.stock_quantity),
         track_inventory: typeof item.track_inventory === "boolean" ? item.track_inventory : null,
         status: item.status === "inactive" ? "inactive" : "active",
-        variant_image: variantImageFromRecord(item, index),
         attribute_values: Array.isArray(item.attribute_values) ? item.attribute_values.map((value) => Number((value as { id: number }).id)) : [],
       };
     }) : [],
@@ -357,7 +337,6 @@ function storagePath(url: string) {
 
 export function productPayloadFromValues(values: ProductWizardValues, publish: boolean): ProductModulePayload {
   const images: ProductModulePayload[] = [];
-  const variantImageFiles: File[] = [];
   if (values.featured_image) {
     images.push({
       url: storagePath(values.featured_image.url),
@@ -377,8 +356,6 @@ export function productPayloadFromValues(values: ProductWizardValues, publish: b
     });
   });
   const variants = values.variants.map((variant) => {
-    const imageFileIndex = variant.variant_image?.file ? variantImageFiles.push(variant.variant_image.file) - 1 : null;
-
     return {
       price_cents: amountToCents(variant.price_cents),
       compare_at_price_cents: amountToCents(variant.compare_at_price_cents),
@@ -387,8 +364,6 @@ export function productPayloadFromValues(values: ProductWizardValues, publish: b
       track_inventory: variant.track_inventory,
       status: variant.status,
       attribute_values: variant.attribute_values,
-      image_url: variant.variant_image?.file ? null : variant.variant_image?.url ? storagePath(variant.variant_image.url) : null,
-      image_file_index: imageFileIndex,
     };
   });
 
@@ -432,7 +407,6 @@ export function productPayloadFromValues(values: ProductWizardValues, publish: b
       values.shipping.shipping_class ? { group_name: "Shipping", name: "Shipping Class", value: values.shipping.shipping_class, sort_order: 2 } : null,
       values.shipping.package_info ? { group_name: "Shipping", name: "Package Information", value: values.shipping.package_info, sort_order: 3 } : null,
     ].filter(Boolean),
-    variant_image_files: variantImageFiles,
     variants,
   };
 }

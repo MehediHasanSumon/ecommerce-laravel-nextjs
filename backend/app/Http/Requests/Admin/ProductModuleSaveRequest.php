@@ -65,7 +65,6 @@ class ProductModuleSaveRequest extends FormRequest
                             'length_cm',
                             'width_cm',
                             'height_cm',
-                            'image_file_index',
                         ] as $field) {
                             if (! filled($variant[$field] ?? null)) {
                                 $variant[$field] = null;
@@ -399,8 +398,6 @@ class ProductModuleSaveRequest extends FormRequest
             'seo.schema_json' => ['nullable', 'array'],
             'variants' => ['nullable', 'array'],
             'variants.*.barcode' => ['nullable', 'string', 'max:255'],
-            'variants.*.image_url' => ['nullable', 'string', 'max:2048'],
-            'variants.*.image_file_index' => ['nullable', 'integer', 'min:0'],
             'variants.*.price_cents' => ['nullable', 'integer', 'min:0'],
             'variants.*.compare_at_price_cents' => ['nullable', 'integer', 'min:0'],
             'variants.*.cost_price_cents' => ['nullable', 'integer', 'min:0'],
@@ -414,8 +411,6 @@ class ProductModuleSaveRequest extends FormRequest
             'variants.*.status' => ['required_with:variants', Rule::in(['active', 'inactive'])],
             'variants.*.attribute_values' => ['required_with:variants', 'array', 'min:1'],
             'variants.*.attribute_values.*' => ['integer', 'exists:attribute_values,id'],
-            'variant_image_files' => ['nullable', 'array'],
-            'variant_image_files.*' => ['file', 'mimes:jpg,jpeg,png,webp,avif,gif', 'max:10240'],
         ];
     }
 

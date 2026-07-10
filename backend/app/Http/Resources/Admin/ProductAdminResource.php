@@ -44,7 +44,6 @@ class ProductAdminResource extends JsonResource
             'attribute_values' => ProductOptionResource::collection($this->whenLoaded('attributeValues')),
             'images' => $this->whenLoaded('images', fn () => $this->images->map(fn ($image) => [
                 'id' => $image->id,
-                'product_variant_id' => $image->product_variant_id,
                 'url' => $image->url,
                 'alt_text' => $image->alt_text,
                 'type' => $image->type,
@@ -79,14 +78,6 @@ class ProductAdminResource extends JsonResource
                 'height_cm' => $variant->height_cm,
                 'status' => $variant->status,
                 'attribute_values' => ProductOptionResource::collection($variant->relationLoaded('attributeValues') ? $variant->attributeValues : collect()),
-                'images' => $variant->relationLoaded('images') ? $variant->images->map(fn ($image) => [
-                    'id' => $image->id,
-                    'url' => $image->url,
-                    'alt_text' => $image->alt_text,
-                    'type' => $image->type,
-                    'sort_order' => $image->sort_order,
-                    'is_primary' => (bool) $image->is_primary,
-                ])->values() : [],
             ])),
             'seo' => $this->whenLoaded('seo', fn () => $this->seo ? [
                 'meta_title' => $this->seo->meta_title,
@@ -98,4 +89,5 @@ class ProductAdminResource extends JsonResource
             ] : null),
         ];
     }
+
 }

@@ -5,15 +5,11 @@ namespace App\Services\Admin;
 use App\Models\Product;
 use App\Models\ProductAttributeValue;
 use App\Models\ProductVariant;
-use App\Services\Concerns\StoresPublicUploads;
 use App\Support\Identifiers\SkuGenerator;
-use Illuminate\Http\UploadedFile;
 
 class ProductVariantEngine
 {
-    use StoresPublicUploads;
-
-    public function sync(Product $product, array $variants, array $variantImageFiles = []): void
+    public function sync(Product $product, array $variants): void
     {
         $attributeValueIds = collect($variants)
             ->flatMap(fn (array $variant): array => $variant['attribute_values'] ?? [])
@@ -67,12 +63,6 @@ class ProductVariantEngine
                     ->all()
             );
 
-            $this->syncImage(
-                $product,
-                $variant,
-                $variantData['image_url'] ?? null,
-                $variantImageFiles[$variantData['image_file_index'] ?? null] ?? null
-            );
         }
 
         $removeIds = collect($existing)
@@ -131,26 +121,4 @@ class ProductVariantEngine
         return SkuGenerator::generate(trim($product->name.' '.implode(' ', $labels)), [Product::class, ProductVariant::class]);
     }
 
-    private function syncImage(Product $product, ProductVariant $variant, ?string $imageUrl, mixed $imageFile): void
-    {
-        if ($imageFile instanceof UploadedFile && $imageFile->isValid()) {
-            $path = $this->storePublicUpload($imageFile, 'products/variants');
-            $imageUrl = $this->publicUploadUrl($path);
-        }
-
-        $variant->images()->delete();
-
-        if (! filled($imageUrl)) {
-            return;
-        }
-
-        $variant->images()->create([
-            'product_id' => $product->id,
-            'url' => $imageUrl,
-            'alt_text' => $product->name.' variant image',
-            'type' => 'variant',
-            'sort_order' => 0,
-            'is_primary' => true,
-        ]);
-    }
 }

@@ -14,7 +14,6 @@ return new class extends Migration
         Schema::create('product_images', function (Blueprint $table) {
             $table->id();
             $table->foreignId('product_id')->constrained()->cascadeOnDelete()->cascadeOnUpdate();
-            $table->foreignId('product_variant_id')->nullable()->constrained('product_variants')->cascadeOnDelete()->cascadeOnUpdate();
             $table->text('url');
             $table->string('alt_text')->nullable();
             $table->string('type')->default('gallery')->index();
