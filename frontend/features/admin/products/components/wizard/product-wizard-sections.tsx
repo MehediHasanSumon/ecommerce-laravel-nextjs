@@ -72,12 +72,11 @@ export function PriceSection({ form }: SectionProps) {
   const errors = form.formState.errors;
   return (
     <div className="space-y-5">
-      <SectionHeader title="Pricing" description="Set customer-facing pricing, margin inputs, currency, and tax behavior." />
+      <SectionHeader title="Pricing" description="Set customer-facing pricing, margin inputs, and tax behavior." />
       <FieldGrid>
         <Input label="Regular Price" type="number" min={0} step="0.01" {...form.register("base_price_cents")} error={errors.base_price_cents?.message} />
         <Input label="Sale Price" type="number" min={0} step="0.01" {...form.register("compare_at_price_cents")} error={errors.compare_at_price_cents?.message} />
         <Input label="Cost Price" type="number" min={0} step="0.01" {...form.register("cost_price_cents")} error={errors.cost_price_cents?.message} />
-        <Input label="Currency" maxLength={3} {...form.register("currency")} error={errors.currency?.message} />
         <SelectField
           label="Tax Class"
           value={useFieldValue(form, "tax_class")}
@@ -366,7 +365,7 @@ export function PublishSection({ form, options }: SectionProps) {
   const values = form.getValues();
   const checks = [
     { label: "Basic information", complete: Boolean(values.name && values.category_id && values.short_description) },
-    { label: "Pricing", complete: values.base_price_cents !== "" && Boolean(values.currency) },
+    { label: "Pricing", complete: values.base_price_cents !== "" },
     { label: "Inventory", complete: !values.track_inventory || values.stock_quantity !== "" },
     { label: "Media", complete: Boolean(values.featured_image || values.gallery_images.length) },
     { label: "SEO", complete: Boolean(values.seo.meta_title || values.seo.meta_description) },

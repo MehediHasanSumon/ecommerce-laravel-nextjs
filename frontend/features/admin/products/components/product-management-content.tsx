@@ -426,7 +426,6 @@ function productFields(): FieldConfig[] {
     { tab: "Pricing", name: "base_price_cents", label: "Base Price", type: "number" },
     { tab: "Pricing", name: "compare_at_price_cents", label: "Compare At Price", type: "number", optional: true },
     { tab: "Pricing", name: "cost_price_cents", label: "Cost Price", type: "number", optional: true },
-    { tab: "Pricing", name: "currency", label: "Currency", type: "text" },
     { tab: "Pricing", name: "free_shipping", label: "Free Shipping", type: "checkbox", optional: true },
     { tab: "Flags", name: "is_featured", label: "Featured", type: "checkbox", optional: true },
     { tab: "Flags", name: "is_new", label: "New Arrival", type: "checkbox", optional: true },
@@ -516,7 +515,6 @@ function defaultValues(config: ModuleConfig, item?: ProductRecord | null): Produ
     else if (field.type === "checkbox") values[field.name] = false;
     else if (field.type === "multiselect") values[field.name] = [];
     else if (field.type === "number") values[field.name] = field.optional ? undefined : 0;
-    else if (field.name === "currency") values[field.name] = selectCurrencySettings(useSettingsStore.getState()).currency;
     else if (field.name === "status") values[field.name] = config.statuses?.[0] ?? "";
     else if (field.name === "product_type") values[field.name] = "physical";
     else if (field.name === "collection_type") values[field.name] = "manual";

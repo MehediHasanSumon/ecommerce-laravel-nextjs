@@ -70,7 +70,6 @@ it('allows product creation without brand while brand module is disabled', funct
         'product_type' => 'physical',
         'status' => 'draft',
         'base_price_cents' => 1500,
-        'currency' => 'USD',
         'track_inventory' => true,
         'stock_quantity' => 5,
         'is_featured' => false,
@@ -90,5 +89,6 @@ it('allows product creation without brand while brand module is disabled', funct
     $this->assertDatabaseHas('products', [
         'name' => 'No Brand Product',
         'brand_id' => null,
+        'currency' => 'BDT',
     ]);
 });

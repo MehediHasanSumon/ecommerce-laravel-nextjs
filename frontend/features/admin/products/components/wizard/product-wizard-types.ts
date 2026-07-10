@@ -113,7 +113,7 @@ export const productWizardSchema = z.object({
   compare_at_price_cents: z.union([z.coerce.number().min(0), z.literal("")]).optional(),
   cost_price_cents: z.union([z.coerce.number().min(0), z.literal("")]).optional(),
   tax_class: z.string().optional(),
-  currency: z.string().trim().length(3, "Use a 3-letter currency code."),
+  currency: z.string().trim().optional(),
   track_inventory: z.boolean(),
   stock_quantity: integerInput(0),
   stock_status: z.enum(["in_stock", "out_of_stock", "preorder"]),
@@ -161,7 +161,7 @@ export const productWizardSchema = z.object({
 
 export const stepFields: Record<ProductWizardStepId, Array<keyof ProductWizardValues | string>> = {
   basic: ["name", "brand_id", "category_id", "subcategory_id", "short_description"],
-  pricing: ["base_price_cents", "compare_at_price_cents", "cost_price_cents", "tax_class", "currency"],
+  pricing: ["base_price_cents", "compare_at_price_cents", "cost_price_cents", "tax_class"],
   inventory: ["stock_quantity", "stock_status", "low_stock_threshold", "track_inventory", "backorders", "min_order_quantity", "max_order_quantity"],
   media: ["featured_image", "gallery_images"],
   variants: ["attribute_values", "variants"],
@@ -377,7 +377,6 @@ export function productPayloadFromValues(values: ProductWizardValues, publish: b
     base_price_cents: amountToCents(values.base_price_cents) ?? 0,
     compare_at_price_cents: amountToCents(values.compare_at_price_cents),
     cost_price_cents: amountToCents(values.cost_price_cents),
-    currency: values.currency.toUpperCase(),
     track_inventory: values.track_inventory,
     stock_quantity: optionalNumber(values.stock_quantity),
     low_stock_threshold: optionalNumber(values.low_stock_threshold),

@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin;
 
 use App\Models\Category;
+use App\Models\Settings\CompanySetting;
 use App\Services\Admin\Settings\CategoryDisplaySettingsService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -85,6 +86,12 @@ class ProductModuleSaveRequest extends FormRequest
                     })
                     ->values()
                     ->all(),
+            ]);
+        }
+
+        if ((string) $this->route('module') === 'products') {
+            $this->merge([
+                'currency' => strtoupper((string) ($this->input('currency') ?: $this->companyCurrency())),
             ]);
         }
 
@@ -412,6 +419,13 @@ class ProductModuleSaveRequest extends FormRequest
             'variants.*.attribute_values' => ['required_with:variants', 'array', 'min:1'],
             'variants.*.attribute_values.*' => ['integer', 'exists:attribute_values,id'],
         ];
+    }
+
+    private function companyCurrency(): string
+    {
+        $company = CompanySetting::query()->with('currency')->first();
+
+        return $company?->currency?->currency ?: 'BDT';
     }
 
 }
