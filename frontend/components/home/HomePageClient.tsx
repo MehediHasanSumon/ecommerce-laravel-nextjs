@@ -25,6 +25,7 @@ import {
   selectHomeFeatureCards,
   selectRuntimeCategories,
   selectSettingsPending,
+  selectShowHomeBrandSection,
   useSettingsStore,
 } from '@/store/settings-store';
 
@@ -348,6 +349,7 @@ export default function HomePage() {
   const categoryDisplay = useSettingsStore(selectCategoryDisplaySettings);
   const runtimeCategories = useSettingsStore(selectRuntimeCategories);
   const settingsLoading = useSettingsStore(selectSettingsPending);
+  const showHomeBrands = useSettingsStore(selectShowHomeBrandSection);
   const homeCategories = useMemo(
     () =>
       runtimeCategories
@@ -420,7 +422,7 @@ export default function HomePage() {
     return () => controller.abort();
   }, []);
 
-  const topBrands = homeData?.sections.topBrands.items ?? [];
+  const topBrands = showHomeBrands && homeData?.sections.topBrands.enabled ? homeData.sections.topBrands.items : [];
   const homeProducts = homeData?.sections.products.items ?? [];
   const renderCollections = (anchor: string, placement: 'before' | 'after') =>
     homeCollections
@@ -529,43 +531,44 @@ export default function HomePage() {
         {renderCollections('promo_banners', 'after')}
 
         {renderCollections('top_brands', 'before')}
-        {/* Brands */}
-        <section className="py-10">
-          <SectionHeader
-            title="Top Brands"
-            subtitle="Shop from the world's most trusted names"
-            href="/brands"
-          />
-          <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {homeLoading ? Array.from({ length: 6 }).map((_, index) => (
-              <div key={index} className="h-28 animate-pulse rounded-2xl bg-muted" />
-            )) : topBrands.map((brand) => (
-              <Link
-                key={brand.id}
-                href={`/brands/${brand.slug}`}
-                className="flex flex-col items-center justify-center gap-2 p-4 bg-card border border-border rounded-2xl hover:shadow-md hover:border-primary/30 transition-all group"
-              >
-                <div className="w-10 h-10 relative">
-                  <Image
-                    src={brand.logo}
-                    alt={brand.name}
-                    fill
-                    unoptimized
-                    className="object-contain grayscale group-hover:grayscale-0 transition-all"
-                  />
-                </div>
-                <span className="text-xs font-semibold text-center truncate w-full text-center">
-                  {brand.name}
-                </span>
-              </Link>
-            ))}
-          </div>
-          {!homeLoading && topBrands.length === 0 && (
-            <div className="mt-4 rounded-2xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
-              No brands available right now.
+        {showHomeBrands ? (
+          <section className="py-10">
+            <SectionHeader
+              title="Top Brands"
+              subtitle="Shop from the world's most trusted names"
+              href="/brands"
+            />
+            <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              {homeLoading ? Array.from({ length: 6 }).map((_, index) => (
+                <div key={index} className="h-28 animate-pulse rounded-2xl bg-muted" />
+              )) : topBrands.map((brand) => (
+                <Link
+                  key={brand.id}
+                  href={`/brands/${brand.slug}`}
+                  className="flex flex-col items-center justify-center gap-2 p-4 bg-card border border-border rounded-2xl hover:shadow-md hover:border-primary/30 transition-all group"
+                >
+                  <div className="w-10 h-10 relative">
+                    <Image
+                      src={brand.logo}
+                      alt={brand.name}
+                      fill
+                      unoptimized
+                      className="object-contain grayscale group-hover:grayscale-0 transition-all"
+                    />
+                  </div>
+                  <span className="text-xs font-semibold text-center truncate w-full text-center">
+                    {brand.name}
+                  </span>
+                </Link>
+              ))}
             </div>
-          )}
-        </section>
+            {!homeLoading && topBrands.length === 0 && (
+              <div className="mt-4 rounded-2xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
+                No brands available right now.
+              </div>
+            )}
+          </section>
+        ) : null}
         {renderCollections('top_brands', 'after')}
 
         {renderCollections('products', 'before')}

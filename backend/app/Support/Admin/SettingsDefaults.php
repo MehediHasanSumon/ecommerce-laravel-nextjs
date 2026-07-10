@@ -100,6 +100,14 @@ class SettingsDefaults
         ];
     }
 
+    public static function brand(): array
+    {
+        return [
+            'enabled' => true,
+            'show_on_home' => true,
+        ];
+    }
+
     public static function homeFeatureCardItems(): array
     {
         return [

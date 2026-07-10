@@ -23,6 +23,7 @@ export const settingsNavItems: SettingNavItem[] = [
   { href: routePaths.adminSettingsCategories, label: "Category Display", description: "Home section, navbar dropdown, category routes", icon: LayoutGrid },
   { href: routePaths.adminSettingsHomeFeatureCards, label: "Feature Cards", description: "Home service highlight cards", icon: BadgeCheck },
   { href: routePaths.adminSettingsBlog, label: "Blog Settings", description: "Blog feature, layout, comments, SEO", icon: Newspaper },
+  { href: routePaths.adminSettingsBrand, label: "Brand Settings", description: "Brand module and home visibility", icon: Building2 },
   { href: routePaths.adminSettingsStore, label: "Store Settings", description: "Catalog, checkout, storefront behavior", icon: Store },
   { href: routePaths.adminSettingsEmail, label: "Email (SMTP)", description: "Mail driver and sender identity", icon: Mail },
   { href: routePaths.adminSettingsSms, label: "SMS Provider", description: "Twilio, Vonage, SSL Wireless", icon: MessageSquareText },

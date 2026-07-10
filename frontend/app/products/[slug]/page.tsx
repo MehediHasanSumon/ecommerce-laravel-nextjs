@@ -24,7 +24,7 @@ import { Footer } from '@/components/layout/Footer';
 import { ProductCard } from '@/components/product/ProductCard';
 import { useCartStore } from '@/store/cartStore';
 import { useWishlistStore } from '@/store/wishlistStore';
-import { selectCurrencyFingerprint, useSettingsStore } from '@/store/settings-store';
+import { selectBrandsEnabled, selectCurrencyFingerprint, useSettingsStore } from '@/store/settings-store';
 import { formatPrice } from '@/utils/format';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -65,6 +65,7 @@ function findSelectedVariant(
 export default function ProductDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
   useSettingsStore(selectCurrencyFingerprint);
+  const brandsEnabled = useSettingsStore(selectBrandsEnabled);
   const [mounted, setMounted] = useState(false);
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedColor, setSelectedColor] = useState<string | undefined>(undefined);
@@ -387,12 +388,14 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
           <div className="space-y-5">
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <Link
-                  href={`/brands/${product.brandSlug}`}
-                  className="text-sm font-semibold text-primary hover:underline"
-                >
-                  {product.brand}
-                </Link>
+                {brandsEnabled && product.brand && product.brandSlug ? (
+                  <Link
+                    href={`/brands/${product.brandSlug}`}
+                    className="text-sm font-semibold text-primary hover:underline"
+                  >
+                    {product.brand}
+                  </Link>
+                ) : null}
                 {product.freeShipping && (
                   <span className="text-xs font-medium text-emerald-600 bg-emerald-50 dark:bg-emerald-950 px-2 py-0.5 rounded-md">
                     Free Shipping

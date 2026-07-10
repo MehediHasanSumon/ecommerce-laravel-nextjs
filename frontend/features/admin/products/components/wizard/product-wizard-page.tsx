@@ -33,6 +33,7 @@ import {
 } from "@/features/admin/products/components/wizard/product-wizard-types";
 import type { ProductWizardMode, ProductWizardStepId, ProductWizardValues } from "@/features/admin/products/components/wizard/product-wizard-types";
 import { ErrorSummary } from "@/features/admin/products/components/wizard/product-wizard-fields";
+import { selectBrandsEnabled, useSettingsStore } from "@/store/settings-store";
 
 const emptyOptions: ProductOptions = {
   brands: [],
@@ -125,6 +126,7 @@ function firstFormError(errors: FieldErrors<ProductWizardValues>, prefix = ""): 
 
 export function ProductWizardPage({ mode, productId }: { mode: ProductWizardMode; productId?: number }) {
   const router = useRouter();
+  const brandsEnabled = useSettingsStore(selectBrandsEnabled);
   const [options, setOptions] = useState<ProductOptions>(emptyOptions);
   const [loading, setLoading] = useState(mode === "edit");
   const [activeStep, setActiveStep] = useState(0);
@@ -217,7 +219,7 @@ export function ProductWizardPage({ mode, productId }: { mode: ProductWizardMode
     }
 
     const values = form.getValues();
-    const payload = productPayloadFromValues(values, publish);
+    const payload = productPayloadFromValues(values, publish, brandsEnabled);
     try {
       if (mode === "edit" && productId) {
         await productManagementService.update("products", productId, payload);

@@ -117,6 +117,7 @@ const settingsItems = [
   { href: routePaths.adminSettingsCompany, label: "Company Settings", icon: Building2 },
   { href: routePaths.adminSettingsCategories, label: "Category Display", icon: Layers3 },
   { href: routePaths.adminSettingsHomeFeatureCards, label: "Feature Cards", icon: BadgeCheck },
+  { href: routePaths.adminSettingsBrand, label: "Brand Settings", icon: Building2 },
   { href: routePaths.adminSettingsStore, label: "Store Settings", icon: Store },
   { href: routePaths.adminSettingsEmail, label: "Email (SMTP)", icon: Mail },
   { href: routePaths.adminSettingsSms, label: "SMS Provider", icon: MessageSquareText },

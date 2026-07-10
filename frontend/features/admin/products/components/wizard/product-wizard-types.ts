@@ -335,7 +335,7 @@ function storagePath(url: string) {
   return url.replace(/^\/?storage\//, "");
 }
 
-export function productPayloadFromValues(values: ProductWizardValues, publish: boolean): ProductModulePayload {
+export function productPayloadFromValues(values: ProductWizardValues, publish: boolean, includeBrand = true): ProductModulePayload {
   const images: ProductModulePayload[] = [];
   if (values.featured_image) {
     images.push({
@@ -367,8 +367,7 @@ export function productPayloadFromValues(values: ProductWizardValues, publish: b
     };
   });
 
-  return {
-    brand_id: values.brand_id ? Number(values.brand_id) : null,
+  const payload: ProductModulePayload = {
     category_id: values.subcategory_id ? Number(values.subcategory_id) : values.category_id ? Number(values.category_id) : null,
     name: values.name,
     short_description: values.short_description,
@@ -409,6 +408,12 @@ export function productPayloadFromValues(values: ProductWizardValues, publish: b
     ].filter(Boolean),
     variants,
   };
+
+  if (includeBrand) {
+    payload.brand_id = values.brand_id ? Number(values.brand_id) : null;
+  }
+
+  return payload;
 }
 
 export function optionName(options: ProductOptions, collection: keyof ProductOptions, id: string | number | undefined) {

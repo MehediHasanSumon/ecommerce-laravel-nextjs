@@ -44,7 +44,7 @@ import type { Option, PaginationMeta, QueryState } from "@/features/admin/shared
 import { exportCsv, formatDate, statusLabel } from "@/features/admin/shared/utils";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { toAppError } from "@/lib/errors";
-import { selectCategoryDisplaySettings, selectCurrencySettings, useSettingsStore } from "@/store/settings-store";
+import { selectBrandsEnabled, selectCategoryDisplaySettings, selectCurrencySettings, useSettingsStore } from "@/store/settings-store";
 import type { RuntimeCategoryDisplaySettings } from "@/types/settings";
 import { cn } from "@/utils/cn";
 import { formatCurrency } from "@/utils/format";
@@ -1032,7 +1032,9 @@ function FilterModal({ open, query, config, options, onClose, onApply }: { open:
           {config.types ? <CompactSelect label="Type" value={(draft as Record<string, string>).type ?? ""} options={config.types} onChange={(type) => setDraft({ ...draft, type } as Partial<QueryState>)} /> : null}
           {config.module === "products" ? (
             <>
-              <CompactOptionSelect label="Brand" value={(draft as Record<string, string>).brand_id ?? ""} options={options.brands} onChange={(brand_id) => setDraft({ ...draft, brand_id } as Partial<QueryState>)} />
+              {options.brands.length ? (
+                <CompactOptionSelect label="Brand" value={(draft as Record<string, string>).brand_id ?? ""} options={options.brands} onChange={(brand_id) => setDraft({ ...draft, brand_id } as Partial<QueryState>)} />
+              ) : null}
               <CompactOptionSelect label="Category" value={(draft as Record<string, string>).category_id ?? ""} options={options.categories} onChange={(category_id) => setDraft({ ...draft, category_id } as Partial<QueryState>)} />
             </>
           ) : null}
@@ -1083,16 +1085,25 @@ function CompactOptionSelect({ label, value, options, onChange }: { label: strin
 export function ProductManagementContent({ module }: { module: ProductModule }) {
   const baseConfig = productModuleConfigs[module];
   const categoryDisplay = useSettingsStore(selectCategoryDisplaySettings);
+  const brandsEnabled = useSettingsStore(selectBrandsEnabled);
   const config = useMemo<ModuleConfig>(() => {
+    const nextConfig = !brandsEnabled && (module === "products" || module === "discounts")
+      ? {
+          ...baseConfig,
+          fields: baseConfig.fields.filter((field) => field.name !== "brand_id" && field.name !== "brands"),
+          columns: baseConfig.columns.filter((column) => column.key !== "brand"),
+        }
+      : baseConfig;
+
     if (module !== "categories") {
-      return baseConfig;
+      return nextConfig;
     }
 
     return {
-      ...baseConfig,
-      fields: categoryFieldsForMode(baseConfig.fields, categoryDisplay),
+      ...nextConfig,
+      fields: categoryFieldsForMode(nextConfig.fields, categoryDisplay),
     };
-  }, [baseConfig, categoryDisplay, module]);
+  }, [baseConfig, brandsEnabled, categoryDisplay, module]);
   const router = useRouter();
   const { query, setQuery } = useUrlQueryState(config.defaultSort);
   const [items, setItems] = useState<ProductRecord[]>([]);

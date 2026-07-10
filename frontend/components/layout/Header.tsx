@@ -29,6 +29,7 @@ import { useAuthStore } from '@/store/auth-store';
 import {
   selectBranding,
   selectBlogSettings,
+  selectBrandsEnabled,
   selectCategoryDisplaySettings,
   selectCurrencyFingerprint,
   selectFrontendNavigation,
@@ -62,6 +63,7 @@ function ThemeToggle() {
 
 function SearchOverlay({ onClose }: { onClose: () => void }) {
   const [query, setQuery] = useState('');
+  const brandsEnabled = useSettingsStore(selectBrandsEnabled);
   const [results, setResults] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
@@ -128,7 +130,7 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
             <input
               ref={inputRef}
               type="text"
-              placeholder="Search products, brands, categories..."
+              placeholder={brandsEnabled ? "Search products, brands, categories..." : "Search products and categories..."}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className="min-w-0 flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground focus-visible:shadow-none"

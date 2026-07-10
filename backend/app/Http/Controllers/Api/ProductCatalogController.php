@@ -13,6 +13,7 @@ use App\Models\Product;
 use App\Models\ProductAttribute;
 use App\Models\ProductAttributeValue;
 use App\Models\ProductReview;
+use App\Services\Admin\Settings\BrandSettingsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -20,8 +21,11 @@ use Illuminate\Validation\ValidationException;
 
 class ProductCatalogController extends Controller
 {
+    public function __construct(private readonly BrandSettingsService $brandSettings) {}
+
     public function index(Request $request): JsonResponse
     {
+        $brandsEnabled = $this->brandSettings->enabled();
         $validated = $request->validate([
             'search' => ['nullable', 'string', 'max:120'],
             'category' => ['nullable', 'string', 'max:255'],
@@ -46,7 +50,7 @@ class ProductCatalogController extends Controller
             ]);
         }
 
-        $brandSlugs = $this->csvValues($request->query('brand'));
+        $brandSlugs = $brandsEnabled ? $this->csvValues($request->query('brand')) : [];
         $attributeFilters = $this->attributeFilters($request);
 
         $query = Product::query()
@@ -115,7 +119,7 @@ class ProductCatalogController extends Controller
 
         return ApiResponse::success([
             'items' => ProductCardResource::collection($products->getCollection())->resolve(),
-            'filters' => $this->filters(),
+            'filters' => $this->filters($brandsEnabled),
         ], meta: [
             'pagination' => [
                 'current_page' => $products->currentPage(),
@@ -273,7 +277,7 @@ class ProductCatalogController extends Controller
         };
     }
 
-    private function filters(): array
+    private function filters(bool $brandsEnabled): array
     {
         $priceRange = Product::query()
             ->where('status', 'active')
@@ -281,7 +285,7 @@ class ProductCatalogController extends Controller
             ->first();
 
         return [
-            'brands' => Brand::query()
+            'brands' => $brandsEnabled ? Brand::query()
                 ->where('status', 'active')
                 ->whereHas('products', fn ($query) => $query->where('status', 'active'))
                 ->withCount(['products' => fn ($query) => $query->where('status', 'active')])
@@ -293,7 +297,7 @@ class ProductCatalogController extends Controller
                     'slug' => $brand->slug,
                     'count' => (int) $brand->products_count,
                 ])
-                ->all(),
+                ->all() : [],
             'attributes' => ProductAttribute::query()
                 ->whereHas('values.products', fn ($query) => $query->where('products.status', 'active'))
                 ->with(['values' => fn ($query) => $query

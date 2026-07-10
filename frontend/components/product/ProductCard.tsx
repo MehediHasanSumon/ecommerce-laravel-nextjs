@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Heart, ShoppingCart, Star, Eye, Zap } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import { useWishlistStore } from '@/store/wishlistStore';
-import { selectCurrencyFingerprint, useSettingsStore } from '@/store/settings-store';
+import { selectBrandsEnabled, selectCurrencyFingerprint, useSettingsStore } from '@/store/settings-store';
 import { formatPrice } from '@/utils/format';
 import type { Product } from '@/types';
 import { toast } from 'sonner';
@@ -30,6 +30,7 @@ export function ProductCard({ product, className, layout = 'grid' }: ProductCard
   const addItem = useCartStore((s) => s.addItem);
   const toggleItem = useWishlistStore((s) => s.toggleItem);
   const isInWishlist = useWishlistStore((s) => s.isInWishlist(product.id));
+  const brandsEnabled = useSettingsStore(selectBrandsEnabled);
   useSettingsStore(selectCurrencyFingerprint);
 
   const handleAddToCart = (e: React.MouseEvent) => {
@@ -68,7 +69,7 @@ export function ProductCard({ product, className, layout = 'grid' }: ProductCard
           />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-xs text-muted-foreground mb-1">{product.brand}</p>
+          {brandsEnabled && product.brand ? <p className="text-xs text-muted-foreground mb-1">{product.brand}</p> : null}
           <h3 className="font-semibold text-sm line-clamp-2 group-hover:text-primary transition-colors">
             {product.name}
           </h3>
@@ -187,7 +188,7 @@ export function ProductCard({ product, className, layout = 'grid' }: ProductCard
 
       {/* Info */}
       <div className="flex flex-1 flex-col p-3 sm:p-4">
-        <p className="text-xs text-muted-foreground font-medium mb-1">{product.brand}</p>
+        {brandsEnabled && product.brand ? <p className="text-xs text-muted-foreground font-medium mb-1">{product.brand}</p> : null}
         <h3 className="font-semibold text-sm line-clamp-2 flex-1 group-hover:text-primary transition-colors leading-snug">
           {product.name}
         </h3>

@@ -10,6 +10,7 @@ import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { fetchPublicReviews, type PublicReview } from '@/services/catalog-service';
 import type { PaginationMeta } from '@/features/admin/shared/types';
+import { selectBrandsEnabled, useSettingsStore } from '@/store/settings-store';
 
 function initials(name: string) {
   return name
@@ -24,6 +25,7 @@ function initials(name: string) {
 function ReviewsContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const brandsEnabled = useSettingsStore(selectBrandsEnabled);
   const page = Math.max(1, Number(searchParams.get('page') ?? 1) || 1);
   const [reviews, setReviews] = useState<PublicReview[]>([]);
   const [pagination, setPagination] = useState<PaginationMeta>({
@@ -157,9 +159,11 @@ function ReviewsContent() {
                         <span className="block truncate text-sm font-semibold">
                           {review.product.name}
                         </span>
-                        <span className="block truncate text-xs text-muted-foreground">
-                          {review.product.brand}
-                        </span>
+                        {brandsEnabled && review.product.brand ? (
+                          <span className="block truncate text-xs text-muted-foreground">
+                            {review.product.brand}
+                          </span>
+                        ) : null}
                       </span>
                     </Link>
                   ) : null}

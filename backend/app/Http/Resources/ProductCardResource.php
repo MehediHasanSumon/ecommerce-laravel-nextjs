@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Services\Admin\Settings\BrandSettingsService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Storage;
@@ -10,6 +11,7 @@ class ProductCardResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        $brandsEnabled = app(BrandSettingsService::class)->enabled();
         $primaryImage = $this->images->firstWhere('is_primary', true) ?? $this->images->first();
         $imageUrl = $this->assetUrl($primaryImage?->url);
 
@@ -24,8 +26,8 @@ class ProductCardResource extends JsonResource
             'discount' => $this->discountPercent(),
             'category' => $this->category?->name ?: '',
             'categorySlug' => $this->category?->slug ?: '',
-            'brand' => $this->brand?->name ?: '',
-            'brandSlug' => $this->brand?->slug ?: '',
+            'brand' => $brandsEnabled ? ($this->brand?->name ?: '') : '',
+            'brandSlug' => $brandsEnabled ? ($this->brand?->slug ?: '') : '',
             'images' => $this->images->map(fn ($image): ?string => $this->assetUrl($image->url))->filter()->values()->all(),
             'thumbnail' => $imageUrl ?: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&auto=format&fit=crop',
             'rating' => (float) ($this->rating_average ?? 0),

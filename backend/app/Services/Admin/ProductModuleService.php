@@ -15,6 +15,7 @@ use App\Models\ProductVariant;
 use App\Models\Tag;
 use App\Models\Warehouse;
 use App\Services\Admin\Concerns\BuildsManagementQueries;
+use App\Services\Admin\Settings\BrandSettingsService;
 use App\Services\Concerns\StoresPublicUploads;
 use App\Support\Identifiers\SkuGenerator;
 use App\Support\Identifiers\SlugGenerator;
@@ -28,10 +29,15 @@ class ProductModuleService
     use BuildsManagementQueries;
     use StoresPublicUploads;
 
-    public function __construct(private readonly ProductVariantEngine $variantEngine) {}
+    public function __construct(
+        private readonly ProductVariantEngine $variantEngine,
+        private readonly BrandSettingsService $brandSettings,
+    ) {}
 
     public function paginate(string $module, array $filters): LengthAwarePaginator
     {
+        $this->guardBrandModule($module);
+
         $query = $this->modelClass($module)::query();
         $this->applyRelationships($query, $module);
         $this->applySearch($query, $module, $filters['search'] ?? null);
@@ -46,11 +52,15 @@ class ProductModuleService
 
     public function create(string $module, array $data): Model
     {
+        $this->guardBrandModule($module);
+
         return DB::transaction(fn () => $this->persist($module, new ($this->modelClass($module)), $data));
     }
 
     public function update(string $module, int $id, array $data): Model
     {
+        $this->guardBrandModule($module);
+
         return DB::transaction(function () use ($module, $id, $data): Model {
             $model = $this->modelClass($module)::query()->findOrFail($id);
 
@@ -60,6 +70,8 @@ class ProductModuleService
 
     public function find(string $module, int $id): Model
     {
+        $this->guardBrandModule($module);
+
         $query = $this->modelClass($module)::query();
         $this->applyRelationships($query, $module, detailed: true);
 
@@ -68,6 +80,8 @@ class ProductModuleService
 
     public function delete(string $module, int $id): void
     {
+        $this->guardBrandModule($module);
+
         $this->modelClass($module)::query()->findOrFail($id)->delete();
 
         if ($module === 'categories') {
@@ -80,6 +94,8 @@ class ProductModuleService
 
     public function bulkDelete(string $module, array $ids): int
     {
+        $this->guardBrandModule($module);
+
         $deleted = $this->modelClass($module)::query()->whereIn('id', $ids)->delete();
 
         if ($module === 'categories') {
@@ -97,7 +113,9 @@ class ProductModuleService
         $attributeSearch = trim((string) ($filters['attribute_search'] ?? ''));
 
         return [
-            'brands' => Brand::query()->orderBy('name')->get(['id', 'name']),
+            'brands' => $this->brandSettings->enabled()
+                ? Brand::query()->orderBy('name')->get(['id', 'name'])
+                : collect(),
             'categories' => Category::query()->orderBy('name')->get(['id', 'name', 'parent_id']),
             'attributes' => ProductAttribute::query()->orderBy('sort_order')->orderBy('name')->get(['id', 'name', 'type']),
             'attribute_values' => ProductAttributeValue::query()
@@ -239,6 +257,10 @@ class ProductModuleService
 
     private function persistProduct(Model $model, array $data): Model
     {
+        if (! $this->brandSettings->enabled()) {
+            unset($data['brand_id']);
+        }
+
         $tags = $data['tags'] ?? [];
         $attributeValues = $data['attribute_values'] ?? [];
         $images = $data['images'] ?? [];
@@ -505,6 +527,11 @@ class ProductModuleService
             'reviews' => ProductReview::class,
             default => abort(404, 'Product module not found.'),
         };
+    }
+
+    private function guardBrandModule(string $module): void
+    {
+        abort_if($module === 'brands' && ! $this->brandSettings->enabled(), 404, 'Brand module is disabled.');
     }
 
     private function clearCategoryCaches(): void

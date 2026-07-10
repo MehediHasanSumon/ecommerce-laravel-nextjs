@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\Admin\RoleManagementController;
 use App\Http\Controllers\Api\Admin\ShippingMethodManagementController;
 use App\Http\Controllers\Api\Admin\ShippingZoneController;
 use App\Http\Controllers\Api\Admin\Settings\BlogSettingsController;
+use App\Http\Controllers\Api\Admin\Settings\BrandSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\CompanySettingsController;
 use App\Http\Controllers\Api\Admin\Settings\CategoryDisplaySettingsController;
 use App\Http\Controllers\Api\Admin\Settings\EmailSettingsController;
@@ -174,6 +175,9 @@ Route::prefix('admin')
 
         Route::get('/settings/blog', [BlogSettingsController::class, 'show']);
         Route::put('/settings/blog', [BlogSettingsController::class, 'update']);
+
+        Route::get('/settings/brand', [BrandSettingsController::class, 'show']);
+        Route::put('/settings/brand', [BrandSettingsController::class, 'update']);
 
         Route::get('/settings/store', [StoreSettingsController::class, 'show']);
         Route::put('/settings/store', [StoreSettingsController::class, 'update']);

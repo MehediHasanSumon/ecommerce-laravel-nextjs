@@ -25,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { selectBrandsEnabled, useSettingsStore } from '@/store/settings-store';
 
 const SHOP_PER_PAGE = 15;
 const defaultFilters: ProductFilterMetadata = {
@@ -143,10 +144,10 @@ function serializeQuery(query: ShopQuery) {
   return params;
 }
 
-function toApiParams(query: ShopQuery): ProductQueryParams {
+function toApiParams(query: ShopQuery, brandsEnabled: boolean): ProductQueryParams {
   return {
     search: query.search || undefined,
-    brand: query.brand.join(',') || undefined,
+    brand: brandsEnabled ? (query.brand.join(',') || undefined) : undefined,
     attributes: JSON.stringify(query.attributes),
     price_min: query.price_min || undefined,
     price_max: query.price_max || undefined,
@@ -166,6 +167,7 @@ function FilterSidebar({
   onToggleAttribute,
   onClearAll,
   disabled,
+  brandsEnabled,
 }: {
   filters: ProductFilterMetadata;
   query: ShopQuery;
@@ -174,10 +176,11 @@ function FilterSidebar({
   onToggleAttribute: (attributeSlug: string, valueSlug: string) => void;
   onClearAll: () => void;
   disabled: boolean;
+  brandsEnabled: boolean;
 }) {
   const hasFilters =
     query.search ||
-    query.brand.length ||
+    (brandsEnabled && query.brand.length) ||
     Object.values(query.attributes).some((values) => values.length) ||
     query.price_min ||
     query.price_max ||
@@ -199,29 +202,31 @@ function FilterSidebar({
         )}
       </div>
 
-      <div>
-        <h3 className="font-semibold text-sm mb-3">Brand</h3>
-        <div className="space-y-1.5">
-          {filters.brands.length ? (
-            filters.brands.map((brand) => (
-              <label key={brand.id} className="flex items-center gap-2 cursor-pointer group">
-                <input
-                  type="checkbox"
-                  checked={query.brand.includes(brand.slug)}
-                  onChange={() => onToggleBrand(brand.slug)}
-                  className="w-4 h-4 rounded border-border accent-primary"
-                />
-                <span className="flex min-w-0 flex-1 items-center justify-between gap-2 text-sm text-muted-foreground group-hover:text-foreground transition-colors">
-                  <span className="truncate">{brand.name}</span>
-                  <span className="text-xs opacity-60">{brand.count}</span>
-                </span>
-              </label>
-            ))
-          ) : (
-            <p className="text-sm text-muted-foreground">No brands available.</p>
-          )}
+      {brandsEnabled ? (
+        <div>
+          <h3 className="font-semibold text-sm mb-3">Brand</h3>
+          <div className="space-y-1.5">
+            {filters.brands.length ? (
+              filters.brands.map((brand) => (
+                <label key={brand.id} className="flex items-center gap-2 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={query.brand.includes(brand.slug)}
+                    onChange={() => onToggleBrand(brand.slug)}
+                    className="w-4 h-4 rounded border-border accent-primary"
+                  />
+                  <span className="flex min-w-0 flex-1 items-center justify-between gap-2 text-sm text-muted-foreground group-hover:text-foreground transition-colors">
+                    <span className="truncate">{brand.name}</span>
+                    <span className="text-xs opacity-60">{brand.count}</span>
+                  </span>
+                </label>
+              ))
+            ) : (
+              <p className="text-sm text-muted-foreground">No brands available.</p>
+            )}
+          </div>
         </div>
-      </div>
+      ) : null}
 
       {filters.attributes.map((attribute) => (
         <div key={attribute.id}>
@@ -339,6 +344,7 @@ export default function ShopPage() {
   const [pagination, setPagination] = useState<PaginationMeta | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const brandsEnabled = useSettingsStore(selectBrandsEnabled);
   const query = useMemo(() => parseQuery(searchParams), [searchParams]);
   const [searchInput, setSearchInput] = useState(query.search);
   const serializedQuery = useMemo(() => serializeQuery(query).toString(), [query]);
@@ -362,6 +368,12 @@ export default function ShopPage() {
   );
 
   useEffect(() => {
+    if (!brandsEnabled && query.brand.length) {
+      patchQuery({ brand: [], page: 1 });
+    }
+  }, [brandsEnabled, patchQuery, query.brand.length]);
+
+  useEffect(() => {
     const timer = window.setTimeout(() => {
       if (searchInput !== query.search) {
         patchQuery({ search: searchInput.trim(), page: 1 });
@@ -380,7 +392,7 @@ export default function ShopPage() {
     setLoading(true);
     setError('');
 
-    fetchProducts(toApiParams(query), { signal: controller.signal })
+    fetchProducts(toApiParams(query, brandsEnabled), { signal: controller.signal })
       .then((response) => {
         setProducts(response.items);
         setFilters(response.filters);
@@ -401,9 +413,11 @@ export default function ShopPage() {
       });
 
     return () => controller.abort();
-  }, [patchQuery, query, serializedQuery]);
+  }, [brandsEnabled, patchQuery, query, serializedQuery]);
 
   const toggleBrand = (slug: string) => {
+    if (!brandsEnabled) return;
+
     const next = query.brand.includes(slug)
       ? query.brand.filter((item) => item !== slug)
       : [...query.brand, slug];
@@ -461,6 +475,7 @@ export default function ShopPage() {
                 onToggleAttribute={toggleAttribute}
                 onClearAll={clearAll}
                 disabled={loading}
+                brandsEnabled={brandsEnabled}
               />
             </div>
           </aside>
@@ -639,6 +654,7 @@ export default function ShopPage() {
                 onToggleAttribute={toggleAttribute}
                 onClearAll={clearAll}
                 disabled={loading}
+                brandsEnabled={brandsEnabled}
               />
             </div>
             <div className="p-5 border-t border-border">

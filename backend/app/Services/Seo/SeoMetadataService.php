@@ -8,6 +8,7 @@ use App\Models\Category;
 use App\Models\ContentPage;
 use App\Models\Product;
 use App\Models\ProductCollection;
+use App\Services\Admin\Settings\BrandSettingsService;
 use App\Services\Admin\Settings\SeoSettingsService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
@@ -15,7 +16,10 @@ use Illuminate\Support\Str;
 
 class SeoMetadataService
 {
-    public function __construct(private readonly SeoSettingsService $settings) {}
+    public function __construct(
+        private readonly SeoSettingsService $settings,
+        private readonly BrandSettingsService $brandSettings,
+    ) {}
 
     public function defaults(): array
     {
@@ -58,7 +62,7 @@ class SeoMetadataService
         return Cache::remember("seo.metadata.entity.{$type}.{$slug}.v1", now()->addMinutes(10), fn () => match ($type) {
             'product' => $this->product($slug),
             'category' => $this->category($slug),
-            'brand' => $this->brand($slug),
+            'brand' => $this->brandSettings->enabled() ? $this->brand($slug) : null,
             'collection' => $this->collection($slug),
             'blog' => $this->blog($slug),
             'content-page' => $this->contentPage($slug),
@@ -71,15 +75,19 @@ class SeoMetadataService
         return Cache::remember('seo.sitemap.entries.v1', now()->addMinutes(15), function (): array {
             $defaults = $this->defaults();
             $base = $defaults['canonicalDomain'];
+            $brandsEnabled = $this->brandSettings->enabled();
             $entries = [
                 $this->entry("{$base}/"),
                 $this->entry("{$base}/shop"),
                 $this->entry("{$base}/categories"),
-                $this->entry("{$base}/brands"),
                 $this->entry("{$base}/blogs"),
                 $this->entry("{$base}/contact"),
                 $this->entry("{$base}/about"),
             ];
+
+            if ($brandsEnabled) {
+                $entries[] = $this->entry("{$base}/brands");
+            }
 
             Product::query()->where('status', 'active')->whereNotNull('published_at')->get(['slug', 'updated_at'])->each(
                 fn (Product $product) => $entries[] = $this->entry("{$base}/products/{$product->slug}", $product->updated_at)
@@ -87,9 +95,11 @@ class SeoMetadataService
             Category::query()->where('status', 'active')->get(['slug', 'updated_at'])->each(
                 fn (Category $category) => $entries[] = $this->entry("{$base}/categories/{$category->slug}", $category->updated_at)
             );
-            Brand::query()->where('status', 'active')->get(['slug', 'updated_at'])->each(
-                fn (Brand $brand) => $entries[] = $this->entry("{$base}/brands/{$brand->slug}", $brand->updated_at)
-            );
+            if ($brandsEnabled) {
+                Brand::query()->where('status', 'active')->get(['slug', 'updated_at'])->each(
+                    fn (Brand $brand) => $entries[] = $this->entry("{$base}/brands/{$brand->slug}", $brand->updated_at)
+                );
+            }
             ProductCollection::query()->where('status', 'active')->get(['slug', 'updated_at'])->each(
                 fn (ProductCollection $collection) => $entries[] = $this->entry("{$base}/collections/{$collection->slug}", $collection->updated_at)
             );
@@ -120,6 +130,28 @@ class SeoMetadataService
             ?: $this->assetUrl($product->images->firstWhere('is_primary', true)?->url)
             ?: $this->assetUrl($product->images->sortBy('sort_order')->first()?->url);
 
+        $structuredData = [
+            '@context' => 'https://schema.org',
+            '@type' => 'Product',
+            'name' => $product->name,
+            'description' => $product->short_description ?: $product->description,
+            'image' => $image ? [$image] : [],
+            'sku' => $product->sku,
+            'category' => $product->category?->name,
+            'offers' => [
+                '@type' => 'Offer',
+                'priceCurrency' => $product->currency ?: 'BDT',
+                'price' => round(((int) $product->base_price_cents) / 100, 2),
+                'availability' => ((int) $product->stock_quantity > 0 || ! $product->track_inventory)
+                    ? 'https://schema.org/InStock'
+                    : 'https://schema.org/OutOfStock',
+            ],
+        ];
+
+        if ($this->brandSettings->enabled() && $product->brand?->name) {
+            $structuredData['brand'] = ['@type' => 'Brand', 'name' => $product->brand->name];
+        }
+
         return $this->payload(
             title: $product->seo?->meta_title ?: $product->name,
             description: $product->seo?->meta_description ?: $product->short_description ?: Str::limit(strip_tags((string) $product->description), 155),
@@ -128,24 +160,7 @@ class SeoMetadataService
             type: 'product',
             keywords: $product->seo?->meta_keywords,
             canonicalUrl: $product->seo?->canonical_url,
-            structuredData: [
-                '@context' => 'https://schema.org',
-                '@type' => 'Product',
-                'name' => $product->name,
-                'description' => $product->short_description ?: $product->description,
-                'image' => $image ? [$image] : [],
-                'sku' => $product->sku,
-                'brand' => ['@type' => 'Brand', 'name' => $product->brand?->name],
-                'category' => $product->category?->name,
-                'offers' => [
-                    '@type' => 'Offer',
-                    'priceCurrency' => $product->currency ?: 'BDT',
-                    'price' => round(((int) $product->base_price_cents) / 100, 2),
-                    'availability' => ((int) $product->stock_quantity > 0 || ! $product->track_inventory)
-                        ? 'https://schema.org/InStock'
-                        : 'https://schema.org/OutOfStock',
-                ],
-            ],
+            structuredData: $structuredData,
         );
     }
 
@@ -168,6 +183,10 @@ class SeoMetadataService
 
     private function brand(string $slug): ?array
     {
+        if (! $this->brandSettings->enabled()) {
+            return null;
+        }
+
         $brand = Brand::query()->where('slug', $slug)->where('status', 'active')->first();
         if (! $brand) {
             return null;

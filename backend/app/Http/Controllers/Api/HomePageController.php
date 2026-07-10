@@ -9,6 +9,7 @@ use App\Http\Resources\ProductCardResource;
 use App\Http\Responses\ApiResponse;
 use App\Models\Brand;
 use App\Models\Product;
+use App\Services\Admin\Settings\BrandSettingsService;
 use App\Services\Collections\CollectionProductResolver;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -16,9 +17,13 @@ use Illuminate\Support\Facades\Cache;
 
 class HomePageController extends Controller
 {
-    public function show(CollectionProductResolver $collections): JsonResponse
+    public function show(CollectionProductResolver $collections, BrandSettingsService $brandSettings): JsonResponse
     {
-        $payload = Cache::remember('home-page:product-brand-sections:v2', now()->addMinutes(5), function () use ($collections): array {
+        $brandRuntime = $brandSettings->runtime();
+        $cacheKey = 'home-page:product-brand-sections:v3:'.((int) $brandRuntime['enabled']).':'.((int) $brandRuntime['show_on_home']);
+
+        $payload = Cache::remember($cacheKey, now()->addMinutes(5), function () use ($collections, $brandRuntime): array {
+            $showBrands = (bool) ($brandRuntime['enabled'] && $brandRuntime['show_on_home']);
             $homeCollections = $collections->homeCollections()
                 ->map(fn ($collection): array => [
                     'collection' => CollectionResource::make($collection)->resolve(),
@@ -34,8 +39,8 @@ class HomePageController extends Controller
                 'collections' => $homeCollections,
                 'sections' => [
                     'topBrands' => [
-                        'enabled' => true,
-                        'items' => $this->brands(6),
+                        'enabled' => $showBrands,
+                        'items' => $showBrands ? $this->brands(6) : [],
                     ],
                     'products' => [
                         'enabled' => true,

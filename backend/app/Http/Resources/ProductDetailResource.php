@@ -6,6 +6,7 @@ use App\Models\Product;
 use App\Models\ProductAttributeValue;
 use App\Models\ProductReview;
 use App\Models\ProductVariant;
+use App\Services\Admin\Settings\BrandSettingsService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Storage;
@@ -14,6 +15,7 @@ class ProductDetailResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        $brandsEnabled = app(BrandSettingsService::class)->enabled();
         $images = $this->images
             ->sortBy([['sort_order', 'asc'], ['id', 'asc']])
             ->map(fn ($image): ?string => $this->assetUrl($image->url))
@@ -40,8 +42,8 @@ class ProductDetailResource extends JsonResource
                 'category' => $this->category?->name ?: '',
                 'categorySlug' => $this->category?->slug ?: '',
                 'categories' => $this->categoryBreadcrumb(),
-                'brand' => $this->brand?->name ?: '',
-                'brandSlug' => $this->brand?->slug ?: '',
+                'brand' => $brandsEnabled ? ($this->brand?->name ?: '') : '',
+                'brandSlug' => $brandsEnabled ? ($this->brand?->slug ?: '') : '',
                 'images' => $images->isNotEmpty() ? $images->all() : [$primaryImage],
                 'thumbnail' => $primaryImage,
                 'rating' => (float) ($this->rating_average ?? 0),
@@ -126,15 +128,18 @@ class ProductDetailResource extends JsonResource
     private function similarProducts()
     {
         $relatedIds = $this->relatedProducts->pluck('id')->push($this->id)->all();
+        $brandsEnabled = app(BrandSettingsService::class)->enabled();
 
         return Product::query()
             ->where('status', 'active')
             ->where('id', '!=', $this->id)
             ->whereNotIn('id', $relatedIds)
-            ->where(function ($query): void {
-                $query
-                    ->where('category_id', $this->category_id)
-                    ->orWhere('brand_id', $this->brand_id);
+            ->where(function ($query) use ($brandsEnabled): void {
+                $query->where('category_id', $this->category_id);
+
+                if ($brandsEnabled && $this->brand_id) {
+                    $query->orWhere('brand_id', $this->brand_id);
+                }
             })
             ->with(['brand:id,name,slug', 'category:id,name,slug', 'images:id,product_id,url,is_primary,sort_order', 'tags:id,name'])
             ->orderByDesc('is_featured')

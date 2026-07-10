@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Admin;
 
+use App\Services\Admin\Settings\BrandSettingsService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -9,9 +10,11 @@ class ProductAdminResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        $brandsEnabled = app(BrandSettingsService::class)->enabled();
+
         return [
             'id' => $this->id,
-            'brand_id' => $this->brand_id,
+            'brand_id' => $brandsEnabled ? $this->brand_id : null,
             'category_id' => $this->category_id,
             'name' => $this->name,
             'slug' => $this->slug,
@@ -38,7 +41,9 @@ class ProductAdminResource extends JsonResource
             'published_at' => optional($this->published_at)->toISOString(),
             'created_at' => optional($this->created_at)->toISOString(),
             'updated_at' => optional($this->updated_at)->toISOString(),
-            'brand' => $this->whenLoaded('brand', fn () => $this->brand ? ['id' => $this->brand->id, 'name' => $this->brand->name] : null),
+            'brand' => $brandsEnabled
+                ? $this->whenLoaded('brand', fn () => $this->brand ? ['id' => $this->brand->id, 'name' => $this->brand->name] : null)
+                : null,
             'category' => $this->whenLoaded('category', fn () => $this->category ? ['id' => $this->category->id, 'name' => $this->category->name] : null),
             'tags' => ProductOptionResource::collection($this->whenLoaded('tags')),
             'attribute_values' => ProductOptionResource::collection($this->whenLoaded('attributeValues')),

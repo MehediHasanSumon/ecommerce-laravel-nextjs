@@ -30,6 +30,14 @@ const defaultBlogSettings: RuntimeSettings["blog_settings"] = {
   enable_search: true,
   seo: {},
 };
+const defaultBrandSettings: RuntimeSettings["brand_settings"] = {
+  enabled: true,
+  show_on_home: true,
+};
+const pendingBrandSettings: RuntimeSettings["brand_settings"] = {
+  enabled: false,
+  show_on_home: false,
+};
 const defaultCategoryDisplaySettings: RuntimeSettings["category_display_settings"] = {
   enable_home_category_section: true,
   category_display_mode: "landing_page",
@@ -186,6 +194,13 @@ export const selectHomeFeatureCards = (state: SettingsState) =>
   selectSettingsPending(state) ? emptyHomeFeatureCards : state.settings?.home_feature_cards ?? emptyHomeFeatureCards;
 export const selectBlogSettings = (state: SettingsState) =>
   selectSettingsPending(state) ? defaultBlogSettings : state.settings?.blog_settings ?? defaultBlogSettings;
+export const selectBrandSettings = (state: SettingsState) =>
+  selectSettingsPending(state) ? pendingBrandSettings : state.settings?.brand_settings ?? defaultBrandSettings;
+export const selectBrandsEnabled = (state: SettingsState) => selectBrandSettings(state).enabled;
+export const selectShowHomeBrandSection = (state: SettingsState) => {
+  const settings = selectBrandSettings(state);
+  return settings.enabled && settings.show_on_home;
+};
 export const selectCurrencySettings = (state: SettingsState): RuntimeCurrencySettings => {
   if (selectSettingsPending(state)) {
     return {

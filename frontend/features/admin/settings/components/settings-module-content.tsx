@@ -253,6 +253,23 @@ const moduleConfigs: Record<string, SingletonModule> = {
       ] },
     ],
   },
+  brand: {
+    kind: "singleton",
+    path: "brand",
+    title: "Brand Settings",
+    description: "Control product brand management, storefront brand routes, filters, and home page visibility.",
+    icon: Building2,
+    defaults: {
+      enabled: true,
+      show_on_home: true,
+    },
+    sections: [
+      { title: "Brand Settings", description: "Toggle the product Brand module and the home page brand section.", icon: Building2, fields: [
+        { name: "enabled", label: "Enable Brand", type: "toggle" },
+        { name: "show_on_home", label: "Show Brand Section on Home Page", type: "toggle", helper: "Only applies while Brand is enabled." },
+      ] },
+    ],
+  },
   store: {
     kind: "singleton",
     path: "store",

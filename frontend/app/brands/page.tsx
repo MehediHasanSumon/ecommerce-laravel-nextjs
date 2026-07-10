@@ -7,8 +7,11 @@ import { AnnouncementBar } from '@/components/layout/AnnouncementBar';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { fetchBrands, type BrandListResponse } from '@/services/catalog-service';
+import { selectBrandsEnabled, selectSettingsPending, useSettingsStore } from '@/store/settings-store';
 
 export default function BrandsPage() {
+  const brandsEnabled = useSettingsStore(selectBrandsEnabled);
+  const settingsPending = useSettingsStore(selectSettingsPending);
   const [mounted, setMounted] = useState(false);
   const [data, setData] = useState<BrandListResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -17,6 +20,11 @@ export default function BrandsPage() {
   }, []);
 
   useEffect(() => {
+    if (settingsPending || !brandsEnabled) {
+      setLoading(false);
+      return;
+    }
+
     const controller = new AbortController();
     setLoading(true);
 
@@ -31,10 +39,26 @@ export default function BrandsPage() {
       });
 
     return () => controller.abort();
-  }, []);
+  }, [brandsEnabled, settingsPending]);
 
   const featuredBrands = data?.featured ?? [];
   const brands = data?.items ?? [];
+
+  if (mounted && !settingsPending && !brandsEnabled) {
+    return (
+      <div className="min-h-screen bg-background">
+        <AnnouncementBar />
+        <Header />
+        <main className="max-w-7xl mx-auto px-4 py-24 text-center">
+          <h1 className="text-2xl font-bold mb-4">Brand Not Found</h1>
+          <Link href="/shop" className="text-primary hover:underline">
+            Back to Shop
+          </Link>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">

@@ -9,9 +9,12 @@ import { Footer } from '@/components/layout/Footer';
 import { ProductCard } from '@/components/product/ProductCard';
 import { ProductGridSkeleton } from '@/components/skeleton';
 import { fetchBrandDetail, type BrandDetailResponse } from '@/services/catalog-service';
+import { selectBrandsEnabled, selectSettingsPending, useSettingsStore } from '@/store/settings-store';
 
 export default function BrandDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
+  const brandsEnabled = useSettingsStore(selectBrandsEnabled);
+  const settingsPending = useSettingsStore(selectSettingsPending);
   const [mounted, setMounted] = useState(false);
   const [data, setData] = useState<BrandDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -21,6 +24,11 @@ export default function BrandDetailPage({ params }: { params: Promise<{ slug: st
   }, []);
 
   useEffect(() => {
+    if (settingsPending || !brandsEnabled) {
+      setLoading(false);
+      return;
+    }
+
     const controller = new AbortController();
     setLoading(true);
     setLoadError(false);
@@ -37,7 +45,7 @@ export default function BrandDetailPage({ params }: { params: Promise<{ slug: st
       });
 
     return () => controller.abort();
-  }, [slug]);
+  }, [brandsEnabled, settingsPending, slug]);
 
   const brand = data?.brand ?? null;
   const products = data?.products ?? [];
@@ -74,15 +82,15 @@ export default function BrandDetailPage({ params }: { params: Promise<{ slug: st
     );
   }
 
-  if (!brand || loadError) {
+  if (!brand || loadError || (!settingsPending && !brandsEnabled)) {
     return (
       <div className="min-h-screen bg-background">
         <AnnouncementBar />
         <Header />
         <main className="max-w-7xl mx-auto px-4 py-24 text-center">
           <h1 className="text-2xl font-bold mb-4">Brand Not Found</h1>
-          <Link href="/brands" className="text-primary hover:underline">
-            ← Back to Brands
+          <Link href={brandsEnabled ? "/brands" : "/shop"} className="text-primary hover:underline">
+            {brandsEnabled ? "Back to Brands" : "Back to Shop"}
           </Link>
         </main>
         <Footer />

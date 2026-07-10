@@ -1,12 +1,13 @@
 'use client';
 import { useState } from 'react';
-import { Mail, Phone, MapPin, Clock, MessageCircle } from 'lucide-react';
+import { Mail, Phone, MapPin, Clock } from 'lucide-react';
 import { AnnouncementBar } from '@/components/layout/AnnouncementBar';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { toast } from 'sonner';
 import { submitContactMessage } from '@/services/contact-service';
 import { toAppError } from '@/lib/errors';
+import { selectRuntimeSettings, useSettingsStore } from '@/store/settings-store';
 import {
   Select,
   SelectContent,
@@ -15,16 +16,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
-const CONTACT_INFO = [
-  { icon: Phone, label: 'Phone', value: '+1 (800) 123-4567', sub: 'Mon-Fri 9am-6pm EST' },
-  { icon: Mail, label: 'Email', value: 'support@luxecart.com', sub: 'Response within 24hrs' },
-  { icon: MapPin, label: 'Address', value: '123 Commerce St', sub: 'New York, NY 10001' },
-  { icon: Clock, label: 'Hours', value: 'Mon-Fri: 9am-6pm', sub: 'Sat: 10am-4pm EST' },
-];
-
 export default function ContactPage() {
   const [form, setForm] = useState({ name: '', email: '', phone: '', subject: '', message: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const settings = useSettingsStore(selectRuntimeSettings);
+  const contactInfo = buildContactInfo(settings);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,8 +52,8 @@ export default function ContactPage() {
         <div className="grid md:grid-cols-2 gap-12 max-w-5xl mx-auto">
           {/* Contact Info */}
           <div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-              {CONTACT_INFO.map(({ icon: Icon, label, value, sub }) => (
+            <div className="grid grid-cols-1 gap-4">
+              {contactInfo.map(({ icon: Icon, label, value, sub }) => (
                 <div key={label} className="bg-card border border-border rounded-2xl p-4">
                   <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center mb-3">
                     <Icon size={18} className="text-primary" />
@@ -67,19 +63,6 @@ export default function ContactPage() {
                   <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>
                 </div>
               ))}
-            </div>
-
-            <div className="bg-primary rounded-2xl p-6 text-primary-foreground">
-              <div className="flex items-center gap-3 mb-3">
-                <MessageCircle size={22} />
-                <h3 className="font-bold">Live Chat</h3>
-              </div>
-              <p className="text-primary-foreground/80 text-sm mb-4">
-                Chat with our support team in real-time. Available Monday through Friday.
-              </p>
-              <button className="px-5 py-2.5 bg-primary-foreground text-primary rounded-xl text-sm font-bold hover:opacity-90 transition-opacity">
-                Start Live Chat
-              </button>
             </div>
           </div>
 
@@ -179,4 +162,47 @@ export default function ContactPage() {
       <Footer />
     </div>
   );
+}
+
+function buildContactInfo(settings: ReturnType<typeof selectRuntimeSettings>) {
+  const company = settings?.company_settings ?? {};
+  const store = settings?.website_settings ?? {};
+  const branding = settings?.branding ?? {};
+  const phone = firstText(
+    branding.support_phone,
+    company.support_phone,
+    branding.company_phone,
+    company.company_phone,
+    store.store_phone,
+  );
+  const email = firstText(
+    branding.support_email,
+    company.support_email,
+    company.company_email,
+    store.store_email,
+  );
+  const address = firstText(
+    branding.address,
+    company.full_address,
+    [company.city, company.state, company.country].map(stringValue).filter(Boolean).join(', '),
+  );
+  const postal = firstText(company.postal_code);
+  const hours = firstText(company.business_hours, company.support_hours, company.office_hours);
+  const timezone = firstText(company.timezone);
+  const timeFormat = firstText(company.time_format);
+
+  return [
+    { icon: Phone, label: 'Phone', value: phone || 'Not available', sub: timezone ? `Timezone: ${timezone}` : 'Support contact' },
+    { icon: Mail, label: 'Email', value: email || 'Not available', sub: 'Customer support email' },
+    { icon: MapPin, label: 'Address', value: address || 'Not available', sub: postal || 'Company address' },
+    { icon: Clock, label: 'Hours', value: hours || (timezone ? `Timezone: ${timezone}` : 'Not available'), sub: timeFormat ? `Time format: ${timeFormat}` : 'Company schedule' },
+  ];
+}
+
+function firstText(...values: unknown[]) {
+  return values.map(stringValue).find(Boolean) ?? '';
+}
+
+function stringValue(value: unknown) {
+  return typeof value === 'string' ? value.trim() : '';
 }

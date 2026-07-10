@@ -13,6 +13,7 @@ use App\Services\Admin\Settings\CompanySettingsService;
 use App\Services\Admin\HomeFeatureCardService;
 use App\Services\Admin\Settings\HomeFeatureCardSettingsService;
 use App\Services\Admin\Settings\BlogSettingsService;
+use App\Services\Admin\Settings\BrandSettingsService;
 use App\Services\Admin\Settings\MaintenanceModeSettingsService;
 use App\Services\Admin\Settings\PaymentSettingsService;
 use App\Services\Admin\Settings\SocialMediaSettingsService;
@@ -28,6 +29,7 @@ class NavigationSettingsController extends Controller
         private readonly CategoryDisplaySettingsService $categoryDisplaySettings,
         private readonly HomeFeatureCardSettingsService $homeFeatureCardSettings,
         private readonly BlogSettingsService $blogSettings,
+        private readonly BrandSettingsService $brandSettings,
         private readonly HomeFeatureCardService $homeFeatureCards,
         private readonly StoreSettingsService $storeSettings,
         private readonly SocialMediaSettingsService $socialMediaSettings,
@@ -51,6 +53,7 @@ class NavigationSettingsController extends Controller
         $categoryDisplay = CategoryDisplaySettingResource::make($this->categoryDisplaySettings->get())->resolve();
         $homeFeatureCardSettings = $this->homeFeatureCardSettings->get();
         $blogSettings = $this->blogSettings->runtime();
+        $brandSettings = $this->brandSettings->runtime();
         $social = $this->socialMediaSettings->all();
         $payments = $this->paymentSettings->all();
         $maintenance = $this->maintenanceSettings->get();
@@ -62,7 +65,7 @@ class NavigationSettingsController extends Controller
             'catalog' => true,
             'products' => true,
             'categories' => true,
-            'brands' => true,
+            'brands' => (bool) $brandSettings['enabled'],
             'offers' => true,
             'blog' => (bool) $blogSettings['enabled'],
             'wishlist' => (bool) $store->enable_wishlist,
@@ -90,6 +93,7 @@ class NavigationSettingsController extends Controller
                 'enabled' => (bool) $homeFeatureCardSettings->enabled,
             ],
             'blog_settings' => $blogSettings,
+            'brand_settings' => $brandSettings,
             'theme_configuration' => [
                 'currency' => $currency?->currency ?: 'BDT',
                 'currency_symbol' => $currency?->symbol ?: '৳',
@@ -331,6 +335,7 @@ class NavigationSettingsController extends Controller
                     ['label' => 'Category Display', 'href' => '/admin/settings/categories', 'icon' => 'LayoutGrid', 'enabled' => true],
                     ['label' => 'Feature Cards', 'href' => '/admin/settings/home-feature-cards', 'icon' => 'BadgeCheck', 'enabled' => true],
                     ['label' => 'Blog Settings', 'href' => '/admin/settings/blog', 'icon' => 'Newspaper', 'enabled' => true],
+                    ['label' => 'Brand Settings', 'href' => '/admin/settings/brand', 'icon' => 'Building2', 'enabled' => true],
                     ['label' => 'Store Settings', 'href' => '/admin/settings/store', 'icon' => 'Store', 'enabled' => true],
                     ['label' => 'Email (SMTP)', 'href' => '/admin/settings/email', 'icon' => 'Mail', 'enabled' => true],
                     ['label' => 'SMS Provider', 'href' => '/admin/settings/sms', 'icon' => 'MessageSquareText', 'enabled' => true],

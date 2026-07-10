@@ -90,6 +90,11 @@ export type RuntimeBlogSettings = {
   };
 };
 
+export type RuntimeBrandSettings = {
+  enabled: boolean;
+  show_on_home: boolean;
+};
+
 export type RuntimeSettings = {
   company_settings: Record<string, unknown>;
   website_settings: Record<string, unknown>;
@@ -104,6 +109,7 @@ export type RuntimeSettings = {
     enabled: boolean;
   };
   blog_settings: RuntimeBlogSettings;
+  brand_settings: RuntimeBrandSettings;
   category_display_settings: RuntimeCategoryDisplaySettings;
   theme_configuration: {
     currency?: string | null;

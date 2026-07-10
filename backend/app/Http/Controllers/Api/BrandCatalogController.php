@@ -8,15 +8,19 @@ use App\Http\Resources\ProductCardResource;
 use App\Http\Responses\ApiResponse;
 use App\Models\Brand;
 use App\Models\Product;
+use App\Services\Admin\Settings\BrandSettingsService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class BrandCatalogController extends Controller
 {
+    public function __construct(private readonly BrandSettingsService $brandSettings) {}
 
     public function index(Request $request): JsonResponse
     {
+        abort_unless($this->brandSettings->enabled(), 404);
+
         $validated = $request->validate([
             'search' => ['nullable', 'string', 'max:120'],
             'page' => ['nullable', 'integer', 'min:1'],
@@ -59,6 +63,8 @@ class BrandCatalogController extends Controller
 
     public function show(string $slug): JsonResponse
     {
+        abort_unless($this->brandSettings->enabled(), 404);
+
         $brand = Brand::query()
             ->where('slug', $slug)
             ->where('status', 'active')

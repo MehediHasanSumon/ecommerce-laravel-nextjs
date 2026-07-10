@@ -7,7 +7,7 @@ import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { CartItemSkeleton } from '@/components/skeleton';
 import { useCartStore } from '@/store/cartStore';
-import { selectCurrencyFingerprint, useSettingsStore } from '@/store/settings-store';
+import { selectBrandsEnabled, selectCurrencyFingerprint, useSettingsStore } from '@/store/settings-store';
 import { formatPrice } from '@/utils/format';
 import {
   Trash2,
@@ -43,6 +43,7 @@ function resolveCartImage(src?: string | null) {
 
 export default function CartPage() {
   useSettingsStore(selectCurrencyFingerprint);
+  const brandsEnabled = useSettingsStore(selectBrandsEnabled);
   const [mounted, setMounted] = useState(false);
   const initialize = useCartStore((s) => s.initialize);
   const cartInitialized = useCartStore((s) => s.initialized);
@@ -168,7 +169,7 @@ export default function CartPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <p className="text-xs text-muted-foreground mb-0.5">{item.product.brand}</p>
+                        {brandsEnabled && item.product.brand ? <p className="text-xs text-muted-foreground mb-0.5">{item.product.brand}</p> : null}
                         <Link
                           href={`/products/${item.product.slug}`}
                           className="font-semibold text-sm hover:text-primary transition-colors line-clamp-2"

@@ -7,6 +7,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import type { ProductOptions } from "@/features/admin/products/types";
 import { productManagementService } from "@/features/admin/products/services/product-management-service";
+import { selectBrandsEnabled, useSettingsStore } from "@/store/settings-store";
 import { formatCurrency } from "@/utils/format";
 import {
   FieldGrid,
@@ -35,6 +36,8 @@ const statusOptions = [
 
 export function BasicInfoSection({ form, options }: SectionProps) {
   const errors = form.formState.errors;
+  const brandsEnabled = useSettingsStore(selectBrandsEnabled);
+  const brandId = useFieldValue(form, "brand_id");
   const categoryId = useFieldValue(form, "category_id");
   const subcategoryId = useFieldValue(form, "subcategory_id");
   const subcategories = options.categories.filter((category) => category.parent_id && String(category.parent_id) === String(categoryId));
@@ -52,7 +55,9 @@ export function BasicInfoSection({ form, options }: SectionProps) {
       <SectionHeader title="Basic Information" description="Name the product, connect it to catalog taxonomy, and add the short merchandising copy." />
       <FieldGrid>
         <Input label="Product Name" {...form.register("name")} error={errors.name?.message} />
-        <SelectField label="Brand" value={useFieldValue(form, "brand_id")} placeholder="Select brand" options={[{ id: "", name: "No brand" }, ...options.brands]} onChange={(value) => form.setValue("brand_id", value, { shouldDirty: true })} />
+        {brandsEnabled ? (
+          <SelectField label="Brand" value={brandId} placeholder="Select brand" options={[{ id: "", name: "No brand" }, ...options.brands]} onChange={(value) => form.setValue("brand_id", value, { shouldDirty: true })} />
+        ) : null}
         <SelectField label="Category" value={categoryId} placeholder="Select category" options={parentCategories.length ? parentCategories : options.categories} error={errors.category_id?.message} onChange={(value) => form.setValue("category_id", value, { shouldDirty: true, shouldValidate: true })} />
         <SelectField label="Subcategory" value={subcategoryId} placeholder="Select subcategory" options={[{ id: "", name: "No subcategory" }, ...subcategories]} onChange={(value) => form.setValue("subcategory_id", value, { shouldDirty: true })} />
       </FieldGrid>
