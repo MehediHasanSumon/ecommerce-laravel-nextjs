@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import Image from 'next/image';
-import { createElement, useMemo, useState, useEffect } from 'react';
+import { createElement, useMemo, useRef, useState, useEffect } from 'react';
 import {
   ArrowRight,
   Star,
@@ -208,9 +208,17 @@ function AdvancedHeroSlider({
 }) {
   const slide = slides[current] ?? slides[0];
   const device = useHeroDevice();
+  const size = slide.canvas_size?.[device] ?? slide.canvas_size?.desktop ?? { width: 1280, height: 620 };
+  const { ref, width } = useElementWidth<HTMLDivElement>();
+  const scale = width > 0 ? width / size.width : 1;
+
   return (
-    <div className="relative h-[480px] md:h-[560px] lg:h-[620px] rounded-2xl overflow-hidden">
-      <AdvancedSlide slide={slide} device={device} />
+    <div
+      ref={ref}
+      className="relative overflow-hidden rounded-2xl"
+      style={{ aspectRatio: `${size.width} / ${size.height}`, height: width > 0 ? size.height * scale : undefined }}
+    >
+      <AdvancedSlide slide={slide} device={device} size={size} scale={scale} />
       <HeroControls
         count={slides.length}
         current={current}
@@ -224,6 +232,33 @@ function AdvancedHeroSlider({
       {!mounted && <div className="absolute inset-0 bg-slate-900 animate-pulse" />}
     </div>
   );
+}
+
+function useElementWidth<T extends HTMLElement>() {
+  const ref = useRef<T | null>(null);
+  const [width, setWidth] = useState(0);
+
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+
+    const update = () => setWidth(node.getBoundingClientRect().width);
+    update();
+
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', update);
+      return () => window.removeEventListener('resize', update);
+    }
+
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      setWidth(entry?.contentRect.width ?? node.getBoundingClientRect().width);
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  return { ref, width };
 }
 
 function useHeroDevice(): HeroDevice {
@@ -241,12 +276,14 @@ function useHeroDevice(): HeroDevice {
   return device;
 }
 
-function AdvancedSlide({ slide, device }: { slide: HeroSlide; device: HeroDevice }) {
-  const size = slide.canvas_size?.[device] ?? slide.canvas_size?.desktop ?? { width: 1280, height: 620 };
+function AdvancedSlide({ slide, device, size, scale }: { slide: HeroSlide; device: HeroDevice; size: { width: number; height: number }; scale: number }) {
   return (
     <div
-      className="absolute inset-0"
+      className="absolute left-0 top-0 origin-top-left overflow-hidden"
       style={{
+        width: size.width,
+        height: size.height,
+        transform: `scale(${scale})`,
         backgroundColor: slide.background_color || '#0f172a',
         backgroundImage: slide.background_image ? `url(${slide.background_image})` : slide.background_gradient || undefined,
         backgroundSize: 'cover',
@@ -257,20 +294,20 @@ function AdvancedSlide({ slide, device }: { slide: HeroSlide; device: HeroDevice
       {slide.elements
         .filter((element) => !element.hidden)
         .sort((a, b) => a.z_index - b.z_index)
-        .map((element) => <AdvancedElement key={`${element.id}-${element.z_index}`} element={element} device={device} size={size} />)}
+        .map((element) => <AdvancedElement key={`${element.id}-${element.z_index}`} element={element} device={device} />)}
     </div>
   );
 }
 
-function AdvancedElement({ element, device, size }: { element: HeroSlideElement; device: HeroDevice; size: { width: number; height: number } }) {
+function AdvancedElement({ element, device }: { element: HeroSlideElement; device: HeroDevice }) {
   const box = element.responsive?.[device] ?? element.responsive?.desktop;
   if (!box) return null;
   const style = element.style ?? {};
   const frame = {
-    left: `${(box.x / size.width) * 100}%`,
-    top: `${(box.y / size.height) * 100}%`,
-    width: `${(box.width / size.width) * 100}%`,
-    height: `${(box.height / size.height) * 100}%`,
+    left: box.x,
+    top: box.y,
+    width: box.width,
+    height: box.height,
     zIndex: element.z_index,
     opacity: Number(style.opacity ?? 1),
     transform: `rotate(${box.rotation ?? 0}deg)`,
@@ -287,7 +324,7 @@ function AdvancedElement({ element, device, size }: { element: HeroSlideElement;
 
   if (element.type === 'button') {
     return (
-      <Link href={element.content.url || '/shop'} target={element.content.target || '_self'} className="absolute flex items-center justify-center font-bold transition-colors" style={{ ...frame, background: String(style.backgroundColor ?? '#fff'), color: String(style.textColor ?? '#111'), borderRadius: style.borderRadius as number, padding: String(style.padding ?? '12px 22px'), border: String(style.border ?? '0 solid transparent'), boxShadow: String(style.boxShadow ?? '') }}>
+      <Link href={element.content.url || '/shop'} target={element.content.target || '_self'} className="absolute flex items-center justify-center font-bold transition-colors" style={{ ...frame, background: String(style.backgroundColor ?? '#fff'), color: String(style.textColor ?? '#111'), borderRadius: style.borderRadius as number, padding: String(style.padding ?? '12px 22px'), border: String(style.border ?? '0 solid transparent'), boxShadow: String(style.boxShadow ?? ''), fontSize: Number(style.fontSize ?? 16) }}>
         {element.content.text}
       </Link>
     );
@@ -304,7 +341,7 @@ function AdvancedElement({ element, device, size }: { element: HeroSlideElement;
         ...frame,
         color: String(style.color ?? '#fff'),
         fontFamily: String(style.fontFamily ?? 'Inter, sans-serif'),
-        fontSize: `clamp(14px, ${(Number(style.fontSize ?? 16) / size.width) * 100}vw, ${Number(style.fontSize ?? 16)}px)`,
+        fontSize: Number(style.fontSize ?? 16),
         fontWeight: Number(style.fontWeight ?? 600),
         lineHeight: Number(style.lineHeight ?? 1.2),
         letterSpacing: Number(style.letterSpacing ?? 0),

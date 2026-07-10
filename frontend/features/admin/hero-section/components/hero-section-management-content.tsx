@@ -615,56 +615,62 @@ function CanvasStage({ slide, device, selected, onSelect, onChange }: { slide: H
   return (
     <div className="overflow-auto rounded-lg border border-border bg-muted p-4">
       <div
-        ref={stageRef}
-        role="application"
         className="relative mx-auto overflow-hidden rounded-lg border border-border bg-slate-950 shadow-sm"
-        style={{
-          width: size.width * scale,
-          height: size.height * scale,
-          backgroundColor: slide.background_color || "#0f172a",
-          backgroundImage: slide.background_image ? `url(${slide.background_image})` : slide.background_gradient || undefined,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-        }}
-        onPointerDown={() => onSelect(null)}
+        style={{ width: size.width * scale, height: size.height * scale }}
       >
-        {slide.background_overlay ? <div className="absolute inset-0 bg-black" style={{ opacity: slide.canvas_overlay_opacity / 100 }} /> : null}
-        {slide.elements.slice().sort((a, b) => a.z_index - b.z_index).map((element) => {
-          const box = element.responsive[device];
-          if (element.hidden) return null;
-          return (
-            <div
-              key={`${element.id ?? element.name}-${element.z_index}`}
-              onPointerDown={(event) => {
-                event.stopPropagation();
-                onSelect(element.z_index, event.ctrlKey || event.metaKey);
-                moveElement(element, event, "move");
-              }}
-              className={cn("absolute cursor-move border", selected.includes(element.z_index) ? "border-primary" : "border-transparent", selected.length > 1 && selected.includes(element.z_index) && "ring-1 ring-primary/40", element.locked && "cursor-not-allowed")}
-              style={{
-                left: box.x * scale,
-                top: box.y * scale,
-                width: box.width * scale,
-                height: box.height * scale,
-                zIndex: element.z_index,
-                transform: `rotate(${box.rotation ?? 0}deg)`,
-              }}
-            >
-              <CanvasElement element={element} />
-              {selected.includes(element.z_index) && selected.length === 1 && !element.locked ? (
-                <button
-                  type="button"
-                  aria-label="Resize element"
-                  className="absolute -bottom-1.5 -right-1.5 h-3 w-3 rounded-full bg-primary"
-                  onPointerDown={(event) => {
-                    event.stopPropagation();
-                    moveElement(element, event, "resize");
-                  }}
-                />
-              ) : null}
-            </div>
-          );
-        })}
+        <div
+          ref={stageRef}
+          role="application"
+          className="relative origin-top-left overflow-hidden"
+          style={{
+            width: size.width,
+            height: size.height,
+            transform: `scale(${scale})`,
+            backgroundColor: slide.background_color || "#0f172a",
+            backgroundImage: slide.background_image ? `url(${slide.background_image})` : slide.background_gradient || undefined,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+          onPointerDown={() => onSelect(null)}
+        >
+          {slide.background_overlay ? <div className="absolute inset-0 bg-black" style={{ opacity: slide.canvas_overlay_opacity / 100 }} /> : null}
+          {slide.elements.slice().sort((a, b) => a.z_index - b.z_index).map((element) => {
+            const box = element.responsive[device];
+            if (element.hidden) return null;
+            return (
+              <div
+                key={`${element.id ?? element.name}-${element.z_index}`}
+                onPointerDown={(event) => {
+                  event.stopPropagation();
+                  onSelect(element.z_index, event.ctrlKey || event.metaKey);
+                  moveElement(element, event, "move");
+                }}
+                className={cn("absolute cursor-move border", selected.includes(element.z_index) ? "border-primary" : "border-transparent", selected.length > 1 && selected.includes(element.z_index) && "ring-1 ring-primary/40", element.locked && "cursor-not-allowed")}
+                style={{
+                  left: box.x,
+                  top: box.y,
+                  width: box.width,
+                  height: box.height,
+                  zIndex: element.z_index,
+                  transform: `rotate(${box.rotation ?? 0}deg)`,
+                }}
+              >
+                <CanvasElement element={element} />
+                {selected.includes(element.z_index) && selected.length === 1 && !element.locked ? (
+                  <button
+                    type="button"
+                    aria-label="Resize element"
+                    className="absolute -bottom-1.5 -right-1.5 h-3 w-3 rounded-full bg-primary"
+                    onPointerDown={(event) => {
+                      event.stopPropagation();
+                      moveElement(element, event, "resize");
+                    }}
+                  />
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
