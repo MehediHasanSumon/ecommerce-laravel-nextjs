@@ -78,6 +78,7 @@ Route::middleware(['auth.cookie.optional:access', 'throttle:public-settings'])->
     Route::get('/checkout/payment-methods', [CheckoutController::class, 'paymentMethods']);
     Route::post('/checkout/place-order', [CheckoutController::class, 'place']);
     Route::get('/payment/result', [OrderController::class, 'paymentResult']);
+    Route::get('/payment/invoice', [OrderController::class, 'paymentInvoice']);
 
     Route::get('/wishlist', [WishlistController::class, 'show']);
     Route::post('/wishlist/toggle', [WishlistController::class, 'toggle']);
@@ -141,6 +142,7 @@ Route::prefix('admin')
         Route::get('/contact-messages', [ContactMessageManagementController::class, 'index']);
         Route::put('/contact-messages/{contactMessage}', [ContactMessageManagementController::class, 'update']);
         Route::delete('/contact-messages/{contactMessage}', [ContactMessageManagementController::class, 'destroy']);
+        Route::get('/reports/{type}/pdf', [ReportsController::class, 'pdf'])->where('type', '[A-Za-z0-9\\-]+');
         Route::get('/reports/{type}', [ReportsController::class, 'show'])->where('type', '[A-Za-z0-9\\-]+');
 
         Route::delete('/roles/bulk', [RoleManagementController::class, 'bulkDestroy']);
@@ -156,6 +158,7 @@ Route::prefix('admin')
         Route::post('/orders/{order}/refund', [OrderManagementController::class, 'refund']);
         Route::post('/orders/{order}/shipping-log', [OrderManagementController::class, 'shippingLog']);
         Route::get('/orders/{order}/invoice', [OrderManagementController::class, 'invoice']);
+        Route::get('/orders/{order}/delivery-slip', [OrderManagementController::class, 'deliverySlip']);
 
         Route::delete('/shipping-zones/bulk', [ShippingZoneController::class, 'bulkDestroy']);
         Route::apiResource('shipping-zones', ShippingZoneController::class);

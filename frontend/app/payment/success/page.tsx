@@ -3,10 +3,12 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { notFound, useSearchParams } from "next/navigation";
-import { CheckCircle, Home, Package, ShoppingBag } from "lucide-react";
+import { CheckCircle, Download, Home, Package, ShoppingBag } from "lucide-react";
+import { toast } from "sonner";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
-import { fetchPaymentResult, type OrderDetail } from "@/services/order-service";
+import { downloadPaymentInvoice, fetchPaymentResult, type OrderDetail } from "@/services/order-service";
+import { toAppError } from "@/lib/errors";
 import { formatPrice } from "@/utils/format";
 
 export default function PaymentSuccessPage() {
@@ -14,6 +16,7 @@ export default function PaymentSuccessPage() {
   const orderNumber = searchParams.get("order");
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [invoiceLoading, setInvoiceLoading] = useState(false);
 
   useEffect(() => {
     if (!orderNumber?.trim()) {
@@ -70,6 +73,25 @@ export default function PaymentSuccessPage() {
           <Link href={`/account/orders/${order.orderNumber}`} className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 font-semibold text-primary-foreground transition-opacity hover:opacity-90">
             <Package size={16} /> View Order
           </Link>
+          {order.paymentStatus === "paid" ? (
+            <button
+              type="button"
+              disabled={invoiceLoading}
+              onClick={async () => {
+                setInvoiceLoading(true);
+                try {
+                  await downloadPaymentInvoice(order.orderNumber);
+                } catch (error) {
+                  toast.error(toAppError(error).message);
+                } finally {
+                  setInvoiceLoading(false);
+                }
+              }}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-border px-6 py-3 font-semibold transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <Download size={16} /> Download Invoice
+            </button>
+          ) : null}
           <Link href="/shop" className="inline-flex items-center justify-center gap-2 rounded-xl border border-border px-6 py-3 font-semibold transition-colors hover:bg-muted">
             <ShoppingBag size={16} /> Continue Shopping
           </Link>

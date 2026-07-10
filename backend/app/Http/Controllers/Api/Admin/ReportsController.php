@@ -11,8 +11,10 @@ use App\Models\Product;
 use App\Models\Settings\CompanySetting;
 use App\Models\Settings\ShippingMethod;
 use App\Models\User;
+use App\Services\Pdf\ReportPdfService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
@@ -27,6 +29,8 @@ class ReportsController extends Controller
         'shipping',
         'inventory',
     ];
+
+    public function __construct(private readonly ReportPdfService $pdf) {}
 
     public function show(string $type, Request $request): JsonResponse
     {
@@ -74,6 +78,11 @@ class ReportsController extends Controller
                 ...$data,
             ],
         ], 'Report generated successfully.');
+    }
+
+    public function pdf(string $type, Request $request): Response
+    {
+        return $this->pdf->download($type, $request);
     }
 
     private function sales($orders, $paidOrders, int $limit): array

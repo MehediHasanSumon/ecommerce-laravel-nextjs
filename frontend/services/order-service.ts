@@ -108,6 +108,39 @@ export function orderInvoiceUrl(orderNumber: string) {
   return `${apiBaseUrl}/orders/${encodeURIComponent(orderNumber)}/invoice`;
 }
 
+export async function downloadOrderInvoice(orderNumber: string) {
+  const response = await client.get<Blob>(`/orders/${encodeURIComponent(orderNumber)}/invoice`, {
+    headers: guestHeaders(),
+    responseType: "blob",
+  });
+  saveBlob(response.data, `invoice-${orderNumber}.pdf`);
+}
+
+export function paymentInvoiceUrl(orderNumber: string) {
+  const query = new URLSearchParams({ order: orderNumber });
+  return `${apiBaseUrl}/payment/invoice?${query.toString()}`;
+}
+
+export async function downloadPaymentInvoice(orderNumber: string) {
+  const response = await client.get<Blob>("/payment/invoice", {
+    params: { order: orderNumber },
+    headers: guestHeaders(),
+    responseType: "blob",
+  });
+  saveBlob(response.data, `invoice-${orderNumber}.pdf`);
+}
+
+function saveBlob(blob: Blob, filename: string) {
+  const blobUrl = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = blobUrl;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(blobUrl);
+}
+
 export async function fetchPaymentResult(orderNumber: string) {
   const response = await client.get<ApiEnvelope<{ order: OrderDetail }>>("/payment/result", {
     params: { order: orderNumber },

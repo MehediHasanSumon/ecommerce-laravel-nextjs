@@ -185,6 +185,7 @@ export function OrderManagementContent() {
 export function AdminOrderDetailContent({ orderNumber }: { orderNumber: string }) {
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [saving, setSaving] = useState(false);
+  const [downloading, setDownloading] = useState<"invoice" | "slip" | null>(null);
   const [note, setNote] = useState("");
   const [refund, setRefund] = useState({ amount: "", reason: "", note: "" });
   const [shippingLog, setShippingLog] = useState({ status: "shipped", courier: "", tracking_number: "", tracking_url: "", note: "" });
@@ -215,6 +216,22 @@ export function AdminOrderDetailContent({ orderNumber }: { orderNumber: string }
     }
   }
 
+  async function download(type: "invoice" | "slip") {
+    if (!order) return;
+    setDownloading(type);
+    try {
+      if (type === "invoice") {
+        await orderManagementService.downloadInvoice(order.orderNumber);
+      } else {
+        await orderManagementService.downloadDeliverySlip(order.orderNumber);
+      }
+    } catch (error) {
+      toast.error(toAppError(error).message);
+    } finally {
+      setDownloading(null);
+    }
+  }
+
   if (!order) {
     return <div className="h-64 animate-pulse rounded-xl bg-muted" />;
   }
@@ -227,7 +244,8 @@ export function AdminOrderDetailContent({ orderNumber }: { orderNumber: string }
           <p className="mt-1 text-sm text-muted-foreground">{order.customer.name} · {formatPrice(order.summary.total)}</p>
         </div>
         <Link href="/admin/orders"><Button variant="secondary">Back to Orders</Button></Link>
-        <a href={orderManagementService.invoiceUrl(order.orderNumber)} target="_blank" rel="noreferrer"><Button icon={<Download className="h-4 w-4" />}>Download Invoice</Button></a>
+        <Button icon={<Download className="h-4 w-4" />} isLoading={downloading === "invoice"} onClick={() => void download("invoice")}>Download Invoice</Button>
+        <Button variant="secondary" icon={<Download className="h-4 w-4" />} isLoading={downloading === "slip"} onClick={() => void download("slip")}>Delivery Slip</Button>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">

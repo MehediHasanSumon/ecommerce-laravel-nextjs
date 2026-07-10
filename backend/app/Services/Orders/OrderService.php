@@ -43,13 +43,15 @@ class OrderService
 
     public function findVisible(string $orderNumber, Request $request): Order
     {
+        $guestToken = (string) $request->header('X-Guest-Token');
+        abort_unless($request->user() || $guestToken !== '', 404);
+
         return $this->detailQuery()
             ->where('order_number', $orderNumber)
-            ->where(function (Builder $query) use ($request): void {
+            ->where(function (Builder $query) use ($request, $guestToken): void {
                 if ($request->user()) {
                     $query->where('user_id', $request->user()->id);
                 }
-                $guestToken = (string) $request->header('X-Guest-Token');
                 if ($guestToken !== '') {
                     $query->orWhere('guest_token', $guestToken);
                 }

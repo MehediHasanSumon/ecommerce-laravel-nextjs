@@ -11,7 +11,7 @@ import { AnnouncementBar } from "@/components/layout/AnnouncementBar";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { AccountSidebar } from "@/components/account/AccountSidebar";
-import { cancelOrder, fetchOrder, orderInvoiceUrl, type OrderDetail } from "@/services/order-service";
+import { cancelOrder, downloadOrderInvoice, fetchOrder, type OrderDetail } from "@/services/order-service";
 import { useCartStore } from "@/store/cartStore";
 import { formatPrice } from "@/utils/format";
 
@@ -20,6 +20,7 @@ export default function AccountOrderDetailPage() {
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [reordering, setReordering] = useState(false);
+  const [invoiceLoading, setInvoiceLoading] = useState(false);
   const addItem = useCartStore((state) => state.addItem);
 
   useEffect(() => {
@@ -67,6 +68,18 @@ export default function AccountOrderDetailPage() {
     }
   };
 
+  const handleInvoiceDownload = async () => {
+    if (!order) return;
+    setInvoiceLoading(true);
+    try {
+      await downloadOrderInvoice(order.orderNumber);
+    } catch {
+      toast.error("Unable to download invoice.");
+    } finally {
+      setInvoiceLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <AnnouncementBar />
@@ -88,10 +101,10 @@ export default function AccountOrderDetailPage() {
                     <p className="mt-1 text-sm text-muted-foreground">Payment {order.paymentStatus} · Order {order.status}</p>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <a href={orderInvoiceUrl(order.orderNumber)} className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-semibold transition-colors hover:bg-muted">
+                    <button type="button" disabled={invoiceLoading} onClick={() => void handleInvoiceDownload()} className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-semibold transition-colors hover:bg-muted disabled:opacity-50">
                       <Download size={15} />
                       Download Invoice
-                    </a>
+                    </button>
                     <a href="#timeline" className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-semibold transition-colors hover:bg-muted">
                       <Truck size={15} />
                       Track Order

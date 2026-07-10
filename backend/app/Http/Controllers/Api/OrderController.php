@@ -8,14 +8,18 @@ use App\Http\Resources\OrderResource;
 use App\Http\Responses\ApiResponse;
 use App\Models\Order;
 use App\Services\Orders\OrderService;
-use Illuminate\Http\Response;
+use App\Services\Pdf\OrderPdfService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Validation\ValidationException;
 
 class OrderController extends Controller
 {
-    public function __construct(private readonly OrderService $orders) {}
+    public function __construct(
+        private readonly OrderService $orders,
+        private readonly OrderPdfService $pdf,
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -64,14 +68,15 @@ class OrderController extends Controller
 
     public function invoice(Request $request, string $order): Response
     {
-        $visibleOrder = $this->orders->findVisible($order, $request);
-        $html = view('invoices.order', ['order' => $visibleOrder])->render();
-        $filename = 'invoice-'.$visibleOrder->order_number.'.html';
+        return $this->pdf->invoice($this->orders->findVisible($order, $request));
+    }
 
-        return response($html, 200, [
-            'Content-Type' => 'text/html; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
-        ]);
+    public function paymentInvoice(Request $request): Response
+    {
+        $orderNumber = (string) $request->query('order');
+        abort_unless($orderNumber !== '', 404);
+
+        return $this->pdf->paidInvoice($this->orders->findVisible($orderNumber, $request));
     }
 
     public function paymentResult(Request $request): JsonResponse

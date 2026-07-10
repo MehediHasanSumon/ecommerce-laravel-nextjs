@@ -43,3 +43,30 @@ export async function fetchReport(type: string, params: { date_from?: string; da
   const response = await client.get<ApiEnvelope<{ report: ReportPayload }>>(`/admin/reports/${type}`, { params });
   return response.data.data.report;
 }
+
+export function reportPdfUrl(type: string, params: { date_from?: string; date_to?: string; limit?: number; status?: string; payment_status?: string }) {
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== "") {
+      query.set(key, String(value));
+    }
+  });
+
+  const suffix = query.toString();
+  return `${apiBaseUrl}/admin/reports/${encodeURIComponent(type)}/pdf${suffix ? `?${suffix}` : ""}`;
+}
+
+export async function downloadReportPdf(type: string, params: { date_from?: string; date_to?: string; limit?: number; status?: string; payment_status?: string }) {
+  const response = await client.get<Blob>(`/admin/reports/${encodeURIComponent(type)}/pdf`, {
+    params,
+    responseType: "blob",
+  });
+  const blobUrl = window.URL.createObjectURL(response.data);
+  const link = document.createElement("a");
+  link.href = blobUrl;
+  link.download = `${type}-report.pdf`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(blobUrl);
+}

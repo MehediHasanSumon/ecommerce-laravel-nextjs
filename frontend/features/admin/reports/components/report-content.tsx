@@ -1,12 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { BarChart3, ChevronRight, RefreshCcw, Search } from "lucide-react";
+import { BarChart3, ChevronRight, Download, RefreshCcw, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { fetchReport, type ReportPayload } from "@/features/admin/reports/services/report-service";
+import { downloadReportPdf, fetchReport, type ReportPayload } from "@/features/admin/reports/services/report-service";
 import { toAppError } from "@/lib/errors";
 
 const reportTitles: Record<string, string> = {
@@ -43,8 +43,10 @@ export function ReportContent({ type }: { type: string }) {
   const [limit, setLimit] = useState(10);
   const [report, setReport] = useState<ReportPayload | null>(null);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
 
   const title = reportTitles[type] ?? "Report";
+  const canExportPdf = type === "sales" || type === "inventory";
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -58,6 +60,17 @@ export function ReportContent({ type }: { type: string }) {
   }, [dateFrom, dateTo, limit, type]);
 
   useEffect(() => { void load(); }, [load]);
+
+  const exportPdf = async () => {
+    setExporting(true);
+    try {
+      await downloadReportPdf(type, { date_from: dateFrom, date_to: dateTo, limit });
+    } catch (error) {
+      toast.error(toAppError(error).message);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const maxSeries = useMemo(() => Math.max(...(report?.series ?? []).map((item) => item.value), 1), [report]);
 
@@ -76,7 +89,12 @@ export function ReportContent({ type }: { type: string }) {
           <h1 className="text-2xl font-extrabold tracking-tight">{title}</h1>
           <p className="mt-1 text-sm text-muted-foreground">Database-driven metrics generated from orders, payments, products, customers, and shipping records.</p>
         </div>
-        <Button size="sm" variant="secondary" icon={<RefreshCcw className="h-4 w-4" />} onClick={() => void load()} isLoading={loading}>Refresh</Button>
+        <div className="flex flex-wrap items-center gap-2">
+          {canExportPdf ? (
+            <Button size="sm" variant="secondary" icon={<Download className="h-4 w-4" />} isLoading={exporting} onClick={() => void exportPdf()}>Export PDF</Button>
+          ) : null}
+          <Button size="sm" variant="secondary" icon={<RefreshCcw className="h-4 w-4" />} onClick={() => void load()} isLoading={loading}>Refresh</Button>
+        </div>
       </section>
 
       <section className="rounded-lg border border-border bg-card p-4">

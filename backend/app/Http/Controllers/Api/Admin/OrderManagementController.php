@@ -7,13 +7,17 @@ use App\Http\Resources\OrderDetailResource;
 use App\Http\Resources\OrderResource;
 use App\Http\Responses\ApiResponse;
 use App\Services\Orders\OrderService;
+use App\Services\Pdf\OrderPdfService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
 class OrderManagementController extends Controller
 {
-    public function __construct(private readonly OrderService $orders) {}
+    public function __construct(
+        private readonly OrderService $orders,
+        private readonly OrderPdfService $pdf,
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -113,13 +117,12 @@ class OrderManagementController extends Controller
 
     public function invoice(string $order): Response
     {
-        $visibleOrder = $this->orders->findAdmin($order);
-        $html = view('invoices.order', ['order' => $visibleOrder])->render();
+        return $this->pdf->invoice($this->orders->findAdmin($order));
+    }
 
-        return response($html, 200, [
-            'Content-Type' => 'text/html; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="invoice-'.$visibleOrder->order_number.'.html"',
-        ]);
+    public function deliverySlip(string $order): Response
+    {
+        return $this->pdf->deliverySlip($this->orders->findAdmin($order));
     }
 
     private function paginationMeta($paginator): array
