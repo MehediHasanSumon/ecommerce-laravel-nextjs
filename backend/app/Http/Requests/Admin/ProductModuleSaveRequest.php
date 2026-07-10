@@ -59,8 +59,12 @@ class ProductModuleSaveRequest extends FormRequest
                             'price_cents',
                             'compare_at_price_cents',
                             'cost_price_cents',
+                            'stock_quantity',
                             'low_stock_threshold',
                             'weight_grams',
+                            'length_cm',
+                            'width_cm',
+                            'height_cm',
                             'image_file_index',
                         ] as $field) {
                             if (! filled($variant[$field] ?? null)) {
@@ -71,9 +75,9 @@ class ProductModuleSaveRequest extends FormRequest
                             $variant[$field] = (int) $variant[$field];
                         }
 
-                        $variant['stock_quantity'] = filled($variant['stock_quantity'] ?? null)
-                            ? (int) $variant['stock_quantity']
-                            : 0;
+                        $variant['track_inventory'] = array_key_exists('track_inventory', $variant) && $variant['track_inventory'] !== ''
+                            ? filter_var($variant['track_inventory'], FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE)
+                            : null;
                         $variant['status'] = filled($variant['status'] ?? null)
                             ? $variant['status']
                             : 'active';
@@ -271,6 +275,37 @@ class ProductModuleSaveRequest extends FormRequest
 
     public function withValidator(Validator $validator): void
     {
+        if ((string) $this->route('module') === 'products') {
+            $validator->after(function (Validator $validator): void {
+                $seen = [];
+
+                foreach ((array) $this->input('variants', []) as $index => $variant) {
+                    if (! is_array($variant)) {
+                        continue;
+                    }
+
+                    $ids = collect($variant['attribute_values'] ?? [])
+                        ->map(fn ($id): int => (int) $id)
+                        ->filter()
+                        ->unique()
+                        ->sort()
+                        ->values();
+
+                    if ($ids->isEmpty()) {
+                        $validator->errors()->add("variants.{$index}.attribute_values", 'Each variant must have at least one attribute value.');
+                        continue;
+                    }
+
+                    $key = $ids->implode(':');
+                    if (isset($seen[$key])) {
+                        $validator->errors()->add("variants.{$index}.attribute_values", 'Duplicate variant combinations are not allowed.');
+                    }
+
+                    $seen[$key] = true;
+                }
+            });
+        }
+
         if ((string) $this->route('module') !== 'categories') {
             return;
         }
@@ -363,7 +398,6 @@ class ProductModuleSaveRequest extends FormRequest
             'seo.og_image_url' => ['nullable', 'string'],
             'seo.schema_json' => ['nullable', 'array'],
             'variants' => ['nullable', 'array'],
-            'variants.*.sku' => ['nullable', 'string', 'max:100'],
             'variants.*.barcode' => ['nullable', 'string', 'max:255'],
             'variants.*.image_url' => ['nullable', 'string', 'max:2048'],
             'variants.*.image_file_index' => ['nullable', 'integer', 'min:0'],
@@ -371,10 +405,14 @@ class ProductModuleSaveRequest extends FormRequest
             'variants.*.compare_at_price_cents' => ['nullable', 'integer', 'min:0'],
             'variants.*.cost_price_cents' => ['nullable', 'integer', 'min:0'],
             'variants.*.stock_quantity' => ['nullable', 'integer', 'min:0'],
+            'variants.*.track_inventory' => ['nullable', 'boolean'],
             'variants.*.low_stock_threshold' => ['nullable', 'integer', 'min:0'],
             'variants.*.weight_grams' => ['nullable', 'integer', 'min:0'],
+            'variants.*.length_cm' => ['nullable', 'integer', 'min:0'],
+            'variants.*.width_cm' => ['nullable', 'integer', 'min:0'],
+            'variants.*.height_cm' => ['nullable', 'integer', 'min:0'],
             'variants.*.status' => ['required_with:variants', Rule::in(['active', 'inactive'])],
-            'variants.*.attribute_values' => ['nullable', 'array'],
+            'variants.*.attribute_values' => ['required_with:variants', 'array', 'min:1'],
             'variants.*.attribute_values.*' => ['integer', 'exists:attribute_values,id'],
             'variant_image_files' => ['nullable', 'array'],
             'variant_image_files.*' => ['file', 'mimes:jpg,jpeg,png,webp,avif,gif', 'max:10240'],

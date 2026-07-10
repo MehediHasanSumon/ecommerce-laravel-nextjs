@@ -160,10 +160,11 @@ class ProductDetailResource extends JsonResource
         return [
             'id' => (string) $variant->id,
             'sku' => $variant->sku,
-            'price' => $variant->price_cents ? $this->money($variant->price_cents) : $this->money($this->base_price_cents),
-            'originalPrice' => $variant->compare_at_price_cents ? $this->money($variant->compare_at_price_cents) : ($this->compare_at_price_cents ? $this->money($this->compare_at_price_cents) : null),
-            'stock' => (int) $variant->stock_quantity,
-            'stockStatus' => $this->stockStatus((int) $variant->stock_quantity),
+            'price' => $variant->price_cents !== null ? $this->money($variant->price_cents) : $this->money($this->base_price_cents),
+            'originalPrice' => $variant->compare_at_price_cents !== null ? $this->money($variant->compare_at_price_cents) : ($this->compare_at_price_cents ? $this->money($this->compare_at_price_cents) : null),
+            'stock' => (int) ($variant->stock_quantity ?? $this->stock_quantity ?? 0),
+            'stockStatus' => $this->stockStatus((int) ($variant->stock_quantity ?? $this->stock_quantity ?? 0)),
+            'trackInventory' => (bool) ($variant->track_inventory ?? $this->track_inventory),
             'options' => $options,
             'images' => $variant->images
                 ->sortBy('sort_order')

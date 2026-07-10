@@ -71,8 +71,12 @@ class ProductAdminResource extends JsonResource
                 'compare_at_price_cents' => $variant->compare_at_price_cents,
                 'cost_price_cents' => $variant->cost_price_cents,
                 'stock_quantity' => $variant->stock_quantity,
+                'track_inventory' => $variant->track_inventory,
                 'low_stock_threshold' => $variant->low_stock_threshold,
                 'weight_grams' => $variant->weight_grams,
+                'length_cm' => $variant->length_cm,
+                'width_cm' => $variant->width_cm,
+                'height_cm' => $variant->height_cm,
                 'status' => $variant->status,
                 'attribute_values' => ProductOptionResource::collection($variant->relationLoaded('attributeValues') ? $variant->attributeValues : collect()),
                 'images' => $variant->relationLoaded('images') ? $variant->images->map(fn ($image) => [

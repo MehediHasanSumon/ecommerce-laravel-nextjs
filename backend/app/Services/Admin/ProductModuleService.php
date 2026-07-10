@@ -28,6 +28,8 @@ class ProductModuleService
     use BuildsManagementQueries;
     use StoresPublicUploads;
 
+    public function __construct(private readonly ProductVariantEngine $variantEngine) {}
+
     public function paginate(string $module, array $filters): LengthAwarePaginator
     {
         $query = $this->modelClass($module)::query();
@@ -284,19 +286,7 @@ class ProductModuleService
             $model->seo()->delete();
         }
 
-        $existingVariantSkus = $this->existingVariantSkusByAttributes($model);
-        $model->variants()->delete();
-        foreach ($variants as $variantData) {
-            $variantAttributeValues = $variantData['attribute_values'] ?? [];
-            $variantImageFileIndex = $variantData['image_file_index'] ?? null;
-            $variantImageUrl = $variantData['image_url'] ?? null;
-            unset($variantData['attribute_values'], $variantData['image_file_index'], $variantData['image_url']);
-            $variantData['stock_quantity'] = (int) ($variantData['stock_quantity'] ?? 0);
-            $variantData['sku'] = $this->variantSku($model, $variantData, $variantAttributeValues, $existingVariantSkus);
-            $variant = $model->variants()->create($variantData);
-            $this->syncVariantAttributeValues($variant, $variantAttributeValues);
-            $this->createVariantImage($model, $variant, $variantImageUrl, $variantImageFiles[$variantImageFileIndex] ?? null);
-        }
+        $this->variantEngine->sync($model, $variants, $variantImageFiles);
 
         return $this->find('products', $model->id);
     }
@@ -350,66 +340,6 @@ class ProductModuleService
     private function hasSlug(string $module): bool
     {
         return in_array($module, ['products', 'brands', 'categories', 'attributes', 'attribute-values', 'tags', 'collections'], true);
-    }
-
-    private function existingVariantSkusByAttributes(Product $product): array
-    {
-        return $product->variants()
-            ->with('attributeValues:id')
-            ->get()
-            ->mapWithKeys(function (ProductVariant $variant): array {
-                return [$this->variantAttributeKey($variant->attributeValues->pluck('id')->all()) => $variant->sku];
-            })
-            ->all();
-    }
-
-    private function variantSku(Product $product, array $variantData, array $attributeValueIds, array $existingVariantSkus): string
-    {
-        $key = $this->variantAttributeKey($attributeValueIds);
-        if (filled($existingVariantSkus[$key] ?? null)) {
-            return $existingVariantSkus[$key];
-        }
-
-        if (filled($variantData['sku'] ?? null)) {
-            return SkuGenerator::generate((string) $variantData['sku'], [Product::class, ProductVariant::class]);
-        }
-
-        $labels = ProductAttributeValue::query()
-            ->whereIn('id', $attributeValueIds)
-            ->orderBy('id')
-            ->pluck('value')
-            ->all();
-
-        $source = trim($product->name.' '.implode(' ', $labels));
-
-        return SkuGenerator::generate($source, [Product::class, ProductVariant::class]);
-    }
-
-    private function variantAttributeKey(array $attributeValueIds): string
-    {
-        sort($attributeValueIds);
-
-        return implode('-', $attributeValueIds);
-    }
-
-    private function createVariantImage(Product $product, ProductVariant $variant, ?string $imageUrl, mixed $imageFile): void
-    {
-        if ($imageFile instanceof UploadedFile && $imageFile->isValid()) {
-            $imageUrl = $this->storePublicUpload($imageFile, 'products/variants');
-        }
-
-        if (! filled($imageUrl)) {
-            return;
-        }
-
-        $variant->images()->create([
-            'product_id' => $product->id,
-            'url' => $imageUrl,
-            'alt_text' => $product->name.' variant image',
-            'type' => 'variant',
-            'sort_order' => 0,
-            'is_primary' => true,
-        ]);
     }
 
     private function resolveProductTags(array $tags): array

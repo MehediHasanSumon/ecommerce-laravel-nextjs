@@ -21,9 +21,12 @@ export type ProductMediaItem = {
 
 export type ProductVariantDraft = {
   id: string;
+  sku?: string;
   price_cents?: number;
+  compare_at_price_cents?: number;
   cost_price_cents?: number;
-  stock_quantity?: number;
+  stock_quantity?: number | "";
+  track_inventory?: boolean | null;
   status: "active" | "inactive";
   variant_image?: ProductMediaItem | null;
   attribute_values: number[];
@@ -301,9 +304,12 @@ export function valuesFromProduct(record?: ProductRecord | null, options?: Produ
       const item = variant as Record<string, unknown>;
       return {
         id: String(item.id ?? `variant-${index}`),
+        sku: typeof item.sku === "string" ? item.sku : undefined,
         price_cents: item.price_cents === null || item.price_cents === undefined ? undefined : Number(item.price_cents) / 100,
+        compare_at_price_cents: item.compare_at_price_cents === null || item.compare_at_price_cents === undefined ? undefined : Number(item.compare_at_price_cents) / 100,
         cost_price_cents: item.cost_price_cents === null || item.cost_price_cents === undefined ? undefined : Number(item.cost_price_cents) / 100,
-        stock_quantity: item.stock_quantity === null || item.stock_quantity === undefined ? undefined : quantityInput(item.stock_quantity) || 0,
+        stock_quantity: item.stock_quantity === null || item.stock_quantity === undefined ? "" : quantityInput(item.stock_quantity),
+        track_inventory: typeof item.track_inventory === "boolean" ? item.track_inventory : null,
         status: item.status === "inactive" ? "inactive" : "active",
         variant_image: variantImageFromRecord(item, index),
         attribute_values: Array.isArray(item.attribute_values) ? item.attribute_values.map((value) => Number((value as { id: number }).id)) : [],
@@ -375,8 +381,10 @@ export function productPayloadFromValues(values: ProductWizardValues, publish: b
 
     return {
       price_cents: amountToCents(variant.price_cents),
+      compare_at_price_cents: amountToCents(variant.compare_at_price_cents),
       cost_price_cents: amountToCents(variant.cost_price_cents),
-      stock_quantity: variant.stock_quantity ?? 0,
+      stock_quantity: optionalNumber(variant.stock_quantity),
+      track_inventory: variant.track_inventory,
       status: variant.status,
       attribute_values: variant.attribute_values,
       image_url: variant.variant_image?.file ? null : variant.variant_image?.url ? storagePath(variant.variant_image.url) : null,

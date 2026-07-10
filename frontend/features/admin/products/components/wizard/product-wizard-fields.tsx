@@ -526,8 +526,11 @@ export function VariantImagePicker({
   onChange: (image: ProductMediaItem | null) => void;
 }) {
   const [error, setError] = React.useState("");
+  const [isDragging, setIsDragging] = React.useState(false);
+  const inputRef = React.useRef<HTMLInputElement | null>(null);
 
   function handleFile(file: File | null) {
+    setIsDragging(false);
     setError("");
     if (!file) {
       onChange(null);
@@ -541,23 +544,88 @@ export function VariantImagePicker({
     onChange(fileToMedia(file, "variant", 0));
   }
 
+  function handleDrop(event: React.DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    handleFile(event.dataTransfer.files.item(0));
+  }
+
   return (
     <div className="space-y-2">
       <p className="text-sm font-semibold">Variant Image</p>
-      <label className={cn("flex h-32 cursor-pointer items-center justify-center overflow-hidden rounded-xl border border-dashed border-border bg-muted/50 p-3 text-center transition hover:bg-muted", error && "border-destructive")}>
+      <div
+        className={cn(
+          "flex min-h-40 items-center justify-center overflow-hidden rounded-xl border border-dashed border-border bg-muted/50 p-3 text-center transition",
+          isDragging && "border-primary bg-primary/5",
+          error && "border-destructive",
+        )}
+        onDragEnter={(event) => {
+          event.preventDefault();
+          setIsDragging(true);
+        }}
+        onDragOver={(event) => {
+          event.preventDefault();
+          setIsDragging(true);
+        }}
+        onDragLeave={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+            setIsDragging(false);
+          }
+        }}
+        onDrop={handleDrop}
+      >
         {value ? (
-          <div className="relative h-full w-full">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={previewUrl(value.url)} alt={value.alt_text || "Variant preview"} className="h-full w-full rounded-lg object-cover" />
-            <button type="button" className="absolute right-2 top-2 rounded-full bg-background/90 p-1.5 shadow" aria-label="Remove variant image" onClick={(event) => { event.preventDefault(); handleFile(null); }}>
-              <X className="h-4 w-4" />
-            </button>
+          <div className="grid w-full gap-3 sm:grid-cols-[9rem_minmax(0,1fr)] sm:items-center sm:text-left">
+            <div className="relative aspect-square overflow-hidden rounded-lg bg-muted">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={previewUrl(value.url)} alt={value.alt_text || "Variant preview"} className="h-full w-full object-cover" />
+              <button type="button" className="absolute right-2 top-2 rounded-full bg-background/90 p-1.5 shadow" aria-label="Remove variant image" onClick={() => handleFile(null)}>
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="min-w-0 space-y-2">
+              <div className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-background shadow-sm">
+                <ImagePlus className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <p className="truncate text-sm font-semibold">{value.alt_text || "Variant image selected"}</p>
+              <p className="text-xs text-muted-foreground">Drop a new image here or replace the current file.</p>
+              <button
+                type="button"
+                className="rounded-lg border border-border bg-background px-3 py-2 text-sm font-semibold transition hover:bg-muted"
+                onClick={() => inputRef.current?.click()}
+              >
+                Replace image
+              </button>
+            </div>
           </div>
         ) : (
-          <span className="text-sm font-medium text-muted-foreground">Choose image</span>
+          <div className="space-y-3">
+            <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-lg bg-background shadow-sm">
+              <UploadCloud className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold">Drag and drop variant image</p>
+              <p className="mt-1 text-xs text-muted-foreground">JPG, PNG, or WebP up to {imageLimits.maxSizeMb}MB.</p>
+            </div>
+            <button
+              type="button"
+              className="rounded-lg border border-border bg-background px-3 py-2 text-sm font-semibold transition hover:bg-muted"
+              onClick={() => inputRef.current?.click()}
+            >
+              Choose file
+            </button>
+          </div>
         )}
-        <input type="file" accept={imageLimits.types.join(",")} className="sr-only" onChange={(event) => handleFile(event.target.files?.item(0) ?? null)} />
-      </label>
+      </div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept={imageLimits.types.join(",")}
+        className="hidden"
+        onChange={(event) => {
+          handleFile(event.target.files?.item(0) ?? null);
+          event.target.value = "";
+        }}
+      />
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
     </div>
   );

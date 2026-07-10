@@ -1,9 +1,8 @@
 "use client";
 
-import { Plus, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { UseFormReturn } from "react-hook-form";
-import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import type { ProductOptions } from "@/features/admin/products/types";
@@ -12,7 +11,6 @@ import { formatCurrency } from "@/utils/format";
 import {
   FieldGrid,
   GalleryUploader,
-  MultiSelectField,
   ProductImageUploader,
   SectionHeader,
   SelectField,
@@ -139,6 +137,7 @@ export function VariantSection({ form, options }: SectionProps) {
   const [attributeSearch, setAttributeSearch] = useState("");
   const [attributeOptions, setAttributeOptions] = useState(options.attribute_values);
   const [loadingAttributes, setLoadingAttributes] = useState(false);
+  const [openVariantIds, setOpenVariantIds] = useState<string[]>([]);
 
   useEffect(() => {
     const timer = window.setTimeout(async () => {
@@ -164,59 +163,155 @@ export function VariantSection({ form, options }: SectionProps) {
     return Array.from(new Map(merged.map((value) => [value.id, value])).values());
   }, [attributeOptions, options.attribute_values, selectedAttributes]);
 
-  function addVariant() {
-    const next: ProductVariantDraft = {
-      id: crypto.randomUUID(),
-      price_cents: undefined,
-      cost_price_cents: undefined,
-      stock_quantity: 0,
-      status: "active",
-      attribute_values: selectedAttributes ?? [],
-    };
-    form.clearErrors("variants");
-    form.setValue("variants", [...variants, next], { shouldDirty: true, shouldValidate: false });
+  const valuesById = useMemo(() => new Map(visibleAttributeOptions.map((value) => [Number(value.id), value])), [visibleAttributeOptions]);
+  const groupedAttributes = useMemo(() => {
+    const grouped = new Map<number, { id: number; name: string; type?: string | null; values: typeof visibleAttributeOptions }>();
+    visibleAttributeOptions.forEach((value) => {
+      const attributeId = Number(value.attribute_id ?? 0);
+      if (!attributeId) return;
+      const attribute = options.attributes.find((item) => Number(item.id) === attributeId);
+      const group = grouped.get(attributeId) ?? { id: attributeId, name: attribute?.name ?? "Attribute", type: attribute?.type, values: [] };
+      group.values.push(value);
+      grouped.set(attributeId, group);
+    });
+    return Array.from(grouped.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [options.attributes, visibleAttributeOptions]);
+
+  const generatedCombinations = useMemo(() => {
+    const selectedGroups = groupedAttributes
+      .map((group) => group.values.filter((value) => selectedAttributes.includes(Number(value.id))).map((value) => Number(value.id)))
+      .filter((values) => values.length > 0);
+
+    if (!selectedGroups.length) return [];
+
+    return selectedGroups.reduce<number[][]>((combinations, group) => {
+      if (!combinations.length) return group.map((value) => [value]);
+      return combinations.flatMap((combination) => group.map((value) => [...combination, value]));
+    }, []);
+  }, [groupedAttributes, selectedAttributes]);
+
+  function variantKey(attributeValues: number[]) {
+    return [...attributeValues].sort((a, b) => a - b).join(":");
   }
+
+  function variantName(attributeValues: number[]) {
+    return attributeValues.map((id) => valuesById.get(id)?.name ?? `Value ${id}`).join(" / ");
+  }
+
+  useEffect(() => {
+    const existingByKey = new Map(variants.map((variant) => [variantKey(variant.attribute_values), variant]));
+    const generated: ProductVariantDraft[] = generatedCombinations.map((combination) => {
+      const key = variantKey(combination);
+      const existing = existingByKey.get(key);
+      return existing ?? {
+        id: `variant-${key || crypto.randomUUID()}`,
+        price_cents: undefined,
+        compare_at_price_cents: undefined,
+        cost_price_cents: undefined,
+        stock_quantity: "" as const,
+        track_inventory: null,
+        status: "active" as const,
+        variant_image: null,
+        attribute_values: combination,
+      };
+    });
+
+    const currentKeys = variants.map((variant) => variantKey(variant.attribute_values)).join("|");
+    const nextKeys = generated.map((variant) => variantKey(variant.attribute_values)).join("|");
+    if (currentKeys !== nextKeys || variants.length !== generated.length) {
+      form.clearErrors("variants");
+      form.setValue("variants", generated, { shouldDirty: true, shouldValidate: false });
+      setOpenVariantIds((ids) => ids.filter((id) => generated.some((variant) => variant.id === id)));
+    }
+  }, [form, generatedCombinations, variants]);
 
   function updateVariant(id: string, patch: Partial<ProductVariantDraft>) {
     form.clearErrors("variants");
     form.setValue("variants", variants.map((variant) => variant.id === id ? { ...variant, ...patch } : variant), { shouldDirty: true, shouldValidate: false });
   }
 
+  function toggleAttributeValue(id: number, checked: boolean) {
+    form.setValue("attribute_values", checked ? [...selectedAttributes, id] : selectedAttributes.filter((value) => value !== id), { shouldDirty: true });
+  }
+
+  function toggleAccordion(id: string) {
+    setOpenVariantIds((ids) => ids.includes(id) ? ids.filter((item) => item !== id) : [...ids, id]);
+  }
+
   return (
     <div className="space-y-5">
-      <SectionHeader title="Attributes & Variants" description="Attach attribute values and generate sellable variant rows with price, stock, and images." />
-      <MultiSelectField
-        title="Attributes"
-        options={visibleAttributeOptions.map((value) => ({ id: value.id, name: `${value.name}${value.type ? ` (${value.type})` : ""}` }))}
-        values={selectedAttributes}
-        search={attributeSearch}
-        loading={loadingAttributes}
-        onSearch={setAttributeSearch}
-        onChange={(values) => form.setValue("attribute_values", values, { shouldDirty: true })}
-      />
-      <div className="flex justify-end">
-        <Button type="button" size="sm" icon={<Plus className="h-4 w-4" />} onClick={addVariant}>Generate Variant</Button>
+      <SectionHeader title="Attributes & Variants" description="Select attribute values. Variant combinations are generated automatically and inherit product defaults unless overridden." />
+      <div className="rounded-lg border border-border bg-background">
+        <div className="border-b border-border p-3">
+          <input
+            className="h-10 w-full rounded-lg border border-border bg-muted px-3 text-sm outline-none transition focus:border-primary focus:bg-background"
+            value={attributeSearch}
+            onChange={(event) => setAttributeSearch(event.target.value)}
+            placeholder="Search attribute values"
+          />
+        </div>
+        <div className="max-h-80 space-y-4 overflow-y-auto p-3">
+          {loadingAttributes ? <p className="text-sm text-muted-foreground">Searching...</p> : groupedAttributes.length ? groupedAttributes.map((group) => (
+            <div key={group.id} className="space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-bold">{group.name}</p>
+                <span className="text-xs text-muted-foreground">{group.values.filter((value) => selectedAttributes.includes(Number(value.id))).length} selected</span>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {group.values.map((value) => {
+                  const id = Number(value.id);
+                  const checked = selectedAttributes.includes(id);
+                  return (
+                    <label key={value.id} className="flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm hover:bg-muted">
+                      <input type="checkbox" checked={checked} onChange={(event) => toggleAttributeValue(id, event.target.checked)} className="h-4 w-4 rounded border-border" />
+                      <span>{value.name}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          )) : <p className="text-sm text-muted-foreground">No attribute values available.</p>}
+        </div>
       </div>
       <div className="space-y-3">
         {variants.length ? variants.map((variant, index) => (
-          <div key={variant.id} className="rounded-lg border border-border bg-background p-4">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-bold">Variant {index + 1}</p>
-              <Button type="button" size="icon" variant="ghost" title="Remove variant" icon={<Trash2 className="h-4 w-4" />} onClick={() => form.setValue("variants", variants.filter((item) => item.id !== variant.id), { shouldDirty: true })} />
+          <div key={variant.id} className="rounded-lg border border-border bg-background">
+            <div className="flex items-center gap-3 p-4">
+              <input
+                type="checkbox"
+                checked={variant.status === "active"}
+                onChange={(event) => updateVariant(variant.id, { status: event.target.checked ? "active" : "inactive" })}
+                className="h-4 w-4 rounded border-border"
+                aria-label={`Enable ${variantName(variant.attribute_values)}`}
+              />
+              <button type="button" className="flex min-w-0 flex-1 items-center gap-3 text-left" onClick={() => toggleAccordion(variant.id)}>
+                {openVariantIds.includes(variant.id) ? <ChevronDown className="h-4 w-4 shrink-0" /> : <ChevronRight className="h-4 w-4 shrink-0" />}
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-bold">Variant: {variantName(variant.attribute_values) || index + 1}</span>
+                  <span className="mt-0.5 block truncate text-xs text-muted-foreground">{variant.attribute_values.map((id) => valuesById.get(id)?.name ?? id).join(" / ")}</span>
+                </span>
+              </button>
             </div>
-            <div className="mt-4 grid gap-3 md:grid-cols-3">
-              <Input label="Variant Price" type="number" min={0} step="0.01" value={variant.price_cents ?? ""} onChange={(event) => updateVariant(variant.id, { price_cents: event.target.value ? Number(event.target.value) : undefined })} />
-              <Input label="Variant Stock" type="number" min={0} value={variant.stock_quantity ?? 0} onChange={(event) => updateVariant(variant.id, { stock_quantity: event.target.value ? Number(event.target.value) : 0 })} />
-              <SelectField label="Status" value={variant.status} placeholder="Select status" options={[{ id: "active", name: "Active" }, { id: "inactive", name: "Inactive" }]} onChange={(value) => updateVariant(variant.id, { status: value as ProductVariantDraft["status"] })} />
-            </div>
-            <div className="mt-4">
-              <VariantImagePicker value={variant.variant_image ?? null} onChange={(image) => updateVariant(variant.id, { variant_image: image })} />
-            </div>
+            {openVariantIds.includes(variant.id) ? (
+              <div className="border-t border-border p-4">
+                <div className="grid gap-3 md:grid-cols-3">
+                  <Input label="Price" type="number" min={0} step="0.01" placeholder="Use product price" value={variant.price_cents ?? ""} onChange={(event) => updateVariant(variant.id, { price_cents: event.target.value ? Number(event.target.value) : undefined })} />
+                  <Input label="Compare Price" type="number" min={0} step="0.01" placeholder="Use product compare price" value={variant.compare_at_price_cents ?? ""} onChange={(event) => updateVariant(variant.id, { compare_at_price_cents: event.target.value ? Number(event.target.value) : undefined })} />
+                  <Input label="Cost Price" type="number" min={0} step="0.01" placeholder="Use product cost price" value={variant.cost_price_cents ?? ""} onChange={(event) => updateVariant(variant.id, { cost_price_cents: event.target.value ? Number(event.target.value) : undefined })} />
+                  <SelectField label="Track Inventory" value={variant.track_inventory === null || variant.track_inventory === undefined ? "inherit" : String(variant.track_inventory)} placeholder="Select inventory behavior" options={[{ id: "inherit", name: "Use product setting" }, { id: "true", name: "Track inventory" }, { id: "false", name: "Do not track" }]} onChange={(value) => updateVariant(variant.id, { track_inventory: value === "inherit" ? null : value === "true" })} />
+                  <Input label="Quantity" type="number" min={0} placeholder="Use product stock" value={variant.stock_quantity ?? ""} onChange={(event) => updateVariant(variant.id, { stock_quantity: event.target.value ? Number(event.target.value) : "" })} />
+                  <SelectField label="Status" value={variant.status} placeholder="Select status" options={[{ id: "active", name: "Active" }, { id: "inactive", name: "Inactive" }]} onChange={(value) => updateVariant(variant.id, { status: value as ProductVariantDraft["status"] })} />
+                </div>
+                <div className="mt-4">
+                  <VariantImagePicker value={variant.variant_image ?? null} onChange={(image) => updateVariant(variant.id, { variant_image: image })} />
+                </div>
+              </div>
+            ) : null}
           </div>
         )) : (
           <div className="rounded-lg border border-dashed border-border bg-muted/40 p-6 text-center">
             <p className="text-sm font-semibold">No variants yet</p>
-            <p className="mt-1 text-xs text-muted-foreground">Select attributes and generate variant rows when this product has multiple options.</p>
+            <p className="mt-1 text-xs text-muted-foreground">Select one or more attribute values to generate variant combinations.</p>
           </div>
         )}
       </div>

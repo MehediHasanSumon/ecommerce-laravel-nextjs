@@ -15,6 +15,10 @@ class ProductVariant extends Model
 
     protected $guarded = ['id'];
 
+    protected $casts = [
+        'track_inventory' => 'boolean',
+    ];
+
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
