@@ -95,8 +95,19 @@ export function createAuthAwareClient({
       original._retry = true;
 
       if (!refreshPromise) {
-        refreshPromise = client
-          .post(refreshPath, undefined, { _skipRefresh: true } as RetryConfig)
+        refreshPromise = axios
+          .post(
+            `${baseURL.replace(/\/$/, "")}${refreshPath}`,
+            undefined,
+            {
+              withCredentials: true,
+              headers: {
+                Accept: "application/json",
+                "Content-Type": "application/json",
+                "X-Requested-With": "XMLHttpRequest",
+              },
+            },
+          )
           .then(() => undefined)
           .finally(() => {
             refreshPromise = null;

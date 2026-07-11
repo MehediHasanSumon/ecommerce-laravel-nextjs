@@ -35,12 +35,28 @@ class ProductModuleSaveRequest extends FormRequest
         }
 
         if ((string) $this->route('module') === 'collections') {
+            $rules = $this->input('rules');
+            if (is_array($rules) && $rules !== [] && ! array_is_list($rules)) {
+                $rules = array_key_exists('field', $rules) ? [$rules] : array_values($rules);
+            }
+
+            $routeAliases = $this->input('route_aliases');
+            if (is_string($routeAliases) && trim($routeAliases) !== '') {
+                $routeAliases = collect(explode(',', $routeAliases))
+                    ->map(fn (string $alias): string => trim($alias))
+                    ->filter()
+                    ->values()
+                    ->all();
+            }
+
             $this->merge([
                 'collection_type' => $this->input('collection_type', $this->input('type', 'manual') === 'automatic' ? 'smart' : 'manual'),
                 'display_position_anchor' => $this->input('display_position_anchor', 'products'),
                 'display_position_placement' => $this->input('display_position_placement', 'before'),
                 'discount_apply_to' => $this->input('discount_apply_to', 'entire_collection'),
                 'discount_enabled' => filter_var($this->input('discount_enabled', false), FILTER_VALIDATE_BOOL),
+                'rules' => $rules,
+                'route_aliases' => $routeAliases,
             ]);
         }
 
@@ -225,13 +241,13 @@ class ProductModuleSaveRequest extends FormRequest
                 'subtitle' => ['nullable', 'string', 'max:255'],
                 'promotional_text' => ['nullable', 'string', 'max:255'],
                 'cta_text' => ['nullable', 'string', 'max:255'],
-                'cta_url' => ['nullable', 'url', 'max:255'],
+                'cta_url' => ['nullable', 'string', 'max:255', $this->absoluteUrlOrRelativePath()],
                 'route_aliases' => ['nullable', 'array'],
                 'route_aliases.*' => ['string', 'max:255'],
                 'meta_title' => ['nullable', 'string', 'max:255'],
                 'meta_description' => ['nullable', 'string'],
                 'meta_keywords' => ['nullable', 'string'],
-                'canonical_url' => ['nullable', 'url', 'max:255'],
+                'canonical_url' => ['nullable', 'string', 'max:255', $this->absoluteUrlOrRelativePath()],
                 'og_title' => ['nullable', 'string', 'max:255'],
                 'og_description' => ['nullable', 'string'],
                 'og_image_url' => ['nullable', 'string'],
@@ -344,6 +360,27 @@ class ProductModuleSaveRequest extends FormRequest
                 $validator->errors()->add('image_file', 'The category image field is required for landing page mode.');
             }
         });
+    }
+
+    private function absoluteUrlOrRelativePath(): \Closure
+    {
+        return static function (string $attribute, mixed $value, \Closure $fail): void {
+            if ($value === null || $value === '') {
+                return;
+            }
+
+            $value = trim((string) $value);
+            $scheme = parse_url($value, PHP_URL_SCHEME);
+            $isAbsoluteUrl = filter_var($value, FILTER_VALIDATE_URL) !== false
+                && in_array($scheme, ['http', 'https'], true);
+            $isRelativePath = str_starts_with($value, '/')
+                && ! str_starts_with($value, '//')
+                && ! preg_match('/[\r\n]/', $value);
+
+            if (! $isAbsoluteUrl && ! $isRelativePath) {
+                $fail("The {$attribute} field must be a valid URL or relative path.");
+            }
+        };
     }
 
     private function productRules(mixed $id): array

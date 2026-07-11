@@ -12,6 +12,7 @@ import {
   type DrawerMode,
 } from "@/features/admin/products/components/product-management-content";
 import type { ProductModulePayload, ProductOptions, ProductRecord } from "@/features/admin/products/types";
+import type { ApiValidationErrors } from "@/types/auth";
 import { routePaths } from "@/constants/routes";
 import { toAppError } from "@/lib/errors";
 
@@ -24,6 +25,14 @@ const emptyOptions: ProductOptions = {
   warehouses: [],
   products: [],
 };
+
+function firstValidationMessage(errors: ApiValidationErrors | undefined) {
+  if (!errors) return null;
+  const first = Object.entries(errors)[0];
+  if (!first) return null;
+
+  return `${first[0]}: ${first[1]?.[0] ?? "Invalid value."}`;
+}
 
 export function CollectionFormPage({ mode, collectionId }: { mode: DrawerMode; collectionId?: number }) {
   const router = useRouter();
@@ -70,7 +79,8 @@ export function CollectionFormPage({ mode, collectionId }: { mode: DrawerMode; c
       }
       router.push(routePaths.adminCollections);
     } catch (error) {
-      toast.error(toAppError(error).message);
+      const appError = toAppError(error);
+      toast.error(firstValidationMessage(appError.validationErrors) ?? appError.message);
     }
   }, [collectionId, mode, router]);
 

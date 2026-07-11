@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ChevronRight, Sparkles, TrendingUp, Zap } from 'lucide-react';
+import { ArrowRight, ChevronRight, Home, SearchX, ShoppingBag, Sparkles, TrendingUp, Zap } from 'lucide-react';
 import { AnnouncementBar } from '@/components/layout/AnnouncementBar';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
@@ -125,9 +125,36 @@ export function CollectionPageContent({ slug }: { slug: string }) {
       <div className="min-h-screen bg-background">
         <AnnouncementBar />
         <Header />
-        <main className="max-w-7xl mx-auto px-4 py-24 text-center">
-          <h1 className="text-2xl font-bold mb-4">Collection Not Found</h1>
-          <Link href="/shop" className="text-primary hover:underline">Browse Products</Link>
+        <main className="max-w-7xl mx-auto px-4 py-16 md:py-24">
+          <section className="mx-auto flex max-w-2xl flex-col items-center text-center">
+            <div className="relative mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-muted">
+              <SearchX size={40} className="text-muted-foreground" />
+              <span className="absolute -right-1 -top-1 flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">
+                <ShoppingBag size={18} />
+              </span>
+            </div>
+            <p className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Collection unavailable</p>
+            <h1 className="text-3xl font-extrabold tracking-tight text-foreground md:text-4xl">
+              This collection could not be found
+            </h1>
+            <p className="mt-4 max-w-lg text-sm leading-6 text-muted-foreground md:text-base">
+              The collection may have been moved, unpublished, or the link may be outdated. Browse all products or return home to keep shopping.
+            </p>
+            <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+              <Link
+                href="/shop"
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-primary px-6 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+              >
+                Browse Products <ArrowRight size={16} />
+              </Link>
+              <Link
+                href="/"
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-border bg-background px-6 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
+              >
+                <Home size={16} /> Back Home
+              </Link>
+            </div>
+          </section>
         </main>
         <Footer />
       </div>
