@@ -42,10 +42,10 @@ class AppServiceProvider extends ServiceProvider
             optional($request->user())->getAuthIdentifier() ?: $request->ip()
         ));
 
-        RateLimiter::for('admin-api', fn (Request $request) => Limit::perMinute(120)->by(
+        RateLimiter::for('admin-api', fn (Request $request) => Limit::perMinute(280)->by(
             optional($request->user())->getAuthIdentifier() ?: $request->ip()
         ));
 
-        RateLimiter::for('public-settings', fn (Request $request) => Limit::perMinute(120)->by($request->ip()));
+        RateLimiter::for('public-settings', fn (Request $request) => Limit::perMinute(280)->by($request->ip()));
     }
 }
