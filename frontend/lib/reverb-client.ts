@@ -2,6 +2,7 @@
 
 import Echo from "laravel-echo";
 import Pusher from "pusher-js";
+import type { Channel as PusherChannel, ChannelAuthorizationCallback } from "pusher-js";
 
 type ConnectionStatus = "idle" | "connecting" | "connected" | "unavailable" | "failed" | "disconnected";
 
@@ -43,15 +44,31 @@ export function getReverbClient() {
     wssPort: wsPort,
     forceTLS: scheme === "https",
     enabledTransports: ["ws", "wss"],
-    authEndpoint: `${apiBaseUrl}/broadcasting/auth`,
-    channelAuthorization: {
-      transport: "ajax",
-      endpoint: `${apiBaseUrl}/broadcasting/auth`,
-      headers: {
-        Accept: "application/json",
-        "X-Requested-With": "XMLHttpRequest",
+    authorizer: (channel: PusherChannel) => ({
+      authorize: (socketId: string, callback: ChannelAuthorizationCallback) => {
+        fetch(`${apiBaseUrl}/broadcasting/auth`, {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+            "X-Requested-With": "XMLHttpRequest",
+          },
+          body: JSON.stringify({
+            socket_id: socketId,
+            channel_name: channel.name,
+          }),
+        })
+          .then(async (response) => {
+            const data = await response.json().catch(() => null);
+            if (!response.ok) {
+              throw new Error(data?.message || "Broadcast authentication failed.");
+            }
+            callback(null, data);
+          })
+          .catch((error: Error) => callback(error, null));
       },
-    },
+    }),
   });
 
   const connection = echo.connector.pusher.connection;
