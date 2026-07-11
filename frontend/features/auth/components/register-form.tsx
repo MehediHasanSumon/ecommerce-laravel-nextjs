@@ -14,6 +14,14 @@ import { registerSchema, type RegisterFormValues } from "@/schemas/auth";
 import { useAuthStore } from "@/store/auth-store";
 import { toAppError } from "@/lib/errors";
 
+const registerFields = ["name", "email", "password", "password_confirmation"] as const;
+
+function firstValidationMessage(errors: Record<string, string[]> | undefined) {
+  return registerFields
+    .map((field) => errors?.[field]?.[0])
+    .find((message): message is string => Boolean(message));
+}
+
 export function RegisterForm() {
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
@@ -32,7 +40,16 @@ export function RegisterForm() {
       router.replace(routePaths.home);
       router.refresh();
     } catch (err) {
-      toast.error(toAppError(err).message);
+      const appError = toAppError(err);
+
+      registerFields.forEach((field) => {
+        const message = appError.validationErrors?.[field]?.[0];
+        if (message) {
+          form.setError(field, { type: "server", message });
+        }
+      });
+
+      toast.error(firstValidationMessage(appError.validationErrors) ?? appError.message);
     }
   }
 
