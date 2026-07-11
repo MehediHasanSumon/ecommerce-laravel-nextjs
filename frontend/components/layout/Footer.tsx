@@ -1,12 +1,20 @@
 "use client";
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import { Mail, MapPin, Phone } from 'lucide-react';
 import { BrandLogo } from '@/components/settings/BrandLogo';
 import { subscribeToNewsletter } from '@/services/catalog-service';
-import { fetchPaymentMethods, type PaymentMethod } from '@/services/checkout-service';
-import { selectBranding, selectCompanyName, selectFrontendNavigation, selectSettingsPending, selectSocialLinks, useSettingsStore } from '@/store/settings-store';
+import {
+  selectBranding,
+  selectCompanyName,
+  selectFrontendNavigation,
+  selectPaymentMethods,
+  selectSettingsPending,
+  selectSocialLinks,
+  useSettingsStore,
+} from '@/store/settings-store';
+import type { RuntimePaymentMethod } from '@/types/settings';
 
 const hiddenFooterPaymentGateways = new Set(['cash_on_delivery', 'home_delivery']);
 
@@ -32,7 +40,7 @@ function SocialIcon({
   );
 }
 
-function PaymentMethodBadge({ method }: { method: PaymentMethod }) {
+function PaymentMethodBadge({ method }: { method: RuntimePaymentMethod }) {
   const label = method.name || method.gateway.replace(/_/g, ' ');
 
   return (
@@ -51,10 +59,10 @@ export function Footer() {
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState<'success' | 'error'>('success');
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const branding = useSettingsStore(selectBranding);
   const siteName = useSettingsStore(selectCompanyName);
   const navigation = useSettingsStore(selectFrontendNavigation);
+  const paymentMethods = useSettingsStore(selectPaymentMethods);
   const socialLinks = useSettingsStore(selectSocialLinks);
   const isLoading = useSettingsStore(selectSettingsPending);
   const contactRows = [
@@ -77,26 +85,6 @@ export function Footer() {
     () => paymentMethods.filter((method) => !hiddenFooterPaymentGateways.has(method.gateway.toLowerCase())),
     [paymentMethods],
   );
-
-  useEffect(() => {
-    let cancelled = false;
-
-    fetchPaymentMethods()
-      .then((methods) => {
-        if (!cancelled) {
-          setPaymentMethods(methods);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setPaymentMethods([]);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   async function handleSubscribe(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

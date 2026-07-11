@@ -6,6 +6,7 @@ import type { ApiEnvelope, PaginationMeta } from "@/features/admin/shared/types"
 import type { Product } from "@/types";
 import type { Brand } from "@/types";
 import type { HeroSectionPayload } from "@/features/admin/hero-section/types";
+import type { BlogCard, BlogSettingsRuntime } from "@/services/blog-service";
 
 const apiBaseUrl = (
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/auth"
@@ -140,6 +141,8 @@ export type HomePageSections = {
     topBrands: { enabled: boolean; items: Brand[] };
     products: { enabled: boolean; items: Product[] };
     testimonials: { enabled: boolean };
+    blogs: { items: BlogCard[]; settings: BlogSettingsRuntime };
+    reviews: { enabled: boolean; items: PublicReview[] };
   };
 };
 

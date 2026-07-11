@@ -6,6 +6,7 @@ use App\Models\Category;
 use App\Models\Product;
 use App\Models\Settings\ShippingMethod;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\PaymentMethodResource;
 use App\Http\Responses\ApiResponse;
 use App\Http\Resources\Admin\Settings\CategoryDisplaySettingResource;
 use App\Services\Admin\Settings\CategoryDisplaySettingsService;
@@ -130,6 +131,9 @@ class NavigationSettingsController extends Controller
             'home_feature_cards' => (bool) $homeFeatureCardSettings->enabled
                 ? $this->homeFeatureCards->activeForRuntime()
                 : [],
+            'payment_methods' => PaymentMethodResource::collection(
+                $payments->where('enabled', true)->sortBy('display_order')->values()
+            )->resolve(),
             'social_links' => $social
                 ->where('status', true)
                 ->values()

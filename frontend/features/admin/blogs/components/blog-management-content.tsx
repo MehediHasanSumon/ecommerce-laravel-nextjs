@@ -23,14 +23,14 @@ function normalizeBlogStatus(value: unknown, publishedAt?: string | null): BlogS
   const normalized = String(value ?? "")
     .trim()
     .toLowerCase()
-    .replaceAll(" ", "_") as BlogStatus;
+    .replaceAll(" ", "_");
 
   if (normalized === "publish" || normalized === "pusblished") {
     return "published";
   }
 
-  if (statuses.includes(normalized)) {
-    return normalized;
+  if (statuses.includes(normalized as BlogStatus)) {
+    return normalized as BlogStatus;
   }
 
   return publishedAt ? "published" : "draft";

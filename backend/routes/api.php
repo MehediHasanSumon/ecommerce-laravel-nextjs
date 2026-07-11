@@ -52,7 +52,6 @@ Route::get('/seo/defaults', [SeoMetadataController::class, 'defaults'])->middlew
 Route::get('/seo/{type}/{slug}', [SeoMetadataController::class, 'entity'])->where('slug', '[A-Za-z0-9\\-]+')->middleware('throttle:public-settings');
 Route::get('/seo/sitemap', [SeoMetadataController::class, 'sitemap'])->middleware('throttle:public-settings');
 Route::get('/home-page', [HomePageController::class, 'show'])->middleware('throttle:public-settings');
-Route::get('/blogs/home', [BlogCatalogController::class, 'home'])->middleware('throttle:public-settings');
 Route::get('/blogs', [BlogCatalogController::class, 'index'])->middleware('throttle:public-settings');
 Route::get('/blogs/{slug}', [BlogCatalogController::class, 'show'])->where('slug', '[A-Za-z0-9\\-]+')->middleware('throttle:public-settings');
 Route::get('/brands', [BrandCatalogController::class, 'index'])->middleware('throttle:public-settings');

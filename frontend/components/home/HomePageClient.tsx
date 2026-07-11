@@ -17,8 +17,7 @@ import { Footer } from '@/components/layout/Footer';
 import { ProductCard } from '@/components/product/ProductCard';
 import { ProductGridSkeleton } from '@/components/skeleton';
 import { useCountdown } from '@/hooks/useCountdown';
-import { fetchHomePageSections, fetchPublicReviews, type HomePageSections, type PublicReview } from '@/services/catalog-service';
-import { fetchHomeBlogs, type BlogCard } from '@/services/blog-service';
+import { fetchHomePageSections, type HomePageSections } from '@/services/catalog-service';
 import type { HeroDevice, HeroSectionPayload, HeroSlide, HeroSlideElement } from '@/features/admin/hero-section/types';
 import { cn } from '@/utils/cn';
 import {
@@ -567,11 +566,6 @@ export default function HomePage() {
   const [homeData, setHomeData] = useState<HomePageSections | null>(null);
   const [homeLoading, setHomeLoading] = useState(true);
   const [homeError, setHomeError] = useState(false);
-  const [homeBlogs, setHomeBlogs] = useState<BlogCard[]>([]);
-  const [homeBlogsEnabled, setHomeBlogsEnabled] = useState(false);
-  const [homeBlogsLoading, setHomeBlogsLoading] = useState(true);
-  const [homeReviews, setHomeReviews] = useState<PublicReview[]>([]);
-  const [homeReviewsLoading, setHomeReviewsLoading] = useState(true);
   const homeCollections = homeData?.collections ?? [];
   const categoryDisplay = useSettingsStore(selectCategoryDisplaySettings);
   const runtimeCategories = useSettingsStore(selectRuntimeCategories);
@@ -595,49 +589,8 @@ export default function HomePage() {
     setMounted(true);
   }, []);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    setHomeBlogsLoading(true);
-    fetchHomeBlogs({ signal: controller.signal })
-      .then((response) => {
-        setHomeBlogs(response.blogs);
-        setHomeBlogsEnabled(response.settings.enabled && response.settings.show_on_home);
-      })
-      .catch(() => {
-        setHomeBlogs([]);
-        setHomeBlogsEnabled(false);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setHomeBlogsLoading(false);
-      });
-
-    return () => controller.abort();
-  }, []);
-
   const showHomeProducts = homeData?.sections.products.enabled ?? runtimeHomePageSettings.product_section.enabled;
   const showHomeTestimonials = homeData?.sections.testimonials.enabled ?? runtimeHomePageSettings.testimonial_section.enabled;
-
-  useEffect(() => {
-    const controller = new AbortController();
-    if (!showHomeTestimonials) {
-      setHomeReviews([]);
-      setHomeReviewsLoading(false);
-      return () => controller.abort();
-    }
-
-    setHomeReviewsLoading(true);
-    fetchPublicReviews({ per_page: 3 }, { signal: controller.signal })
-      .then((response) => setHomeReviews(response.items))
-      .catch((error: unknown) => {
-        if ((error as { name?: string })?.name === 'CanceledError') return;
-        setHomeReviews([]);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setHomeReviewsLoading(false);
-      });
-
-    return () => controller.abort();
-  }, [showHomeTestimonials]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -660,6 +613,11 @@ export default function HomePage() {
 
   const topBrands = showHomeBrands && homeData?.sections.topBrands.enabled ? homeData.sections.topBrands.items : [];
   const homeProducts = homeData?.sections.products.items ?? [];
+  const homeBlogs = homeData?.sections.blogs.items ?? [];
+  const homeBlogsEnabled = Boolean(homeData?.sections.blogs.settings.enabled && homeData.sections.blogs.settings.show_on_home);
+  const homeBlogsLoading = homeLoading;
+  const homeReviews = homeData?.sections.reviews.items ?? [];
+  const homeReviewsLoading = homeLoading && showHomeTestimonials;
   const renderCollections = (anchor: string, placement: 'before' | 'after') =>
     homeCollections
       .filter((entry) => entry.collection.displayPositionAnchor === anchor && entry.collection.displayPositionPlacement === placement)

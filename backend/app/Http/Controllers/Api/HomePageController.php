@@ -3,15 +3,18 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\BlogCardResource;
 use App\Http\Resources\BrandResource;
 use App\Http\Resources\CollectionResource;
 use App\Http\Resources\ProductCardResource;
 use App\Http\Responses\ApiResponse;
 use App\Models\Brand;
 use App\Models\Product;
+use App\Models\ProductReview;
 use App\Services\Admin\Settings\BrandSettingsService;
 use App\Services\Admin\Settings\HomePageSettingsService;
 use App\Services\Admin\HeroSectionService;
+use App\Services\BlogCatalogService;
 use App\Services\Collections\CollectionProductResolver;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -19,7 +22,7 @@ use Illuminate\Support\Facades\Cache;
 
 class HomePageController extends Controller
 {
-    public function show(CollectionProductResolver $collections, BrandSettingsService $brandSettings, HomePageSettingsService $homeSettings, HeroSectionService $hero): JsonResponse
+    public function show(CollectionProductResolver $collections, BrandSettingsService $brandSettings, HomePageSettingsService $homeSettings, BlogCatalogService $blogs, HeroSectionService $hero): JsonResponse
     {
         $brandRuntime = $brandSettings->runtime();
         $homeRuntime = $homeSettings->runtime();
@@ -70,6 +73,14 @@ class HomePageController extends Controller
             ];
         });
         $payload['hero'] = $hero->runtime();
+        $payload['sections']['blogs'] = [
+            'items' => BlogCardResource::collection($blogs->homeBlogs())->resolve(),
+            'settings' => $blogs->settings(),
+        ];
+        $payload['sections']['reviews'] = [
+            'enabled' => (bool) $testimonialRuntime['enabled'],
+            'items' => $testimonialRuntime['enabled'] ? $this->reviews(3) : [],
+        ];
 
         return ApiResponse::success($payload);
     }
@@ -110,6 +121,39 @@ class HomePageController extends Controller
                 ->limit($limit)
                 ->get()
         )->resolve();
+    }
+
+    private function reviews(int $limit): array
+    {
+        return ProductReview::query()
+            ->where('status', 'approved')
+            ->with([
+                'user:id,name,email',
+                'product.brand:id,name,slug',
+                'product.category:id,parent_id,name,slug',
+                'product.images:id,product_id,url,is_primary,sort_order',
+                'product.tags:id,name',
+            ])
+            ->whereHas('product', fn ($query) => $query->where('status', 'active'))
+            ->latest()
+            ->limit($limit)
+            ->get()
+            ->map(fn (ProductReview $review): array => [
+                'id' => (string) $review->id,
+                'rating' => (int) $review->rating,
+                'comment' => $review->comment,
+                'verified' => (bool) $review->is_verified_purchase,
+                'createdAt' => optional($review->created_at)->toISOString(),
+                'user' => [
+                    'id' => (string) $review->user?->id,
+                    'name' => $review->user?->name ?: 'Customer',
+                ],
+                'product' => $review->product
+                    ? ProductCardResource::make($review->product)->resolve()
+                    : null,
+            ])
+            ->values()
+            ->all();
     }
 
     private function settings(array $homeRuntime): array

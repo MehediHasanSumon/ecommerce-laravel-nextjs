@@ -10,6 +10,7 @@ const emptyAdminNavigation: RuntimeSettings["navigation"]["admin_sidebar"] = [];
 const emptySocialLinks: RuntimeSettings["social_links"] = [];
 const emptyRuntimeCategories: RuntimeSettings["categories"] = [];
 const emptyHomeFeatureCards: RuntimeSettings["home_feature_cards"] = [];
+const emptyPaymentMethods: RuntimeSettings["payment_methods"] = [];
 const defaultFeatureCardSettings: RuntimeSettings["feature_card_settings"] = {
   enabled: true,
 };
@@ -203,6 +204,8 @@ export const selectHomeFeatureCards = (state: SettingsState) =>
   selectSettingsPending(state) ? emptyHomeFeatureCards : state.settings?.home_feature_cards ?? emptyHomeFeatureCards;
 export const selectHomePageSettings = (state: SettingsState) =>
   selectSettingsPending(state) ? defaultHomePageSettings : state.settings?.home_page_settings ?? defaultHomePageSettings;
+export const selectPaymentMethods = (state: SettingsState) =>
+  selectSettingsPending(state) ? emptyPaymentMethods : state.settings?.payment_methods ?? emptyPaymentMethods;
 export const selectBlogSettings = (state: SettingsState) =>
   selectSettingsPending(state) ? defaultBlogSettings : state.settings?.blog_settings ?? defaultBlogSettings;
 export const selectBrandSettings = (state: SettingsState) =>

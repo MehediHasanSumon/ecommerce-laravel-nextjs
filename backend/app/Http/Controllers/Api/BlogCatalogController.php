@@ -53,14 +53,6 @@ class BlogCatalogController extends Controller
         ]);
     }
 
-    public function home(): JsonResponse
-    {
-        return ApiResponse::success([
-            'blogs' => BlogCardResource::collection($this->blogs->homeBlogs())->resolve(),
-            'settings' => $this->blogs->settings(),
-        ]);
-    }
-
     public function storeComment(StoreBlogCommentRequest $request, Blog $blog): JsonResponse
     {
         $comment = $this->blogs->createComment($blog, $request->validated(), $request->user()?->id);

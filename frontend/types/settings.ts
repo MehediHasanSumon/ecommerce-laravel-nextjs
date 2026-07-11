@@ -105,6 +105,15 @@ export type RuntimeHomePageSettings = {
   };
 };
 
+export type RuntimePaymentMethod = {
+  gateway: string;
+  name: string;
+  description?: string | null;
+  logoUrl?: string | null;
+  sandboxMode: boolean;
+  sortOrder: number;
+};
+
 export type RuntimeSettings = {
   company_settings: Record<string, unknown>;
   website_settings: Record<string, unknown>;
@@ -152,5 +161,6 @@ export type RuntimeSettings = {
   };
   categories: RuntimeCategory[];
   home_feature_cards: RuntimeHomeFeatureCard[];
+  payment_methods: RuntimePaymentMethod[];
   social_links: RuntimeSocialLink[];
 };

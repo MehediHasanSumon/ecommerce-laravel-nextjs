@@ -127,22 +127,6 @@ export async function fetchBlogDetail(
   return response.data.data;
 }
 
-export async function fetchHomeBlogs(options: { signal?: AbortSignal } = {}) {
-  const response = await axios.get<ApiEnvelope<{ blogs: BlogCard[]; settings: BlogSettingsRuntime }>>(
-    `${apiBaseUrl}/blogs/home`,
-    {
-      signal: options.signal,
-      withCredentials: true,
-      headers: {
-        Accept: "application/json",
-        "X-Requested-With": "XMLHttpRequest",
-      },
-    },
-  );
-
-  return response.data.data;
-}
-
 export async function submitBlogComment(
   slug: string,
   payload: { author_name: string; author_email: string; content: string; parent_id?: number | null },
