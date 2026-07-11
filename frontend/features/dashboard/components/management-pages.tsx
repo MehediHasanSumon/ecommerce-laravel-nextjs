@@ -807,6 +807,7 @@ function ManagementPage<T extends { id: number }>({
 
 export function UserManagementContent() {
   const { query, setQuery } = useUrlQueryState("created_at");
+  useAuthStore((state) => state.user?.permissions);
   const [items, setItems] = useState<ManagedUser[]>([]);
   const [pagination, setPagination] = useState<PaginationMeta | null>(null);
   const [roles, setRoles] = useState<Option[]>([]);
@@ -846,6 +847,10 @@ export function UserManagementContent() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const canCreateUser = hasPermission("can_create_user");
+  const canEditUser = hasPermission("can_edit_user");
+  const canDeleteUser = hasPermission("can_delete_user");
 
   const columns = useMemo<Column<ManagedUser>[]>(() => [
     { key: "name", label: "Name", sortable: true, render: (user) => <span className="font-semibold">{user.name}</span> },
@@ -917,6 +922,9 @@ export function UserManagementContent() {
           },
         })}
         onExport={() => exportRows("users.csv", items.filter((item) => selected.includes(item.id)).map((user) => ({ name: user.name, email: user.email, status: user.status, roles: user.roles.map((role) => role.name).join("; ") })))}
+        canCreate={canCreateUser}
+        canEdit={canEditUser}
+        canDelete={canDeleteUser}
       />
       {deleteConfirmationDialog}
       <Drawer open={drawer.open} title={drawer.mode === "create" ? "Create User" : "Edit User"} description="Use Spatie roles to control access for this account." onClose={() => setDrawer({ open: false, mode: "create", item: null })}>
@@ -928,6 +936,7 @@ export function UserManagementContent() {
 
 export function RoleManagementContent() {
   const { query, setQuery } = useUrlQueryState("created_at");
+  useAuthStore((state) => state.user?.permissions);
   const [items, setItems] = useState<ManagedRole[]>([]);
   const [pagination, setPagination] = useState<PaginationMeta | null>(null);
   const [permissions, setPermissions] = useState<Option[]>([]);
@@ -963,6 +972,10 @@ export function RoleManagementContent() {
   }, [direction, filters, page, perPage, search, sort]);
 
   useEffect(() => { void load(); }, [load]);
+
+  const canCreateRole = hasPermission("can_create_role");
+  const canEditRole = hasPermission("can_edit_role");
+  const canDeleteRole = hasPermission("can_delete_role");
 
   const columns = useMemo<Column<ManagedRole>[]>(() => [
     { key: "name", label: "Role Name", sortable: true, render: (role) => <span className="font-semibold">{role.name}</span> },
@@ -1030,6 +1043,9 @@ export function RoleManagementContent() {
           },
         })}
         onExport={() => exportRows("roles.csv", items.filter((item) => selected.includes(item.id)).map((role) => ({ name: role.name, permissions_count: role.permissions_count })))}
+        canCreate={canCreateRole}
+        canEdit={canEditRole}
+        canDelete={canDeleteRole}
       />
       {deleteConfirmationDialog}
       <Drawer open={drawer.open} title={drawer.mode === "create" ? "Create Role" : "Edit Role"} description="Attach permissions that define what this role can access." onClose={() => setDrawer({ open: false, mode: "create", item: null })}>

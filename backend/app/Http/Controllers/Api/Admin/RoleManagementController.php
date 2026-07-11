@@ -12,12 +12,24 @@ use App\Http\Resources\Admin\RoleResource;
 use App\Http\Responses\ApiResponse;
 use App\Services\Admin\RoleManagementService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
-class RoleManagementController extends Controller
+class RoleManagementController extends Controller implements HasMiddleware
 {
     public function __construct(private readonly RoleManagementService $roles) {}
+
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('permission:can_view_role', only: ['index', 'show']),
+            new Middleware('permission:can_create_role', only: ['store']),
+            new Middleware('permission:can_edit_role', only: ['update']),
+            new Middleware('permission:can_delete_role', only: ['destroy', 'bulkDestroy']),
+        ];
+    }
 
     public function index(ListRolesRequest $request): JsonResponse
     {

@@ -26,6 +26,8 @@ type MePayload = {
 };
 
 const permissionRouteRequirements: Array<{ route: string; permission: string }> = [
+  { route: routePaths.adminUsers, permission: "can_view_user" },
+  { route: routePaths.adminRoles, permission: "can_view_role" },
   { route: routePaths.adminPermissions, permission: "can_view_permission" },
 ];
 

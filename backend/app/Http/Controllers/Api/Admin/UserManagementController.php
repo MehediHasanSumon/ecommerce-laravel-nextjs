@@ -13,11 +13,23 @@ use App\Http\Responses\ApiResponse;
 use App\Models\User;
 use App\Services\Admin\UserManagementService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Spatie\Permission\Models\Role;
 
-class UserManagementController extends Controller
+class UserManagementController extends Controller implements HasMiddleware
 {
     public function __construct(private readonly UserManagementService $users) {}
+
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('permission:can_view_user', only: ['index', 'show']),
+            new Middleware('permission:can_create_user', only: ['store']),
+            new Middleware('permission:can_edit_user', only: ['update']),
+            new Middleware('permission:can_delete_user', only: ['destroy', 'bulkDestroy']),
+        ];
+    }
 
     public function index(ListUsersRequest $request): JsonResponse
     {
