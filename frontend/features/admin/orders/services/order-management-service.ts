@@ -51,24 +51,21 @@ class OrderManagementService extends AdminApiService {
   }
 
   async downloadInvoice(order: string) {
-    const response = await this.client.get<Blob>(`/admin/orders/${encodeURIComponent(order)}/invoice`, { responseType: "blob" });
-    this.saveBlob(response.data, `invoice-${order}.pdf`);
+    this.downloadFromUrl(this.invoiceUrl(order));
   }
 
   async downloadDeliverySlip(order: string) {
-    const response = await this.client.get<Blob>(`/admin/orders/${encodeURIComponent(order)}/delivery-slip`, { responseType: "blob" });
-    this.saveBlob(response.data, `delivery-slip-${order}.pdf`);
+    this.downloadFromUrl(this.deliverySlipUrl(order));
   }
 
-  private saveBlob(blob: Blob, filename: string) {
-    const blobUrl = window.URL.createObjectURL(blob);
+  private downloadFromUrl(url: string) {
     const link = document.createElement("a");
-    link.href = blobUrl;
-    link.download = filename;
+    link.href = url;
+    link.target = "_blank";
+    link.rel = "noreferrer";
     document.body.appendChild(link);
     link.click();
     link.remove();
-    window.URL.revokeObjectURL(blobUrl);
   }
 }
 

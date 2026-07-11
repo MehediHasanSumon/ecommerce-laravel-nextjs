@@ -405,10 +405,10 @@ export function AdminOrderDetailContent({ orderNumber }: { orderNumber: string }
           <h1 className="text-2xl font-bold">{order.orderNumber}</h1>
           <p className="mt-1 text-sm text-muted-foreground">{order.customer.name} · {formatPrice(order.summary.total)}</p>
         </div>
-        <div className="flex flex-wrap items-center gap-3 sm:justify-end">
-          <Link href="/admin/orders"><Button variant="secondary">Back to Orders</Button></Link>
-          <Button icon={<Download className="h-4 w-4" />} isLoading={downloading === "invoice"} onClick={() => void download("invoice")}>Download Invoice</Button>
-          <Button variant="secondary" icon={<Download className="h-4 w-4" />} isLoading={downloading === "slip"} onClick={() => void download("slip")}>Delivery Slip</Button>
+        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+          <Link href="/admin/orders"><Button variant="secondary" size="sm" className="h-9 rounded-lg px-4 text-xs">Back to Orders</Button></Link>
+          <Button size="sm" className="h-9 rounded-lg px-4 text-xs" icon={<Download className="h-3.5 w-3.5" />} isLoading={downloading === "invoice"} onClick={() => void download("invoice")}>Download Invoice</Button>
+          <Button variant="secondary" size="sm" className="h-9 rounded-lg px-4 text-xs" icon={<Download className="h-3.5 w-3.5" />} isLoading={downloading === "slip"} onClick={() => void download("slip")}>Delivery Slip</Button>
         </div>
       </div>
 
