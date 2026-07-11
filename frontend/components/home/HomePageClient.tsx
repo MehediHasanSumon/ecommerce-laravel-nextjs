@@ -20,6 +20,7 @@ import { useCountdown } from '@/hooks/useCountdown';
 import { fetchHomePageSections, fetchPublicReviews, type HomePageSections, type PublicReview } from '@/services/catalog-service';
 import { fetchHomeBlogs, type BlogCard } from '@/services/blog-service';
 import type { HeroDevice, HeroSectionPayload, HeroSlide, HeroSlideElement } from '@/features/admin/hero-section/types';
+import { cn } from '@/utils/cn';
 import {
   selectCategoryDisplaySettings,
   selectFeatureCardSettings,
@@ -354,17 +355,23 @@ function AdvancedElement({ element, device }: { element: HeroSlideElement; devic
 }
 
 function FlashSaleTimer({ endsAt }: { endsAt: string }) {
-  const { hours, minutes, seconds } = useCountdown(endsAt);
+  const { days, hours, minutes, seconds } = useCountdown(endsAt);
+  const units = [
+    ...(days > 0 ? [{ v: days, l: days === 1 ? 'day' : 'days', wide: true }] : []),
+    { v: hours, l: 'h' },
+    { v: minutes, l: 'm' },
+    { v: seconds, l: 's' },
+  ];
+
   return (
-    <div className="flex items-center gap-1.5">
-      {[
-        { v: hours, l: 'h' },
-        { v: minutes, l: 'm' },
-        { v: seconds, l: 's' },
-      ].map(({ v, l }) => (
+    <div className="flex flex-wrap items-center justify-end gap-1.5">
+      {units.map(({ v, l, wide }) => (
         <div key={l} className="flex items-center gap-1">
-          <span className="w-10 h-10 flex items-center justify-center bg-primary text-primary-foreground rounded-lg font-bold text-lg tabular-nums">
-            {String(v).padStart(2, '0')}
+          <span className={cn(
+            'h-10 flex items-center justify-center bg-primary text-primary-foreground rounded-lg font-bold text-lg tabular-nums',
+            wide ? 'min-w-14 px-2 text-base' : 'w-10',
+          )}>
+            {wide ? String(v) : String(v).padStart(2, '0')}
           </span>
           <span className="text-muted-foreground text-xs font-medium">{l}</span>
         </div>
@@ -924,7 +931,6 @@ export default function HomePage() {
                       </h3>
                       <p className="text-xs text-muted-foreground line-clamp-2">{post.excerpt}</p>
                       <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
-                        <span className="text-xs text-muted-foreground">{post.reading_time_minutes} min read</span>
                         <span className="text-xs font-semibold text-primary group-hover:underline">
                           Read more →
                         </span>

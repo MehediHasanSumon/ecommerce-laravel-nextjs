@@ -34,7 +34,7 @@ function CollectionHero({ data }: { data: CollectionDetailResponse }) {
     : isBestSeller
       ? 'from-amber-500 to-orange-600'
       : 'from-emerald-600 to-teal-700';
-  const { hours, minutes, seconds } = useCountdown(collection.endsAt ?? '2026-12-31T23:59:59Z');
+  const { days, hours, minutes, seconds } = useCountdown(collection.endsAt ?? '2026-12-31T23:59:59Z');
 
   return (
     <div className={`bg-gradient-to-r ${gradient} py-12 px-4 text-center`}>
@@ -45,6 +45,12 @@ function CollectionHero({ data }: { data: CollectionDetailResponse }) {
       <p className="text-white/80">{collection.description || collection.subtitle}</p>
       {isFlash && collection.endsAt ? (
         <div className="mt-8 flex items-center justify-center gap-4">
+          {days > 0 ? (
+            <>
+              <CountdownBox value={days} label={days === 1 ? 'Day' : 'Days'} />
+              <span className="text-2xl font-bold text-white/60 mb-4">:</span>
+            </>
+          ) : null}
           <CountdownBox value={hours} label="Hours" />
           <span className="text-2xl font-bold text-white/60 mb-4">:</span>
           <CountdownBox value={minutes} label="Minutes" />

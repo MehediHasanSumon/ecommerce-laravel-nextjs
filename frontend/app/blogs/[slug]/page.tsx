@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useParams } from "next/navigation";
-import { ArrowLeft, ChevronRight, Clock, Copy, Link2, MessageCircle, Send } from "lucide-react";
+import { ArrowLeft, ChevronRight, Copy, Link2, MessageCircle, Send } from "lucide-react";
 import { AnnouncementBar } from "@/components/layout/AnnouncementBar";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -69,7 +69,6 @@ export default function BlogPostPage() {
                 <h1 className="text-3xl md:text-4xl font-extrabold mt-4 mb-4 leading-tight">{blog.title}</h1>
                 <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-6">
                   <span className="font-medium text-foreground">{blog.author?.name ?? "Author"}</span>
-                  <span className="flex items-center gap-1"><Clock size={14} />{blog.reading_time_minutes} min read</span>
                   <span>{formatDate(blog.published_at)}</span>
                 </div>
                 <div className="relative aspect-video rounded-2xl overflow-hidden mb-8">

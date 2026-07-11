@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ChevronRight, Clock, Search, User } from "lucide-react";
+import { ChevronRight, Search, User } from "lucide-react";
 import { AnnouncementBar } from "@/components/layout/AnnouncementBar";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -133,7 +133,6 @@ function BlogGridCard({ post }: { post: BlogCard }) {
         <p className="text-sm text-muted-foreground line-clamp-2 mb-4">{post.excerpt}</p>
         <div className="flex items-center gap-4 text-xs text-muted-foreground pt-3 border-t border-border">
           <span className="flex items-center gap-1"><User size={12} />{post.author?.name ?? "Author"}</span>
-          <span className="flex items-center gap-1"><Clock size={12} />{post.reading_time_minutes} min read</span>
         </div>
       </div>
     </Link>
@@ -155,7 +154,6 @@ function BlogListItem({ post, settings }: { post: BlogCard; settings?: BlogListR
         <div className="mt-4 flex flex-wrap gap-4 text-xs text-muted-foreground">
           {options?.show_author !== false ? <span>{post.author?.name ?? "Author"}</span> : null}
           {options?.show_published_date !== false ? <span>{formatDate(post.published_at)}</span> : null}
-          {options?.show_reading_time !== false ? <span>{post.reading_time_minutes} min read</span> : null}
         </div>
       </div>
     </Link>
