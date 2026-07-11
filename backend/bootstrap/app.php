@@ -31,7 +31,6 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->encryptCookies(except: [
             env('AUTH_ACCESS_COOKIE_NAME', 'auth_access_token'),
-            env('AUTH_REFRESH_COOKIE_NAME', 'auth_refresh_token'),
         ]);
 
         $middleware->api(prepend: [

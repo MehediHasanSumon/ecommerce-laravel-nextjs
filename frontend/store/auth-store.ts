@@ -15,6 +15,7 @@ import { useWishlistStore } from "@/store/wishlistStore";
 
 const AUTH_LOGOUT_EVENT_KEY = "luxecart-auth-logout";
 const AUTH_USER_CACHE_KEY = "luxecart-auth-user";
+const AUTH_INVALIDATED_EVENT_KEY = "luxecart-auth-invalidated";
 
 let currentUserPromise: Promise<User | null> | null = null;
 
@@ -38,6 +39,7 @@ type AuthState = {
   forgotPassword: (payload: ForgotPasswordPayload) => Promise<string>;
   resetPassword: (payload: ResetPasswordPayload) => Promise<string>;
   fetchCurrentUser: () => Promise<User | null>;
+  setUser: (user: User | null) => void;
   clearError: () => void;
 };
 
@@ -217,17 +219,23 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
   },
 
+  setUser(user) {
+    writeCachedUser(user);
+    set({
+      user,
+      isAuthenticated: Boolean(user),
+      initialized: true,
+      error: null,
+    });
+  },
+
   clearError() {
     set({ error: null });
   },
 }));
 
 if (typeof window !== "undefined") {
-  window.addEventListener("storage", (event) => {
-    if (event.key !== AUTH_LOGOUT_EVENT_KEY || !event.newValue) {
-      return;
-    }
-
+  function clearAuthenticatedState() {
     useAuthStore.setState({
       user: null,
       isAuthenticated: false,
@@ -237,5 +245,17 @@ if (typeof window !== "undefined") {
     });
     writeCachedUser(null);
     void useCartStore.getState().resetAfterLogout({ reloadGuest: true });
+  }
+
+  window.addEventListener("storage", (event) => {
+    if (event.key !== AUTH_LOGOUT_EVENT_KEY || !event.newValue) {
+      return;
+    }
+
+    clearAuthenticatedState();
+  });
+
+  window.addEventListener(AUTH_INVALIDATED_EVENT_KEY, () => {
+    clearAuthenticatedState();
   });
 }

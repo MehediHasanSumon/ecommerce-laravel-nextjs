@@ -39,7 +39,6 @@ export function AccountSidebar({ active }: AccountSidebarProps) {
   async function handleLogout() {
     await logout();
     router.push(routePaths.home);
-    router.refresh();
   }
 
   return (

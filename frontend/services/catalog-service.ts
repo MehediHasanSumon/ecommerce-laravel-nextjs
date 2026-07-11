@@ -11,7 +11,7 @@ import type { BlogCard, BlogSettingsRuntime } from "@/services/blog-service";
 const apiBaseUrl = (
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/auth"
 ).replace(/\/auth\/?$/, "");
-const authClient = createAuthAwareClient({ baseURL: apiBaseUrl, refreshPath: "/auth/refresh" });
+const authClient = createAuthAwareClient({ baseURL: apiBaseUrl });
 
 type ProductListPayload = {
   items: Product[];

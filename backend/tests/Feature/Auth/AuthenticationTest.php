@@ -16,7 +16,6 @@ it('registers a user with normalized input and returns http only auth cookies', 
         ->assertJsonPath('success', true)
         ->assertJsonPath('data.user.email', 'ada@example.test')
         ->assertCookie(config('auth_api.access_cookie_name'))
-        ->assertCookie(config('auth_api.refresh_cookie_name'))
         ->assertJsonMissingPath('data.tokens');
 
     $this->assertDatabaseHas('users', ['email' => 'ada@example.test']);
@@ -65,7 +64,6 @@ it('logs in with valid credentials and rejects invalid credentials', function ()
     ])->assertOk()
         ->assertJsonPath('success', true)
         ->assertCookie(config('auth_api.access_cookie_name'))
-        ->assertCookie(config('auth_api.refresh_cookie_name'))
         ->assertJsonMissingPath('data.tokens');
 });
 
@@ -82,73 +80,40 @@ it('protects authenticated endpoints and accepts valid access cookies', function
         ->assertJsonPath('data.user.email', $user->email);
 });
 
-it('refuses access tokens on refresh endpoint', function () {
-    $user = User::factory()->create();
-    $access = $user->createToken('access-token', ['access'], now()->addMinutes(15))->plainTextToken;
-
-    $this->withToken($access)->postJson('/api/auth/refresh')->assertUnauthorized();
-});
-
 it('reports non-sensitive auth session state', function () {
     $user = User::factory()->create();
     $access = $user->createToken('access-token', ['access'], now()->addMinutes(15))->plainTextToken;
-    $refresh = $user->createToken('refresh-token', ['refresh'], now()->addMinutes(120))->plainTextToken;
 
     $this->getJson('/api/auth/session')
         ->assertOk()
         ->assertJsonPath('data.authenticated', false)
-        ->assertJsonPath('data.has_access_token', false)
-        ->assertJsonPath('data.has_refresh_token', false);
+        ->assertJsonPath('data.has_access_token', false);
 
-    $this->withCookie(config('auth_api.access_cookie_name'), $access)
-        ->withCookie(config('auth_api.refresh_cookie_name'), $refresh)
+    $this->withToken($access)
         ->getJson('/api/auth/session')
         ->assertOk()
         ->assertJsonPath('data.authenticated', true)
         ->assertJsonPath('data.has_access_token', true)
-        ->assertJsonPath('data.has_refresh_token', true)
-        ->assertJsonMissingPath('data.access_token')
-        ->assertJsonMissingPath('data.refresh_token');
-});
-
-it('allows refresh when access token is expired but refresh token is valid', function () {
-    $user = User::factory()->create();
-    $access = $user->createToken('access-token', ['access'], now()->subMinute())->plainTextToken;
-    $refresh = $user->createToken('refresh-token', ['refresh'], now()->addMinutes(120))->plainTextToken;
-
-    $this->withCookie(config('auth_api.access_cookie_name'), $access)
-        ->withCookie(config('auth_api.refresh_cookie_name'), $refresh)
-        ->getJson('/api/auth/me')
-        ->assertUnauthorized();
-
-    $this->withCookie(config('auth_api.refresh_cookie_name'), $refresh)
-        ->postJson('/api/auth/refresh')
-        ->assertOk()
         ->assertCookie(config('auth_api.access_cookie_name'))
-        ->assertCookie(config('auth_api.refresh_cookie_name'));
+        ->assertJsonMissingPath('data.access_token');
 });
 
-it('rotates refresh tokens', function () {
+it('extends access token expiration when a valid session is used', function () {
     $user = User::factory()->create();
-    $refresh = $user->createToken('refresh-token', ['refresh'], now()->addMinutes(120))->plainTextToken;
+    $issued = $user->createToken('access-token', ['access'], now()->addMinutes(15));
+    $access = $issued->plainTextToken;
 
-    $this->withToken($refresh)
-        ->postJson('/api/auth/refresh')
+    $this->travelTo(now()->addMinutes(5));
+
+    $this->withToken($access)
+        ->getJson('/api/auth/session')
         ->assertOk()
-        ->assertCookie(config('auth_api.access_cookie_name'))
-        ->assertCookie(config('auth_api.refresh_cookie_name'))
-        ->assertJsonMissingPath('data.tokens');
+        ->assertCookie(config('auth_api.access_cookie_name'));
 
-    expect(PersonalAccessToken::query()->where('name', 'refresh-token')->count())->toBe(1);
-});
+    $issued->accessToken->refresh();
 
-it('gracefully handles one duplicate refresh request during token rotation', function () {
-    $user = User::factory()->create();
-    $refresh = $user->createToken('refresh-token', ['refresh'], now()->addMinutes(120))->plainTextToken;
-
-    $this->withToken($refresh)->postJson('/api/auth/refresh')->assertOk();
-    $this->withToken($refresh)->postJson('/api/auth/refresh')->assertOk();
-    $this->withToken($refresh)->postJson('/api/auth/refresh')->assertUnauthorized();
+    expect($issued->accessToken->expires_at->timestamp)
+        ->toBeGreaterThanOrEqual(now()->addMinutes(config('auth_api.access_token_expiration_minutes'))->subSeconds(2)->timestamp);
 });
 
 it('logs out by revoking the current token', function () {

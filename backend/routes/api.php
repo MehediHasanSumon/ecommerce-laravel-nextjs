@@ -122,7 +122,6 @@ Route::prefix('auth')->group(function (): void {
     Route::post('/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:auth-passwords');
 
     Route::get('/session', [AuthController::class, 'session'])->middleware('throttle:auth-token');
-    Route::post('/refresh', [AuthController::class, 'refresh'])->middleware('throttle:auth-token');
 
     Route::middleware(['auth.cookie:access', 'throttle:auth-token'])->group(function (): void {
         Route::post('/logout', [AuthController::class, 'logout']);

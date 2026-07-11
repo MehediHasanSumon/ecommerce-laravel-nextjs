@@ -1,25 +1,15 @@
 "use client";
 
-import axios, {
-  AxiosError,
-  type AxiosInstance,
-  type InternalAxiosRequestConfig,
-} from "axios";
-import { routePaths } from "@/constants/routes";
-
-export type RetryConfig = InternalAxiosRequestConfig & {
-  _retry?: boolean;
-  _skipRefresh?: boolean;
-};
+import axios, { type AxiosInstance } from "axios";
 
 const baseURL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/auth";
 const csrfCookieUrl = process.env.NEXT_PUBLIC_CSRF_COOKIE_URL;
+const authInvalidatedEvent = "luxecart-auth-invalidated";
 
 let csrfPromise: Promise<void> | null = null;
 
 type AuthClientOptions = {
   baseURL: string;
-  refreshPath?: string;
 };
 
 async function ensureCsrfCookie() {
@@ -41,23 +31,7 @@ async function ensureCsrfCookie() {
   return csrfPromise;
 }
 
-function redirectToLogin() {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  const path = window.location.pathname;
-  if (path !== routePaths.login) {
-    window.location.assign(`${routePaths.login}?session=expired`);
-  }
-}
-
-export function createAuthAwareClient({
-  baseURL,
-  refreshPath = "/refresh",
-}: AuthClientOptions): AxiosInstance {
-  let refreshPromise: Promise<void> | null = null;
-
+export function createAuthAwareClient({ baseURL }: AuthClientOptions): AxiosInstance {
   const client = axios.create({
     baseURL,
     withCredentials: true,
@@ -79,48 +53,14 @@ export function createAuthAwareClient({
 
   client.interceptors.response.use(
     (response) => response,
-    async (error: AxiosError) => {
-      const original = error.config as RetryConfig | undefined;
-      const status = error.response?.status;
+    (error) => {
+      const status = axios.isAxiosError(error) ? error.response?.status : undefined;
 
-      if (
-        !original ||
-        original._skipRefresh ||
-        original._retry ||
-        ![401, 419].includes(status ?? 0)
-      ) {
-        return Promise.reject(error);
+      if (typeof window !== "undefined" && (status === 401 || status === 419)) {
+        window.dispatchEvent(new CustomEvent(authInvalidatedEvent));
       }
 
-      original._retry = true;
-
-      if (!refreshPromise) {
-        refreshPromise = axios
-          .post(
-            `${baseURL.replace(/\/$/, "")}${refreshPath}`,
-            undefined,
-            {
-              withCredentials: true,
-              headers: {
-                Accept: "application/json",
-                "Content-Type": "application/json",
-                "X-Requested-With": "XMLHttpRequest",
-              },
-            },
-          )
-          .then(() => undefined)
-          .finally(() => {
-            refreshPromise = null;
-          });
-      }
-
-      try {
-        await refreshPromise;
-        return client(original);
-      } catch (refreshError) {
-        redirectToLogin();
-        return Promise.reject(refreshError);
-      }
+      return Promise.reject(error);
     },
   );
 

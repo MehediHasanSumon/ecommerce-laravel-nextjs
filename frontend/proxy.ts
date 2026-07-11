@@ -13,7 +13,6 @@ type SessionPayload = {
   data?: {
     authenticated?: boolean;
     has_access_token?: boolean;
-    has_refresh_token?: boolean;
   };
 };
 
@@ -46,7 +45,7 @@ function safePublicAuthRedirectTarget(request: NextRequest) {
   }
 }
 
-function appendRefreshCookies(source: Response, target: NextResponse) {
+function appendSetCookies(source: Response, target: NextResponse) {
   const headersWithCookies = source.headers as Headers & {
     getSetCookie?: () => string[];
   };
@@ -76,26 +75,7 @@ async function getSession(request: NextRequest) {
     }
 
     const payload = (await response.json()) as SessionPayload;
-    return payload.data ?? null;
-  } catch {
-    return null;
-  }
-}
-
-async function refreshSession(request: NextRequest) {
-  try {
-    const response = await fetch(`${apiBaseUrl}/refresh`, {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        Cookie: request.headers.get("cookie") ?? "",
-        "Content-Type": "application/json",
-        "X-Requested-With": "XMLHttpRequest",
-      },
-      cache: "no-store",
-    });
-
-    return response.ok ? response : null;
+    return { session: payload.data ?? null, response };
   } catch {
     return null;
   }
@@ -125,24 +105,12 @@ async function isBlogEnabled(request: NextRequest) {
 }
 
 async function authenticate(request: NextRequest) {
-  const session = await getSession(request);
+  const result = await getSession(request);
+  const session = result?.session ?? null;
 
-  if (!session?.authenticated) {
-    return { authenticated: false, refreshResponse: null };
-  }
-
-  if (session.has_access_token) {
-    return { authenticated: true, refreshResponse: null };
-  }
-
-  if (!session.has_refresh_token) {
-    return { authenticated: false, refreshResponse: null };
-  }
-
-  const refreshResponse = await refreshSession(request);
   return {
-    authenticated: Boolean(refreshResponse),
-    refreshResponse,
+    authenticated: Boolean(session?.authenticated && session.has_access_token),
+    sessionResponse: result?.response ?? null,
   };
 }
 
@@ -164,7 +132,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const { authenticated, refreshResponse } = await authenticate(request);
+  const { authenticated, sessionResponse } = await authenticate(request);
 
   if (protectedRoute && !authenticated) {
     const loginUrl = request.nextUrl.clone();
@@ -179,15 +147,15 @@ export async function proxy(request: NextRequest) {
     dashboardUrl.pathname = redirectTarget.split("?")[0] || routePaths.account;
     dashboardUrl.search = redirectTarget.includes("?") ? redirectTarget.slice(redirectTarget.indexOf("?")) : "";
     const response = NextResponse.redirect(dashboardUrl);
-    if (refreshResponse) {
-      appendRefreshCookies(refreshResponse, response);
+    if (sessionResponse) {
+      appendSetCookies(sessionResponse, response);
     }
     return response;
   }
 
   const response = NextResponse.next();
-  if (refreshResponse) {
-    appendRefreshCookies(refreshResponse, response);
+  if (sessionResponse) {
+    appendSetCookies(sessionResponse, response);
   }
   return response;
 }

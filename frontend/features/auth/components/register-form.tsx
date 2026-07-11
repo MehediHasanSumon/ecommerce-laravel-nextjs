@@ -38,7 +38,6 @@ export function RegisterForm() {
       await registerUser(values);
       toast.success("Account created.");
       router.replace(routePaths.home);
-      router.refresh();
     } catch (err) {
       const appError = toAppError(err);
 

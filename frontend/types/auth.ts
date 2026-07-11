@@ -21,7 +21,6 @@ export type ApiErrorPayload = {
 export type AuthSession = {
   authenticated: boolean;
   has_access_token: boolean;
-  has_refresh_token: boolean;
 };
 
 export type LoginPayload = {

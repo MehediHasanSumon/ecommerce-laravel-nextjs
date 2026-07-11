@@ -7,26 +7,19 @@ import { useAuthStore } from "@/store/auth-store";
 
 export function useRequireUser() {
   const router = useRouter();
-  const { user, isAuthenticated, isLoading, fetchCurrentUser } = useAuthStore();
+  const { user, isAuthenticated, isLoading, initialized, fetchCurrentUser } = useAuthStore();
 
   useEffect(() => {
-    let active = true;
-
-    async function load() {
-      const currentUser = await fetchCurrentUser();
-      if (active && !currentUser) {
-        router.replace(routePaths.login);
-      }
+    if (!initialized) {
+      void fetchCurrentUser().catch(() => undefined);
     }
+  }, [fetchCurrentUser, initialized]);
 
-    if (!isAuthenticated && !user) {
-      void load();
+  useEffect(() => {
+    if (initialized && !isLoading && !isAuthenticated && !user) {
+      router.replace(routePaths.login);
     }
+  }, [initialized, isAuthenticated, isLoading, router, user]);
 
-    return () => {
-      active = false;
-    };
-  }, [fetchCurrentUser, isAuthenticated, router, user]);
-
-  return { user, isLoading };
+  return { user, isLoading: isLoading || !initialized };
 }

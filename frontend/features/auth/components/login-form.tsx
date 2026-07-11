@@ -36,7 +36,6 @@ export function LoginForm() {
       await login(values);
       toast.success("Welcome back.");
       router.replace(redirectTo);
-      router.refresh();
     } catch (err) {
       toast.error(toAppError(err).message);
     }
@@ -48,7 +47,6 @@ export function LoginForm() {
     async function checkSession() {
       if (isAuthenticated) {
         router.replace(redirectTo);
-        router.refresh();
         return;
       }
 
@@ -56,7 +54,6 @@ export function LoginForm() {
         const user = await fetchCurrentUser();
         if (active && user) {
           router.replace(redirectTo);
-          router.refresh();
         }
       } catch {
         // Keep the normal login form visible when the session endpoint is unavailable.

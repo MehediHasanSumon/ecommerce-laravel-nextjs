@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Http\Responses\AuthCookie;
 use App\Services\AuthService;
 use Closure;
 use Illuminate\Http\Request;
@@ -13,19 +14,18 @@ class ResolveAuthCookie
 
     public function handle(Request $request, Closure $next, string $ability = 'access'): Response
     {
-        $cookieName = $ability === 'refresh'
-            ? config('auth_api.refresh_cookie_name')
-            : config('auth_api.access_cookie_name');
+        $plainTextToken = $request->cookie(config('auth_api.access_cookie_name')) ?: $request->bearerToken();
 
-        $user = $this->authService->userFromToken(
-            $request->cookie($cookieName) ?: $request->bearerToken(),
-            $ability
-        );
+        $user = $this->authService->userFromToken($plainTextToken);
 
         if ($user) {
             $request->setUserResolver(fn () => $user);
         }
 
-        return $next($request);
+        $response = $next($request);
+
+        return $user && $plainTextToken
+            ? $response->withCookie(AuthCookie::access($plainTextToken))
+            : $response;
     }
 }

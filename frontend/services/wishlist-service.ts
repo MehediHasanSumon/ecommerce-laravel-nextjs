@@ -8,7 +8,7 @@ const apiBaseUrl = (
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/auth"
 ).replace(/\/auth\/?$/, "");
 
-const client = createAuthAwareClient({ baseURL: apiBaseUrl, refreshPath: "/auth/refresh" });
+const client = createAuthAwareClient({ baseURL: apiBaseUrl });
 
 export type WishlistApiItem = {
   id: string;

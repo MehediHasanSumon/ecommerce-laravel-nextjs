@@ -11,19 +11,9 @@ class AuthCookie
         return self::make(config('auth_api.access_cookie_name'), $token, config('auth_api.access_token_expiration_minutes'));
     }
 
-    public static function refresh(string $token): Cookie
-    {
-        return self::make(config('auth_api.refresh_cookie_name'), $token, config('auth_api.refresh_token_expiration_minutes'));
-    }
-
     public static function forgetAccess(): Cookie
     {
         return cookie()->forget(config('auth_api.access_cookie_name'));
-    }
-
-    public static function forgetRefresh(): Cookie
-    {
-        return cookie()->forget(config('auth_api.refresh_cookie_name'));
     }
 
     private static function make(string $name, string $value, int $minutes): Cookie

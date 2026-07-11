@@ -26,8 +26,7 @@ class AuthController extends Controller
             ['user' => $data['user']],
             'Registration successful.',
             201
-        )->withCookie(AuthCookie::access($data['tokens']['access_token']))
-            ->withCookie(AuthCookie::refresh($data['tokens']['refresh_token']));
+        )->withCookie(AuthCookie::access($data['tokens']['access_token']));
     }
 
     public function login(LoginRequest $request): JsonResponse
@@ -37,42 +36,22 @@ class AuthController extends Controller
         return ApiResponse::success(
             ['user' => $data['user']],
             'Login successful.'
-        )->withCookie(AuthCookie::access($data['tokens']['access_token']))
-            ->withCookie(AuthCookie::refresh($data['tokens']['refresh_token']));
-    }
-
-    public function refresh(Request $request): JsonResponse
-    {
-        $data = $this->authService->refreshFromToken(
-            $request->cookie(config('auth_api.refresh_cookie_name')) ?: $request->bearerToken()
-        );
-
-        if (! $data) {
-            abort(401, 'Unauthenticated.');
-        }
-
-        return ApiResponse::success(['user' => $data['user']], 'Token refreshed.')
-            ->withCookie(AuthCookie::access($data['tokens']['access_token']))
-            ->withCookie(AuthCookie::refresh($data['tokens']['refresh_token']));
+        )->withCookie(AuthCookie::access($data['tokens']['access_token']));
     }
 
     public function session(Request $request): JsonResponse
     {
-        $hasAccessToken = $this->authService->hasValidToken(
-            $request->cookie(config('auth_api.access_cookie_name')) ?: $request->bearerToken(),
-            'access'
-        );
+        $plainTextToken = $request->cookie(config('auth_api.access_cookie_name')) ?: $request->bearerToken();
+        $user = $this->authService->userFromToken($plainTextToken);
 
-        $hasRefreshToken = $this->authService->hasValidToken(
-            $request->cookie(config('auth_api.refresh_cookie_name')),
-            'refresh'
-        );
-
-        return ApiResponse::success([
-            'authenticated' => $hasAccessToken || $hasRefreshToken,
-            'has_access_token' => $hasAccessToken,
-            'has_refresh_token' => $hasRefreshToken,
+        $response = ApiResponse::success([
+            'authenticated' => (bool) $user,
+            'has_access_token' => (bool) $user,
         ]);
+
+        return $user && $plainTextToken
+            ? $response->withCookie(AuthCookie::access($plainTextToken))
+            : $response;
     }
 
     public function forgotPassword(ForgotPasswordRequest $request): JsonResponse
@@ -99,8 +78,7 @@ class AuthController extends Controller
         optional($user)->tokens()?->delete();
 
         return ApiResponse::success([], 'Logout successful.')
-            ->withCookie(AuthCookie::forgetAccess())
-            ->withCookie(AuthCookie::forgetRefresh());
+            ->withCookie(AuthCookie::forgetAccess());
     }
 
     public function me(Request $request): JsonResponse

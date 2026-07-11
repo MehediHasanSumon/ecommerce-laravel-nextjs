@@ -1,4 +1,4 @@
-import { apiClient, type RetryConfig } from "@/lib/api-client";
+import { apiClient } from "@/lib/api-client";
 import type {
   ApiEnvelope,
   AuthSession,
@@ -25,9 +25,7 @@ export const authService = {
   },
 
   async session() {
-    const { data } = await apiClient.get<ApiEnvelope<AuthSession>>("/session", {
-      _skipRefresh: true,
-    } as RetryConfig);
+    const { data } = await apiClient.get<ApiEnvelope<AuthSession>>("/session");
     return data.data;
   },
 
