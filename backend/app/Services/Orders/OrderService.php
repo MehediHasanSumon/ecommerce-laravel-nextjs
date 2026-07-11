@@ -7,6 +7,7 @@ use App\Models\OrderRefund;
 use App\Models\OrderStatusHistory;
 use App\Models\PaymentTransaction;
 use App\Models\ShippingLog;
+use App\Services\Notifications\RealtimeNotificationService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -17,6 +18,8 @@ class OrderService
     public const ORDER_STATUSES = ['pending', 'confirmed', 'processing', 'packed', 'ready_for_shipment', 'shipped', 'out_for_delivery', 'delivered', 'cancelled', 'refunded'];
     public const PAYMENT_STATUSES = ['pending', 'paid', 'failed', 'cancelled', 'refunded', 'partially_refunded'];
     public const SHIPPING_STATUSES = ['pending', 'processing', 'shipped', 'delivered', 'returned'];
+
+    public function __construct(private readonly RealtimeNotificationService $notifications) {}
 
     public function paginate(array $filters, ?int $userId = null, ?string $guestToken = null): LengthAwarePaginator
     {
@@ -80,6 +83,7 @@ class OrderService
             $from = $order->{$field};
             $order->update([$field => $data[$field]]);
             $this->record($order->fresh(), $this->historyType($field), $data[$field], $from, $this->titleFor($field, $data[$field]), $data['note'] ?? null, [], $userId);
+            $this->queueOrderStatusNotification($order->fresh(), $field, $data[$field], $from);
         }
 
         if (array_key_exists('admin_notes', $data)) {
@@ -114,6 +118,10 @@ class OrderService
             'gateway' => $transaction->gateway,
             'transaction_id' => $transaction->gateway_transaction_id,
         ]);
+
+        if ($from !== $status) {
+            $this->queueOrderStatusNotification($order->fresh(), 'payment_status', $status, $from);
+        }
     }
 
     private function detailQuery(): Builder
@@ -159,8 +167,32 @@ class OrderService
         $newStatus = ($refunded + $amountCents) >= $order->total_cents ? 'refunded' : 'partially_refunded';
         $order->update(['payment_status' => $newStatus, 'status' => $newStatus === 'refunded' ? 'refunded' : $order->status]);
         $this->record($order->fresh(), 'refund', $newStatus, null, 'Refund processed', $note, ['amount_cents' => $amountCents, 'reason' => $reason], $userId);
+        $this->queueOrderStatusNotification($order->fresh(), 'payment_status', $newStatus, null);
 
         return $this->findAdmin($order->id);
+    }
+
+    public function queueOrderPlacedNotifications(Order $order): void
+    {
+        $this->notifications->queueForUser($order->user_id, [
+            'type' => 'order',
+            'icon' => 'Package',
+            'title' => 'Order placed',
+            'message' => "Your order {$order->order_number} has been placed.",
+            'action_url' => "/account/orders/{$order->order_number}",
+            'related' => $order,
+            'metadata' => ['order_number' => $order->order_number, 'status' => $order->status],
+        ]);
+
+        $this->notifications->queueForAdmins([
+            'type' => 'admin_order',
+            'icon' => 'Package',
+            'title' => 'New order received',
+            'message' => "Order {$order->order_number} has been placed.",
+            'action_url' => "/admin/orders/{$order->order_number}",
+            'related' => $order,
+            'metadata' => ['order_number' => $order->order_number, 'total_cents' => $order->total_cents],
+        ]);
     }
 
     public function logShipment(Order $order, array $data, ?int $userId = null): Order
@@ -213,5 +245,36 @@ class OrderService
     {
         $label = str_replace('_', ' ', $status);
         return ucfirst(str_replace('_', ' ', $field)).' changed to '.ucwords($label);
+    }
+
+    private function queueOrderStatusNotification(Order $order, string $field, string $status, ?string $from): void
+    {
+        $type = $this->historyType($field);
+        $label = ucwords(str_replace('_', ' ', $status));
+        $title = match ($type) {
+            'payment' => "Payment {$label}",
+            'shipping' => "Shipping {$label}",
+            default => "Order {$label}",
+        };
+        $message = match ($type) {
+            'payment' => "Payment for order {$order->order_number} is now {$label}.",
+            'shipping' => "Shipping for order {$order->order_number} is now {$label}.",
+            default => "Your order {$order->order_number} has been {$label}.",
+        };
+
+        $this->notifications->queueForUser($order->user_id, [
+            'type' => $type,
+            'icon' => 'Package',
+            'title' => $title,
+            'message' => $message,
+            'action_url' => "/account/orders/{$order->order_number}",
+            'related' => $order,
+            'metadata' => [
+                'order_number' => $order->order_number,
+                'field' => $field,
+                'from' => $from,
+                'to' => $status,
+            ],
+        ]);
     }
 }

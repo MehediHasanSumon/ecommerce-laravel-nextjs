@@ -149,6 +149,8 @@ class CheckoutService
                 $this->completeCart($cart);
             }
 
+            DB::afterCommit(fn () => $this->orders->queueOrderPlacedNotifications($order->fresh()));
+
             return [$order->fresh('items'), $result];
         });
     }
@@ -160,9 +162,10 @@ class CheckoutService
             if ($order->payment_status === 'paid') {
                 return;
             }
+            $from = $order->status;
             $order->update(['payment_status' => 'paid', 'status' => 'confirmed']);
             $this->orders->syncPayment($order->fresh(), $transaction, 'paid');
-            $this->orders->record($order->fresh(), 'order', 'confirmed', 'pending', 'Order confirmed');
+            $this->orders->record($order->fresh(), 'order', 'confirmed', $from, 'Order confirmed');
             if ($order->cart) {
                 $this->completeCart($order->cart);
             }

@@ -41,9 +41,13 @@ export type AccountDashboard = {
 export type AccountNotification = {
   id: number;
   type: string;
+  icon?: string | null;
   title: string;
   message: string;
+  actionUrl?: string | null;
+  metadata?: Record<string, unknown>;
   read: boolean;
+  readAt?: string | null;
   createdAt?: string | null;
 };
 
@@ -108,13 +112,28 @@ export const accountService = {
     return response.data.data.settings;
   },
 
-  async notifications() {
-    const response = await client.get<ApiEnvelope<{ items: AccountNotification[]; unreadCount: number }>>("/account/notifications");
+  async notifications(params?: { page?: number; per_page?: number; search?: string; status?: "all" | "read" | "unread"; type?: string }) {
+    const response = await client.get<ApiEnvelope<{ items: AccountNotification[]; unreadCount: number }>>("/account/notifications", { params });
+    return response.data.data;
+  },
+
+  async unreadNotificationCount() {
+    const response = await client.get<ApiEnvelope<{ unreadCount: number }>>("/account/notifications/unread-count");
+    return response.data.data.unreadCount;
+  },
+
+  async markNotificationRead(id: number) {
+    const response = await client.post<ApiEnvelope<{ notification: AccountNotification; unreadCount: number }>>(`/account/notifications/${id}/read`);
     return response.data.data;
   },
 
   async markNotificationsRead() {
     await client.post<ApiEnvelope<Record<string, never>>>("/account/notifications/mark-read");
+  },
+
+  async bulkDeleteNotifications(ids: number[]) {
+    const response = await client.delete<ApiEnvelope<{ deleted: number; unreadCount: number }>>("/account/notifications", { data: { ids } });
+    return response.data.data;
   },
 
   async deleteNotification(id: number) {

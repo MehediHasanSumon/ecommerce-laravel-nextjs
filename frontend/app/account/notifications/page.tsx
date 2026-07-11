@@ -8,7 +8,8 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { AccountSidebar } from "@/components/account/AccountSidebar";
 import { toast } from "sonner";
-import { accountService, type AccountNotification, type AccountSettings } from "@/services/account-service";
+import { accountService, type AccountSettings } from "@/services/account-service";
+import { useNotificationStore } from "@/store/notification-store";
 
 function iconFor(type: string) {
   if (type === "order" || type === "shipping" || type === "payment") return Package;
@@ -18,38 +19,29 @@ function iconFor(type: string) {
 }
 
 export default function NotificationsPage() {
-  const [notifications, setNotifications] = useState<AccountNotification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [prefs, setPrefs] = useState<AccountSettings | null>(null);
   const [savingPreference, setSavingPreference] = useState<keyof AccountSettings | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const notifications = useNotificationStore((state) => state.items);
+  const unreadCount = useNotificationStore((state) => state.unreadCount);
+  const fetchNotifications = useNotificationStore((state) => state.fetchNotifications);
+  const markAllReadStore = useNotificationStore((state) => state.markAllRead);
+  const deleteNotificationStore = useNotificationStore((state) => state.deleteNotification);
 
   useEffect(() => {
-    accountService.notifications().then((data) => {
-      setNotifications(data.items);
-      setUnreadCount(data.unreadCount);
-    });
+    void fetchNotifications({ per_page: 20, force: true });
     accountService.settings().then(setPrefs).catch(() => null);
-  }, []);
+  }, [fetchNotifications]);
 
   const markAllRead = async () => {
-    await accountService.markNotificationsRead();
-    setNotifications((prev) => prev.map((item) => ({ ...item, read: true })));
-    setUnreadCount(0);
+    await markAllReadStore();
     toast.success("All notifications marked as read");
   };
 
   const deleteNotification = async (id: number) => {
     setDeletingId(id);
     try {
-      await accountService.deleteNotification(id);
-      setNotifications((current) => {
-        const deleted = current.find((item) => item.id === id);
-        if (deleted && !deleted.read) {
-          setUnreadCount((count) => Math.max(0, count - 1));
-        }
-        return current.filter((item) => item.id !== id);
-      });
+      await deleteNotificationStore(id);
       toast.success("Notification deleted.");
     } catch {
       toast.error("Unable to delete notification.");

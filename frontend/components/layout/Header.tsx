@@ -26,6 +26,7 @@ import { BrandLogo } from '@/components/settings/BrandLogo';
 import { useCartStore } from '@/store/cartStore';
 import { useWishlistStore } from '@/store/wishlistStore';
 import { useAuthStore } from '@/store/auth-store';
+import { useNotificationStore } from '@/store/notification-store';
 import {
   selectBranding,
   selectBlogSettings,
@@ -44,6 +45,128 @@ import type { Product } from '@/types';
 import type { RuntimeCategory } from '@/types/settings';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
+import { RealtimeNotifications } from '@/components/notifications/RealtimeNotifications';
+
+function timeAgo(value?: string | null) {
+  if (!value) return '';
+  const seconds = Math.max(1, Math.floor((Date.now() - new Date(value).getTime()) / 1000));
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
+function NavbarNotificationBell({ onOpen }: { onOpen?: () => void }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const notifications = useNotificationStore((state) => state.items);
+  const unreadCount = useNotificationStore((state) => state.unreadCount);
+  const isLoading = useNotificationStore((state) => state.isLoading);
+  const fetchNotifications = useNotificationStore((state) => state.fetchNotifications);
+  const markRead = useNotificationStore((state) => state.markRead);
+  const markAllRead = useNotificationStore((state) => state.markAllRead);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    void fetchNotifications({ per_page: 8, force: true });
+    onOpen?.();
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [fetchNotifications, isOpen, onOpen]);
+
+  return (
+    <div ref={menuRef} className="relative hidden md:block">
+      <button
+        type="button"
+        onClick={() => setIsOpen((open) => !open)}
+        className="relative rounded-lg p-2 transition-colors hover:bg-muted"
+        aria-label="Notifications"
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
+      >
+        <Bell size={20} />
+        {unreadCount > 0 ? (
+          <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold leading-none text-primary-foreground">
+            {unreadCount > 9 ? '9+' : unreadCount}
+          </span>
+        ) : null}
+      </button>
+      <div
+        className={cn(
+          'absolute right-0 top-full w-80 pt-2 transition-all duration-200',
+          isOpen ? 'visible translate-y-0 opacity-100' : 'invisible -translate-y-1 opacity-0'
+        )}
+        role="menu"
+      >
+        <div className="overflow-hidden rounded-xl border border-border bg-background shadow-xl">
+          <div className="flex items-center justify-between border-b border-border bg-muted/50 p-3">
+            <p className="text-sm font-semibold">Notifications</p>
+            {unreadCount > 0 ? (
+              <button type="button" onClick={() => void markAllRead()} className="text-xs font-medium text-primary hover:underline">
+                Mark all read
+              </button>
+            ) : null}
+          </div>
+          <div className="max-h-80 overflow-y-auto p-1">
+            {isLoading && notifications.length === 0 ? (
+              <div className="space-y-2 p-2">
+                {Array.from({ length: 3 }).map((_, index) => <span key={index} className="block h-14 animate-pulse rounded-lg bg-muted" />)}
+              </div>
+            ) : notifications.length ? notifications.slice(0, 8).map((item) => (
+              <Link
+                key={item.id}
+                href={item.actionUrl || '/account/notifications'}
+                onClick={() => {
+                  void markRead(item.id);
+                  setIsOpen(false);
+                }}
+                className={cn('flex gap-3 rounded-lg p-3 transition-colors hover:bg-muted', !item.read && 'bg-primary/5')}
+                role="menuitem"
+              >
+                <span className={cn('mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg', item.read ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary')}>
+                  <Package size={16} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className={cn('block truncate text-sm font-semibold', !item.read && 'text-primary')}>{item.title}</span>
+                  <span className="mt-0.5 line-clamp-2 block text-xs text-muted-foreground">{item.message}</span>
+                  <span className="mt-1 block text-[11px] text-muted-foreground">{timeAgo(item.createdAt)}</span>
+                </span>
+                {!item.read ? <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-primary" /> : null}
+              </Link>
+            )) : (
+              <div className="p-6 text-center text-sm text-muted-foreground">No notifications yet.</div>
+            )}
+          </div>
+          <div className="border-t border-border p-1">
+            <Link href="/account/notifications" onClick={() => setIsOpen(false)} className="block rounded-lg px-3 py-2 text-center text-sm font-medium text-primary transition-colors hover:bg-muted">
+              View all notifications
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function ThemeToggle() {
   const { theme, setTheme } = useTheme();
@@ -491,6 +614,7 @@ export function Header() {
 
   return (
     <>
+      <RealtimeNotifications />
       {isSearchOpen && <SearchOverlay onClose={() => setIsSearchOpen(false)} />}
 
       <header
@@ -653,6 +777,10 @@ export function Header() {
                   </span>
                 )}
               </Link>
+
+              {isAuthenticated && user ? (
+                <NavbarNotificationBell onOpen={() => setIsAccountMenuOpen(false)} />
+              ) : null}
 
               {/* User Menu */}
               {isAuthenticated && user ? (

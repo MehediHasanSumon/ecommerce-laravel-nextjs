@@ -107,7 +107,10 @@ Route::middleware(['auth.cookie:access', 'throttle:public-settings'])->group(fun
     Route::get('/account/settings', [AccountController::class, 'settings']);
     Route::put('/account/settings', [AccountController::class, 'updateSettings']);
     Route::get('/account/notifications', [AccountController::class, 'notifications']);
+    Route::get('/account/notifications/unread-count', [AccountController::class, 'unreadNotificationCount']);
     Route::post('/account/notifications/mark-read', [AccountController::class, 'markNotificationsRead']);
+    Route::post('/account/notifications/{notification}/read', [AccountController::class, 'markNotificationRead']);
+    Route::delete('/account/notifications', [AccountController::class, 'bulkDeleteNotifications']);
     Route::delete('/account/notifications/{notification}', [AccountController::class, 'deleteNotification']);
     Route::get('/account/reviews', [AccountController::class, 'reviews']);
     Route::put('/account/reviews/{review}', [AccountController::class, 'updateReview']);

@@ -12,6 +12,7 @@ use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductReview;
 use App\Models\Wishlist;
+use App\Services\Notifications\NotificationPayloadFormatter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -21,6 +22,8 @@ use Illuminate\Validation\Rule;
 
 class AccountController extends Controller
 {
+    public function __construct(private readonly NotificationPayloadFormatter $notificationFormatter) {}
+
     public function dashboard(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -127,19 +130,50 @@ class AccountController extends Controller
 
     public function notifications(Request $request): JsonResponse
     {
-        $notifications = CustomerNotification::query()->where('user_id', $request->user()->id)->latest()->paginate(10);
+        $data = $request->validate([
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
+            'search' => ['nullable', 'string', 'max:120'],
+            'status' => ['nullable', Rule::in(['all', 'read', 'unread'])],
+            'type' => ['nullable', 'string', 'max:60'],
+        ]);
+        $query = CustomerNotification::query()
+            ->where('user_id', $request->user()->id)
+            ->when($data['search'] ?? null, fn ($query, string $search) => $query->where(fn ($inner) => $inner
+                ->where('title', 'like', "%{$search}%")
+                ->orWhere('message', 'like', "%{$search}%")))
+            ->when(($data['status'] ?? 'all') === 'read', fn ($query) => $query->whereNotNull('read_at'))
+            ->when(($data['status'] ?? 'all') === 'unread', fn ($query) => $query->whereNull('read_at'))
+            ->when($data['type'] ?? null, fn ($query, string $type) => $query->where('type', $type))
+            ->latest();
+
+        $notifications = $query->paginate((int) ($data['per_page'] ?? 10));
 
         return ApiResponse::success([
-            'items' => $notifications->map(fn ($item) => [
-                'id' => $item->id,
-                'type' => $item->type,
-                'title' => $item->title,
-                'message' => $item->message,
-                'read' => $item->read_at !== null,
-                'createdAt' => optional($item->created_at)->toISOString(),
-            ])->values(),
+            'items' => $notifications->getCollection()->map(fn (CustomerNotification $item) => $this->notificationFormatter->format($item))->values(),
             'unreadCount' => CustomerNotification::query()->where('user_id', $request->user()->id)->whereNull('read_at')->count(),
         ], meta: ['pagination' => $this->paginationMeta($notifications)]);
+    }
+
+    public function unreadNotificationCount(Request $request): JsonResponse
+    {
+        return ApiResponse::success([
+            'unreadCount' => CustomerNotification::query()->where('user_id', $request->user()->id)->whereNull('read_at')->count(),
+        ]);
+    }
+
+    public function markNotificationRead(Request $request, CustomerNotification $notification): JsonResponse
+    {
+        abort_unless((int) $notification->user_id === (int) $request->user()->id, 404);
+
+        if (! $notification->read_at) {
+            $notification->update(['read_at' => now()]);
+        }
+
+        return ApiResponse::success([
+            'notification' => $this->notificationFormatter->format($notification->fresh()),
+            'unreadCount' => CustomerNotification::query()->where('user_id', $request->user()->id)->whereNull('read_at')->count(),
+        ], 'Notification marked as read.');
     }
 
     public function markNotificationsRead(Request $request): JsonResponse
@@ -155,6 +189,24 @@ class AccountController extends Controller
         $notification->delete();
 
         return ApiResponse::success([], 'Notification deleted successfully.');
+    }
+
+    public function bulkDeleteNotifications(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'ids' => ['required', 'array', 'min:1', 'max:100'],
+            'ids.*' => ['required', 'integer'],
+        ]);
+
+        $deleted = CustomerNotification::query()
+            ->where('user_id', $request->user()->id)
+            ->whereIn('id', $data['ids'])
+            ->delete();
+
+        return ApiResponse::success([
+            'deleted' => $deleted,
+            'unreadCount' => CustomerNotification::query()->where('user_id', $request->user()->id)->whereNull('read_at')->count(),
+        ], 'Notifications deleted successfully.');
     }
 
     public function reviews(Request $request): JsonResponse
