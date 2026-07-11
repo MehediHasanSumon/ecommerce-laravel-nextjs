@@ -9,9 +9,19 @@ use App\Http\Resources\Admin\Settings\SeoSettingResource;
 use App\Http\Responses\ApiResponse;
 use App\Services\Admin\Settings\SeoSettingsService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
-class SeoSettingsController extends Controller
+class SeoSettingsController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('permission:can_view_seo_setting', only: ['show']),
+            new Middleware('permission:can_edit_seo_setting', only: ['update', 'upload']),
+        ];
+    }
+
     public function __construct(private readonly SeoSettingsService $settings) {}
 
     public function show(): JsonResponse

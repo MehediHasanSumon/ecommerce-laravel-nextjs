@@ -15,6 +15,8 @@ import {
 } from "@/features/admin/settings/components/settings-primitives";
 import { settingsApi } from "@/features/admin/settings/services/settings-service";
 import { toAppError } from "@/lib/errors";
+import { hasPermission } from "@/lib/permissions";
+import { useAuthStore } from "@/store/auth-store";
 
 type HomePageSettingsForm = {
   enable_product_section: boolean;
@@ -75,6 +77,8 @@ export function HomePageSettingsContent() {
   const [initial, setInitial] = useState<MergedHomePageSettingsForm>(mergedDefaults);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  useAuthStore((state) => state.user?.permissions ?? []);
+  const canEdit = hasPermission("can_edit_home_page_setting");
 
   useEffect(() => {
     let active = true;
@@ -98,6 +102,7 @@ export function HomePageSettingsContent() {
   const isDirty = useMemo(() => JSON.stringify(form) !== JSON.stringify(initial), [form, initial]);
 
   async function save() {
+    if (!canEdit) return;
     try {
       setSaving(true);
       const response = await settingsApi.update<MergedHomePageSettingsForm, { settings: MergedHomePageSettingsForm }>("home-page", form);
@@ -127,13 +132,13 @@ export function HomePageSettingsContent() {
         title="Home Page Settings"
         description="Control home page product, category, brand, and customer testimonial sections without changing code."
         icon={Home}
-        actions={(
+        actions={canEdit ? (
           <>
             {isDirty ? <span className="inline-flex items-center rounded-lg border border-border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground">Unsaved changes</span> : null}
             <Button type="button" variant="secondary" size="sm" icon={<RotateCcw className="h-4 w-4" />} disabled={!isDirty || loading} onClick={() => setForm(initial)}>Reset</Button>
             <Button type="submit" size="sm" isLoading={saving} icon={<Save className="h-4 w-4" />} disabled={loading}>Save Settings</Button>
           </>
-        )}
+        ) : null}
       >
         <SettingsGrid>
           <SettingsSection title="Product Section" description="Enable the home product section and control how many products are rendered." icon={PackageSearch}>

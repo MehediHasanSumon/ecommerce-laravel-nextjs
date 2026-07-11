@@ -13,9 +13,21 @@ use App\Http\Responses\ApiResponse;
 use App\Models\HeroSlide;
 use App\Services\Admin\HeroSectionService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
-class HeroSectionController extends Controller
+class HeroSectionController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('permission:can_view_hero_section', only: ['show']),
+            new Middleware('permission:can_create_hero_section', only: ['storeSlide', 'duplicateSlide']),
+            new Middleware('permission:can_edit_hero_section', only: ['updateSettings', 'updateSlide', 'reorderSlides', 'upload']),
+            new Middleware('permission:can_delete_hero_section', only: ['destroySlide']),
+        ];
+    }
+
     public function __construct(private readonly HeroSectionService $hero) {}
 
     public function show(): JsonResponse

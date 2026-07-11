@@ -8,9 +8,19 @@ use App\Http\Resources\Admin\Settings\EmailSettingResource;
 use App\Http\Responses\ApiResponse;
 use App\Services\Admin\Settings\EmailSettingsService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
-class EmailSettingsController extends Controller
+class EmailSettingsController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('permission:can_view_email_setting', only: ['show']),
+            new Middleware('permission:can_edit_email_setting', only: ['update', 'test']),
+        ];
+    }
+
     public function __construct(private readonly EmailSettingsService $settings) {}
 
     public function show(): JsonResponse

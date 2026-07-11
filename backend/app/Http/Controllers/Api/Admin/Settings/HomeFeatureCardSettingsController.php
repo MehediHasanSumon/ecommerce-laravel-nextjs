@@ -8,9 +8,19 @@ use App\Http\Resources\Admin\Settings\HomeFeatureCardSettingResource;
 use App\Http\Responses\ApiResponse;
 use App\Services\Admin\Settings\HomeFeatureCardSettingsService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
-class HomeFeatureCardSettingsController extends Controller
+class HomeFeatureCardSettingsController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('permission:can_view_home_feature_card_setting', only: ['show']),
+            new Middleware('permission:can_edit_home_feature_card_setting', only: ['update']),
+        ];
+    }
+
     public function __construct(private readonly HomeFeatureCardSettingsService $settings) {}
 
     public function show(): JsonResponse

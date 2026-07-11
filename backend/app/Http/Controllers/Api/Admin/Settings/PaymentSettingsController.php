@@ -8,9 +8,19 @@ use App\Http\Resources\Admin\Settings\PaymentGatewaySettingResource;
 use App\Http\Responses\ApiResponse;
 use App\Services\Admin\Settings\PaymentSettingsService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
-class PaymentSettingsController extends Controller
+class PaymentSettingsController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('permission:can_view_payment_setting', only: ['show']),
+            new Middleware('permission:can_edit_payment_setting', only: ['update']),
+        ];
+    }
+
     public function __construct(private readonly PaymentSettingsService $settings) {}
 
     public function show(): JsonResponse

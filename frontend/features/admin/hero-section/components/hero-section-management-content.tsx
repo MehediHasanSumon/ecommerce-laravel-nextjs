@@ -49,6 +49,8 @@ import {
   ImageDropzone,
 } from "@/features/admin/settings/components/settings-primitives";
 import { heroSectionService } from "@/features/admin/hero-section/services/hero-section-service";
+import { hasPermission } from "@/lib/permissions";
+import { useAuthStore } from "@/store/auth-store";
 import {
   createBlankSlide,
   createElement,
@@ -70,6 +72,10 @@ const devices: Array<{ key: HeroDevice; icon: typeof Monitor; label: string }> =
 ];
 
 export function HeroSectionManagementContent() {
+  useAuthStore((state) => state.user?.permissions ?? []);
+  const canCreate = hasPermission("can_create_hero_section");
+  const canEdit = hasPermission("can_edit_hero_section");
+  const canDelete = hasPermission("can_delete_hero_section");
   const [settings, setSettings] = useState<HeroSettings>(defaultHeroSettings);
   const [slides, setSlides] = useState<HeroSlide[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -103,6 +109,7 @@ export function HeroSectionManagementContent() {
   }
 
   function createSlide() {
+    if (!canCreate) return;
     setSlides((current) => {
       const next = [...current, createBlankSlide(current.length)];
       setActiveIndex(next.length - 1);
@@ -111,6 +118,7 @@ export function HeroSectionManagementContent() {
   }
 
   async function saveSettings() {
+    if (!canEdit) return;
     try {
       setSavingSettings(true);
       const response = await heroSectionService.updateSettings(settings);
@@ -124,6 +132,7 @@ export function HeroSectionManagementContent() {
   }
 
   async function saveSlide() {
+    if (!canEdit && !(canCreate && !activeSlide?.id)) return;
     if (!activeSlide) return;
     if (settings.mode === "simple" && !activeSlide.background_image.trim()) {
       toast.error("Background image is required for simple hero slides.");
@@ -146,6 +155,7 @@ export function HeroSectionManagementContent() {
   }
 
   async function duplicateSlide(slide: HeroSlide, index: number) {
+    if (!canCreate) return;
     if (!slide.id) {
       setSlides((current) => {
         const copy = { ...slide, id: undefined, name: `${slide.name || "Hero Slide"} Copy`, sort_order: current.length, elements: slide.elements.map((element) => ({ ...element, id: undefined })) };
@@ -165,6 +175,7 @@ export function HeroSectionManagementContent() {
   }
 
   async function deleteSlide(slide: HeroSlide, index: number) {
+    if (!canDelete) return;
     if (!window.confirm(`Delete "${slide.name || "Hero Slide"}"?`)) return;
     if (!slide.id) {
       setSlides((current) => current.filter((_, itemIndex) => itemIndex !== index));
@@ -182,6 +193,7 @@ export function HeroSectionManagementContent() {
   }
 
   async function moveSlide(index: number, direction: -1 | 1) {
+    if (!canEdit) return;
     const target = index + direction;
     if (target < 0 || target >= slides.length) return;
     const next = [...slides];
@@ -206,8 +218,8 @@ export function HeroSectionManagementContent() {
       icon={Layers3}
       actions={(
         <>
-          <Button type="button" variant="secondary" icon={<Plus className="h-4 w-4" />} onClick={createSlide}>Create Slide</Button>
-          <Button type="button" icon={<Save className="h-4 w-4" />} isLoading={savingSettings} onClick={() => void saveSettings()}>Save Settings</Button>
+          {canCreate ? <Button type="button" variant="secondary" icon={<Plus className="h-4 w-4" />} onClick={createSlide}>Create Slide</Button> : null}
+          {canEdit ? <Button type="button" icon={<Save className="h-4 w-4" />} isLoading={savingSettings} onClick={() => void saveSettings()}>Save Settings</Button> : null}
         </>
       )}
     >
@@ -254,18 +266,18 @@ export function HeroSectionManagementContent() {
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                   <div className="flex flex-wrap gap-2">
                     {!slidesPanelOpen ? <Button size="sm" variant="secondary" icon={<PanelLeftOpen className="h-4 w-4" />} onClick={() => setSlidesPanelOpen(true)}>Slides</Button> : null}
-                    <Button size="sm" variant="secondary" icon={<ArrowUp className="h-4 w-4" />} disabled={activeIndex === 0} onClick={() => void moveSlide(activeIndex, -1)}>Move Up</Button>
-                    <Button size="sm" variant="secondary" icon={<ArrowDown className="h-4 w-4" />} disabled={activeIndex === slides.length - 1} onClick={() => void moveSlide(activeIndex, 1)}>Move Down</Button>
-                    <Button size="sm" variant="secondary" icon={<Copy className="h-4 w-4" />} onClick={() => void duplicateSlide(activeSlide, activeIndex)}>Duplicate</Button>
-                    <Button size="sm" variant="danger" icon={<Trash2 className="h-4 w-4" />} onClick={() => void deleteSlide(activeSlide, activeIndex)}>Delete</Button>
+                    {canEdit ? <Button size="sm" variant="secondary" icon={<ArrowUp className="h-4 w-4" />} disabled={activeIndex === 0} onClick={() => void moveSlide(activeIndex, -1)}>Move Up</Button> : null}
+                    {canEdit ? <Button size="sm" variant="secondary" icon={<ArrowDown className="h-4 w-4" />} disabled={activeIndex === slides.length - 1} onClick={() => void moveSlide(activeIndex, 1)}>Move Down</Button> : null}
+                    {canCreate ? <Button size="sm" variant="secondary" icon={<Copy className="h-4 w-4" />} onClick={() => void duplicateSlide(activeSlide, activeIndex)}>Duplicate</Button> : null}
+                    {canDelete ? <Button size="sm" variant="danger" icon={<Trash2 className="h-4 w-4" />} onClick={() => void deleteSlide(activeSlide, activeIndex)}>Delete</Button> : null}
                   </div>
-                  <Button size="sm" icon={<Save className="h-4 w-4" />} isLoading={savingSlide} onClick={() => void saveSlide()}>Save Slide</Button>
+                  {canEdit || (canCreate && !activeSlide.id) ? <Button size="sm" icon={<Save className="h-4 w-4" />} isLoading={savingSlide} onClick={() => void saveSlide()}>Save Slide</Button> : null}
                 </div>
 
                 <SlideBasics slide={activeSlide} onChange={(next) => updateSlideAt(activeIndex, () => next)} />
 
                 {settings.mode === "advanced" ? (
-                  <CanvasBuilder slide={activeSlide} onChange={(next) => updateSlideAt(activeIndex, () => next)} />
+                  <CanvasBuilder slide={activeSlide} canEdit={canEdit} onChange={(next) => updateSlideAt(activeIndex, () => next)} />
                 ) : (
                   <SimpleSlideFields slide={activeSlide} onChange={(next) => updateSlideAt(activeIndex, () => next)} />
                 )}
@@ -365,7 +377,7 @@ function SimpleSlideFields({ slide, onChange }: { slide: HeroSlide; onChange: (s
   );
 }
 
-function CanvasBuilder({ slide, onChange }: { slide: HeroSlide; onChange: (slide: HeroSlide) => void }) {
+function CanvasBuilder({ slide, canEdit, onChange }: { slide: HeroSlide; canEdit: boolean; onChange: (slide: HeroSlide) => void }) {
   const [device, setDevice] = useState<HeroDevice>("desktop");
   const [selected, setSelected] = useState<number[]>(slide.elements[0] ? [slide.elements[0].z_index] : []);
   const [history, setHistory] = useState<HeroSlide[]>([]);
@@ -375,10 +387,11 @@ function CanvasBuilder({ slide, onChange }: { slide: HeroSlide; onChange: (slide
   const selectedElement = selectedElements[0] ?? slide.elements[0] ?? null;
 
   const commit = useCallback((next: HeroSlide) => {
+    if (!canEdit) return;
     setHistory((current) => [...current.slice(-19), slide]);
     setFuture([]);
     onChange(next);
-  }, [onChange, slide]);
+  }, [canEdit, onChange, slide]);
 
   const undo = useCallback(() => {
     const previous = history.at(-1);
@@ -397,6 +410,7 @@ function CanvasBuilder({ slide, onChange }: { slide: HeroSlide; onChange: (slide
   }, [future, onChange, slide]);
 
   function addElement(type: HeroElementType) {
+    if (!canEdit) return;
     const element = createElement(type, slide.elements.length);
     commit({ ...slide, elements: [...slide.elements, element] });
     setSelected([element.z_index]);
@@ -412,6 +426,7 @@ function CanvasBuilder({ slide, onChange }: { slide: HeroSlide; onChange: (slide
   }
 
   function duplicateElement(target: HeroSlideElement) {
+    if (!canEdit) return;
     const nextZ = Math.max(0, ...slide.elements.map((element) => element.z_index)) + 1;
     const copy = { ...target, id: undefined, name: `${target.name} Copy`, z_index: nextZ };
     commit({ ...slide, elements: [...slide.elements, copy] });
@@ -419,6 +434,7 @@ function CanvasBuilder({ slide, onChange }: { slide: HeroSlide; onChange: (slide
   }
 
   function deleteElement(target: HeroSlideElement) {
+    if (!canEdit) return;
     commit({ ...slide, elements: slide.elements.filter((element) => element !== target) });
     setSelected([]);
   }
@@ -494,6 +510,7 @@ function CanvasBuilder({ slide, onChange }: { slide: HeroSlide; onChange: (slide
       }
 
       if (event.key === "Delete" || event.key === "Backspace") {
+        if (!canEdit) return;
         if (!selected.length) return;
         event.preventDefault();
         commit({ ...slide, elements: slide.elements.filter((element) => !selected.includes(element.z_index)) });
@@ -509,14 +526,14 @@ function CanvasBuilder({ slide, onChange }: { slide: HeroSlide; onChange: (slide
         ArrowRight: [step, 0],
       }[event.key] as [number, number] | undefined;
 
-      if (!movement || !selected.length) return;
+      if (!movement || !selected.length || !canEdit) return;
       event.preventDefault();
       moveSelected(movement[0], movement[1]);
     }
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [commit, future, history, moveSelected, redo, selected, slide, undo]);
+  }, [canEdit, commit, future, history, moveSelected, redo, selected, slide, undo]);
 
   return (
     <div className="mt-4 space-y-4">
@@ -534,21 +551,21 @@ function CanvasBuilder({ slide, onChange }: { slide: HeroSlide; onChange: (slide
           <Button key={key} type="button" size="sm" variant={device === key ? "primary" : "secondary"} icon={<Icon className="h-4 w-4" />} onClick={() => setDevice(key)}>{label}</Button>
         ))}
         <span className="mx-1 h-6 w-px bg-border" />
-        <Button size="sm" variant="secondary" icon={<Type className="h-4 w-4" />} onClick={() => addElement("heading")}>Heading</Button>
-        <Button size="sm" variant="secondary" icon={<Type className="h-4 w-4" />} onClick={() => addElement("paragraph")}>Text</Button>
-        <Button size="sm" variant="secondary" icon={<Square className="h-4 w-4" />} onClick={() => addElement("button")}>Button</Button>
-        <Button size="sm" variant="secondary" icon={<ImageIcon className="h-4 w-4" />} onClick={() => addElement("image")}>Image</Button>
-        <Button size="sm" variant="secondary" icon={<Square className="h-4 w-4" />} onClick={() => addElement("shape")}>Shape</Button>
-        <span className="mx-1 h-6 w-px bg-border" />
-        <Button size="icon" variant="ghost" aria-label="Undo" icon={<Undo2 className="h-4 w-4" />} disabled={!history.length} onClick={undo} />
-        <Button size="icon" variant="ghost" aria-label="Redo" icon={<Redo2 className="h-4 w-4" />} disabled={!future.length} onClick={redo} />
+        {canEdit ? <Button size="sm" variant="secondary" icon={<Type className="h-4 w-4" />} onClick={() => addElement("heading")}>Heading</Button> : null}
+        {canEdit ? <Button size="sm" variant="secondary" icon={<Type className="h-4 w-4" />} onClick={() => addElement("paragraph")}>Text</Button> : null}
+        {canEdit ? <Button size="sm" variant="secondary" icon={<Square className="h-4 w-4" />} onClick={() => addElement("button")}>Button</Button> : null}
+        {canEdit ? <Button size="sm" variant="secondary" icon={<ImageIcon className="h-4 w-4" />} onClick={() => addElement("image")}>Image</Button> : null}
+        {canEdit ? <Button size="sm" variant="secondary" icon={<Square className="h-4 w-4" />} onClick={() => addElement("shape")}>Shape</Button> : null}
+        {canEdit ? <span className="mx-1 h-6 w-px bg-border" /> : null}
+        {canEdit ? <Button size="icon" variant="ghost" aria-label="Undo" icon={<Undo2 className="h-4 w-4" />} disabled={!history.length} onClick={undo} /> : null}
+        {canEdit ? <Button size="icon" variant="ghost" aria-label="Redo" icon={<Redo2 className="h-4 w-4" />} disabled={!future.length} onClick={redo} /> : null}
         <Button size="sm" variant="secondary" icon={layersOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />} onClick={() => setLayersOpen((value) => !value)}>
           {layersOpen ? "Hide Panels" : "Panels"}
         </Button>
         {selectedElement ? (
           <>
-            <Button size="icon" variant="ghost" aria-label="Duplicate" icon={<Copy className="h-4 w-4" />} onClick={() => duplicateElement(selectedElement)} />
-            <Button size="icon" variant="ghost" aria-label="Delete" icon={<Trash2 className="h-4 w-4" />} onClick={() => selectedElements.length > 1 ? (commit({ ...slide, elements: slide.elements.filter((element) => !selected.includes(element.z_index)) }), setSelected([])) : deleteElement(selectedElement)} />
+            {canEdit ? <Button size="icon" variant="ghost" aria-label="Duplicate" icon={<Copy className="h-4 w-4" />} onClick={() => duplicateElement(selectedElement)} /> : null}
+            {canEdit ? <Button size="icon" variant="ghost" aria-label="Delete" icon={<Trash2 className="h-4 w-4" />} onClick={() => selectedElements.length > 1 ? (commit({ ...slide, elements: slide.elements.filter((element) => !selected.includes(element.z_index)) }), setSelected([])) : deleteElement(selectedElement)} /> : null}
             <Button size="icon" variant="ghost" aria-label="Bring forward" icon={<ArrowUp className="h-4 w-4" />} onClick={() => selectedElements.length > 1 ? layerSelected(1) : layer(selectedElement, 1)} />
             <Button size="icon" variant="ghost" aria-label="Send backward" icon={<SendToBack className="h-4 w-4" />} onClick={() => selectedElements.length > 1 ? layerSelected(-1) : layer(selectedElement, -1)} />
             <Button size="icon" variant="ghost" aria-label="Align left" icon={<AlignLeft className="h-4 w-4" />} onClick={() => updateSelectedBoxes(() => ({ x: 0 }))} />

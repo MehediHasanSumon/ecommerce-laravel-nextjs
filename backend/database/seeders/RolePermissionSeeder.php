@@ -38,6 +38,19 @@ class RolePermissionSeeder extends Seeder
             'shipping_method',
             'blog',
             'contact_message',
+            'company_setting',
+            'hero_section',
+            'home_page_setting',
+            'home_feature_card_setting',
+            'blog_setting',
+            'store_setting',
+            'email_setting',
+            'sms_setting',
+            'payment_setting',
+            'seo_setting',
+            'social_setting',
+            'localization_setting',
+            'maintenance_setting',
         ];
 
         $permissions = collect($resources)

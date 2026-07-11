@@ -10,9 +10,19 @@ use App\Http\Responses\ApiResponse;
 use App\Models\Currency;
 use App\Services\Admin\Settings\CompanySettingsService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
-class CompanySettingsController extends Controller
+class CompanySettingsController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('permission:can_view_company_setting', only: ['show']),
+            new Middleware('permission:can_edit_company_setting', only: ['update', 'upload']),
+        ];
+    }
+
     public function __construct(private readonly CompanySettingsService $settings) {}
 
     public function show(): JsonResponse

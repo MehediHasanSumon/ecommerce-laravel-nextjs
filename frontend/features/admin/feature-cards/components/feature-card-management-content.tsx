@@ -36,6 +36,8 @@ import { featureCardService } from "@/features/admin/feature-cards/services/feat
 import type { HomeFeatureCard, HomeFeatureCardPayload } from "@/features/admin/feature-cards/types";
 import type { PaginationMeta, QueryState } from "@/features/admin/shared/types";
 import { toAppError } from "@/lib/errors";
+import { hasPermission } from "@/lib/permissions";
+import { useAuthStore } from "@/store/auth-store";
 import { cn } from "@/utils/cn";
 
 type Mode = "create" | "edit";
@@ -69,6 +71,8 @@ export function HomeFeatureCardsSettingsContent() {
   const [initialEnabled, setInitialEnabled] = useState(true);
   const [loadingSettings, setLoadingSettings] = useState(true);
   const [savingSettings, setSavingSettings] = useState(false);
+  useAuthStore((state) => state.user?.permissions ?? []);
+  const canEditSettings = hasPermission("can_edit_home_feature_card_setting");
 
   useEffect(() => {
     let active = true;
@@ -86,6 +90,7 @@ export function HomeFeatureCardsSettingsContent() {
   }, []);
 
   async function saveSettings() {
+    if (!canEditSettings) return;
     try {
       setSavingSettings(true);
       const response = await settingsApi.update<{ enabled: boolean }, { settings: { enabled: boolean } }>("home-feature-cards", { enabled });
@@ -112,7 +117,7 @@ export function HomeFeatureCardsSettingsContent() {
             <h2 className="mt-1 text-2xl font-extrabold">Feature Cards</h2>
             <p className="text-sm text-muted-foreground">Enable the home highlight section and manage every card below.</p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          {canEditSettings ? <div className="flex flex-wrap gap-2">
             <Button
               type="button"
               variant="secondary"
@@ -131,14 +136,14 @@ export function HomeFeatureCardsSettingsContent() {
             >
               Save Settings
             </Button>
-          </div>
+          </div> : null}
         </div>
         <div className="p-5">
           <button
             type="button"
             role="switch"
             aria-checked={enabled}
-            disabled={loadingSettings}
+            disabled={loadingSettings || !canEditSettings}
             onClick={() => setEnabled((value) => !value)}
             className="flex w-full max-w-xl items-center justify-between gap-4 rounded-lg border border-border bg-background p-3 text-left transition hover:bg-muted/50 disabled:opacity-60"
           >
@@ -179,6 +184,10 @@ function FeatureCardCrudContent() {
   const [draggedId, setDraggedId] = useState<number | null>(null);
   const [searchInput, setSearchInput] = useState(query.search);
   const [filterOpen, setFilterOpen] = useState(false);
+  useAuthStore((state) => state.user?.permissions ?? []);
+  const canCreate = hasPermission("can_create_home_feature_card_setting");
+  const canEdit = hasPermission("can_edit_home_feature_card_setting");
+  const canDelete = hasPermission("can_delete_home_feature_card_setting");
 
   const load = useCallback(async () => {
     try {
@@ -205,6 +214,7 @@ function FeatureCardCrudContent() {
   const lastPage = pagination?.last_page ?? 1;
 
   function openCreate() {
+    if (!canCreate) return;
     const nextSort = items.length ? Math.max(...items.map((item) => item.sort_order)) + 1 : 0;
     setMode("create");
     setEditingId(null);
@@ -214,6 +224,7 @@ function FeatureCardCrudContent() {
   }
 
   function openEdit(card: HomeFeatureCard) {
+    if (!canEdit) return;
     setMode("edit");
     setEditingId(card.id);
     setForm({
@@ -241,6 +252,7 @@ function FeatureCardCrudContent() {
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+    if ((mode === "create" && !canCreate) || (mode === "edit" && !canEdit)) return;
     if (!validate()) return;
 
     try {
@@ -264,6 +276,7 @@ function FeatureCardCrudContent() {
   }
 
   async function toggleStatus(card: HomeFeatureCard) {
+    if (!canEdit) return;
     try {
       const response = await featureCardService.update(card.id, {
         icon: card.icon,
@@ -280,6 +293,7 @@ function FeatureCardCrudContent() {
   }
 
   async function destroy(card: HomeFeatureCard) {
+    if (!canDelete) return;
     if (!window.confirm(`Delete "${card.title}"? This card will no longer appear on the storefront.`)) {
       return;
     }
@@ -294,6 +308,7 @@ function FeatureCardCrudContent() {
   }
 
   async function persistOrder(nextItems: HomeFeatureCard[]) {
+    if (!canEdit) return;
     const offset = Math.max((pagination?.from ?? 1) - 1, 0);
     const reordered = nextItems.map((item, index) => ({ ...item, sort_order: offset + index }));
     setItems(reordered);
@@ -336,7 +351,7 @@ function FeatureCardCrudContent() {
             <h3 className="text-lg font-extrabold">Card Management</h3>
             <p className="text-sm text-muted-foreground">Create, edit, disable, delete, and reorder homepage feature cards.</p>
           </div>
-          <Button icon={<Plus className="h-4 w-4" />} onClick={openCreate}>Create Card</Button>
+          {canCreate ? <Button icon={<Plus className="h-4 w-4" />} onClick={openCreate}>Create Card</Button> : null}
         </div>
         <div className="border-b border-border p-3">
           <div className="flex flex-col gap-3 lg:flex-row">
@@ -432,6 +447,8 @@ function FeatureCardCrudContent() {
                     onDragStart={() => setDraggedId(card.id)}
                     onDragEnd={() => setDraggedId(null)}
                     onDrop={() => onDrop(card.id)}
+                    canEdit={canEdit}
+                    canDelete={canDelete}
                   />
                 ))}
               </tbody>
@@ -444,7 +461,7 @@ function FeatureCardCrudContent() {
               <p className="font-bold">No feature cards found</p>
               <p className="text-sm text-muted-foreground">Create one to display it on the storefront.</p>
             </div>
-            <Button icon={<Plus className="h-4 w-4" />} onClick={openCreate}>Create Card</Button>
+            {canCreate ? <Button icon={<Plus className="h-4 w-4" />} onClick={openCreate}>Create Card</Button> : null}
           </div>
         )}
 
@@ -573,6 +590,8 @@ function FeatureCardTableRow({
   isFirst,
   isLast,
   dragging,
+  canEdit,
+  canDelete,
   onEdit,
   onDelete,
   onToggle,
@@ -586,6 +605,8 @@ function FeatureCardTableRow({
   isFirst: boolean;
   isLast: boolean;
   dragging: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
   onEdit: () => void;
   onDelete: () => void;
   onToggle: () => void;
@@ -597,7 +618,7 @@ function FeatureCardTableRow({
 }) {
   return (
     <tr
-      draggable
+      draggable={canEdit}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onDragOver={(event) => event.preventDefault()}
@@ -629,11 +650,11 @@ function FeatureCardTableRow({
       </td>
       <td className="px-4 py-3 align-middle">
         <div className="flex flex-wrap items-center justify-end gap-2">
-          <Button variant="ghost" size="icon" disabled={isFirst} aria-label="Move up" icon={<ArrowUp className="h-4 w-4" />} onClick={onMoveUp} />
-          <Button variant="ghost" size="icon" disabled={isLast} aria-label="Move down" icon={<ArrowDown className="h-4 w-4" />} onClick={onMoveDown} />
-          <Button variant="secondary" size="sm" onClick={onToggle}>{card.status ? "Disable" : "Enable"}</Button>
-          <Button variant="ghost" size="icon" aria-label="Edit" icon={<Edit3 className="h-4 w-4" />} onClick={onEdit} />
-          <Button variant="ghost" size="icon" aria-label="Delete" icon={<Trash2 className="h-4 w-4" />} onClick={onDelete} />
+          {canEdit ? <Button variant="ghost" size="icon" disabled={isFirst} aria-label="Move up" icon={<ArrowUp className="h-4 w-4" />} onClick={onMoveUp} /> : null}
+          {canEdit ? <Button variant="ghost" size="icon" disabled={isLast} aria-label="Move down" icon={<ArrowDown className="h-4 w-4" />} onClick={onMoveDown} /> : null}
+          {canEdit ? <Button variant="secondary" size="sm" onClick={onToggle}>{card.status ? "Disable" : "Enable"}</Button> : null}
+          {canEdit ? <Button variant="ghost" size="icon" aria-label="Edit" icon={<Edit3 className="h-4 w-4" />} onClick={onEdit} /> : null}
+          {canDelete ? <Button variant="ghost" size="icon" aria-label="Delete" icon={<Trash2 className="h-4 w-4" />} onClick={onDelete} /> : null}
         </div>
       </td>
     </tr>

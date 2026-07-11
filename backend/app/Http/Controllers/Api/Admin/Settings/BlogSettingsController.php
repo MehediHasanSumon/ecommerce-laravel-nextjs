@@ -8,9 +8,19 @@ use App\Http\Resources\Admin\Settings\BlogSettingResource;
 use App\Http\Responses\ApiResponse;
 use App\Services\Admin\Settings\BlogSettingsService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
-class BlogSettingsController extends Controller
+class BlogSettingsController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('permission:can_view_blog_setting', only: ['show']),
+            new Middleware('permission:can_edit_blog_setting', only: ['update']),
+        ];
+    }
+
     public function __construct(private readonly BlogSettingsService $settings) {}
 
     public function show(): JsonResponse

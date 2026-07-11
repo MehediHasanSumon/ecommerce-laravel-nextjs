@@ -8,9 +8,19 @@ use App\Http\Resources\Admin\Settings\SmsProviderSettingResource;
 use App\Http\Responses\ApiResponse;
 use App\Services\Admin\Settings\SmsProviderSettingsService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
-class SmsProviderSettingsController extends Controller
+class SmsProviderSettingsController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('permission:can_view_sms_setting', only: ['show']),
+            new Middleware('permission:can_edit_sms_setting', only: ['update', 'test']),
+        ];
+    }
+
     public function __construct(private readonly SmsProviderSettingsService $settings) {}
 
     public function show(): JsonResponse

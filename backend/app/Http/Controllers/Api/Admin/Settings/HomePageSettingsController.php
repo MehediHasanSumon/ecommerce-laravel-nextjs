@@ -12,10 +12,20 @@ use App\Services\Admin\Settings\BrandSettingsService;
 use App\Services\Admin\Settings\CategoryDisplaySettingsService;
 use App\Services\Admin\Settings\HomePageSettingsService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
 
-class HomePageSettingsController extends Controller
+class HomePageSettingsController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('permission:can_view_home_page_setting', only: ['show']),
+            new Middleware('permission:can_edit_home_page_setting', only: ['update']),
+        ];
+    }
+
     public function __construct(
         private readonly HomePageSettingsService $settings,
         private readonly CategoryDisplaySettingsService $categorySettings,

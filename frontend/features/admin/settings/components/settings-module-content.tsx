@@ -42,6 +42,8 @@ import {
 } from "@/features/admin/settings/components/settings-primitives";
 import { settingsApi } from "@/features/admin/settings/services/settings-service";
 import { SettingsSectionSkeleton } from "@/components/ui/skeleton";
+import { hasPermission } from "@/lib/permissions";
+import { useAuthStore } from "@/store/auth-store";
 
 type FieldType = "text" | "email" | "url" | "number" | "password" | "textarea" | "select" | "toggle" | "image" | "date";
 type SettingValue = string | number | boolean | null | undefined | string[] | Record<string, unknown> | Array<Record<string, unknown>>;
@@ -446,6 +448,15 @@ const moduleConfigs: Record<string, SingletonModule> = {
   },
 };
 
+const settingEditPermissions: Record<string, string> = {
+  company: "can_edit_company_setting",
+  store: "can_edit_store_setting",
+  email: "can_edit_email_setting",
+  seo: "can_edit_seo_setting",
+  localization: "can_edit_localization_setting",
+  maintenance: "can_edit_maintenance_setting",
+};
+
 export function SettingsModuleContent({ module }: { module: keyof typeof moduleConfigs }) {
   const config = moduleConfigs[module];
   const pathname = usePathname();
@@ -457,6 +468,8 @@ export function SettingsModuleContent({ module }: { module: keyof typeof moduleC
   const [resetOpen, setResetOpen] = React.useState(false);
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [companyCurrencyOptions, setCompanyCurrencyOptions] = React.useState<Array<{ label: string; value: string }>>([]);
+  useAuthStore((state) => state.user?.permissions ?? []);
+  const canEdit = hasPermission(settingEditPermissions[module] ?? "");
   const isDirty = JSON.stringify(values) !== JSON.stringify(initial);
   const sections = React.useMemo(() => {
     if (module !== "company") return config.sections;
@@ -502,6 +515,7 @@ export function SettingsModuleContent({ module }: { module: keyof typeof moduleC
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
+    if (!canEdit) return;
     const nextErrors = validateFields(sections, values);
     setErrors(nextErrors);
     if (Object.values(nextErrors).some(Boolean)) return;
@@ -524,7 +538,7 @@ export function SettingsModuleContent({ module }: { module: keyof typeof moduleC
   }
 
   async function runTest() {
-    if (!config.testPath) return;
+    if (!config.testPath || !canEdit) return;
     try {
       setTesting(true);
       const response = await settingsApi.test(config.testPath);
@@ -542,7 +556,7 @@ export function SettingsModuleContent({ module }: { module: keyof typeof moduleC
         title={config.title}
         description={config.description}
         icon={config.icon}
-        actions={<FormActions isSaving={saving} isDirty={isDirty} onReset={() => setResetOpen(true)} />}
+        actions={canEdit ? <FormActions isSaving={saving} isDirty={isDirty} onReset={() => setResetOpen(true)} /> : null}
       >
         <SettingsGrid>
           <SettingsSubnav items={settingsNavItems} pathname={pathname} />
@@ -552,9 +566,9 @@ export function SettingsModuleContent({ module }: { module: keyof typeof moduleC
               <SettingsSection title="Connection Status" description="Use the saved configuration to run a backend test action." icon={Send}>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <StatusPill ok={Boolean(values.enabled)} label={values.enabled ? "Enabled" : "Disabled"} />
-                  <Button type="button" variant="secondary" isLoading={testing} icon={<Send className="h-4 w-4" />} onClick={runTest}>
+                  {canEdit ? <Button type="button" variant="secondary" isLoading={testing} icon={<Send className="h-4 w-4" />} onClick={runTest}>
                     {config.testLabel}
-                  </Button>
+                  </Button> : null}
                 </div>
               </SettingsSection>
             ) : null}
@@ -568,6 +582,7 @@ export function SettingsModuleContent({ module }: { module: keyof typeof moduleC
                       value={values[field.name]}
                       error={errors[field.name]}
                       onChange={(value) => update(field.name, value)}
+                      canEdit={canEdit}
                     />
                   ))}
                 </FormGrid>
@@ -581,7 +596,7 @@ export function SettingsModuleContent({ module }: { module: keyof typeof moduleC
   );
 }
 
-function FieldControl({ field, value, error, onChange }: { field: Field; value: SettingValue; error?: string; onChange: (value: SettingValue) => void }) {
+function FieldControl({ field, value, error, onChange, canEdit }: { field: Field; value: SettingValue; error?: string; onChange: (value: SettingValue) => void; canEdit: boolean }) {
   const common = { label: field.label, required: field.required, helper: field.helper, error };
   if (field.type === "textarea") {
     return <TextareaInput {...common} value={fieldValue(value)} onChange={(event) => onChange(event.target.value)} />;
@@ -598,7 +613,7 @@ function FieldControl({ field, value, error, onChange }: { field: Field; value: 
         label={field.label}
         value={String(fieldValue(value))}
         onChange={onChange}
-        onUpload={field.uploadPath ? async (file) => (await settingsApi.upload(field.uploadPath as string, file)).data.url : undefined}
+        onUpload={canEdit && field.uploadPath ? async (file) => (await settingsApi.upload(field.uploadPath as string, file)).data.url : undefined}
       />
     );
   }
@@ -630,6 +645,8 @@ export function SmsSettingsContent() {
   const [saving, setSaving] = React.useState(false);
   const [testing, setTesting] = React.useState("");
   const [resetOpen, setResetOpen] = React.useState(false);
+  useAuthStore((state) => state.user?.permissions ?? []);
+  const canEdit = hasPermission("can_edit_sms_setting");
   const isDirty = JSON.stringify(providers) !== JSON.stringify(initial);
   useUnsavedChanges(isDirty);
 
@@ -654,6 +671,7 @@ export function SmsSettingsContent() {
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
+    if (!canEdit) return;
     try {
       setSaving(true);
       const response = await settingsApi.update<{ providers: SmsProviderRow[] }, { providers: SmsProviderRow[] }>("sms", { providers });
@@ -669,7 +687,7 @@ export function SmsSettingsContent() {
 
   return (
     <form onSubmit={submit}>
-      <SettingsPageShell title="SMS Provider" description="Manage independent SMS providers, encrypted credentials, default routing, and test delivery." icon={MessageSquareText} actions={<FormActions isSaving={saving} isDirty={isDirty} onReset={() => setResetOpen(true)} />}>
+      <SettingsPageShell title="SMS Provider" description="Manage independent SMS providers, encrypted credentials, default routing, and test delivery." icon={MessageSquareText} actions={canEdit ? <FormActions isSaving={saving} isDirty={isDirty} onReset={() => setResetOpen(true)} /> : null}>
         <SettingsGrid>
           <SettingsSubnav items={settingsNavItems} pathname={pathname} />
           <div className="space-y-4">
@@ -677,7 +695,7 @@ export function SmsSettingsContent() {
               <SettingsSection key={provider.provider} title={smsProviderLabels[String(provider.provider)] ?? String(provider.provider)} description="Provider credentials, sender identity, endpoint, and activation status." icon={MessageSquareText}>
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                   <StatusPill ok={provider.is_default} label={provider.is_default ? "Default Provider" : "Standby"} />
-                  <div className="flex gap-2">
+                  {canEdit ? <div className="flex gap-2">
                     <Button type="button" size="sm" variant="secondary" onClick={() => makeDefault(index)}>Set Default</Button>
                     <Button type="button" size="sm" variant="secondary" isLoading={testing === provider.provider} icon={<Send className="h-4 w-4" />} onClick={async () => {
                       setTesting(provider.provider);
@@ -690,7 +708,7 @@ export function SmsSettingsContent() {
                         setTesting("");
                       }
                     }}>Test SMS</Button>
-                  </div>
+                  </div> : null}
                 </div>
                 <FormGrid>
                   <ToggleSwitch label="Enabled" checked={Boolean(provider.status)} onChange={(checked) => patch(index, "status", checked)} />
@@ -717,6 +735,8 @@ export function PaymentSettingsContent() {
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
   const [resetOpen, setResetOpen] = React.useState(false);
+  useAuthStore((state) => state.user?.permissions ?? []);
+  const canEdit = hasPermission("can_edit_payment_setting");
   const isDirty = JSON.stringify(gateways) !== JSON.stringify(initial);
   useUnsavedChanges(isDirty);
 
@@ -744,6 +764,7 @@ export function PaymentSettingsContent() {
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
+    if (!canEdit) return;
     try {
       setSaving(true);
       const payload = gateways.map((gateway) => offlinePaymentGateways.has(gateway.gateway)
@@ -770,7 +791,7 @@ export function PaymentSettingsContent() {
 
   return (
     <form onSubmit={submit}>
-      <SettingsPageShell title="Payment Settings" description="Configure independent payment gateways with encrypted credentials and sandbox controls." icon={CreditCard} actions={<FormActions isSaving={saving} isDirty={isDirty} onReset={() => setResetOpen(true)} />}>
+      <SettingsPageShell title="Payment Settings" description="Configure independent payment gateways with encrypted credentials and sandbox controls." icon={CreditCard} actions={canEdit ? <FormActions isSaving={saving} isDirty={isDirty} onReset={() => setResetOpen(true)} /> : null}>
         <SettingsGrid>
           <SettingsSubnav items={settingsNavItems} pathname={pathname} />
           <div className="grid gap-4 2xl:grid-cols-2">
@@ -866,6 +887,8 @@ export function SocialMediaSettingsContent() {
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
   const [resetOpen, setResetOpen] = React.useState(false);
+  useAuthStore((state) => state.user?.permissions ?? []);
+  const canEdit = hasPermission("can_edit_social_setting");
   const isDirty = JSON.stringify(items) !== JSON.stringify(initial);
   useUnsavedChanges(isDirty);
 
@@ -882,6 +905,7 @@ export function SocialMediaSettingsContent() {
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
+    if (!canEdit) return;
     try {
       setSaving(true);
       const response = await settingsApi.update<{ items: SocialMediaRow[] }, { items: SocialMediaRow[] }>("social", { items });
@@ -897,11 +921,11 @@ export function SocialMediaSettingsContent() {
 
   return (
     <form onSubmit={submit}>
-      <SettingsPageShell title="Social Media" description="Manage storefront social profiles, ordering, tab behavior, and visibility." icon={Link2} actions={<FormActions isSaving={saving} isDirty={isDirty} onReset={() => setResetOpen(true)} />}>
+      <SettingsPageShell title="Social Media" description="Manage storefront social profiles, ordering, tab behavior, and visibility." icon={Link2} actions={canEdit ? <FormActions isSaving={saving} isDirty={isDirty} onReset={() => setResetOpen(true)} /> : null}>
         <SettingsGrid>
           <SettingsSubnav items={settingsNavItems} pathname={pathname} />
           <div className="space-y-4">
-            {loading ? <SettingsLoading /> : <EditableRows title="Social Profiles" rows={items} addLabel="Add Profile" icon={Link2} fields={[["platform", "Platform"], ["url", "URL"], ["icon", "Icon"], ["display_order", "Display Order"]]} onChange={(rows) => setItems(rows as SocialMediaRow[])} />}
+            {loading ? <SettingsLoading /> : <EditableRows title="Social Profiles" rows={items} addLabel="Add Profile" icon={Link2} fields={[["platform", "Platform"], ["url", "URL"], ["icon", "Icon"], ["display_order", "Display Order"]]} onChange={(rows) => setItems(rows as SocialMediaRow[])} canEdit={canEdit} />}
           </div>
         </SettingsGrid>
       </SettingsPageShell>
@@ -910,7 +934,7 @@ export function SocialMediaSettingsContent() {
   );
 }
 
-function EditableRows({ title, description, rows, addLabel, icon: Icon, fields, onChange }: { title: string; description?: string; rows: Values[]; addLabel: string; icon: LucideIcon; fields: Array<[string, string]>; onChange: (rows: Values[]) => void }) {
+function EditableRows({ title, description, rows, addLabel, icon: Icon, fields, onChange, canEdit = true }: { title: string; description?: string; rows: Values[]; addLabel: string; icon: LucideIcon; fields: Array<[string, string]>; onChange: (rows: Values[]) => void; canEdit?: boolean }) {
   function patch(index: number, key: string, value: SettingValue) {
     onChange(rows.map((row, rowIndex) => rowIndex === index ? { ...row, [key]: value } : row));
   }
@@ -923,9 +947,9 @@ function EditableRows({ title, description, rows, addLabel, icon: Icon, fields, 
             <div className="mb-3 flex items-center justify-between gap-2">
               <StatusPill ok={Boolean(row.status ?? true)} label={Boolean(row.status ?? true) ? "Enabled" : "Disabled"} />
               <div className="flex gap-2">
-                {"status" in row ? <ToggleSwitch label="Status" checked={Boolean(row.status)} onChange={(checked) => patch(index, "status", checked)} /> : null}
-                {"open_in_new_tab" in row ? <ToggleSwitch label="New Tab" checked={Boolean(row.open_in_new_tab)} onChange={(checked) => patch(index, "open_in_new_tab", checked)} /> : null}
-                <Button type="button" variant="ghost" size="icon" aria-label="Remove row" icon={<Trash2 className="h-4 w-4" />} onClick={() => onChange(rows.filter((_, rowIndex) => rowIndex !== index))} />
+                {canEdit && "status" in row ? <ToggleSwitch label="Status" checked={Boolean(row.status)} onChange={(checked) => patch(index, "status", checked)} /> : null}
+                {canEdit && "open_in_new_tab" in row ? <ToggleSwitch label="New Tab" checked={Boolean(row.open_in_new_tab)} onChange={(checked) => patch(index, "open_in_new_tab", checked)} /> : null}
+                {canEdit ? <Button type="button" variant="ghost" size="icon" aria-label="Remove row" icon={<Trash2 className="h-4 w-4" />} onClick={() => onChange(rows.filter((_, rowIndex) => rowIndex !== index))} /> : null}
               </div>
             </div>
             <FormGrid>
@@ -935,7 +959,7 @@ function EditableRows({ title, description, rows, addLabel, icon: Icon, fields, 
             </FormGrid>
           </div>
         ))}
-        <Button type="button" variant="secondary" icon={<Plus className="h-4 w-4" />} onClick={() => onChange([...rows, blankRow(fields, rows.length)])}>{addLabel}</Button>
+        {canEdit ? <Button type="button" variant="secondary" icon={<Plus className="h-4 w-4" />} onClick={() => onChange([...rows, blankRow(fields, rows.length)])}>{addLabel}</Button> : null}
       </div>
     </SettingsSection>
   );

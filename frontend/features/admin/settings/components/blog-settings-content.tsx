@@ -17,6 +17,8 @@ import {
 } from "@/features/admin/settings/components/settings-primitives";
 import { settingsApi } from "@/features/admin/settings/services/settings-service";
 import { toAppError } from "@/lib/errors";
+import { hasPermission } from "@/lib/permissions";
+import { useAuthStore } from "@/store/auth-store";
 
 type BlogSettingsForm = {
   enabled: boolean;
@@ -61,6 +63,8 @@ export function BlogSettingsContent() {
   const [initial, setInitial] = useState<BlogSettingsForm>(defaults);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  useAuthStore((state) => state.user?.permissions ?? []);
+  const canEdit = hasPermission("can_edit_blog_setting");
 
   useEffect(() => {
     let active = true;
@@ -80,6 +84,7 @@ export function BlogSettingsContent() {
   const isDirty = useMemo(() => JSON.stringify(form) !== JSON.stringify(initial), [form, initial]);
 
   async function save() {
+    if (!canEdit) return;
     try {
       setSaving(true);
       const response = await settingsApi.update<BlogSettingsForm, { settings: BlogSettingsForm }>("blog", form);
@@ -105,13 +110,13 @@ export function BlogSettingsContent() {
         title="Blog Settings"
         description="Control blog availability, listing layout, home placement, comments, search, and SEO defaults."
         icon={FileText}
-        actions={(
+        actions={canEdit ? (
           <>
             {isDirty ? <span className="inline-flex items-center rounded-lg border border-border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground shadow-sm">Unsaved changes</span> : null}
             <Button type="button" variant="secondary" size="sm" icon={<RotateCcw className="h-4 w-4" />} disabled={!isDirty || loading} onClick={() => setForm(initial)}>Reset</Button>
             <Button type="submit" size="sm" isLoading={saving} icon={<Save className="h-4 w-4" />} disabled={loading}>Save Settings</Button>
           </>
-        )}
+        ) : null}
       >
         <SettingsGrid>
           <SettingsSection title="Availability" description="Disable this to remove the blog from all storefront routes and menus." icon={FileText}>

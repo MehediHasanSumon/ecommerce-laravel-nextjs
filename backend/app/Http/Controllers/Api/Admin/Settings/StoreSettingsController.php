@@ -8,9 +8,19 @@ use App\Http\Resources\Admin\Settings\StoreSettingResource;
 use App\Http\Responses\ApiResponse;
 use App\Services\Admin\Settings\StoreSettingsService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
-class StoreSettingsController extends Controller
+class StoreSettingsController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('permission:can_view_store_setting', only: ['show']),
+            new Middleware('permission:can_edit_store_setting', only: ['update']),
+        ];
+    }
+
     public function __construct(private readonly StoreSettingsService $settings) {}
 
     public function show(): JsonResponse
