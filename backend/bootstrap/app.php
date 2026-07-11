@@ -7,6 +7,7 @@ use App\Http\Responses\ApiResponse;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Middleware\HandleCors;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
@@ -26,6 +27,8 @@ return Application::configure(basePath: dirname(__DIR__))
         App\Console\Commands\SyncCollectionSchedules::class,
     ])
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->prepend(HandleCors::class);
+
         $middleware->encryptCookies(except: [
             env('AUTH_ACCESS_COOKIE_NAME', 'auth_access_token'),
             env('AUTH_REFRESH_COOKIE_NAME', 'auth_refresh_token'),
