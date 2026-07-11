@@ -40,6 +40,8 @@ import { roleService } from "@/features/admin/roles/services/role-service";
 import { useUrlQueryState } from "@/features/admin/shared/hooks/use-url-query-state";
 import { userService } from "@/features/admin/users/services/user-service";
 import { toAppError } from "@/lib/errors";
+import { hasPermission } from "@/lib/permissions";
+import { useAuthStore } from "@/store/auth-store";
 import { cn } from "@/utils/cn";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import type { Option, PaginationMeta } from "@/features/admin/shared/types";
@@ -586,6 +588,9 @@ function ManagementPage<T extends { id: number }>({
   onDelete,
   onBulkDelete,
   onExport,
+  canCreate = true,
+  canEdit = true,
+  canDelete = true,
 }: {
   resource: Resource;
   title: string;
@@ -613,10 +618,14 @@ function ManagementPage<T extends { id: number }>({
   onDelete: (item: T) => void;
   onBulkDelete: () => void;
   onExport: () => void;
+  canCreate?: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }) {
   const [searchInput, setSearchInput] = useState(search);
   const [filterOpen, setFilterOpen] = useState(false);
   const allSelected = data.length > 0 && data.every((item) => selected.includes(item.id));
+  const hasRowActions = canEdit || canDelete;
   const page = pagination?.current_page ?? 1;
   const lastPage = pagination?.last_page ?? 1;
   const tableColumns = useMemo<ColumnDef<T>[]>(() => columns.map((column) => ({
@@ -648,7 +657,9 @@ function ManagementPage<T extends { id: number }>({
           <h1 className="text-2xl font-extrabold tracking-tight">{title}</h1>
           <p className="mt-1 text-sm text-muted-foreground">{description}</p>
         </div>
-        <Button size="sm" icon={<Plus className="h-4 w-4" />} onClick={onCreate}>{createLabel}</Button>
+        {canCreate ? (
+          <Button size="sm" icon={<Plus className="h-4 w-4" />} onClick={onCreate}>{createLabel}</Button>
+        ) : null}
       </section>
 
       <section className="rounded-lg border border-border bg-card p-3">
@@ -673,7 +684,9 @@ function ManagementPage<T extends { id: number }>({
           <p className="text-sm font-semibold">{selected.length} selected</p>
           <div className="flex flex-wrap gap-2">
             <Button variant="secondary" size="sm" icon={<Download className="h-4 w-4" />} onClick={onExport}>Export</Button>
-            <Button variant="danger" size="sm" icon={<Trash2 className="h-4 w-4" />} onClick={onBulkDelete}>Bulk Delete</Button>
+            {canDelete ? (
+              <Button variant="danger" size="sm" icon={<Trash2 className="h-4 w-4" />} onClick={onBulkDelete}>Bulk Delete</Button>
+            ) : null}
           </div>
         </div>
       ) : null}
@@ -696,12 +709,14 @@ function ManagementPage<T extends { id: number }>({
                     ) : column.label}
                   </th>
                 ))}
-                <th className="w-28 px-4 py-3 text-right font-bold">Actions</th>
+                {hasRowActions ? (
+                  <th className="w-28 px-4 py-3 text-right font-bold">Actions</th>
+                ) : null}
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <TableSkeleton rows={6} columns={columns.length} selectable actions />
+                <TableSkeleton rows={6} columns={columns.length} selectable actions={hasRowActions} />
               ) : table.getRowModel().rows.length ? table.getRowModel().rows.map((row) => {
                 const item = row.original;
                 return (
@@ -714,17 +729,23 @@ function ManagementPage<T extends { id: number }>({
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   ))}
-                  <td className="px-4 py-3">
-                    <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" icon={<Edit3 className="h-4 w-4" />} title="Edit" aria-label="Edit" onClick={() => onEdit(item)} />
-                      <Button variant="ghost" size="icon" icon={<Trash2 className="h-4 w-4" />} title="Delete" aria-label="Delete" onClick={() => onDelete(item)} />
-                    </div>
-                  </td>
+                  {hasRowActions ? (
+                    <td className="px-4 py-3">
+                      <div className="flex justify-end gap-1">
+                        {canEdit ? (
+                          <Button variant="ghost" size="icon" icon={<Edit3 className="h-4 w-4" />} title="Edit" aria-label="Edit" onClick={() => onEdit(item)} />
+                        ) : null}
+                        {canDelete ? (
+                          <Button variant="ghost" size="icon" icon={<Trash2 className="h-4 w-4" />} title="Delete" aria-label="Delete" onClick={() => onDelete(item)} />
+                        ) : null}
+                      </div>
+                    </td>
+                  ) : null}
                 </tr>
               );
               }) : (
                 <tr>
-                  <td colSpan={columns.length + 2} className="h-48 text-center">
+                  <td colSpan={columns.length + (hasRowActions ? 2 : 1)} className="h-48 text-center">
                     <div className="mx-auto max-w-sm">
                       <p className="font-semibold">No records found</p>
                       <p className="mt-1 text-sm text-muted-foreground">Try changing filters or create a new record.</p>
@@ -1014,6 +1035,7 @@ export function RoleManagementContent() {
 
 export function PermissionManagementContent() {
   const { query, setQuery } = useUrlQueryState("created_at");
+  useAuthStore((state) => state.user?.permissions);
   const [items, setItems] = useState<ManagedPermission[]>([]);
   const [pagination, setPagination] = useState<PaginationMeta | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1047,6 +1069,10 @@ export function PermissionManagementContent() {
   }, [direction, filters, page, perPage, search, sort]);
 
   useEffect(() => { void load(); }, [load]);
+
+  const canCreatePermission = hasPermission("can_create_permission");
+  const canEditPermission = hasPermission("can_edit_permission");
+  const canDeletePermission = hasPermission("can_delete_permission");
 
   const columns = useMemo<Column<ManagedPermission>[]>(() => [
     { key: "name", label: "Permission Name", sortable: true, render: (permission) => <span className="font-semibold">{permission.name}</span> },
@@ -1113,6 +1139,9 @@ export function PermissionManagementContent() {
           },
         })}
         onExport={() => exportRows("permissions.csv", items.filter((item) => selected.includes(item.id)).map((permission) => ({ name: permission.name, created_at: permission.created_at ?? "" })))}
+        canCreate={canCreatePermission}
+        canEdit={canEditPermission}
+        canDelete={canDeletePermission}
       />
       {deleteConfirmationDialog}
       <Drawer open={drawer.open} title={drawer.mode === "create" ? "Create Permission" : "Edit Permission"} description="Keep permission names consistent with backend policy checks." onClose={() => setDrawer({ open: false, mode: "create", item: null })}>

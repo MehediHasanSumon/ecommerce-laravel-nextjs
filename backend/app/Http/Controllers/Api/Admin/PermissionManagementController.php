@@ -11,11 +11,23 @@ use App\Http\Resources\Admin\PermissionResource;
 use App\Http\Responses\ApiResponse;
 use App\Services\Admin\PermissionManagementService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Spatie\Permission\Models\Permission;
 
-class PermissionManagementController extends Controller
+class PermissionManagementController extends Controller implements HasMiddleware
 {
     public function __construct(private readonly PermissionManagementService $permissions) {}
+
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('permission:can_view_permission', only: ['index', 'show']),
+            new Middleware('permission:can_create_permission', only: ['store']),
+            new Middleware('permission:can_edit_permission', only: ['update']),
+            new Middleware('permission:can_delete_permission', only: ['destroy', 'bulkDestroy']),
+        ];
+    }
 
     public function index(ListPermissionsRequest $request): JsonResponse
     {

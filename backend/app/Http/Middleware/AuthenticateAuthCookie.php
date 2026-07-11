@@ -6,6 +6,7 @@ use App\Http\Responses\AuthCookie;
 use App\Services\AuthService;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
 class AuthenticateAuthCookie
@@ -23,6 +24,7 @@ class AuthenticateAuthCookie
         }
 
         $request->setUserResolver(fn () => $user);
+        Auth::setUser($user);
 
         $response = $next($request);
 
