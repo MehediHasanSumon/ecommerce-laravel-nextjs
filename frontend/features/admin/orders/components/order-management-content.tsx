@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ChevronRight, Download, Eye, Filter, Search } from "lucide-react";
+import { ChevronRight, Download, Eye, Filter, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,8 @@ import { formatPrice } from "@/utils/format";
 
 const orderStatuses = ["", "pending", "confirmed", "processing", "packed", "ready_for_shipment", "shipped", "out_for_delivery", "delivered", "cancelled", "refunded"];
 const paymentStatuses = ["", "pending", "paid", "failed", "cancelled", "refunded", "partially_refunded"];
+const shippingStatuses = ["", "pending", "processing", "shipped", "delivered", "returned"];
+const paymentMethods = ["", "cash_on_delivery", "bkash", "nagad", "sslcommerz", "stripe", "paypal"];
 const pageSizes = [10, 20, 50, 100];
 
 function label(value: string) {
@@ -34,6 +36,7 @@ export function OrderManagementContent() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<string[]>([]);
   const [bulkStatus, setBulkStatus] = useState("");
+  const [filterOpen, setFilterOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -45,7 +48,14 @@ export function OrderManagementContent() {
         sort: query.sort,
         direction: query.direction,
         status: query.status,
-        payment_status: query.email_verified,
+        payment_status: query.payment_status,
+        shipping_status: query.shipping_status,
+        payment_method: query.payment_method,
+        shipping_method: query.shipping_method,
+        date_from: query.date_from,
+        date_to: query.date_to,
+        amount_min: query.amount_min,
+        amount_max: query.amount_max,
       });
       setItems(response.data.orders);
       setPagination(response.meta.pagination ?? null);
@@ -55,7 +65,7 @@ export function OrderManagementContent() {
     } finally {
       setLoading(false);
     }
-  }, [query.direction, query.email_verified, query.page, query.per_page, query.search, query.sort, query.status]);
+  }, [query.amount_max, query.amount_min, query.date_from, query.date_to, query.direction, query.page, query.payment_method, query.payment_status, query.per_page, query.search, query.shipping_method, query.shipping_status, query.sort, query.status]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -101,11 +111,12 @@ export function OrderManagementContent() {
               <SelectTrigger className="h-10 w-[180px] rounded-lg px-3 text-sm"><SelectValue placeholder="Order status" /></SelectTrigger>
               <SelectContent>{orderStatuses.map((status) => <SelectItem key={status || "any"} value={status || "any"}>{label(status)}</SelectItem>)}</SelectContent>
             </Select>
-            <Select value={query.email_verified || "any"} onValueChange={(value) => setQuery({ email_verified: value === "any" ? "" : value, page: 1 })}>
+            <Select value={query.payment_status || "any"} onValueChange={(value) => setQuery({ payment_status: value === "any" ? "" : value, page: 1 })}>
               <SelectTrigger className="h-10 w-[180px] rounded-lg px-3 text-sm"><SelectValue placeholder="Payment status" /></SelectTrigger>
               <SelectContent>{paymentStatuses.map((status) => <SelectItem key={status || "any"} value={status || "any"}>{label(status)}</SelectItem>)}</SelectContent>
             </Select>
-            <Button size="sm" variant="secondary" icon={<Filter className="h-4 w-4" />} onClick={() => setQuery({ status: "", email_verified: "", search: "", page: 1 })}>Reset</Button>
+            <Button size="sm" variant="secondary" icon={<Filter className="h-4 w-4" />} onClick={() => setFilterOpen(true)}>Advanced Filter</Button>
+            <Button size="sm" variant="secondary" onClick={() => setQuery({ status: "", payment_status: "", shipping_status: "", payment_method: "", shipping_method: "", date_from: "", date_to: "", amount_min: "", amount_max: "", search: "", page: 1 })}>Reset</Button>
             <Select value={bulkStatus || "none"} onValueChange={(value) => setBulkStatus(value === "none" ? "" : value)}>
               <SelectTrigger className="h-10 w-[180px] rounded-lg px-3 text-sm"><SelectValue placeholder="Bulk action" /></SelectTrigger>
               <SelectContent>
@@ -178,8 +189,105 @@ export function OrderManagementContent() {
           </div>
         </div>
       </div>
+      <OrderFilterModal
+        open={filterOpen}
+        query={query}
+        onClose={() => setFilterOpen(false)}
+        onApply={(filters) => {
+          setQuery({ ...filters, page: 1 });
+          setFilterOpen(false);
+        }}
+      />
     </div>
   );
+}
+
+function OrderFilterModal({ open, query, onClose, onApply }: { open: boolean; query: ReturnType<typeof useUrlQueryState>["query"]; onClose: () => void; onApply: (filters: Partial<ReturnType<typeof useUrlQueryState>["query"]>) => void }) {
+  const [draft, setDraft] = useState(query);
+  useEffect(() => setDraft(query), [query, open]);
+  if (!open) return null;
+
+  const reset = {
+    status: "",
+    payment_status: "",
+    shipping_status: "",
+    payment_method: "",
+    shipping_method: "",
+    date_from: "",
+    date_to: "",
+    amount_min: "",
+    amount_max: "",
+  };
+
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
+      <button className="absolute inset-0 bg-black/50" onClick={onClose} aria-label="Close filters" type="button" />
+      <div className="relative w-full max-w-2xl rounded-lg border border-border bg-background p-5 shadow-2xl">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-bold">Advanced Filter</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Refine orders by status, payment, shipping, date, and amount.</p>
+          </div>
+          <Button variant="ghost" size="icon" icon={<X className="h-4 w-4" />} aria-label="Close filters" onClick={onClose} />
+        </div>
+
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          <CompactSelect label="Order Status" value={draft.status} options={orderStatuses.filter(Boolean)} onChange={(status) => setDraft({ ...draft, status })} />
+          <CompactSelect label="Payment Status" value={draft.payment_status} options={paymentStatuses.filter(Boolean)} onChange={(payment_status) => setDraft({ ...draft, payment_status })} />
+          <CompactSelect label="Shipping Status" value={draft.shipping_status} options={shippingStatuses.filter(Boolean)} onChange={(shipping_status) => setDraft({ ...draft, shipping_status })} />
+          <CompactSelect label="Payment Method" value={draft.payment_method} options={paymentMethods.filter(Boolean)} onChange={(payment_method) => setDraft({ ...draft, payment_method })} />
+          <CompactText label="Shipping Method" value={draft.shipping_method} placeholder="Home Delivery" onChange={(shipping_method) => setDraft({ ...draft, shipping_method })} />
+          <CompactText label="Minimum Amount" type="number" value={draft.amount_min} placeholder="0" onChange={(amount_min) => setDraft({ ...draft, amount_min })} />
+          <CompactDate label="Date From" value={draft.date_from} onChange={(date_from) => setDraft({ ...draft, date_from })} />
+          <CompactDate label="Date To" value={draft.date_to} onChange={(date_to) => setDraft({ ...draft, date_to })} />
+          <CompactText label="Maximum Amount" type="number" value={draft.amount_max} placeholder="10000" onChange={(amount_max) => setDraft({ ...draft, amount_max })} />
+        </div>
+
+        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button size="sm" variant="secondary" onClick={() => setDraft({ ...draft, ...reset })}>Reset Filters</Button>
+          <Button size="sm" onClick={() => onApply({
+            status: draft.status,
+            payment_status: draft.payment_status,
+            shipping_status: draft.shipping_status,
+            payment_method: draft.payment_method,
+            shipping_method: draft.shipping_method,
+            date_from: draft.date_from,
+            date_to: draft.date_to,
+            amount_min: draft.amount_min,
+            amount_max: draft.amount_max,
+          })}>Apply Filters</Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CompactSelect({ label: title, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (value: string) => void }) {
+  return (
+    <label className="space-y-2 text-sm font-semibold">
+      <span>{title}</span>
+      <Select value={value || "all"} onValueChange={(next) => onChange(next === "all" ? "" : next)}>
+        <SelectTrigger className="h-11 rounded-lg px-3 text-sm"><SelectValue placeholder={`Any ${title.toLowerCase()}`} /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">Any {title.toLowerCase()}</SelectItem>
+          {options.map((option) => <SelectItem key={option} value={option}>{label(option)}</SelectItem>)}
+        </SelectContent>
+      </Select>
+    </label>
+  );
+}
+
+function CompactText({ label: title, value, onChange, placeholder, type = "text" }: { label: string; value: string; placeholder?: string; type?: string; onChange: (value: string) => void }) {
+  return (
+    <label className="space-y-2 text-sm font-semibold">
+      <span>{title}</span>
+      <input type={type} value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} className="h-11 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none transition focus:border-primary" />
+    </label>
+  );
+}
+
+function CompactDate({ label: title, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  return <CompactText label={title} type="date" value={value} onChange={onChange} />;
 }
 
 export function AdminOrderDetailContent({ orderNumber }: { orderNumber: string }) {

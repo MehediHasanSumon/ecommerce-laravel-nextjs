@@ -28,6 +28,7 @@ export type ManagedBlog = BaseRecord & {
 export type BlogPayload = {
   title: string;
   featured_image: string;
+  featured_image_file?: File | null;
   excerpt: string;
   content: string;
   meta_title?: string | null;

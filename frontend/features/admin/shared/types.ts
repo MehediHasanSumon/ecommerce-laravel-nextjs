@@ -32,6 +32,14 @@ export type QueryState = {
   created_to: string;
   updated_from: string;
   updated_to: string;
+  payment_status: string;
+  shipping_status: string;
+  payment_method: string;
+  shipping_method: string;
+  date_from: string;
+  date_to: string;
+  amount_min: string;
+  amount_max: string;
 };
 
 export type Option = {

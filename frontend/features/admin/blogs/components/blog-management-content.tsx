@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, ChevronsUpDown, Edit3, Filter, Loader2, Newspaper, Plus, Search, Trash2, X } from "lucide-react";
+import Image from "next/image";
+import { ChevronLeft, ChevronRight, ChevronsUpDown, Edit3, Filter, ImagePlus, Loader2, Newspaper, Plus, Search, Trash2, UploadCloud, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,9 +19,27 @@ import { cn } from "@/utils/cn";
 const statuses: BlogStatus[] = ["draft", "published", "scheduled", "archived"];
 const pageSizes = [10, 20, 50, 100];
 
+function normalizeBlogStatus(value: unknown, publishedAt?: string | null): BlogStatus {
+  const normalized = String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replaceAll(" ", "_") as BlogStatus;
+
+  if (normalized === "publish" || normalized === "pusblished") {
+    return "published";
+  }
+
+  if (statuses.includes(normalized)) {
+    return normalized;
+  }
+
+  return publishedAt ? "published" : "draft";
+}
+
 const emptyForm: BlogPayload = {
   title: "",
   featured_image: "",
+  featured_image_file: null,
   excerpt: "",
   content: "",
   meta_title: "",
@@ -92,7 +111,6 @@ export function BlogManagementContent() {
       const payload = {
         ...values,
         author_id: values.author_id || undefined,
-        published_at: values.published_at || null,
         scheduled_publish_at: values.scheduled_publish_at || null,
         meta_title: values.meta_title || null,
         meta_description: values.meta_description || null,
@@ -181,12 +199,11 @@ export function BlogManagementContent() {
                     ["title", "Title"],
                     ["author", "Author"],
                     ["status", "Status"],
-                    ["published_at", "Publish Date"],
                     ["views_count", "Views"],
                     ["created_at", "Created At"],
                   ].map(([key, label]) => (
                     <th key={key} className="px-4 py-3">
-                      {["title", "status", "published_at", "views_count", "created_at"].includes(key) ? (
+                      {["title", "status", "views_count", "created_at"].includes(key) ? (
                         <button type="button" className="inline-flex items-center gap-1 font-bold" onClick={() => setQuery({ sort: key, direction: query.sort === key && query.direction === "asc" ? "desc" : "asc", page: 1 })}>
                           {label} <ChevronsUpDown className="h-3.5 w-3.5" />
                         </button>
@@ -216,7 +233,6 @@ export function BlogManagementContent() {
                     </td>
                     <td className="px-4 py-3">{blog.author?.name ?? "Not assigned"}</td>
                     <td className="px-4 py-3"><StatusPill status={blog.status} /></td>
-                    <td className="px-4 py-3">{formatDate(blog.published_at)}</td>
                     <td className="px-4 py-3">{blog.views_count}</td>
                     <td className="px-4 py-3">{formatDate(blog.created_at)}</td>
                     <td className="px-4 py-3">
@@ -287,9 +303,11 @@ function BlogDrawer({ open, mode, blog, authors, onClose, onSubmit }: { open: bo
       blog.open_graph_image,
     ].some((value) => String(value ?? "").trim()));
     setCustomSeo(nextCustomSeo);
+    const status = normalizeBlogStatus(blog?.status, blog?.published_at);
     setForm(blog ? {
       title: blog.title,
       featured_image: blog.featured_image,
+      featured_image_file: null,
       excerpt: blog.excerpt,
       content: blog.content,
       meta_title: blog.meta_title ?? "",
@@ -298,7 +316,7 @@ function BlogDrawer({ open, mode, blog, authors, onClose, onSubmit }: { open: bo
       canonical_url: blog.canonical_url ?? "",
       open_graph_image: blog.open_graph_image ?? "",
       author_id: blog.author_id,
-      status: blog.status,
+      status,
       published_at: blog.published_at?.slice(0, 10) ?? "",
       scheduled_publish_at: blog.scheduled_publish_at?.slice(0, 10) ?? "",
       featured: blog.featured,
@@ -339,32 +357,36 @@ function BlogDrawer({ open, mode, blog, authors, onClose, onSubmit }: { open: bo
         </div>
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
           <Input required label="Title" value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} />
-          <Input required label="Featured Image" value={form.featured_image} onChange={(event) => setForm((current) => ({ ...current, featured_image: event.target.value }))} />
+          <BlogImagePicker
+            value={form.featured_image}
+            file={form.featured_image_file ?? null}
+            onChange={(featured_image_file) => setForm((current) => ({ ...current, featured_image_file }))}
+            onRemove={() => setForm((current) => ({ ...current, featured_image: "", featured_image_file: null }))}
+          />
           <label className="block space-y-1.5 text-sm font-semibold">
             <span>Author</span>
             <Select value={form.author_id ? String(form.author_id) : ""} onValueChange={(value) => setForm((current) => ({ ...current, author_id: value ? Number(value) : null }))}>
-              <SelectTrigger className="h-10 rounded-lg px-3 text-sm"><SelectValue placeholder="Current admin" /></SelectTrigger>
+                <SelectTrigger className="h-10 rounded-lg px-3 text-sm font-normal"><SelectValue placeholder="Current admin" /></SelectTrigger>
               <SelectContent>{authors.map((author) => <SelectItem key={author.id} value={String(author.id)}>{author.name}</SelectItem>)}</SelectContent>
             </Select>
           </label>
-          <label className="block space-y-1.5 text-sm font-semibold">
-            <span>Status</span>
-            <Select value={form.status} onValueChange={(value) => setForm((current) => ({ ...current, status: value as BlogStatus }))}>
-              <SelectTrigger className="h-10 rounded-lg px-3 text-sm"><SelectValue /></SelectTrigger>
-              <SelectContent>{statuses.map((status) => <SelectItem key={status} value={status}>{statusLabel(status)}</SelectItem>)}</SelectContent>
-            </Select>
-          </label>
           <div className="grid gap-4 sm:grid-cols-2">
-            <DatePicker label="Publish Date" value={form.published_at || null} onChange={(value) => setForm((current) => ({ ...current, published_at: value }))} />
+            <label className="block space-y-1.5 text-sm font-semibold">
+              <span>Status</span>
+              <Select value={form.status || "draft"} onValueChange={(value) => setForm((current) => ({ ...current, status: value as BlogStatus }))}>
+                <SelectTrigger className="h-10 rounded-lg px-3 text-sm font-normal"><SelectValue>{statusLabel(form.status || "draft")}</SelectValue></SelectTrigger>
+                <SelectContent>{statuses.map((status) => <SelectItem key={status} value={status}>{statusLabel(status)}</SelectItem>)}</SelectContent>
+              </Select>
+            </label>
             <DatePicker label="Scheduled Publish Date" value={form.scheduled_publish_at || null} onChange={(value) => setForm((current) => ({ ...current, scheduled_publish_at: value }))} />
           </div>
           <label className="space-y-1.5 text-sm font-semibold">
             <span>Short Description / Excerpt</span>
-            <textarea required value={form.excerpt} onChange={(event) => setForm((current) => ({ ...current, excerpt: event.target.value }))} className="min-h-24 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+            <textarea required value={form.excerpt} onChange={(event) => setForm((current) => ({ ...current, excerpt: event.target.value }))} className="min-h-24 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-normal" />
           </label>
           <label className="space-y-1.5 text-sm font-semibold">
             <span>Full Content</span>
-            <textarea required value={form.content} onChange={(event) => setForm((current) => ({ ...current, content: event.target.value }))} className="min-h-56 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+            <textarea required value={form.content} onChange={(event) => setForm((current) => ({ ...current, content: event.target.value }))} className="min-h-56 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-normal" />
           </label>
           <label className="flex items-center justify-between rounded-lg border border-border p-3 text-sm font-semibold">
             Enable Custom SEO
@@ -379,37 +401,101 @@ function BlogDrawer({ open, mode, blog, authors, onClose, onSubmit }: { open: bo
               </div>
               <label className="space-y-1.5 text-sm font-semibold">
                 <span>Meta Keywords</span>
-                <textarea value={form.meta_keywords ?? ""} onChange={(event) => setForm((current) => ({ ...current, meta_keywords: event.target.value }))} className="min-h-16 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+                <textarea value={form.meta_keywords ?? ""} onChange={(event) => setForm((current) => ({ ...current, meta_keywords: event.target.value }))} className="min-h-16 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-normal" />
               </label>
               <label className="space-y-1.5 text-sm font-semibold">
                 <span>Meta Description</span>
-                <textarea value={form.meta_description ?? ""} onChange={(event) => setForm((current) => ({ ...current, meta_description: event.target.value }))} className="min-h-20 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+                <textarea value={form.meta_description ?? ""} onChange={(event) => setForm((current) => ({ ...current, meta_description: event.target.value }))} className="min-h-20 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-normal" />
               </label>
             </>
           ) : null}
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="flex items-center justify-between rounded-lg border border-border p-3 text-sm font-semibold">
-              Featured Blog
-              <input type="checkbox" checked={form.featured} onChange={(event) => setForm((current) => ({ ...current, featured: event.target.checked }))} />
-            </label>
-            <label className="block space-y-1.5 text-sm font-semibold">
-              <span>Comments Override</span>
-              <Select value={form.allow_comments_override === null || form.allow_comments_override === undefined ? "inherit" : String(form.allow_comments_override)} onValueChange={(value) => setForm((current) => ({ ...current, allow_comments_override: value === "inherit" ? null : value === "true" }))}>
-                <SelectTrigger className="h-10 rounded-lg px-3 text-sm"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="inherit">Use global setting</SelectItem>
-                  <SelectItem value="true">Allow comments</SelectItem>
-                  <SelectItem value="false">Disable comments</SelectItem>
-                </SelectContent>
-              </Select>
-            </label>
-          </div>
+          <label className="flex h-11 items-center justify-between rounded-lg border border-border px-3 text-sm font-semibold">
+            Featured Blog
+            <input type="checkbox" checked={form.featured} onChange={(event) => setForm((current) => ({ ...current, featured: event.target.checked }))} />
+          </label>
+          <label className="block space-y-1.5 text-sm font-semibold">
+            <span>Comments Override</span>
+            <Select value={form.allow_comments_override === null || form.allow_comments_override === undefined ? "inherit" : String(form.allow_comments_override)} onValueChange={(value) => setForm((current) => ({ ...current, allow_comments_override: value === "inherit" ? null : value === "true" }))}>
+              <SelectTrigger className="h-10 rounded-lg px-3 text-sm font-normal"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="inherit">Use global setting</SelectItem>
+                <SelectItem value="true">Allow comments</SelectItem>
+                <SelectItem value="false">Disable comments</SelectItem>
+              </SelectContent>
+            </Select>
+          </label>
         </div>
         <div className="flex gap-2 border-t border-border p-5">
           <Button type="submit" size="sm" isLoading={saving}>{mode === "create" ? "Create Blog" : "Save Changes"}</Button>
           <Button type="button" size="sm" variant="secondary" onClick={onClose}>Cancel</Button>
         </div>
       </form>
+    </div>
+  );
+}
+
+function BlogImagePicker({
+  value,
+  file,
+  onChange,
+  onRemove,
+}: {
+  value: string;
+  file: File | null;
+  onChange: (file: File | null) => void;
+  onRemove: () => void;
+}) {
+  const [preview, setPreview] = useState("");
+
+  useEffect(() => {
+    if (!file) {
+      setPreview("");
+      return;
+    }
+
+    const url = URL.createObjectURL(file);
+    setPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
+  const image = preview || value;
+
+  return (
+    <div className="space-y-2">
+      <p className="text-sm font-semibold">Featured Image</p>
+      <label
+        className="flex min-h-52 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-border bg-muted/50 p-4 text-center transition hover:bg-muted"
+        onDragOver={(event) => event.preventDefault()}
+        onDrop={(event) => {
+          event.preventDefault();
+          onChange(event.dataTransfer.files.item(0));
+        }}
+      >
+        {image ? (
+          <div className="w-full space-y-3">
+            <div className="relative mx-auto h-40 w-full max-w-sm overflow-hidden rounded-lg bg-muted">
+              <Image src={image} alt="Featured image preview" fill unoptimized className="object-contain" />
+            </div>
+            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+              <ImagePlus className="h-3.5 w-3.5" />
+              <span>Click or drop an image to replace</span>
+            </div>
+            {file?.name ? <p className="truncate text-xs text-muted-foreground">{file.name}</p> : null}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <UploadCloud className="mx-auto h-8 w-8 text-muted-foreground" />
+            <p className="text-sm font-semibold">Drop featured image here</p>
+            <p className="text-xs text-muted-foreground">Browse or drag JPG, PNG, WebP, AVIF, or GIF up to 10MB.</p>
+          </div>
+        )}
+        <input type="file" accept="image/png,image/jpeg,image/jpg,image/webp,image/avif,image/gif" className="sr-only" onChange={(event) => onChange(event.target.files?.item(0) ?? null)} />
+      </label>
+      {image ? (
+        <div className="flex justify-end">
+          <Button type="button" size="sm" variant="secondary" onClick={onRemove}>Remove Image</Button>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -5,14 +5,17 @@ namespace App\Services\Admin;
 use App\Models\Blog;
 use App\Services\Admin\Concerns\BuildsManagementQueries;
 use App\Services\Admin\Settings\BlogSettingsService;
+use App\Services\Concerns\StoresPublicUploads;
 use App\Services\Seo\SeoMetadataService;
 use App\Support\Identifiers\SlugGenerator;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 
 class BlogManagementService
 {
     use BuildsManagementQueries;
+    use StoresPublicUploads;
 
     public function __construct(private readonly BlogSettingsService $settings) {}
 
@@ -48,6 +51,7 @@ class BlogManagementService
             $data['created_by'] = $userId;
             $data['updated_by'] = $userId;
             $data['reading_time_minutes'] = $this->readingTime($data['content']);
+            $this->storeFeaturedImage($data);
             $data = $this->normalizePublishDates($data);
 
             $blog = Blog::query()->create($data)->load('author:id,name,email');
@@ -71,6 +75,7 @@ class BlogManagementService
             }
 
             $data['updated_by'] = $userId;
+            $this->storeFeaturedImage($data, $blog->featured_image);
             $blog->fill($this->normalizePublishDates($data))->save();
             SeoMetadataService::invalidateCache();
 
@@ -97,6 +102,18 @@ class BlogManagementService
         $words = str_word_count(strip_tags($content));
 
         return max(1, (int) ceil($words / 200));
+    }
+
+    private function storeFeaturedImage(array &$data, ?string $oldImage = null): void
+    {
+        $file = $data['featured_image_file'] ?? null;
+        unset($data['featured_image_file']);
+
+        if (! $file instanceof UploadedFile || ! $file->isValid()) {
+            return;
+        }
+
+        $data['featured_image'] = $this->storePublicUpload($file, 'blogs/featured', $oldImage);
     }
 
     private function normalizePublishDates(array $data): array

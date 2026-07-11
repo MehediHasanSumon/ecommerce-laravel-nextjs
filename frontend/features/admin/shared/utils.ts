@@ -13,6 +13,14 @@ export const defaultQueryState: QueryState = {
   created_to: "",
   updated_from: "",
   updated_to: "",
+  payment_status: "",
+  shipping_status: "",
+  payment_method: "",
+  shipping_method: "",
+  date_from: "",
+  date_to: "",
+  amount_min: "",
+  amount_max: "",
 };
 
 export function formatDate(value: string | null) {

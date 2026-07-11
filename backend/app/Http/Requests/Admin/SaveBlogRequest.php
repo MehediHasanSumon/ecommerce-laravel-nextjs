@@ -16,7 +16,8 @@ class SaveBlogRequest extends FormRequest
     {
         return [
             'title' => ['required', 'string', 'max:255'],
-            'featured_image' => ['required', 'string', 'max:2048'],
+            'featured_image' => ['nullable', 'required_without:featured_image_file', 'string', 'max:2048'],
+            'featured_image_file' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,avif,gif', 'max:10240'],
             'excerpt' => ['required', 'string', 'max:1000'],
             'content' => ['required', 'string'],
             'meta_title' => ['nullable', 'string', 'max:255'],

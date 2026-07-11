@@ -29,6 +29,14 @@ export function useUrlQueryState(defaultSort = "created_at") {
     created_to: searchParams.get("created_to") || "",
     updated_from: searchParams.get("updated_from") || "",
     updated_to: searchParams.get("updated_to") || "",
+    payment_status: searchParams.get("payment_status") || "",
+    shipping_status: searchParams.get("shipping_status") || "",
+    payment_method: searchParams.get("payment_method") || "",
+    shipping_method: searchParams.get("shipping_method") || "",
+    date_from: searchParams.get("date_from") || "",
+    date_to: searchParams.get("date_to") || "",
+    amount_min: searchParams.get("amount_min") || "",
+    amount_max: searchParams.get("amount_max") || "",
   }), [defaultSort, searchParams]);
 
   const setQuery = useCallback((patch: Partial<QueryState>, options: { replace?: boolean } = {}) => {

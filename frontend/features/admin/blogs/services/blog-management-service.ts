@@ -15,11 +15,22 @@ class BlogManagementService extends AdminApiService {
   }
 
   create(payload: BlogPayload) {
-    return this.unwrap<{ blog: ManagedBlog }>(this.client.post("/admin/blogs", payload));
+    const requestPayload = this.toRequestPayload(payload);
+    return this.unwrap<{ blog: ManagedBlog }>(this.client.post("/admin/blogs", requestPayload, requestPayload instanceof FormData ? {
+      headers: { "Content-Type": "multipart/form-data" },
+    } : undefined));
   }
 
   update(id: number, payload: BlogPayload) {
-    return this.unwrap<{ blog: ManagedBlog }>(this.client.put(`/admin/blogs/${id}`, payload));
+    const requestPayload = this.toRequestPayload(payload);
+    if (requestPayload instanceof FormData) {
+      requestPayload.append("_method", "PUT");
+      return this.unwrap<{ blog: ManagedBlog }>(this.client.post(`/admin/blogs/${id}`, requestPayload, {
+        headers: { "Content-Type": "multipart/form-data" },
+      }));
+    }
+
+    return this.unwrap<{ blog: ManagedBlog }>(this.client.put(`/admin/blogs/${id}`, requestPayload));
   }
 
   delete(id: number) {
@@ -28,6 +39,28 @@ class BlogManagementService extends AdminApiService {
 
   bulkDelete(ids: number[]) {
     return this.unwrap<{ deleted: number }>(this.client.delete("/admin/blogs/bulk", { data: { ids } }));
+  }
+
+  private toRequestPayload(payload: BlogPayload) {
+    if (!(payload.featured_image_file instanceof File)) {
+      return payload;
+    }
+
+    const formData = new FormData();
+    Object.entries(payload).forEach(([key, value]) => {
+      if (value === undefined || value === null || value === "") return;
+      if (value instanceof File) {
+        formData.append(key, value);
+        return;
+      }
+      if (typeof value === "boolean") {
+        formData.append(key, value ? "1" : "0");
+        return;
+      }
+      formData.append(key, String(value));
+    });
+
+    return formData;
   }
 }
 
