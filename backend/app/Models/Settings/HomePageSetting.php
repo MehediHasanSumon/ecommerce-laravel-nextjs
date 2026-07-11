@@ -14,6 +14,7 @@ class HomePageSetting extends Model
             'enable_product_section' => 'boolean',
             'products_per_section' => 'integer',
             'enable_testimonial_section' => 'boolean',
+            'announcement_enabled' => 'boolean',
         ];
     }
 }

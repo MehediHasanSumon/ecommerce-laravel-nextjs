@@ -84,6 +84,10 @@ class SettingsDefaults
             'enable_product_section' => true,
             'products_per_section' => 20,
             'enable_testimonial_section' => true,
+            'announcement_enabled' => true,
+            'announcement_text' => 'Free shipping on orders over ৳75.00! Limited time offer.',
+            'announcement_link_text' => 'Shop Now',
+            'announcement_link_url' => '/shop',
         ];
     }
 

@@ -43,6 +43,12 @@ const defaultHomePageSettings: RuntimeSettings["home_page_settings"] = {
   testimonial_section: {
     enabled: true,
   },
+  announcement_bar: {
+    enabled: true,
+    text: "Free shipping on orders over ৳75.00! Limited time offer.",
+    link_text: "Shop Now",
+    link_url: "/shop",
+  },
 };
 const pendingBrandSettings: RuntimeSettings["brand_settings"] = {
   enabled: false,

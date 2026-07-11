@@ -41,6 +41,10 @@ it('updates home page settings and exposes runtime settings', function (): void 
             'enable_product_section' => false,
             'products_per_section' => 12,
             'enable_testimonial_section' => false,
+            'announcement_enabled' => true,
+            'announcement_text' => 'Weekend deal is live.',
+            'announcement_link_text' => 'Shop Now',
+            'announcement_link_url' => '/shop',
         ],
         'categories' => [
             'enable_home_category_section' => true,
@@ -54,6 +58,7 @@ it('updates home page settings and exposes runtime settings', function (): void 
         ->assertJsonPath('data.settings.home.enable_product_section', false)
         ->assertJsonPath('data.settings.home.products_per_section', 12)
         ->assertJsonPath('data.settings.home.enable_testimonial_section', false)
+        ->assertJsonPath('data.settings.home.announcement_text', 'Weekend deal is live.')
         ->assertJsonPath('data.settings.categories.category_display_mode', 'home_grid_navbar_dropdown')
         ->assertJsonPath('data.settings.brand.show_on_home', false);
 
@@ -61,7 +66,9 @@ it('updates home page settings and exposes runtime settings', function (): void 
         ->assertOk()
         ->assertJsonPath('data.home_page_settings.product_section.enabled', false)
         ->assertJsonPath('data.home_page_settings.product_section.limit', 12)
-        ->assertJsonPath('data.home_page_settings.testimonial_section.enabled', false);
+        ->assertJsonPath('data.home_page_settings.testimonial_section.enabled', false)
+        ->assertJsonPath('data.home_page_settings.announcement_bar.text', 'Weekend deal is live.')
+        ->assertJsonPath('data.home_page_settings.announcement_bar.link_url', '/shop');
 });
 
 it('applies product section visibility and limit to the home page API', function (): void {
@@ -96,6 +103,10 @@ it('validates home page product limits', function (): void {
             'enable_product_section' => true,
             'products_per_section' => 99,
             'enable_testimonial_section' => true,
+            'announcement_enabled' => true,
+            'announcement_text' => 'Sale',
+            'announcement_link_text' => 'Shop',
+            'announcement_link_url' => '/shop',
         ],
         'categories' => [
             'enable_home_category_section' => true,

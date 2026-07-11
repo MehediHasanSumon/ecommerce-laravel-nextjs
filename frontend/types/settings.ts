@@ -103,6 +103,12 @@ export type RuntimeHomePageSettings = {
   testimonial_section: {
     enabled: boolean;
   };
+  announcement_bar: {
+    enabled: boolean;
+    text: string;
+    link_text: string;
+    link_url: string;
+  };
 };
 
 export type RuntimePaymentMethod = {

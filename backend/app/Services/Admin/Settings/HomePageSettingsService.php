@@ -39,6 +39,12 @@ class HomePageSettingsService
             'testimonial_section' => [
                 'enabled' => (bool) $settings->enable_testimonial_section,
             ],
+            'announcement_bar' => [
+                'enabled' => (bool) $settings->announcement_enabled,
+                'text' => (string) $settings->announcement_text,
+                'link_text' => (string) $settings->announcement_link_text,
+                'link_url' => (string) $settings->announcement_link_url,
+            ],
             'version' => optional($settings->updated_at)->getTimestamp() ?? 0,
         ];
     }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Building2, Home, Layers3, PackageSearch, RotateCcw, Save, Star } from "lucide-react";
+import { Building2, Home, Layers3, Megaphone, PackageSearch, RotateCcw, Save, Star } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,6 +10,7 @@ import {
   SettingsGrid,
   SettingsPageShell,
   SettingsSection,
+  TextInput,
   ToggleSwitch,
 } from "@/features/admin/settings/components/settings-primitives";
 import { settingsApi } from "@/features/admin/settings/services/settings-service";
@@ -19,6 +20,10 @@ type HomePageSettingsForm = {
   enable_product_section: boolean;
   products_per_section: number;
   enable_testimonial_section: boolean;
+  announcement_enabled: boolean;
+  announcement_text: string;
+  announcement_link_text: string;
+  announcement_link_url: string;
 };
 
 type CategoryDisplaySettingsForm = {
@@ -41,6 +46,10 @@ const defaults: HomePageSettingsForm = {
   enable_product_section: true,
   products_per_section: 20,
   enable_testimonial_section: true,
+  announcement_enabled: true,
+  announcement_text: "Free shipping on orders over ৳75.00! Limited time offer.",
+  announcement_link_text: "Shop Now",
+  announcement_link_url: "/shop",
 };
 
 const categoryDefaults: CategoryDisplaySettingsForm = {
@@ -144,6 +153,34 @@ export function HomePageSettingsContent() {
             </FormGrid>
           </SettingsSection>
 
+          <SettingsSection title="Announcement Bar" description="Control the thin promotional header shown above the storefront navigation." icon={Megaphone}>
+            <FormGrid>
+              <ToggleSwitch
+                label="Enable Announcement Bar"
+                description="OFF hides the promotional header from the storefront."
+                checked={form.home.announcement_enabled}
+                onChange={(announcement_enabled) => setForm((current) => ({ ...current, home: { ...current.home, announcement_enabled } }))}
+              />
+              <TextInput
+                label="Announcement Text"
+                value={form.home.announcement_text}
+                onChange={(event) => setForm((current) => ({ ...current, home: { ...current.home, announcement_text: event.target.value } }))}
+                helper="Example: Free shipping on orders over ৳75.00! Limited time offer."
+              />
+              <TextInput
+                label="Link Text"
+                value={form.home.announcement_link_text}
+                onChange={(event) => setForm((current) => ({ ...current, home: { ...current.home, announcement_link_text: event.target.value } }))}
+              />
+              <TextInput
+                label="Link URL"
+                value={form.home.announcement_link_url}
+                onChange={(event) => setForm((current) => ({ ...current, home: { ...current.home, announcement_link_url: event.target.value } }))}
+                helper="Use a relative path like /shop or a full https URL."
+              />
+            </FormGrid>
+          </SettingsSection>
+
           <SettingsSection title="Category Display" description="Control the home category section, navbar dropdown behavior, and category landing route." icon={Layers3}>
             <FormGrid>
               <ToggleSwitch
@@ -211,6 +248,10 @@ function normalize(settings: Partial<HomePageSettingsForm>): HomePageSettingsFor
     enable_product_section: Boolean(settings.enable_product_section ?? defaults.enable_product_section),
     products_per_section: productLimits.includes(limit) ? limit : defaults.products_per_section,
     enable_testimonial_section: Boolean(settings.enable_testimonial_section ?? defaults.enable_testimonial_section),
+    announcement_enabled: Boolean(settings.announcement_enabled ?? defaults.announcement_enabled),
+    announcement_text: String(settings.announcement_text ?? defaults.announcement_text),
+    announcement_link_text: String(settings.announcement_link_text ?? defaults.announcement_link_text),
+    announcement_link_url: String(settings.announcement_link_url ?? defaults.announcement_link_url),
   };
 }
 

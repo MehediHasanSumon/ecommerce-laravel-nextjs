@@ -1,20 +1,13 @@
 'use client';
 import { useState } from 'react';
-import { X, Truck, Tag, Sparkles } from 'lucide-react';
-import { selectCurrencyFingerprint, selectSettingsPending, useSettingsStore } from '@/store/settings-store';
-import { formatPrice } from '@/utils/format';
-
-const ANNOUNCEMENTS = [
-  { icon: Truck, text: () => `Free shipping on orders over ${formatPrice(75)}! Limited time offer.` },
-  { icon: Tag, text: () => 'Use code LUXE20 for 20% off your first order!' },
-  { icon: Sparkles, text: () => 'New arrivals just dropped — Shop the latest collection.' },
-];
+import { X, Megaphone } from 'lucide-react';
+import { selectHomePageSettings, selectSettingsPending, useSettingsStore } from '@/store/settings-store';
 
 export function AnnouncementBar() {
   const [isVisible, setIsVisible] = useState(true);
-  const [currentIndex] = useState(0);
   const settingsPending = useSettingsStore(selectSettingsPending);
-  useSettingsStore(selectCurrencyFingerprint);
+  const homeSettings = useSettingsStore(selectHomePageSettings);
+  const announcement = homeSettings.announcement_bar;
 
   if (!isVisible) return null;
 
@@ -28,20 +21,26 @@ export function AnnouncementBar() {
     );
   }
 
-  const announcement = ANNOUNCEMENTS[currentIndex];
-  const Icon = announcement.icon;
+  if (!announcement.enabled || !announcement.text.trim()) {
+    return null;
+  }
+
+  const linkText = announcement.link_text.trim();
+  const linkUrl = announcement.link_url.trim();
 
   return (
     <div className="bg-primary text-primary-foreground py-2 px-4 relative">
       <div className="max-w-7xl mx-auto flex items-center justify-center gap-2 text-sm font-medium">
-        <Icon size={14} className="shrink-0" />
-        <span>{announcement.text()}</span>
-        <a
-          href="/shop"
-          className="underline underline-offset-2 hover:no-underline ml-1 font-semibold"
-        >
-          Shop Now →
-        </a>
+        <Megaphone size={14} className="shrink-0" />
+        <span>{announcement.text}</span>
+        {linkText && linkUrl ? (
+          <a
+            href={linkUrl}
+            className="underline underline-offset-2 hover:no-underline ml-1 font-semibold"
+          >
+            {linkText} →
+          </a>
+        ) : null}
       </div>
       <button
         onClick={() => setIsVisible(false)}
