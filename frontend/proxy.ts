@@ -26,6 +26,7 @@ type MePayload = {
 };
 
 const permissionRouteRequirements: Array<{ route: string; permission: string }> = [
+  { route: routePaths.dashboard, permission: "can_view_dashboard" },
   { route: routePaths.adminUsers, permission: "can_view_user" },
   { route: routePaths.adminRoles, permission: "can_view_role" },
   { route: routePaths.adminPermissions, permission: "can_view_permission" },
@@ -56,6 +57,13 @@ const permissionRouteRequirements: Array<{ route: string; permission: string }> 
   { route: routePaths.adminSettingsSocial, permission: "can_view_social_setting" },
   { route: routePaths.adminSettingsLocalization, permission: "can_view_localization_setting" },
   { route: routePaths.adminSettingsMaintenance, permission: "can_view_maintenance_setting" },
+  { route: routePaths.adminReportsSales, permission: "can_view_sales_report" },
+  { route: routePaths.adminReportsRevenue, permission: "can_view_revenue_report" },
+  { route: routePaths.adminReportsProductPerformance, permission: "can_view_product_performance_report" },
+  { route: routePaths.adminReportsCustomerAnalytics, permission: "can_view_customer_analytics_report" },
+  { route: routePaths.adminReportsPayment, permission: "can_view_payment_report" },
+  { route: routePaths.adminReportsShipping, permission: "can_view_shipping_report" },
+  { route: routePaths.adminReportsInventory, permission: "can_view_inventory_report" },
   { route: routePaths.adminBlogs, permission: "can_view_blog" },
   { route: routePaths.adminContactMessages, permission: "can_view_contact_message" },
 ];

@@ -243,7 +243,7 @@ class NavigationSettingsController extends Controller
                 'label' => 'Main',
                 'type' => 'single',
                 'items' => [
-                    ['label' => 'Dashboard', 'href' => '/admin/dashboard', 'icon' => 'Home', 'enabled' => true],
+                    ['label' => 'Dashboard', 'href' => '/admin/dashboard', 'icon' => 'Home', 'permission' => 'can_view_dashboard', 'enabled' => true],
                 ],
             ],
             [
@@ -324,13 +324,13 @@ class NavigationSettingsController extends Controller
                 'icon' => 'BarChart3',
                 'type' => 'group',
                 'items' => [
-                    ['label' => 'Sales Reports', 'href' => '/admin/reports/sales', 'icon' => 'BarChart3', 'enabled' => true],
-                    ['label' => 'Revenue Analytics', 'href' => '/admin/reports/revenue', 'icon' => 'CircleDollarSign', 'enabled' => true],
-                    ['label' => 'Product Performance', 'href' => '/admin/reports/product-performance', 'icon' => 'Package', 'enabled' => true],
-                    ['label' => 'Customer Analytics', 'href' => '/admin/reports/customer-analytics', 'icon' => 'UsersRound', 'enabled' => true],
-                    ['label' => 'Payment Reports', 'href' => '/admin/reports/payment', 'icon' => 'CreditCard', 'enabled' => true],
-                    ['label' => 'Shipping Reports', 'href' => '/admin/reports/shipping', 'icon' => 'PackageCheck', 'enabled' => true],
-                    ['label' => 'Inventory Reports', 'href' => '/admin/reports/inventory', 'icon' => 'Warehouse', 'enabled' => true],
+                    ['label' => 'Sales Reports', 'href' => '/admin/reports/sales', 'icon' => 'BarChart3', 'permission' => 'can_view_sales_report', 'enabled' => true],
+                    ['label' => 'Revenue Analytics', 'href' => '/admin/reports/revenue', 'icon' => 'CircleDollarSign', 'permission' => 'can_view_revenue_report', 'enabled' => true],
+                    ['label' => 'Product Performance', 'href' => '/admin/reports/product-performance', 'icon' => 'Package', 'permission' => 'can_view_product_performance_report', 'enabled' => true],
+                    ['label' => 'Customer Analytics', 'href' => '/admin/reports/customer-analytics', 'icon' => 'UsersRound', 'permission' => 'can_view_customer_analytics_report', 'enabled' => true],
+                    ['label' => 'Payment Reports', 'href' => '/admin/reports/payment', 'icon' => 'CreditCard', 'permission' => 'can_view_payment_report', 'enabled' => true],
+                    ['label' => 'Shipping Reports', 'href' => '/admin/reports/shipping', 'icon' => 'PackageCheck', 'permission' => 'can_view_shipping_report', 'enabled' => true],
+                    ['label' => 'Inventory Reports', 'href' => '/admin/reports/inventory', 'icon' => 'Warehouse', 'permission' => 'can_view_inventory_report', 'enabled' => true],
                 ],
             ],
             [

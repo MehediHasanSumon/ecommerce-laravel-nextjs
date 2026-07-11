@@ -7,10 +7,19 @@ use App\Http\Responses\ApiResponse;
 use App\Services\Admin\DashboardAnalyticsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Validation\Rule;
 
-class DashboardController extends Controller
+class DashboardController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('permission:can_view_dashboard', only: ['show']),
+        ];
+    }
+
     public function __construct(private readonly DashboardAnalyticsService $dashboard) {}
 
     public function show(Request $request): JsonResponse

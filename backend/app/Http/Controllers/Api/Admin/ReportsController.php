@@ -30,11 +30,21 @@ class ReportsController extends Controller
         'inventory',
     ];
 
+    private const TYPE_PERMISSIONS = [
+        'sales' => 'can_view_sales_report',
+        'revenue' => 'can_view_revenue_report',
+        'product-performance' => 'can_view_product_performance_report',
+        'customer-analytics' => 'can_view_customer_analytics_report',
+        'payment' => 'can_view_payment_report',
+        'shipping' => 'can_view_shipping_report',
+        'inventory' => 'can_view_inventory_report',
+    ];
+
     public function __construct(private readonly ReportPdfService $pdf) {}
 
     public function show(string $type, Request $request): JsonResponse
     {
-        abort_unless(in_array($type, self::TYPES, true), 404);
+        $this->authorizeReport($type);
 
         $filters = $request->validate([
             'date_from' => ['nullable', 'date'],
@@ -82,7 +92,15 @@ class ReportsController extends Controller
 
     public function pdf(string $type, Request $request): Response
     {
+        $this->authorizeReport($type);
+
         return $this->pdf->download($type, $request);
+    }
+
+    private function authorizeReport(string $type): void
+    {
+        abort_unless(in_array($type, self::TYPES, true), 404);
+        abort_unless(request()->user()?->can(self::TYPE_PERMISSIONS[$type]), 403);
     }
 
     private function sales($orders, $paidOrders, int $limit): array

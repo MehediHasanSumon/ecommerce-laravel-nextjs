@@ -51,6 +51,14 @@ class RolePermissionSeeder extends Seeder
             'social_setting',
             'localization_setting',
             'maintenance_setting',
+            'dashboard',
+            'sales_report',
+            'revenue_report',
+            'product_performance_report',
+            'customer_analytics_report',
+            'payment_report',
+            'shipping_report',
+            'inventory_report',
         ];
 
         $permissions = collect($resources)

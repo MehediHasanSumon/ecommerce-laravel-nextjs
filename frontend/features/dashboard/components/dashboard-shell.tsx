@@ -131,6 +131,7 @@ const settingsItems = [
 ];
 
 const adminPermissionAliases: Record<string, string> = {
+  "dashboard.view": "can_view_dashboard",
   "users.view": "can_view_user",
   "roles.view": "can_view_role",
   "permissions.view": "can_view_permission",
@@ -161,11 +162,19 @@ const adminPermissionAliases: Record<string, string> = {
   "social-settings.view": "can_view_social_setting",
   "localization-settings.view": "can_view_localization_setting",
   "maintenance-settings.view": "can_view_maintenance_setting",
+  "sales-reports.view": "can_view_sales_report",
+  "revenue-reports.view": "can_view_revenue_report",
+  "product-performance-reports.view": "can_view_product_performance_report",
+  "customer-analytics-reports.view": "can_view_customer_analytics_report",
+  "payment-reports.view": "can_view_payment_report",
+  "shipping-reports.view": "can_view_shipping_report",
+  "inventory-reports.view": "can_view_inventory_report",
   "blogs.view": "can_view_blog",
   "contact-messages.view": "can_view_contact_message",
 };
 
 const adminRoutePermissions: Record<string, string> = {
+  [routePaths.dashboard]: "can_view_dashboard",
   [routePaths.dashboardUsers]: "can_view_user",
   [routePaths.dashboardRoles]: "can_view_role",
   [routePaths.dashboardPermissions]: "can_view_permission",
@@ -196,6 +205,13 @@ const adminRoutePermissions: Record<string, string> = {
   [routePaths.adminSettingsSocial]: "can_view_social_setting",
   [routePaths.adminSettingsLocalization]: "can_view_localization_setting",
   [routePaths.adminSettingsMaintenance]: "can_view_maintenance_setting",
+  [routePaths.adminReportsSales]: "can_view_sales_report",
+  [routePaths.adminReportsRevenue]: "can_view_revenue_report",
+  [routePaths.adminReportsProductPerformance]: "can_view_product_performance_report",
+  [routePaths.adminReportsCustomerAnalytics]: "can_view_customer_analytics_report",
+  [routePaths.adminReportsPayment]: "can_view_payment_report",
+  [routePaths.adminReportsShipping]: "can_view_shipping_report",
+  [routePaths.adminReportsInventory]: "can_view_inventory_report",
   [routePaths.adminBlogs]: "can_view_blog",
   [routePaths.adminContactMessages]: "can_view_contact_message",
 };
