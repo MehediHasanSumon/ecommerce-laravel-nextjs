@@ -389,6 +389,36 @@ function isAdminItemActive(item: RuntimeNavigationItem, pathname: string) {
     || (item.href === routePaths.adminOrders && pathname.startsWith(`${routePaths.adminOrders}/`));
 }
 
+function adminTitleForPath(pathname: string, fallback: string) {
+  const dynamicMatchers: Array<[RegExp, string]> = [
+    [/^\/admin\/products\/create$/, "Create Product"],
+    [/^\/admin\/products\/[^/]+\/edit$/, "Edit Product"],
+    [/^\/admin\/collections\/create$/, "Create Collection"],
+    [/^\/admin\/collections\/[^/]+\/edit$/, "Edit Collection"],
+    [/^\/admin\/orders\/[^/]+$/, "Order Details"],
+  ];
+
+  const dynamic = dynamicMatchers.find(([pattern]) => pattern.test(pathname));
+  if (dynamic) {
+    return dynamic[1];
+  }
+
+  const allItems = [
+    ...navItems,
+    ...usersManagementItems,
+    ...orderManagementItems,
+    ...productManagementItems,
+    ...catalogManagementItems,
+    ...inventoryManagementItems,
+    ...marketingManagementItems,
+    ...contentManagementItems,
+    ...reportManagementItems,
+    ...settingsItems,
+  ];
+
+  return allItems.find((item) => item.href === pathname)?.label ?? fallback;
+}
+
 function UserMenu({ user, isLoading, onLogout }: { user: User; isLoading: boolean; onLogout: () => void }) {
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -491,6 +521,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
     ].find((item) => item.href === pathname || (item.href === routePaths.adminProducts && pathname.startsWith(`${routePaths.adminProducts}/`)) || (item.href === routePaths.adminOrders && pathname.startsWith(`${routePaths.adminOrders}/`))) ??
     settingsItems.find((item) => item.href === pathname) ??
     navItems[0];
+  const pageTitle = adminTitleForPath(pathname, activeItem.label);
 
   async function handleLogout() {
     await logout();
@@ -502,6 +533,10 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
   useEffect(() => {
     setIsMobileSidebarOpen(false);
   }, [pathname]);
+
+  useEffect(() => {
+    document.title = `${pageTitle} | Admin`;
+  }, [pageTitle]);
 
   useEffect(() => {
     document.body.style.overflow = isMobileSidebarOpen ? "hidden" : "";
@@ -592,7 +627,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
                 <ChevronLeft className="h-3 w-3 rotate-180" />
                 <span>Admin</span>
               </div>
-              <h1 className="truncate text-base font-extrabold sm:text-lg">{activeItem.label}</h1>
+              <h1 className="truncate text-base font-extrabold sm:text-lg">{pageTitle}</h1>
             </div>
 
             <div className="hidden max-w-xs flex-1 items-center gap-2 rounded-xl border border-border bg-muted/60 px-3 py-2 xl:flex">
