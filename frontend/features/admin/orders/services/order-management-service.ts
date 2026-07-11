@@ -20,8 +20,10 @@ class OrderManagementService extends AdminApiService {
     return this.unwrap<OrderListData>(this.client.get("/admin/orders", { params: cleanParams(query) }));
   }
 
-  show(order: string) {
-    return this.unwrap<{ order: OrderDetail; statuses: OrderStatuses }>(this.client.get(`/admin/orders/${encodeURIComponent(order)}`));
+  show(order: string, params: { timeline_page?: number; timeline_per_page?: number } = {}) {
+    return this.unwrap<{ order: OrderDetail; statuses: OrderStatuses }>(
+      this.client.get(`/admin/orders/${encodeURIComponent(order)}`, { params: cleanParams(params) }),
+    );
   }
 
   update(order: string, payload: { status?: string; payment_status?: string; shipping_status?: string; admin_notes?: string | null; note?: string }) {

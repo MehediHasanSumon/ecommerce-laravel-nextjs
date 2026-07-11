@@ -119,13 +119,11 @@ textarea {
 }
 
 :where(a, button, select, [role="button"]):focus-visible {
-  box-shadow:
-    0 0 0 2px var(--background),
-    0 0 0 4px color-mix(in srgb, var(--ring) 22%, transparent);
+  box-shadow: none;
 }
 
 :where(input, textarea):focus-visible {
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 14%, transparent);
+  box-shadow: none;
 }
 
 :where(input[class*="bg-transparent"], input[class*="pl-9"], input[class*="pl-10"], input[class*="pl-12"]):focus-visible {

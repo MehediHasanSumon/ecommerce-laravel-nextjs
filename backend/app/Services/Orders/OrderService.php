@@ -69,6 +69,21 @@ class OrderService
             ->firstOrFail();
     }
 
+    public function findAdminWithPaginatedTimeline(string|int $id, int $page = 1, int $perPage = 5): array
+    {
+        $order = $this->detailQuery(false)
+            ->where(fn (Builder $query) => $query->where('id', $id)->orWhere('order_number', $id))
+            ->firstOrFail();
+
+        $timeline = $order->histories()
+            ->latest()
+            ->paginate($perPage, ['*'], 'timeline_page', $page);
+
+        $order->setRelation('histories', $timeline->getCollection());
+
+        return [$order, $timeline];
+    }
+
     public function updateStatuses(Order $order, array $data, ?int $userId = null): Order
     {
         foreach (['status' => self::ORDER_STATUSES, 'payment_status' => self::PAYMENT_STATUSES, 'shipping_status' => self::SHIPPING_STATUSES] as $field => $allowed) {
@@ -124,18 +139,23 @@ class OrderService
         }
     }
 
-    private function detailQuery(): Builder
+    private function detailQuery(bool $withHistories = true): Builder
     {
-        return Order::query()->with([
+        $relations = [
             'user:id,name,email',
             'items.product:id,name,slug',
             'items.product.images:id,product_id,url,is_primary,sort_order',
             'items.variant:id,sku',
             'transactions' => fn ($query) => $query->latest(),
-            'histories' => fn ($query) => $query->latest(),
             'refunds' => fn ($query) => $query->latest(),
             'shippingLogs' => fn ($query) => $query->latest(),
-        ]);
+        ];
+
+        if ($withHistories) {
+            $relations['histories'] = fn ($query) => $query->latest();
+        }
+
+        return Order::query()->with($relations);
     }
 
     public function bulkUpdate(array $ids, array $data, ?int $userId = null): int

@@ -575,7 +575,7 @@ function ManagementPage<T extends { id: number }>({
       </section>
 
       {selected.length ? (
-        <div className="flex flex-col gap-3 rounded-lg border border-border bg-primary px-4 py-3 text-primary-foreground sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 rounded-lg border border-border bg-card px-4 py-3 text-foreground sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm font-semibold">{selected.length} selected</p>
           <div className="flex flex-wrap gap-2">
             <Button variant="secondary" size="sm" icon={<Download className="h-4 w-4" />} onClick={onExport}>Export</Button>

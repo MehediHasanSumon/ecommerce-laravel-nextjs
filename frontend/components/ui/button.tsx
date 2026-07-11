@@ -11,9 +11,9 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 
 const variants = {
   primary:
-    "bg-primary text-primary-foreground shadow-[0_16px_30px_-18px_hsl(var(--primary)/0.8)] hover:opacity-95 active:scale-[0.99]",
+    "bg-primary text-primary-foreground hover:opacity-95 active:scale-[0.99]",
   secondary:
-    "border border-border bg-background text-foreground shadow-sm hover:bg-muted active:scale-[0.99]",
+    "border border-border bg-background text-foreground hover:bg-muted active:scale-[0.99]",
   ghost:
     "text-muted-foreground hover:bg-muted hover:text-foreground active:scale-[0.99]",
   danger: "bg-destructive text-destructive-foreground hover:opacity-90 active:scale-[0.99]",
@@ -39,7 +39,7 @@ export function Button({
   return (
     <button
       className={cn(
-        "inline-flex items-center justify-center gap-2 whitespace-nowrap font-semibold transition duration-200 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-60 dark:focus-visible:ring-offset-background",
+        "inline-flex items-center justify-center gap-2 whitespace-nowrap font-semibold transition duration-200 focus-visible:ring-0 disabled:pointer-events-none disabled:opacity-60",
         variants[variant],
         sizes[size],
         className,

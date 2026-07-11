@@ -6,6 +6,7 @@ export type ApiEnvelope<T> = {
   data: T;
   meta: {
     pagination?: PaginationMeta;
+    timeline_pagination?: PaginationMeta;
   };
   errors: Record<string, string[]>;
 };

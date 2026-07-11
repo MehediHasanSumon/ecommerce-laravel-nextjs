@@ -38,16 +38,32 @@ class OrderManagementController extends Controller
         );
     }
 
-    public function show(string $order): JsonResponse
+    public function show(Request $request, string $order): JsonResponse
     {
-        return ApiResponse::success([
-            'order' => OrderDetailResource::make($this->orders->findAdmin($order))->resolve(),
-            'statuses' => [
-                'order' => OrderService::ORDER_STATUSES,
-                'payment' => OrderService::PAYMENT_STATUSES,
-                'shipping' => OrderService::SHIPPING_STATUSES,
-            ],
+        $data = $request->validate([
+            'timeline_page' => ['nullable', 'integer', 'min:1'],
+            'timeline_per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
         ]);
+
+        [$record, $timeline] = $this->orders->findAdminWithPaginatedTimeline(
+            $order,
+            (int) ($data['timeline_page'] ?? 1),
+            (int) ($data['timeline_per_page'] ?? 5),
+        );
+
+        return ApiResponse::success(
+            [
+                'order' => OrderDetailResource::make($record)->resolve(),
+                'statuses' => [
+                    'order' => OrderService::ORDER_STATUSES,
+                    'payment' => OrderService::PAYMENT_STATUSES,
+                    'shipping' => OrderService::SHIPPING_STATUSES,
+                ],
+            ],
+            'OK',
+            200,
+            ['timeline_pagination' => $this->paginationMeta($timeline)],
+        );
     }
 
     public function update(Request $request, string $order): JsonResponse
