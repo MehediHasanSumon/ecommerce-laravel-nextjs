@@ -8,7 +8,6 @@ import {
   CreditCard,
   Globe2,
   ImageIcon,
-  LayoutGrid,
   Link2,
   Mail,
   MapPin,
@@ -217,27 +216,6 @@ const moduleConfigs: Record<string, SingletonModule> = {
       ] },
     ],
   },
-  categories: {
-    kind: "singleton",
-    path: "categories",
-    title: "Category Display Settings",
-    description: "Control the home category section, navbar dropdown behavior, and category landing route.",
-    icon: LayoutGrid,
-    defaults: {
-      enable_home_category_section: true,
-      category_display_mode: "landing_page",
-    },
-    sections: [
-      { title: "Display Behavior", description: "Choose how categories appear on the storefront and navbar.", icon: LayoutGrid, fields: [
-        { name: "enable_home_category_section", label: "Enable Category Section on Home Page", type: "toggle" },
-        { name: "category_display_mode", label: "Category Display Mode", type: "select", required: true, options: [
-          { label: "Category Landing Page Mode", value: "landing_page" },
-          { label: "Home Grid + Navbar Dropdown", value: "home_grid_navbar_dropdown" },
-          { label: "Navbar Dropdown Only", value: "navbar_dropdown_only" },
-        ], helper: "Navbar Dropdown Only hides the home category section and disables /categories." },
-      ] },
-    ],
-  },
   "home-feature-cards": {
     kind: "singleton",
     path: "home-feature-cards",
@@ -250,23 +228,6 @@ const moduleConfigs: Record<string, SingletonModule> = {
     sections: [
       { title: "Section Visibility", description: "Toggle the full feature-card section on the storefront.", icon: BadgeCheck, fields: [
         { name: "enabled", label: "Enable Feature Cards Section", type: "toggle" },
-      ] },
-    ],
-  },
-  brand: {
-    kind: "singleton",
-    path: "brand",
-    title: "Brand Settings",
-    description: "Control product brand management, storefront brand routes, filters, and home page visibility.",
-    icon: Building2,
-    defaults: {
-      enabled: true,
-      show_on_home: true,
-    },
-    sections: [
-      { title: "Brand Settings", description: "Toggle the product Brand module and the home page brand section.", icon: Building2, fields: [
-        { name: "enabled", label: "Enable Brand", type: "toggle" },
-        { name: "show_on_home", label: "Show Brand Section on Home Page", type: "toggle", helper: "Only applies while Brand is enabled." },
       ] },
     ],
   },

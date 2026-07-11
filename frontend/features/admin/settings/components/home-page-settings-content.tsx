@@ -69,17 +69,13 @@ export function HomePageSettingsContent() {
 
   useEffect(() => {
     let active = true;
-    Promise.all([
-      settingsApi.get<{ settings: HomePageSettingsForm }>("home-page"),
-      settingsApi.get<{ settings: CategoryDisplaySettingsForm }>("categories"),
-      settingsApi.get<{ settings: BrandSettingsForm }>("brand"),
-    ])
-      .then(([homeResponse, categoryResponse, brandResponse]) => {
+    settingsApi.get<{ settings: MergedHomePageSettingsForm }>("home-page")
+      .then((response) => {
         if (!active) return;
         const next = {
-          home: normalize(homeResponse.data.settings),
-          categories: normalizeCategories(categoryResponse.data.settings),
-          brand: normalizeBrand(brandResponse.data.settings),
+          home: normalize(response.data.settings.home),
+          categories: normalizeCategories(response.data.settings.categories),
+          brand: normalizeBrand(response.data.settings.brand),
         };
         setForm(next);
         setInitial(next);
@@ -95,19 +91,15 @@ export function HomePageSettingsContent() {
   async function save() {
     try {
       setSaving(true);
-      const [homeResponse, categoryResponse, brandResponse] = await Promise.all([
-        settingsApi.update<HomePageSettingsForm, { settings: HomePageSettingsForm }>("home-page", form.home),
-        settingsApi.update<CategoryDisplaySettingsForm, { settings: CategoryDisplaySettingsForm }>("categories", form.categories),
-        settingsApi.update<BrandSettingsForm, { settings: BrandSettingsForm }>("brand", form.brand),
-      ]);
+      const response = await settingsApi.update<MergedHomePageSettingsForm, { settings: MergedHomePageSettingsForm }>("home-page", form);
       const next = {
-        home: normalize(homeResponse.data.settings),
-        categories: normalizeCategories(categoryResponse.data.settings),
-        brand: normalizeBrand(brandResponse.data.settings),
+        home: normalize(response.data.settings.home),
+        categories: normalizeCategories(response.data.settings.categories),
+        brand: normalizeBrand(response.data.settings.brand),
       };
       setForm(next);
       setInitial(next);
-      toast.success("Home page settings saved.");
+      toast.success(response.message || "Home page settings saved.");
     } catch (error) {
       toast.error(toAppError(error).message);
     } finally {

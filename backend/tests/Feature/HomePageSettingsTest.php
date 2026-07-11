@@ -37,13 +37,25 @@ it('updates home page settings and exposes runtime settings', function (): void 
     $token = homePageSettingsAdminToken();
 
     $this->withToken($token)->putJson('/api/admin/settings/home-page', [
-        'enable_product_section' => false,
-        'products_per_section' => 12,
-        'enable_testimonial_section' => false,
+        'home' => [
+            'enable_product_section' => false,
+            'products_per_section' => 12,
+            'enable_testimonial_section' => false,
+        ],
+        'categories' => [
+            'enable_home_category_section' => true,
+            'category_display_mode' => 'home_grid_navbar_dropdown',
+        ],
+        'brand' => [
+            'enabled' => true,
+            'show_on_home' => false,
+        ],
     ])->assertOk()
-        ->assertJsonPath('data.settings.enable_product_section', false)
-        ->assertJsonPath('data.settings.products_per_section', 12)
-        ->assertJsonPath('data.settings.enable_testimonial_section', false);
+        ->assertJsonPath('data.settings.home.enable_product_section', false)
+        ->assertJsonPath('data.settings.home.products_per_section', 12)
+        ->assertJsonPath('data.settings.home.enable_testimonial_section', false)
+        ->assertJsonPath('data.settings.categories.category_display_mode', 'home_grid_navbar_dropdown')
+        ->assertJsonPath('data.settings.brand.show_on_home', false);
 
     $this->getJson('/api/settings/navigation')
         ->assertOk()
@@ -80,9 +92,19 @@ it('applies product section visibility and limit to the home page API', function
 
 it('validates home page product limits', function (): void {
     $this->withToken(homePageSettingsAdminToken())->putJson('/api/admin/settings/home-page', [
-        'enable_product_section' => true,
-        'products_per_section' => 99,
-        'enable_testimonial_section' => true,
+        'home' => [
+            'enable_product_section' => true,
+            'products_per_section' => 99,
+            'enable_testimonial_section' => true,
+        ],
+        'categories' => [
+            'enable_home_category_section' => true,
+            'category_display_mode' => 'landing_page',
+        ],
+        'brand' => [
+            'enabled' => true,
+            'show_on_home' => true,
+        ],
     ])->assertUnprocessable()
-        ->assertJsonValidationErrors(['products_per_section']);
+        ->assertJsonValidationErrors(['home.products_per_section']);
 });

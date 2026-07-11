@@ -16,9 +16,7 @@ use App\Http\Controllers\Api\Admin\RoleManagementController;
 use App\Http\Controllers\Api\Admin\ShippingMethodManagementController;
 use App\Http\Controllers\Api\Admin\ShippingZoneController;
 use App\Http\Controllers\Api\Admin\Settings\BlogSettingsController;
-use App\Http\Controllers\Api\Admin\Settings\BrandSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\CompanySettingsController;
-use App\Http\Controllers\Api\Admin\Settings\CategoryDisplaySettingsController;
 use App\Http\Controllers\Api\Admin\Settings\EmailSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\HomeFeatureCardSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\HomePageSettingsController;
@@ -189,9 +187,6 @@ Route::prefix('admin')
         Route::put('/settings/company', [CompanySettingsController::class, 'update']);
         Route::post('/settings/company/upload', [CompanySettingsController::class, 'upload']);
 
-        Route::get('/settings/categories', [CategoryDisplaySettingsController::class, 'show']);
-        Route::put('/settings/categories', [CategoryDisplaySettingsController::class, 'update']);
-
         Route::get('/settings/home-feature-cards', [HomeFeatureCardSettingsController::class, 'show']);
         Route::put('/settings/home-feature-cards', [HomeFeatureCardSettingsController::class, 'update']);
 
@@ -200,9 +195,6 @@ Route::prefix('admin')
 
         Route::get('/settings/blog', [BlogSettingsController::class, 'show']);
         Route::put('/settings/blog', [BlogSettingsController::class, 'update']);
-
-        Route::get('/settings/brand', [BrandSettingsController::class, 'show']);
-        Route::put('/settings/brand', [BrandSettingsController::class, 'update']);
 
         Route::get('/settings/store', [StoreSettingsController::class, 'show']);
         Route::put('/settings/store', [StoreSettingsController::class, 'update']);

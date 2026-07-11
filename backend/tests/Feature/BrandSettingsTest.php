@@ -16,12 +16,23 @@ function brandSettingsAdminToken(): string
 it('updates brand settings and exposes them in runtime navigation', function () {
     $token = brandSettingsAdminToken();
 
-    $this->withToken($token)->putJson('/api/admin/settings/brand', [
-        'enabled' => false,
-        'show_on_home' => true,
+    $this->withToken($token)->putJson('/api/admin/settings/home-page', [
+        'home' => [
+            'enable_product_section' => true,
+            'products_per_section' => 20,
+            'enable_testimonial_section' => true,
+        ],
+        'categories' => [
+            'enable_home_category_section' => true,
+            'category_display_mode' => 'landing_page',
+        ],
+        'brand' => [
+            'enabled' => false,
+            'show_on_home' => true,
+        ],
     ])->assertOk()
-        ->assertJsonPath('data.settings.enabled', false)
-        ->assertJsonPath('data.settings.show_on_home', false);
+        ->assertJsonPath('data.settings.brand.enabled', false)
+        ->assertJsonPath('data.settings.brand.show_on_home', false);
 
     $navigation = $this->getJson('/api/settings/navigation')
         ->assertOk()
