@@ -11,9 +11,21 @@ use App\Http\Responses\ApiResponse;
 use App\Models\Settings\ShippingZone;
 use App\Services\Admin\ShippingManagementService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
-class ShippingZoneController extends Controller
+class ShippingZoneController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('permission:can_view_shipping_zone', only: ['index', 'show']),
+            new Middleware('permission:can_create_shipping_zone', only: ['store']),
+            new Middleware('permission:can_edit_shipping_zone', only: ['update']),
+            new Middleware('permission:can_delete_shipping_zone', only: ['destroy', 'bulkDestroy']),
+        ];
+    }
+
     public function __construct(private readonly ShippingManagementService $shipping) {}
 
     public function index(ShippingZoneIndexRequest $request): JsonResponse

@@ -13,9 +13,21 @@ use App\Models\Blog;
 use App\Models\User;
 use App\Services\Admin\BlogManagementService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
-class BlogManagementController extends Controller
+class BlogManagementController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('permission:can_view_blog', only: ['index', 'show']),
+            new Middleware('permission:can_create_blog', only: ['store']),
+            new Middleware('permission:can_edit_blog', only: ['update']),
+            new Middleware('permission:can_delete_blog', only: ['destroy', 'bulkDestroy']),
+        ];
+    }
+
     public function __construct(private readonly BlogManagementService $blogs) {}
 
     public function index(ListBlogsRequest $request): JsonResponse

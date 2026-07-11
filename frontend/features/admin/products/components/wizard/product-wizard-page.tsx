@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import type { ProductOptions, ProductRecord } from "@/features/admin/products/types";
 import { productManagementService } from "@/features/admin/products/services/product-management-service";
 import { toAppError } from "@/lib/errors";
+import { hasPermission } from "@/lib/permissions";
 import { routePaths } from "@/constants/routes";
 import { ProductFormLayout } from "@/features/admin/products/components/wizard/product-form-layout";
 import {
@@ -34,6 +35,7 @@ import {
 import type { ProductWizardMode, ProductWizardStepId, ProductWizardValues } from "@/features/admin/products/components/wizard/product-wizard-types";
 import { ErrorSummary } from "@/features/admin/products/components/wizard/product-wizard-fields";
 import { selectBrandsEnabled, useSettingsStore } from "@/store/settings-store";
+import { useAuthStore } from "@/store/auth-store";
 
 const emptyOptions: ProductOptions = {
   brands: [],
@@ -127,6 +129,8 @@ function firstFormError(errors: FieldErrors<ProductWizardValues>, prefix = ""): 
 export function ProductWizardPage({ mode, productId }: { mode: ProductWizardMode; productId?: number }) {
   const router = useRouter();
   const brandsEnabled = useSettingsStore(selectBrandsEnabled);
+  useAuthStore((state) => state.user?.permissions ?? []);
+  const canSave = hasPermission(mode === "edit" ? "can_edit_product" : "can_create_product");
   const [options, setOptions] = useState<ProductOptions>(emptyOptions);
   const [loading, setLoading] = useState(mode === "edit");
   const [activeStep, setActiveStep] = useState(0);
@@ -162,6 +166,12 @@ export function ProductWizardPage({ mode, productId }: { mode: ProductWizardMode
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!canSave) {
+      router.replace(routePaths.adminProducts);
+    }
+  }, [canSave, router]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/incompatible-library

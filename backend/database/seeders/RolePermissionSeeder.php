@@ -18,20 +18,36 @@ class RolePermissionSeeder extends Seeder
 
         $guard = 'web';
 
-        $permissions = [
-            'can_edit_user',
-            'can_delete_user',
-            'can_create_user',
-            'can_view_user',
-            'can_edit_role',
-            'can_delete_role',
-            'can_create_role',
-            'can_view_role',
-            'can_edit_permission',
-            'can_delete_permission',
-            'can_create_permission',
-            'can_view_permission',
+        $resources = [
+            'user',
+            'role',
+            'permission',
+            'order',
+            'product',
+            'brand',
+            'category',
+            'attribute',
+            'attribute_value',
+            'tag',
+            'review',
+            'collection',
+            'currency',
+            'discount',
+            'warehouse',
+            'shipping_zone',
+            'shipping_method',
+            'blog',
+            'contact_message',
         ];
+
+        $permissions = collect($resources)
+            ->flatMap(fn (string $resource) => [
+                "can_edit_{$resource}",
+                "can_delete_{$resource}",
+                "can_create_{$resource}",
+                "can_view_{$resource}",
+            ])
+            ->all();
 
         foreach ($permissions as $permission) {
             Permission::query()->firstOrCreate([

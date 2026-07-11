@@ -12,6 +12,8 @@ import { contactMessageService } from "@/features/admin/contact-messages/service
 import type { ContactMessage, ContactMessageStatus } from "@/features/admin/contact-messages/types";
 import type { PaginationMeta } from "@/features/admin/shared/types";
 import { toAppError } from "@/lib/errors";
+import { hasPermission } from "@/lib/permissions";
+import { useAuthStore } from "@/store/auth-store";
 import { cn } from "@/utils/cn";
 
 const statuses: Array<ContactMessageStatus | "all"> = ["all", "new", "read", "replied", "closed"];
@@ -35,6 +37,9 @@ export function ContactMessagesContent() {
   const [searchInput, setSearchInput] = useState(query.search);
   const [selected, setSelected] = useState<ContactMessage | null>(null);
   const { confirmDelete, deleteConfirmationDialog } = useDeleteConfirmation();
+  useAuthStore((state) => state.user?.permissions ?? []);
+  const canEdit = hasPermission("can_edit_contact_message");
+  const canDelete = hasPermission("can_delete_contact_message");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -152,12 +157,12 @@ export function ContactMessagesContent() {
                         </button>
                       </th>
                     ))}
-                    <th className="px-4 py-3 text-right">Actions</th>
+                    {canDelete ? <th className="px-4 py-3 text-right">Actions</th> : null}
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
-                    <TableSkeleton rows={6} columns={4} actions />
+                    <TableSkeleton rows={6} columns={4} actions={canDelete} />
                   ) : items.length ? items.map((item) => (
                     <tr key={item.id} onClick={() => setSelected(item)} className={cn("cursor-pointer border-t border-border hover:bg-muted/40", selected?.id === item.id && "bg-muted/60")}>
                       <td className="px-4 py-3">
@@ -167,7 +172,7 @@ export function ContactMessagesContent() {
                       <td className="px-4 py-3">{item.subject}</td>
                       <td className="px-4 py-3"><span className="rounded-full border border-border px-2 py-1 text-xs font-bold">{statusLabel(item.status)}</span></td>
                       <td className="px-4 py-3">{formatDate(item.created_at)}</td>
-                      <td className="px-4 py-3 text-right">
+                      {canDelete ? <td className="px-4 py-3 text-right">
                         <Button
                           variant="ghost"
                           size="icon"
@@ -186,10 +191,10 @@ export function ContactMessagesContent() {
                             });
                           }}
                         />
-                      </td>
+                      </td> : null}
                     </tr>
                   )) : (
-                    <tr><td colSpan={5} className="h-48 text-center text-muted-foreground">No contact messages found.</td></tr>
+                    <tr><td colSpan={4 + (canDelete ? 1 : 0)} className="h-48 text-center text-muted-foreground">No contact messages found.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -197,7 +202,7 @@ export function ContactMessagesContent() {
 
             <aside className="border-t border-border p-4 lg:border-l lg:border-t-0">
               {selected ? (
-                <MessageDetail message={selected} onUpdate={updateMessage} />
+                <MessageDetail message={selected} canEdit={canEdit} onUpdate={updateMessage} />
               ) : (
                 <div className="flex h-full min-h-64 items-center justify-center rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
                   Select a message to view details.
@@ -224,7 +229,7 @@ export function ContactMessagesContent() {
   );
 }
 
-function MessageDetail({ message, onUpdate }: { message: ContactMessage; onUpdate: (message: ContactMessage, status: ContactMessageStatus, note?: string) => Promise<void> }) {
+function MessageDetail({ message, canEdit, onUpdate }: { message: ContactMessage; canEdit: boolean; onUpdate: (message: ContactMessage, status: ContactMessageStatus, note?: string) => Promise<void> }) {
   const [note, setNote] = useState(message.admin_note ?? "");
   const [status, setStatus] = useState<ContactMessageStatus>(message.status);
   const [saving, setSaving] = useState(false);
@@ -243,7 +248,7 @@ function MessageDetail({ message, onUpdate }: { message: ContactMessage; onUpdat
       </div>
       {message.phone ? <p className="text-sm"><span className="font-semibold">Phone:</span> {message.phone}</p> : null}
       <div className="rounded-lg bg-muted p-3 text-sm leading-6">{message.message}</div>
-      <label className="block space-y-1.5 text-sm font-semibold">
+      {canEdit ? <label className="block space-y-1.5 text-sm font-semibold">
         <span>Status</span>
         <Select value={status} onValueChange={(value) => setStatus(value as ContactMessageStatus)}>
           <SelectTrigger className="h-10 rounded-lg px-3 text-sm"><SelectValue /></SelectTrigger>
@@ -251,12 +256,12 @@ function MessageDetail({ message, onUpdate }: { message: ContactMessage; onUpdat
             {statuses.filter((item) => item !== "all").map((item) => <SelectItem key={item} value={item}>{statusLabel(item)}</SelectItem>)}
           </SelectContent>
         </Select>
-      </label>
-      <label className="block space-y-1.5 text-sm font-semibold">
+      </label> : null}
+      {canEdit ? <label className="block space-y-1.5 text-sm font-semibold">
         <span>Admin Note</span>
         <textarea value={note} onChange={(event) => setNote(event.target.value)} rows={5} className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary" />
-      </label>
-      <Button
+      </label> : null}
+      {canEdit ? <Button
         size="sm"
         isLoading={saving}
         onClick={async () => {
@@ -266,7 +271,7 @@ function MessageDetail({ message, onUpdate }: { message: ContactMessage; onUpdat
         }}
       >
         Save Message
-      </Button>
+      </Button> : null}
     </div>
   );
 }

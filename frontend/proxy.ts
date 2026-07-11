@@ -29,7 +29,43 @@ const permissionRouteRequirements: Array<{ route: string; permission: string }> 
   { route: routePaths.adminUsers, permission: "can_view_user" },
   { route: routePaths.adminRoles, permission: "can_view_role" },
   { route: routePaths.adminPermissions, permission: "can_view_permission" },
+  { route: routePaths.adminOrders, permission: "can_view_order" },
+  { route: routePaths.adminProducts, permission: "can_view_product" },
+  { route: routePaths.adminBrands, permission: "can_view_brand" },
+  { route: routePaths.adminCategories, permission: "can_view_category" },
+  { route: routePaths.adminAttributes, permission: "can_view_attribute" },
+  { route: routePaths.adminAttributeValues, permission: "can_view_attribute_value" },
+  { route: routePaths.adminTags, permission: "can_view_tag" },
+  { route: routePaths.adminReviews, permission: "can_view_review" },
+  { route: routePaths.adminCollections, permission: "can_view_collection" },
+  { route: routePaths.adminCurrencies, permission: "can_view_currency" },
+  { route: routePaths.adminDiscounts, permission: "can_view_discount" },
+  { route: routePaths.adminWarehouses, permission: "can_view_warehouse" },
+  { route: routePaths.adminSettingsShippingZones, permission: "can_view_shipping_zone" },
+  { route: routePaths.adminSettingsShippingMethods, permission: "can_view_shipping_method" },
+  { route: routePaths.adminBlogs, permission: "can_view_blog" },
+  { route: routePaths.adminContactMessages, permission: "can_view_contact_message" },
 ];
+
+function requiredPermissionForPath(pathname: string) {
+  if (pathname === routePaths.adminProductCreate) {
+    return "can_create_product";
+  }
+
+  if (/^\/admin\/products\/[^/]+\/edit$/.test(pathname)) {
+    return "can_edit_product";
+  }
+
+  if (pathname === `${routePaths.adminCollections}/create`) {
+    return "can_create_collection";
+  }
+
+  if (/^\/admin\/collections\/[^/]+\/edit$/.test(pathname)) {
+    return "can_edit_collection";
+  }
+
+  return permissionRouteRequirements.find(({ route }) => isRoute(pathname, [route]))?.permission ?? null;
+}
 
 function isRoute(pathname: string, routes: readonly string[]) {
   return routes.some((route) => pathname === route || pathname.startsWith(`${route}/`));
@@ -179,7 +215,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  const requiredPermission = permissionRouteRequirements.find(({ route }) => isRoute(pathname, [route]))?.permission;
+  const requiredPermission = requiredPermissionForPath(pathname);
 
   if (protectedRoute && requiredPermission && !await userHasPermission(request, requiredPermission)) {
     const homeUrl = request.nextUrl.clone();

@@ -8,10 +8,21 @@ use App\Http\Responses\ApiResponse;
 use App\Models\ContactMessage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Validation\Rule;
 
-class ContactMessageManagementController extends Controller
+class ContactMessageManagementController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('permission:can_view_contact_message', only: ['index']),
+            new Middleware('permission:can_edit_contact_message', only: ['update']),
+            new Middleware('permission:can_delete_contact_message', only: ['destroy']),
+        ];
+    }
+
     public function index(Request $request): JsonResponse
     {
         $data = $request->validate([

@@ -10,10 +10,20 @@ use App\Services\Orders\OrderService;
 use App\Services\Pdf\OrderPdfService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Http\Response;
 
-class OrderManagementController extends Controller
+class OrderManagementController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('permission:can_view_order', only: ['index', 'show', 'invoice', 'deliverySlip']),
+            new Middleware('permission:can_edit_order', only: ['update', 'bulkUpdate', 'refund', 'shippingLog']),
+        ];
+    }
+
     public function __construct(
         private readonly OrderService $orders,
         private readonly OrderPdfService $pdf,

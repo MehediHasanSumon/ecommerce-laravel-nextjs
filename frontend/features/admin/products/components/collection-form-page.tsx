@@ -15,6 +15,8 @@ import type { ProductModulePayload, ProductOptions, ProductRecord } from "@/feat
 import type { ApiValidationErrors } from "@/types/auth";
 import { routePaths } from "@/constants/routes";
 import { toAppError } from "@/lib/errors";
+import { hasPermission } from "@/lib/permissions";
+import { useAuthStore } from "@/store/auth-store";
 
 const emptyOptions: ProductOptions = {
   brands: [],
@@ -37,6 +39,8 @@ function firstValidationMessage(errors: ApiValidationErrors | undefined) {
 export function CollectionFormPage({ mode, collectionId }: { mode: DrawerMode; collectionId?: number }) {
   const router = useRouter();
   const config = productModuleConfigs.collections;
+  useAuthStore((state) => state.user?.permissions ?? []);
+  const canSave = hasPermission(mode === "edit" ? "can_edit_collection" : "can_create_collection");
   const [item, setItem] = useState<ProductRecord | null>(null);
   const [options, setOptions] = useState<ProductOptions>(emptyOptions);
   const [loading, setLoading] = useState(mode === "edit");
@@ -67,6 +71,12 @@ export function CollectionFormPage({ mode, collectionId }: { mode: DrawerMode; c
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!canSave) {
+      router.replace(routePaths.adminCollections);
+    }
+  }, [canSave, router]);
 
   const submit = useCallback(async (values: ProductModulePayload) => {
     try {

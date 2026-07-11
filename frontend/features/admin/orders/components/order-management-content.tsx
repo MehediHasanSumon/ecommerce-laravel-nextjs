@@ -13,6 +13,8 @@ import { useUrlQueryState } from "@/features/admin/shared/hooks/use-url-query-st
 import type { PaginationMeta } from "@/features/admin/shared/types";
 import type { OrderDetail, OrderListItem } from "@/services/order-service";
 import { toAppError } from "@/lib/errors";
+import { hasPermission } from "@/lib/permissions";
+import { useAuthStore } from "@/store/auth-store";
 import { formatPrice } from "@/utils/format";
 import { cn } from "@/utils/cn";
 
@@ -39,6 +41,8 @@ export function OrderManagementContent() {
   const [bulkStatus, setBulkStatus] = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
   const [searchInput, setSearchInput] = useState(query.search);
+  useAuthStore((state) => state.user?.permissions ?? []);
+  const canEditOrder = hasPermission("can_edit_order");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -133,7 +137,7 @@ export function OrderManagementContent() {
         </div>
       </section>
 
-      {selected.length ? (
+      {selected.length && canEditOrder ? (
         <div className="flex flex-col gap-3 rounded-lg border border-border bg-card px-4 py-3 text-foreground sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm font-semibold">{selected.length} selected</p>
           <div className="flex flex-wrap gap-2">
@@ -349,6 +353,8 @@ export function AdminOrderDetailContent({ orderNumber }: { orderNumber: string }
   const [note, setNote] = useState("");
   const [refund, setRefund] = useState({ amount: "", reason: "", note: "" });
   const [shippingLog, setShippingLog] = useState({ status: "shipped", courier: "", tracking_number: "", tracking_url: "", note: "" });
+  useAuthStore((state) => state.user?.permissions ?? []);
+  const canEditOrder = hasPermission("can_edit_order");
 
   const load = useCallback(async (page = 1) => {
     try {
@@ -413,9 +419,9 @@ export function AdminOrderDetailContent({ orderNumber }: { orderNumber: string }
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <StatusControl title="Order Status" value={order.status} values={orderStatuses.filter(Boolean)} disabled={saving} onChange={(value) => update("status", value)} />
-        <StatusControl title="Payment Status" value={order.paymentStatus} values={paymentStatuses.filter(Boolean)} disabled={saving} onChange={(value) => update("payment_status", value)} />
-        <StatusControl title="Shipping Status" value={order.shippingStatus} values={["pending", "processing", "shipped", "delivered", "returned"]} disabled={saving} onChange={(value) => update("shipping_status", value)} />
+        <StatusControl title="Order Status" value={order.status} values={orderStatuses.filter(Boolean)} disabled={saving || !canEditOrder} onChange={(value) => update("status", value)} />
+        <StatusControl title="Payment Status" value={order.paymentStatus} values={paymentStatuses.filter(Boolean)} disabled={saving || !canEditOrder} onChange={(value) => update("payment_status", value)} />
+        <StatusControl title="Shipping Status" value={order.shippingStatus} values={["pending", "processing", "shipped", "delivered", "returned"]} disabled={saving || !canEditOrder} onChange={(value) => update("shipping_status", value)} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -497,7 +503,7 @@ export function AdminOrderDetailContent({ orderNumber }: { orderNumber: string }
         </Panel>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      {canEditOrder ? <div className="grid gap-4 lg:grid-cols-3">
         <Panel title="Admin Notes">
           <textarea value={note} onChange={(event) => setNote(event.target.value)} rows={6} className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary" />
           <Button className="mt-3" size="sm" isLoading={saving} onClick={async () => {
@@ -545,7 +551,7 @@ export function AdminOrderDetailContent({ orderNumber }: { orderNumber: string }
           </div>
           <div className="mt-4 space-y-2">{order.shippingLogs?.map((item) => <p key={item.id} className="text-sm text-muted-foreground">{label(item.status)} • {item.courier ?? "No courier"} • {item.trackingNumber ?? "No tracking"}</p>)}</div>
         </Panel>
-      </div>
+      </div> : null}
     </div>
   );
 }

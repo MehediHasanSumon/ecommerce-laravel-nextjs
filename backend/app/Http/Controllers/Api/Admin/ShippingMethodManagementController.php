@@ -13,9 +13,21 @@ use App\Models\Settings\ShippingMethod;
 use App\Models\Settings\ShippingZone;
 use App\Services\Admin\ShippingManagementService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
-class ShippingMethodManagementController extends Controller
+class ShippingMethodManagementController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('permission:can_view_shipping_method', only: ['index', 'show']),
+            new Middleware('permission:can_create_shipping_method', only: ['store']),
+            new Middleware('permission:can_edit_shipping_method', only: ['update']),
+            new Middleware('permission:can_delete_shipping_method', only: ['destroy', 'bulkDestroy']),
+        ];
+    }
+
     public function __construct(private readonly ShippingManagementService $shipping) {}
 
     public function index(ShippingMethodIndexRequest $request): JsonResponse

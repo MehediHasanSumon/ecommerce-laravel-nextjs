@@ -15,6 +15,8 @@ import { exportCsv, formatDate, statusLabel } from "@/features/admin/shared/util
 import { shippingService } from "@/features/admin/shipping/services/shipping-service";
 import type { ShippingMethod, ShippingMethodPayload, ShippingStatus, ShippingZone, ShippingZonePayload } from "@/features/admin/shipping/types";
 import { toAppError } from "@/lib/errors";
+import { hasPermission } from "@/lib/permissions";
+import { useAuthStore } from "@/store/auth-store";
 import { cn } from "@/utils/cn";
 
 const statuses: ShippingStatus[] = ["active", "inactive"];
@@ -112,7 +114,7 @@ function FilterModal({ open, status, zoneId, zones, showZones, onClose, onApply 
   );
 }
 
-function ManagementPage<T extends { id: number }>({ title, description, createLabel, data, pagination, columns, loading, selected, sort, search, status, zoneId, zones, showZones, onSort, onSearch, onFilter, onPage, onPerPage, onToggle, onToggleAll, onCreate, onView, onEdit, onDelete, onBulkDelete, onExport }: {
+function ManagementPage<T extends { id: number }>({ title, description, createLabel, data, pagination, columns, loading, selected, sort, search, status, zoneId, zones, showZones, onSort, onSearch, onFilter, onPage, onPerPage, onToggle, onToggleAll, onCreate, onView, onEdit, onDelete, onBulkDelete, onExport, canCreate = true, canEdit = true, canDelete = true }: {
   title: string;
   description: string;
   createLabel: string;
@@ -140,6 +142,9 @@ function ManagementPage<T extends { id: number }>({ title, description, createLa
   onDelete: (item: T) => void;
   onBulkDelete: () => void;
   onExport: () => void;
+  canCreate?: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }) {
   const [searchInput, setSearchInput] = useState(search);
   const [filterOpen, setFilterOpen] = useState(false);
@@ -160,7 +165,7 @@ function ManagementPage<T extends { id: number }>({ title, description, createLa
           <h1 className="text-2xl font-extrabold tracking-tight">{title}</h1>
           <p className="mt-1 text-sm text-muted-foreground">{description}</p>
         </div>
-        <Button size="sm" icon={<Plus className="h-4 w-4" />} onClick={onCreate}>{createLabel}</Button>
+        {canCreate ? <Button size="sm" icon={<Plus className="h-4 w-4" />} onClick={onCreate}>{createLabel}</Button> : null}
       </section>
 
       <section className="rounded-lg border border-border bg-card">
@@ -175,7 +180,7 @@ function ManagementPage<T extends { id: number }>({ title, description, createLa
           <div className="flex flex-wrap gap-2">
             <Button variant="secondary" size="sm" icon={<Filter className="h-4 w-4" />} onClick={() => setFilterOpen(true)}>Filter</Button>
             <Button variant="secondary" size="sm" icon={<Download className="h-4 w-4" />} disabled={!selected.length} onClick={onExport}>Export</Button>
-            <Button variant="danger" size="sm" icon={<Trash2 className="h-4 w-4" />} disabled={!selected.length} onClick={onBulkDelete}>Delete Selected</Button>
+            {canDelete ? <Button variant="danger" size="sm" icon={<Trash2 className="h-4 w-4" />} disabled={!selected.length} onClick={onBulkDelete}>Delete Selected</Button> : null}
           </div>
         </div>
 
@@ -206,8 +211,8 @@ function ManagementPage<T extends { id: number }>({ title, description, createLa
                   <td className="px-4 py-3">
                     <div className="flex justify-end gap-1">
                       <Button variant="ghost" size="icon" icon={<Eye className="h-4 w-4" />} title="View" aria-label="View" onClick={() => onView(item)} />
-                      <Button variant="ghost" size="icon" icon={<Edit3 className="h-4 w-4" />} title="Edit" aria-label="Edit" onClick={() => onEdit(item)} />
-                      <Button variant="ghost" size="icon" icon={<Trash2 className="h-4 w-4" />} title="Delete" aria-label="Delete" onClick={() => onDelete(item)} />
+                      {canEdit ? <Button variant="ghost" size="icon" icon={<Edit3 className="h-4 w-4" />} title="Edit" aria-label="Edit" onClick={() => onEdit(item)} /> : null}
+                      {canDelete ? <Button variant="ghost" size="icon" icon={<Trash2 className="h-4 w-4" />} title="Delete" aria-label="Delete" onClick={() => onDelete(item)} /> : null}
                     </div>
                   </td>
                 </tr>
@@ -414,6 +419,10 @@ export function ShippingZonesContent() {
   const [selected, setSelected] = useState<number[]>([]);
   const [drawer, setDrawer] = useState<{ open: boolean; mode: DrawerMode; item: ShippingZone | null }>({ open: false, mode: "create", item: null });
   const { confirmDelete, deleteConfirmationDialog } = useDeleteConfirmation();
+  useAuthStore((state) => state.user?.permissions ?? []);
+  const canCreate = hasPermission("can_create_shipping_zone");
+  const canEdit = hasPermission("can_edit_shipping_zone");
+  const canDelete = hasPermission("can_delete_shipping_zone");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -484,6 +493,9 @@ export function ShippingZonesContent() {
         onDelete={(item) => confirmDelete({ title: "Confirm Deletion", onConfirm: async () => { await shippingService.deleteZone(item.id); toast.success("Shipping zone deleted."); await load(); } })}
         onBulkDelete={() => confirmDelete({ title: "Confirm Deletion", onConfirm: async () => { await shippingService.bulkDeleteZones(selected); setSelected([]); toast.success("Selected shipping zones deleted."); await load(); } })}
         onExport={() => exportCsv("shipping-zones.csv", items.filter((item) => selected.includes(item.id)).map((zone) => ({ name: zone.name, countries: zone.countries.join("; "), status: zone.status, methods: zone.methods_count })))}
+        canCreate={canCreate}
+        canEdit={canEdit}
+        canDelete={canDelete}
       />
       {deleteConfirmationDialog}
       <Drawer open={drawer.open} title={drawer.mode === "create" ? "Create Shipping Zone" : drawer.mode === "view" ? "Shipping Zone Details" : "Edit Shipping Zone"} description="Define delivery coverage by country." onClose={() => setDrawer({ open: false, mode: "create", item: null })}>
@@ -506,6 +518,10 @@ export function ShippingMethodsContent() {
   const [selected, setSelected] = useState<number[]>([]);
   const [drawer, setDrawer] = useState<{ open: boolean; mode: DrawerMode; item: ShippingMethod | null }>({ open: false, mode: "create", item: null });
   const { confirmDelete, deleteConfirmationDialog } = useDeleteConfirmation();
+  useAuthStore((state) => state.user?.permissions ?? []);
+  const canCreate = hasPermission("can_create_shipping_method");
+  const canEdit = hasPermission("can_edit_shipping_method");
+  const canDelete = hasPermission("can_delete_shipping_method");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -578,6 +594,9 @@ export function ShippingMethodsContent() {
         onDelete={(item) => confirmDelete({ title: "Confirm Deletion", onConfirm: async () => { await shippingService.deleteMethod(item.id); toast.success("Shipping method deleted."); await load(); } })}
         onBulkDelete={() => confirmDelete({ title: "Confirm Deletion", onConfirm: async () => { await shippingService.bulkDeleteMethods(selected); setSelected([]); toast.success("Selected shipping methods deleted."); await load(); } })}
         onExport={() => exportCsv("shipping-methods.csv", items.filter((item) => selected.includes(item.id)).map((method) => ({ name: method.name, zone: method.shipping_zone?.name ?? "", cost: method.shipping_cost, status: method.status })))}
+        canCreate={canCreate}
+        canEdit={canEdit}
+        canDelete={canDelete}
       />
       {deleteConfirmationDialog}
       <Drawer open={drawer.open} title={drawer.mode === "create" ? "Create Shipping Method" : drawer.mode === "view" ? "Shipping Method Details" : "Edit Shipping Method"} description="Assign this method to one shipping zone." onClose={() => setDrawer({ open: false, mode: "create", item: null })}>

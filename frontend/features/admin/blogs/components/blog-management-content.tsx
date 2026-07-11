@@ -14,6 +14,8 @@ import { blogManagementService } from "@/features/admin/blogs/services/blog-mana
 import type { BlogPayload, BlogStatus, ManagedBlog } from "@/features/admin/blogs/types";
 import type { Option, PaginationMeta } from "@/features/admin/shared/types";
 import { toAppError } from "@/lib/errors";
+import { hasPermission } from "@/lib/permissions";
+import { useAuthStore } from "@/store/auth-store";
 import { cn } from "@/utils/cn";
 
 const statuses: BlogStatus[] = ["draft", "published", "scheduled", "archived"];
@@ -74,6 +76,10 @@ export function BlogManagementContent() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [drawer, setDrawer] = useState<{ open: boolean; mode: "create" | "edit"; item: ManagedBlog | null }>({ open: false, mode: "create", item: null });
   const { confirmDelete, deleteConfirmationDialog } = useDeleteConfirmation();
+  useAuthStore((state) => state.user?.permissions ?? []);
+  const canCreate = hasPermission("can_create_blog");
+  const canEdit = hasPermission("can_edit_blog");
+  const canDelete = hasPermission("can_delete_blog");
 
   const filters = useMemo(() => ({
     status: query.status,
@@ -152,7 +158,7 @@ export function BlogManagementContent() {
             <h1 className="text-2xl font-extrabold tracking-tight">Blog Management</h1>
             <p className="mt-1 text-sm text-muted-foreground">Create, publish, schedule, archive, and moderate storefront blog content.</p>
           </div>
-          <Button size="sm" icon={<Plus className="h-4 w-4" />} onClick={() => setDrawer({ open: true, mode: "create", item: null })}>Create Blog</Button>
+          {canCreate ? <Button size="sm" icon={<Plus className="h-4 w-4" />} onClick={() => setDrawer({ open: true, mode: "create", item: null })}>Create Blog</Button> : null}
         </section>
 
         <section className="overflow-hidden rounded-lg border border-border bg-card">
@@ -169,7 +175,7 @@ export function BlogManagementContent() {
             </div>
             <Button size="sm" variant="secondary" icon={<Search className="h-4 w-4" />} onClick={() => setQuery({ search: searchInput, page: 1 })}>Search</Button>
             <Button size="sm" variant="secondary" icon={<Filter className="h-4 w-4" />} onClick={() => setFilterOpen(true)}>Advanced Filter</Button>
-            <Button
+            {canDelete ? <Button
               size="sm"
               variant="danger"
               icon={<Trash2 className="h-4 w-4" />}
@@ -185,7 +191,7 @@ export function BlogManagementContent() {
               })}
             >
               Bulk Delete
-            </Button>
+            </Button> : null}
           </div>
 
           <div className="overflow-x-auto">
@@ -210,13 +216,13 @@ export function BlogManagementContent() {
                       ) : label}
                     </th>
                   ))}
-                  <th className="px-4 py-3 text-right">Actions</th>
+                  {canEdit || canDelete ? <th className="px-4 py-3 text-right">Actions</th> : null}
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={8} className="h-48 text-center text-muted-foreground">
+                    <td colSpan={6 + (canEdit || canDelete ? 1 : 0)} className="h-48 text-center text-muted-foreground">
                       <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Loading blogs...</span>
                     </td>
                   </tr>
@@ -235,23 +241,23 @@ export function BlogManagementContent() {
                     <td className="px-4 py-3"><StatusPill status={blog.status} /></td>
                     <td className="px-4 py-3">{blog.views_count}</td>
                     <td className="px-4 py-3">{formatDate(blog.created_at)}</td>
-                    <td className="px-4 py-3">
+                    {canEdit || canDelete ? <td className="px-4 py-3">
                       <div className="flex justify-end gap-1">
-                        <Button variant="ghost" size="icon" icon={<Edit3 className="h-4 w-4" />} title="Edit" aria-label="Edit" onClick={() => setDrawer({ open: true, mode: "edit", item: blog })} />
-                        <Button variant="ghost" size="icon" icon={<Trash2 className="h-4 w-4" />} title="Delete" aria-label="Delete" onClick={() => confirmDelete({
+                        {canEdit ? <Button variant="ghost" size="icon" icon={<Edit3 className="h-4 w-4" />} title="Edit" aria-label="Edit" onClick={() => setDrawer({ open: true, mode: "edit", item: blog })} /> : null}
+                        {canDelete ? <Button variant="ghost" size="icon" icon={<Trash2 className="h-4 w-4" />} title="Delete" aria-label="Delete" onClick={() => confirmDelete({
                           title: "Confirm Deletion",
                           onConfirm: async () => {
                             await blogManagementService.delete(blog.id);
                             toast.success("Blog deleted.");
                             await load();
                           },
-                        })} />
+                        })} /> : null}
                       </div>
-                    </td>
+                    </td> : null}
                   </tr>
                 )) : (
                   <tr>
-                    <td colSpan={8} className="h-48 text-center">
+                    <td colSpan={6 + (canEdit || canDelete ? 1 : 0)} className="h-48 text-center">
                       <Newspaper className="mx-auto h-10 w-10 text-muted-foreground" />
                       <p className="mt-3 font-semibold">No records found</p>
                       <p className="mt-1 text-sm text-muted-foreground">Try changing filters or create a new blog.</p>

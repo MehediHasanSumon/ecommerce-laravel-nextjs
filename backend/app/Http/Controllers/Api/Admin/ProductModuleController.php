@@ -20,6 +20,8 @@ class ProductModuleController extends Controller
 
     public function index(ProductModuleListRequest $request, string $module): JsonResponse
     {
+        $this->authorizeModule($module, 'view');
+
         $records = $this->modules->paginate($module, $request->validated());
 
         return ApiResponse::success(
@@ -35,6 +37,8 @@ class ProductModuleController extends Controller
 
     public function store(ProductModuleSaveRequest $request, string $module): JsonResponse
     {
+        $this->authorizeModule($module, 'create');
+
         $record = $this->modules->create($module, $request->validated());
 
         return ApiResponse::success(['item' => $this->resource($module, $record)], 'Record created successfully.', 201);
@@ -42,11 +46,15 @@ class ProductModuleController extends Controller
 
     public function show(string $module, int $id): JsonResponse
     {
+        $this->authorizeModule($module, 'view');
+
         return ApiResponse::success(['item' => $this->resource($module, $this->modules->find($module, $id))]);
     }
 
     public function update(ProductModuleSaveRequest $request, string $module, int $id): JsonResponse
     {
+        $this->authorizeModule($module, 'edit');
+
         $record = $this->modules->update($module, $id, $request->validated());
 
         return ApiResponse::success(['item' => $this->resource($module, $record)], 'Record updated successfully.');
@@ -54,6 +62,8 @@ class ProductModuleController extends Controller
 
     public function destroy(string $module, int $id): JsonResponse
     {
+        $this->authorizeModule($module, 'delete');
+
         $this->modules->delete($module, $id);
 
         return ApiResponse::success([], 'Record deleted successfully.');
@@ -61,6 +71,8 @@ class ProductModuleController extends Controller
 
     public function bulkDestroy(ProductModuleBulkDeleteRequest $request, string $module): JsonResponse
     {
+        $this->authorizeModule($module, 'delete');
+
         $deleted = $this->modules->bulkDelete($module, $request->validated('ids'));
 
         return ApiResponse::success(['deleted' => $deleted], 'Selected records deleted successfully.');
@@ -94,6 +106,25 @@ class ProductModuleController extends Controller
         ]))
             ->map(fn ($items) => ProductOptionResource::collection($items)->resolve())
             ->all();
+    }
+
+    private function authorizeModule(string $module, string $ability): void
+    {
+        $resource = [
+            'products' => 'product',
+            'brands' => 'brand',
+            'categories' => 'category',
+            'attributes' => 'attribute',
+            'attribute-values' => 'attribute_value',
+            'tags' => 'tag',
+            'warehouses' => 'warehouse',
+            'collections' => 'collection',
+            'currencies' => 'currency',
+            'discounts' => 'discount',
+            'reviews' => 'review',
+        ][$module] ?? str_replace('-', '_', $module);
+
+        abort_unless(request()->user()?->can("can_{$ability}_{$resource}"), 403);
     }
 
     private function paginationMeta($paginator): array

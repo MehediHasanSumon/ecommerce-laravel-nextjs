@@ -45,7 +45,9 @@ import type { ApiValidationErrors } from "@/types/auth";
 import { exportCsv, formatDate, statusLabel } from "@/features/admin/shared/utils";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { toAppError } from "@/lib/errors";
+import { hasPermission } from "@/lib/permissions";
 import { selectBrandsEnabled, selectCategoryDisplaySettings, selectCurrencySettings, useSettingsStore } from "@/store/settings-store";
+import { useAuthStore } from "@/store/auth-store";
 import type { RuntimeCategoryDisplaySettings } from "@/types/settings";
 import { cn } from "@/utils/cn";
 import { formatCurrency } from "@/utils/format";
@@ -82,6 +84,19 @@ export type ModuleConfig = {
 };
 
 const pageSizes = [10, 20, 50, 100];
+const modulePermissionResources: Record<ProductModule, string> = {
+  products: "product",
+  brands: "brand",
+  categories: "category",
+  attributes: "attribute",
+  "attribute-values": "attribute_value",
+  tags: "tag",
+  warehouses: "warehouse",
+  collections: "collection",
+  currencies: "currency",
+  discounts: "discount",
+  reviews: "review",
+};
 const emptyOptions: ProductOptions = {
   brands: [],
   categories: [],
@@ -1173,6 +1188,11 @@ export function ProductManagementContent({ module }: { module: ProductModule }) 
   const [filterOpen, setFilterOpen] = useState(false);
   const [drawer, setDrawer] = useState<{ open: boolean; mode: DrawerMode; item: ProductRecord | null }>({ open: false, mode: "create", item: null });
   const { confirmDelete, deleteConfirmationDialog } = useDeleteConfirmation();
+  useAuthStore((state) => state.user?.permissions ?? []);
+  const permissionResource = modulePermissionResources[module];
+  const canCreate = hasPermission(`can_create_${permissionResource}`);
+  const canEdit = hasPermission(`can_edit_${permissionResource}`);
+  const canDelete = hasPermission(`can_delete_${permissionResource}`);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1228,6 +1248,9 @@ export function ProductManagementContent({ module }: { module: ProductModule }) 
         onBulkDelete={() => confirmDelete({ title: "Confirm Deletion", onConfirm: async () => { await productManagementService.bulkDelete(module, selected); setSelected([]); toast.success("Selected records deleted."); await load(); } })}
         onExport={() => exportCsv(`${module}.csv`, items.filter((item) => selected.includes(item.id)).map((item) => ({ id: item.id, name: String(item.name ?? item.title ?? item.value ?? ""), status: String(item.status ?? ""), created_at: item.created_at ?? "" })))}
         onFilterOpen={() => setFilterOpen(true)}
+        canCreate={canCreate}
+        canEdit={canEdit}
+        canDelete={canDelete}
       />
       {deleteConfirmationDialog}
       <FilterModal open={filterOpen} query={query} config={config} options={options} onClose={() => setFilterOpen(false)} onApply={(value) => { setQuery({ ...value, page: 1 } as Partial<QueryState>); setFilterOpen(false); }} />
@@ -1257,6 +1280,9 @@ function ManagementPage({
   onBulkDelete,
   onExport,
   onFilterOpen,
+  canCreate = true,
+  canEdit = true,
+  canDelete = true,
 }: {
   config: ModuleConfig;
   data: ProductRecord[];
@@ -1276,6 +1302,9 @@ function ManagementPage({
   onBulkDelete: () => void;
   onExport: () => void;
   onFilterOpen: () => void;
+  canCreate?: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }) {
   const [searchInput, setSearchInput] = useState(query.search);
   const allSelected = data.length > 0 && data.every((item) => selected.includes(item.id));
@@ -1299,7 +1328,7 @@ function ManagementPage({
           <h1 className="text-2xl font-extrabold tracking-tight">{config.title}</h1>
           <p className="mt-1 text-sm text-muted-foreground">{config.description}</p>
         </div>
-        <Button size="sm" icon={<Plus className="h-4 w-4" />} onClick={onCreate}>{config.createLabel}</Button>
+        {canCreate ? <Button size="sm" icon={<Plus className="h-4 w-4" />} onClick={onCreate}>{config.createLabel}</Button> : null}
       </section>
       <section className="rounded-lg border border-border bg-card">
         <div className="flex flex-col gap-3 border-b border-border p-4 lg:flex-row lg:items-center lg:justify-between">
@@ -1317,7 +1346,7 @@ function ManagementPage({
             <p className="text-sm font-semibold">{selected.length} selected</p>
             <div className="flex gap-2">
               <Button size="sm" variant="secondary" icon={<Download className="h-4 w-4" />} onClick={onExport}>Export</Button>
-              <Button size="sm" variant="danger" icon={<Trash2 className="h-4 w-4" />} onClick={onBulkDelete}>Bulk Delete</Button>
+              {canDelete ? <Button size="sm" variant="danger" icon={<Trash2 className="h-4 w-4" />} onClick={onBulkDelete}>Bulk Delete</Button> : null}
             </div>
           </div>
         ) : null}
@@ -1331,7 +1360,7 @@ function ManagementPage({
                     {column.sortable ? <button className="inline-flex items-center gap-1 font-bold" onClick={() => onSort(column.key)}>{column.label}<ChevronsUpDown className="h-3.5 w-3.5" /></button> : column.label}
                   </th>
                 ))}
-                <th className="px-4 py-3 text-right">Actions</th>
+                {canEdit || canDelete ? <th className="px-4 py-3 text-right">Actions</th> : null}
               </tr>
             </thead>
             <tbody>
@@ -1341,10 +1370,12 @@ function ManagementPage({
                 <tr key={row.original.id} className="border-t border-border hover:bg-muted/40">
                   <td className="px-4 py-3"><input type="checkbox" checked={selected.includes(row.original.id)} onChange={() => onToggle(row.original.id)} aria-label={`Select row ${row.original.id}`} /></td>
                   {row.getVisibleCells().map((cell) => <td key={cell.id} className="px-4 py-3 align-middle">{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>)}
-                  <td className="px-4 py-3"><div className="flex justify-end gap-1"><Button variant="ghost" size="icon" icon={<Edit3 className="h-4 w-4" />} title="Edit" aria-label="Edit" onClick={() => onEdit(row.original)} /><Button variant="ghost" size="icon" icon={<Trash2 className="h-4 w-4" />} title="Delete" aria-label="Delete" onClick={() => onDelete(row.original)} /></div></td>
+                  {canEdit || canDelete ? (
+                    <td className="px-4 py-3"><div className="flex justify-end gap-1">{canEdit ? <Button variant="ghost" size="icon" icon={<Edit3 className="h-4 w-4" />} title="Edit" aria-label="Edit" onClick={() => onEdit(row.original)} /> : null}{canDelete ? <Button variant="ghost" size="icon" icon={<Trash2 className="h-4 w-4" />} title="Delete" aria-label="Delete" onClick={() => onDelete(row.original)} /> : null}</div></td>
+                  ) : null}
                 </tr>
               )) : (
-                <tr><td colSpan={config.columns.length + 2} className="h-48 text-center"><p className="font-semibold">No records found</p><p className="mt-1 text-sm text-muted-foreground">Try changing filters or create a new record.</p></td></tr>
+                <tr><td colSpan={config.columns.length + 1 + (canEdit || canDelete ? 1 : 0)} className="h-48 text-center"><p className="font-semibold">No records found</p><p className="mt-1 text-sm text-muted-foreground">Try changing filters or create a new record.</p></td></tr>
               )}
             </tbody>
           </table>

@@ -251,7 +251,7 @@ class NavigationSettingsController extends Controller
                 'label' => 'Orders',
                 'type' => 'single',
                 'items' => [
-                    ['label' => 'Order Management', 'href' => '/admin/orders', 'icon' => 'PackageCheck', 'enabled' => true],
+                    ['label' => 'Order Management', 'href' => '/admin/orders', 'icon' => 'PackageCheck', 'permission' => 'can_view_order', 'enabled' => true],
                 ],
             ],
             [
@@ -260,7 +260,7 @@ class NavigationSettingsController extends Controller
                 'icon' => 'Package',
                 'type' => 'single',
                 'items' => [
-                    ['label' => 'Product Management', 'href' => '/admin/products', 'icon' => 'Package', 'enabled' => $modules['products']],
+                    ['label' => 'Product Management', 'href' => '/admin/products', 'icon' => 'Package', 'permission' => 'can_view_product', 'enabled' => $modules['products']],
                 ],
             ],
             [
@@ -280,12 +280,12 @@ class NavigationSettingsController extends Controller
                 'icon' => 'Layers3',
                 'type' => 'group',
                 'items' => [
-                    ['label' => 'Brand Management', 'href' => '/admin/brands', 'icon' => 'Building2', 'enabled' => $modules['brands']],
-                    ['label' => 'Category Management', 'href' => '/admin/categories', 'icon' => 'Layers3', 'enabled' => $modules['categories']],
-                    ['label' => 'Attribute Management', 'href' => '/admin/attributes', 'icon' => 'Shapes', 'enabled' => $modules['products']],
-                    ['label' => 'Attribute Value Management', 'href' => '/admin/attribute-values', 'icon' => 'Boxes', 'enabled' => $modules['products']],
-                    ['label' => 'Tag Management', 'href' => '/admin/tags', 'icon' => 'Tags', 'enabled' => $modules['products']],
-                    ['label' => 'Review Management', 'href' => '/admin/reviews', 'icon' => 'Star', 'enabled' => $modules['reviews']],
+                    ['label' => 'Brand Management', 'href' => '/admin/brands', 'icon' => 'Building2', 'permission' => 'can_view_brand', 'enabled' => $modules['brands']],
+                    ['label' => 'Category Management', 'href' => '/admin/categories', 'icon' => 'Layers3', 'permission' => 'can_view_category', 'enabled' => $modules['categories']],
+                    ['label' => 'Attribute Management', 'href' => '/admin/attributes', 'icon' => 'Shapes', 'permission' => 'can_view_attribute', 'enabled' => $modules['products']],
+                    ['label' => 'Attribute Value Management', 'href' => '/admin/attribute-values', 'icon' => 'Boxes', 'permission' => 'can_view_attribute_value', 'enabled' => $modules['products']],
+                    ['label' => 'Tag Management', 'href' => '/admin/tags', 'icon' => 'Tags', 'permission' => 'can_view_tag', 'enabled' => $modules['products']],
+                    ['label' => 'Review Management', 'href' => '/admin/reviews', 'icon' => 'Star', 'permission' => 'can_view_review', 'enabled' => $modules['reviews']],
                 ],
             ],
             [
@@ -294,7 +294,7 @@ class NavigationSettingsController extends Controller
                 'icon' => 'Warehouse',
                 'type' => 'group',
                 'items' => [
-                    ['label' => 'Warehouse Management', 'href' => '/admin/warehouses', 'icon' => 'Warehouse', 'enabled' => $modules['stock_management']],
+                    ['label' => 'Warehouse Management', 'href' => '/admin/warehouses', 'icon' => 'Warehouse', 'permission' => 'can_view_warehouse', 'enabled' => $modules['stock_management']],
                 ],
             ],
             [
@@ -303,9 +303,9 @@ class NavigationSettingsController extends Controller
                 'icon' => 'Megaphone',
                 'type' => 'group',
                 'items' => [
-                    ['label' => 'Collection Management', 'href' => '/admin/collections', 'icon' => 'ShoppingBag', 'enabled' => $modules['products']],
-                    ['label' => 'Currency Management', 'href' => '/admin/currencies', 'icon' => 'CircleDollarSign', 'enabled' => true],
-                    ['label' => 'Discount Management', 'href' => '/admin/discounts', 'icon' => 'CirclePercent', 'enabled' => $modules['offers']],
+                    ['label' => 'Collection Management', 'href' => '/admin/collections', 'icon' => 'ShoppingBag', 'permission' => 'can_view_collection', 'enabled' => $modules['products']],
+                    ['label' => 'Currency Management', 'href' => '/admin/currencies', 'icon' => 'CircleDollarSign', 'permission' => 'can_view_currency', 'enabled' => true],
+                    ['label' => 'Discount Management', 'href' => '/admin/discounts', 'icon' => 'CirclePercent', 'permission' => 'can_view_discount', 'enabled' => $modules['offers']],
                 ],
             ],
             [
@@ -314,8 +314,8 @@ class NavigationSettingsController extends Controller
                 'icon' => 'Newspaper',
                 'type' => 'group',
                 'items' => [
-                    ['label' => 'Blog Management', 'href' => '/admin/blogs', 'icon' => 'Newspaper', 'enabled' => true],
-                    ['label' => 'Contact Inbox', 'href' => '/admin/contact-messages', 'icon' => 'Mail', 'enabled' => true],
+                    ['label' => 'Blog Management', 'href' => '/admin/blogs', 'icon' => 'Newspaper', 'permission' => 'can_view_blog', 'enabled' => true],
+                    ['label' => 'Contact Inbox', 'href' => '/admin/contact-messages', 'icon' => 'Mail', 'permission' => 'can_view_contact_message', 'enabled' => true],
                 ],
             ],
             [
@@ -348,8 +348,8 @@ class NavigationSettingsController extends Controller
                     ['label' => 'Email (SMTP)', 'href' => '/admin/settings/email', 'icon' => 'Mail', 'enabled' => true],
                     ['label' => 'SMS Provider', 'href' => '/admin/settings/sms', 'icon' => 'MessageSquareText', 'enabled' => true],
                     ['label' => 'Payment Settings', 'href' => '/admin/settings/payment', 'icon' => 'CreditCard', 'enabled' => true],
-                    ['label' => 'Shipping Zones', 'href' => '/admin/settings/shipping-zones', 'icon' => 'MapPin', 'enabled' => true],
-                    ['label' => 'Shipping Methods', 'href' => '/admin/settings/shipping-methods', 'icon' => 'PackageCheck', 'enabled' => true],
+                    ['label' => 'Shipping Zones', 'href' => '/admin/settings/shipping-zones', 'icon' => 'MapPin', 'permission' => 'can_view_shipping_zone', 'enabled' => true],
+                    ['label' => 'Shipping Methods', 'href' => '/admin/settings/shipping-methods', 'icon' => 'PackageCheck', 'permission' => 'can_view_shipping_method', 'enabled' => true],
                     ['label' => 'SEO Settings', 'href' => '/admin/settings/seo', 'icon' => 'Search', 'enabled' => true],
                     ['label' => 'Social Media', 'href' => '/admin/settings/social', 'icon' => 'Megaphone', 'enabled' => true],
                     ['label' => 'Localization', 'href' => '/admin/settings/localization', 'icon' => 'Globe2', 'enabled' => true],
