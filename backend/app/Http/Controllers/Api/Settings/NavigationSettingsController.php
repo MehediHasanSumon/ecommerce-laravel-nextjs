@@ -12,6 +12,7 @@ use App\Services\Admin\Settings\CategoryDisplaySettingsService;
 use App\Services\Admin\Settings\CompanySettingsService;
 use App\Services\Admin\HomeFeatureCardService;
 use App\Services\Admin\Settings\HomeFeatureCardSettingsService;
+use App\Services\Admin\Settings\HomePageSettingsService;
 use App\Services\Admin\Settings\BlogSettingsService;
 use App\Services\Admin\Settings\BrandSettingsService;
 use App\Services\Admin\Settings\MaintenanceModeSettingsService;
@@ -28,6 +29,7 @@ class NavigationSettingsController extends Controller
         private readonly CompanySettingsService $companySettings,
         private readonly CategoryDisplaySettingsService $categoryDisplaySettings,
         private readonly HomeFeatureCardSettingsService $homeFeatureCardSettings,
+        private readonly HomePageSettingsService $homePageSettings,
         private readonly BlogSettingsService $blogSettings,
         private readonly BrandSettingsService $brandSettings,
         private readonly HomeFeatureCardService $homeFeatureCards,
@@ -52,6 +54,7 @@ class NavigationSettingsController extends Controller
         $store = $this->storeSettings->get();
         $categoryDisplay = CategoryDisplaySettingResource::make($this->categoryDisplaySettings->get())->resolve();
         $homeFeatureCardSettings = $this->homeFeatureCardSettings->get();
+        $homePageSettings = $this->homePageSettings->runtime();
         $blogSettings = $this->blogSettings->runtime();
         $brandSettings = $this->brandSettings->runtime();
         $social = $this->socialMediaSettings->all();
@@ -92,6 +95,7 @@ class NavigationSettingsController extends Controller
             'feature_card_settings' => [
                 'enabled' => (bool) $homeFeatureCardSettings->enabled,
             ],
+            'home_page_settings' => $homePageSettings,
             'blog_settings' => $blogSettings,
             'brand_settings' => $brandSettings,
             'theme_configuration' => [
@@ -333,6 +337,7 @@ class NavigationSettingsController extends Controller
                 'items' => [
                     ['label' => 'Company Settings', 'href' => '/admin/settings/company', 'icon' => 'Building2', 'enabled' => true],
                     ['label' => 'Hero Section', 'href' => '/admin/settings/hero-section', 'icon' => 'LayoutGrid', 'enabled' => true],
+                    ['label' => 'Home Page Settings', 'href' => '/admin/settings/home-page', 'icon' => 'LayoutGrid', 'enabled' => true],
                     ['label' => 'Category Display', 'href' => '/admin/settings/categories', 'icon' => 'LayoutGrid', 'enabled' => true],
                     ['label' => 'Feature Cards', 'href' => '/admin/settings/home-feature-cards', 'icon' => 'BadgeCheck', 'enabled' => true],
                     ['label' => 'Blog Settings', 'href' => '/admin/settings/blog', 'icon' => 'Newspaper', 'enabled' => true],

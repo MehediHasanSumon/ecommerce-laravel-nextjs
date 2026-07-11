@@ -34,6 +34,15 @@ const defaultBrandSettings: RuntimeSettings["brand_settings"] = {
   enabled: true,
   show_on_home: true,
 };
+const defaultHomePageSettings: RuntimeSettings["home_page_settings"] = {
+  product_section: {
+    enabled: true,
+    limit: 20,
+  },
+  testimonial_section: {
+    enabled: true,
+  },
+};
 const pendingBrandSettings: RuntimeSettings["brand_settings"] = {
   enabled: false,
   show_on_home: false,
@@ -192,6 +201,8 @@ export const selectFeatureCardSettings = (state: SettingsState) =>
   selectSettingsPending(state) ? { enabled: false } : state.settings?.feature_card_settings ?? defaultFeatureCardSettings;
 export const selectHomeFeatureCards = (state: SettingsState) =>
   selectSettingsPending(state) ? emptyHomeFeatureCards : state.settings?.home_feature_cards ?? emptyHomeFeatureCards;
+export const selectHomePageSettings = (state: SettingsState) =>
+  selectSettingsPending(state) ? defaultHomePageSettings : state.settings?.home_page_settings ?? defaultHomePageSettings;
 export const selectBlogSettings = (state: SettingsState) =>
   selectSettingsPending(state) ? defaultBlogSettings : state.settings?.blog_settings ?? defaultBlogSettings;
 export const selectBrandSettings = (state: SettingsState) =>

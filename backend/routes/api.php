@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\Admin\Settings\CompanySettingsController;
 use App\Http\Controllers\Api\Admin\Settings\CategoryDisplaySettingsController;
 use App\Http\Controllers\Api\Admin\Settings\EmailSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\HomeFeatureCardSettingsController;
+use App\Http\Controllers\Api\Admin\Settings\HomePageSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\LocalizationSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\MaintenanceModeSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\PaymentSettingsController;
@@ -193,6 +194,9 @@ Route::prefix('admin')
 
         Route::get('/settings/home-feature-cards', [HomeFeatureCardSettingsController::class, 'show']);
         Route::put('/settings/home-feature-cards', [HomeFeatureCardSettingsController::class, 'update']);
+
+        Route::get('/settings/home-page', [HomePageSettingsController::class, 'show']);
+        Route::put('/settings/home-page', [HomePageSettingsController::class, 'update']);
 
         Route::get('/settings/blog', [BlogSettingsController::class, 'show']);
         Route::put('/settings/blog', [BlogSettingsController::class, 'update']);

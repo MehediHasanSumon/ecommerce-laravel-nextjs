@@ -10,6 +10,7 @@ use App\Http\Responses\ApiResponse;
 use App\Models\Brand;
 use App\Models\Product;
 use App\Services\Admin\Settings\BrandSettingsService;
+use App\Services\Admin\Settings\HomePageSettingsService;
 use App\Services\Admin\HeroSectionService;
 use App\Services\Collections\CollectionProductResolver;
 use Illuminate\Database\Eloquent\Builder;
@@ -18,12 +19,21 @@ use Illuminate\Support\Facades\Cache;
 
 class HomePageController extends Controller
 {
-    public function show(CollectionProductResolver $collections, BrandSettingsService $brandSettings, HeroSectionService $hero): JsonResponse
+    public function show(CollectionProductResolver $collections, BrandSettingsService $brandSettings, HomePageSettingsService $homeSettings, HeroSectionService $hero): JsonResponse
     {
         $brandRuntime = $brandSettings->runtime();
-        $cacheKey = 'home-page:product-brand-sections:v4:'.((int) $brandRuntime['enabled']).':'.((int) $brandRuntime['show_on_home']);
+        $homeRuntime = $homeSettings->runtime();
+        $productRuntime = $homeRuntime['product_section'];
+        $testimonialRuntime = $homeRuntime['testimonial_section'];
+        $cacheKey = 'home-page:product-brand-sections:v5:'
+            .((int) $brandRuntime['enabled']).':'
+            .((int) $brandRuntime['show_on_home']).':'
+            .((int) $productRuntime['enabled']).':'
+            .$productRuntime['limit'].':'
+            .((int) $testimonialRuntime['enabled']).':'
+            .($homeRuntime['version'] ?? 0);
 
-        $payload = Cache::remember($cacheKey, now()->addMinutes(5), function () use ($collections, $brandRuntime): array {
+        $payload = Cache::remember($cacheKey, now()->addMinutes(5), function () use ($collections, $brandRuntime, $homeRuntime, $productRuntime, $testimonialRuntime): array {
             $showBrands = (bool) ($brandRuntime['enabled'] && $brandRuntime['show_on_home']);
             $homeCollections = $collections->homeCollections()
                 ->map(fn ($collection): array => [
@@ -36,7 +46,7 @@ class HomePageController extends Controller
                 ->all();
 
             return [
-                'settings' => $this->settings(),
+                'settings' => $this->settings($homeRuntime),
                 'collections' => $homeCollections,
                 'sections' => [
                     'topBrands' => [
@@ -44,14 +54,17 @@ class HomePageController extends Controller
                         'items' => $showBrands ? $this->brands(6) : [],
                     ],
                     'products' => [
-                        'enabled' => true,
-                        'items' => $this->products(
+                        'enabled' => (bool) $productRuntime['enabled'],
+                        'items' => $productRuntime['enabled'] ? $this->products(
                             fn (Builder $query) => $query
                                 ->orderByDesc('is_featured')
                                 ->latest('published_at')
                                 ->latest('created_at'),
-                            20
-                        ),
+                            (int) $productRuntime['limit']
+                        ) : [],
+                    ],
+                    'testimonials' => [
+                        'enabled' => (bool) $testimonialRuntime['enabled'],
                     ],
                 ],
             ];
@@ -99,7 +112,7 @@ class HomePageController extends Controller
         )->resolve();
     }
 
-    private function settings(): array
+    private function settings(array $homeRuntime): array
     {
         return [
             'newArrivals' => ['enabled' => true, 'limit' => 4, 'displayOrder' => 50],
@@ -107,7 +120,8 @@ class HomePageController extends Controller
             'trending' => ['enabled' => true, 'limit' => 8, 'displayOrder' => 60, 'algorithm' => 'rating_reviews_featured'],
             'bestSellers' => ['enabled' => true, 'limit' => 4, 'displayOrder' => 70],
             'topBrands' => ['enabled' => true, 'limit' => 6, 'displayOrder' => 80],
-            'products' => ['enabled' => true, 'limit' => 20, 'displayOrder' => 90],
+            'products' => ['enabled' => (bool) $homeRuntime['product_section']['enabled'], 'limit' => (int) $homeRuntime['product_section']['limit'], 'displayOrder' => 90],
+            'testimonials' => ['enabled' => (bool) $homeRuntime['testimonial_section']['enabled'], 'displayOrder' => 100],
         ];
     }
 }

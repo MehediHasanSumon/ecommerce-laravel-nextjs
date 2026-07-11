@@ -139,6 +139,7 @@ export type HomePageSections = {
   sections: {
     topBrands: { enabled: boolean; items: Brand[] };
     products: { enabled: boolean; items: Product[] };
+    testimonials: { enabled: boolean };
   };
 };
 

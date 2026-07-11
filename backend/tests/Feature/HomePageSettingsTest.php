@@ -1,0 +1,88 @@
+<?php
+
+use App\Models\Product;
+use App\Models\Settings\HomePageSetting;
+use App\Models\User;
+use Illuminate\Support\Facades\Cache;
+
+beforeEach(function (): void {
+    Cache::flush();
+});
+
+function homePageSettingsAdminToken(): string
+{
+    return User::factory()
+        ->create()
+        ->createToken('home-page-settings-access-token', ['access'], now()->addMinutes(15))
+        ->plainTextToken;
+}
+
+function homePageSettingsProduct(int $index): Product
+{
+    return Product::query()->create([
+        'name' => "Home Product {$index}",
+        'slug' => "home-product-{$index}",
+        'status' => 'active',
+        'product_type' => 'physical',
+        'sku' => "HOME-{$index}",
+        'base_price_cents' => 1000 + $index,
+        'currency' => 'BDT',
+        'track_inventory' => false,
+        'is_featured' => $index % 2 === 0,
+        'published_at' => now()->subMinutes($index),
+    ]);
+}
+
+it('updates home page settings and exposes runtime settings', function (): void {
+    $token = homePageSettingsAdminToken();
+
+    $this->withToken($token)->putJson('/api/admin/settings/home-page', [
+        'enable_product_section' => false,
+        'products_per_section' => 12,
+        'enable_testimonial_section' => false,
+    ])->assertOk()
+        ->assertJsonPath('data.settings.enable_product_section', false)
+        ->assertJsonPath('data.settings.products_per_section', 12)
+        ->assertJsonPath('data.settings.enable_testimonial_section', false);
+
+    $this->getJson('/api/settings/navigation')
+        ->assertOk()
+        ->assertJsonPath('data.home_page_settings.product_section.enabled', false)
+        ->assertJsonPath('data.home_page_settings.product_section.limit', 12)
+        ->assertJsonPath('data.home_page_settings.testimonial_section.enabled', false);
+});
+
+it('applies product section visibility and limit to the home page API', function (): void {
+    foreach (range(1, 14) as $index) {
+        homePageSettingsProduct($index);
+    }
+
+    HomePageSetting::query()->create([
+        'enable_product_section' => true,
+        'products_per_section' => 8,
+        'enable_testimonial_section' => false,
+    ]);
+
+    $this->getJson('/api/home-page')
+        ->assertOk()
+        ->assertJsonPath('data.sections.products.enabled', true)
+        ->assertJsonCount(8, 'data.sections.products.items')
+        ->assertJsonPath('data.sections.testimonials.enabled', false);
+
+    HomePageSetting::query()->first()->update(['enable_product_section' => false]);
+    Cache::flush();
+
+    $this->getJson('/api/home-page')
+        ->assertOk()
+        ->assertJsonPath('data.sections.products.enabled', false)
+        ->assertJsonPath('data.sections.products.items', []);
+});
+
+it('validates home page product limits', function (): void {
+    $this->withToken(homePageSettingsAdminToken())->putJson('/api/admin/settings/home-page', [
+        'enable_product_section' => true,
+        'products_per_section' => 99,
+        'enable_testimonial_section' => true,
+    ])->assertUnprocessable()
+        ->assertJsonValidationErrors(['products_per_section']);
+});

@@ -78,6 +78,15 @@ class SettingsDefaults
         ];
     }
 
+    public static function homePage(): array
+    {
+        return [
+            'enable_product_section' => true,
+            'products_per_section' => 20,
+            'enable_testimonial_section' => true,
+        ];
+    }
+
     public static function blog(): array
     {
         return [

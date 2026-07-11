@@ -48,6 +48,7 @@ export const routePaths = {
   adminSettingsHeroSection: "/admin/settings/hero-section",
   adminSettingsCategories: "/admin/settings/categories",
   adminSettingsHomeFeatureCards: "/admin/settings/home-feature-cards",
+  adminSettingsHomePage: "/admin/settings/home-page",
   adminSettingsBlog: "/admin/settings/blog",
   adminSettingsBrand: "/admin/settings/brand",
   adminSettingsStore: "/admin/settings/store",

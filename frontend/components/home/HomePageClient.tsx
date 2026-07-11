@@ -24,6 +24,7 @@ import { cn } from '@/utils/cn';
 import {
   selectCategoryDisplaySettings,
   selectFeatureCardSettings,
+  selectHomePageSettings,
   selectHomeFeatureCards,
   selectRuntimeCategories,
   selectSettingsPending,
@@ -576,6 +577,7 @@ export default function HomePage() {
   const runtimeCategories = useSettingsStore(selectRuntimeCategories);
   const settingsLoading = useSettingsStore(selectSettingsPending);
   const showHomeBrands = useSettingsStore(selectShowHomeBrandSection);
+  const runtimeHomePageSettings = useSettingsStore(selectHomePageSettings);
   const homeCategories = useMemo(
     () =>
       runtimeCategories
@@ -612,10 +614,18 @@ export default function HomePage() {
     return () => controller.abort();
   }, []);
 
+  const showHomeProducts = homeData?.sections.products.enabled ?? runtimeHomePageSettings.product_section.enabled;
+  const showHomeTestimonials = homeData?.sections.testimonials.enabled ?? runtimeHomePageSettings.testimonial_section.enabled;
+
   useEffect(() => {
     const controller = new AbortController();
-    setHomeReviewsLoading(true);
+    if (!showHomeTestimonials) {
+      setHomeReviews([]);
+      setHomeReviewsLoading(false);
+      return () => controller.abort();
+    }
 
+    setHomeReviewsLoading(true);
     fetchPublicReviews({ per_page: 3 }, { signal: controller.signal })
       .then((response) => setHomeReviews(response.items))
       .catch((error: unknown) => {
@@ -627,7 +637,7 @@ export default function HomePage() {
       });
 
     return () => controller.abort();
-  }, []);
+  }, [showHomeTestimonials]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -799,6 +809,7 @@ export default function HomePage() {
 
         {renderCollections('products', 'before')}
         {/* Products */}
+        {showHomeProducts ? (
         <section className="py-10">
           <SectionHeader
             title="Products"
@@ -829,10 +840,12 @@ export default function HomePage() {
             </div>
           )}
         </section>
+        ) : null}
         {renderCollections('products', 'after')}
 
         {renderCollections('reviews', 'before')}
         {/* Reviews */}
+        {showHomeTestimonials ? (
         <section className="py-10">
           <SectionHeader
             title="What Our Customers Say"
@@ -892,6 +905,7 @@ export default function HomePage() {
             </div>
           )}
         </section>
+        ) : null}
         {renderCollections('reviews', 'after')}
 
         {renderCollections('blog', 'before')}
