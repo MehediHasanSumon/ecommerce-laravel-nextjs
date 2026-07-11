@@ -128,6 +128,10 @@ textarea {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 14%, transparent);
 }
 
+:where(input[class*="bg-transparent"], input[class*="pl-9"], input[class*="pl-10"], input[class*="pl-12"]):focus-visible {
+  box-shadow: none;
+}
+
 img,
 svg {
   flex-shrink: 0;

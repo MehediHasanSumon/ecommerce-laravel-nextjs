@@ -39,6 +39,17 @@ class ProductModuleSaveRequest extends FormRequest
             if (is_array($rules) && $rules !== [] && ! array_is_list($rules)) {
                 $rules = array_key_exists('field', $rules) ? [$rules] : array_values($rules);
             }
+            if (is_array($rules)) {
+                $rules = collect($rules)
+                    ->filter(fn (mixed $rule): bool => is_array($rule) && filled($rule['field'] ?? null))
+                    ->map(fn (array $rule): array => [
+                        'field' => trim((string) $rule['field']),
+                        'operator' => filled($rule['operator'] ?? null) ? trim((string) $rule['operator']) : null,
+                        'value' => $rule['value'] ?? null,
+                    ])
+                    ->values()
+                    ->all();
+            }
 
             $routeAliases = $this->input('route_aliases');
             if (is_string($routeAliases) && trim($routeAliases) !== '') {
