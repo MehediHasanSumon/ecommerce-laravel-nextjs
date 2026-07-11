@@ -314,15 +314,50 @@ function MultiCheckbox({
   options,
   values,
   onChange,
+  isLoading = false,
+  showBulkToggle = false,
+  emptyMessage = "No options available.",
 }: {
   options: Array<{ id: number; name: string }>;
   values: string[];
   onChange: (values: string[]) => void;
+  isLoading?: boolean;
+  showBulkToggle?: boolean;
+  emptyMessage?: string;
 }) {
+  const optionNames = options.map((option) => option.name);
+  const allOptionsSelected = optionNames.length > 0 && optionNames.every((name) => values.includes(name));
+
+  function toggleVisibleOptions() {
+    if (allOptionsSelected) {
+      onChange(values.filter((value) => !optionNames.includes(value)));
+      return;
+    }
+
+    onChange(Array.from(new Set([...values, ...optionNames])));
+  }
+
   return (
     <div className="rounded-lg border border-border p-2">
+      {showBulkToggle ? (
+        <div className="mb-2 flex items-center justify-between gap-2 px-1">
+          <span className="text-xs font-medium text-muted-foreground">
+            {values.length} selected
+          </span>
+          <button
+            type="button"
+            onClick={toggleVisibleOptions}
+            disabled={!optionNames.length || isLoading}
+            className="text-xs font-semibold text-primary hover:underline disabled:pointer-events-none disabled:opacity-50"
+          >
+            {allOptionsSelected ? "Unselect all" : "Select all"}
+          </button>
+        </div>
+      ) : null}
       <div className="grid max-h-44 gap-1 overflow-y-auto pr-1">
-        {options.length ? options.map((option) => {
+        {isLoading ? (
+          <p className="px-2 py-2 text-sm text-muted-foreground">Loading...</p>
+        ) : options.length ? options.map((option) => {
           const checked = values.includes(option.name);
           return (
             <label key={option.id} className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted">
@@ -336,7 +371,7 @@ function MultiCheckbox({
             </label>
           );
         }) : (
-          <p className="px-2 py-2 text-sm text-muted-foreground">No options available.</p>
+          <p className="px-2 py-2 text-sm text-muted-foreground">{emptyMessage}</p>
         )}
       </div>
     </div>
@@ -415,6 +450,9 @@ function RoleForm({
   onCancel: () => void;
   onSubmit: (values: RoleFormValues) => Promise<void>;
 }) {
+  const [permissionSearch, setPermissionSearch] = useState("");
+  const [permissionOptions, setPermissionOptions] = useState<Option[]>(permissions);
+  const [permissionLoading, setPermissionLoading] = useState(false);
   const form = useForm<RoleFormValues>({
     resolver: zodResolver(roleSchema),
     values: {
@@ -424,12 +462,68 @@ function RoleForm({
   });
   const selectedPermissions = useWatch({ control: form.control, name: "permissions" });
 
+  useEffect(() => {
+    let active = true;
+
+    const timeout = window.setTimeout(() => {
+      setPermissionLoading(true);
+
+      permissionService.list({
+        page: 1,
+        per_page: 100,
+        search: permissionSearch,
+        sort: "name",
+        direction: "asc",
+      }).then((response) => {
+        if (active) {
+          setPermissionOptions(response.data.permissions);
+        }
+      }).catch((error) => {
+        if (active) {
+          toast.error(toAppError(error).message);
+        }
+      }).finally(() => {
+        if (active) {
+          setPermissionLoading(false);
+        }
+      });
+    }, 300);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timeout);
+    };
+  }, [permissionSearch]);
+
+  useEffect(() => {
+    setPermissionOptions(permissions);
+  }, [permissions]);
+
+  useEffect(() => {
+    setPermissionSearch("");
+  }, [mode, role?.id]);
+
   return (
     <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
       <Input label="Role Name" className="h-10 rounded-lg" {...form.register("name")} error={form.formState.errors.name?.message} />
       <div className="space-y-1.5">
         <p className="text-sm font-semibold">Permissions</p>
-        <MultiCheckbox options={permissions} values={selectedPermissions} onChange={(values) => form.setValue("permissions", values, { shouldDirty: true })} />
+        <Input
+          aria-label="Search permissions"
+          className="h-10 rounded-lg"
+          leftIcon={<Search className="h-4 w-4" />}
+          placeholder="Search permissions..."
+          value={permissionSearch}
+          onChange={(event) => setPermissionSearch(event.target.value)}
+        />
+        <MultiCheckbox
+          options={permissionOptions}
+          values={selectedPermissions}
+          isLoading={permissionLoading}
+          showBulkToggle
+          emptyMessage="No permissions found."
+          onChange={(values) => form.setValue("permissions", values, { shouldDirty: true })}
+        />
       </div>
       <div className="flex gap-2 pt-1">
         <Button type="submit" size="sm" isLoading={form.formState.isSubmitting}>{mode === "create" ? "Create Role" : "Save Changes"}</Button>
