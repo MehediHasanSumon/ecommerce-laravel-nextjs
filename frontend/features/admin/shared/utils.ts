@@ -21,6 +21,7 @@ export const defaultQueryState: QueryState = {
   date_to: "",
   amount_min: "",
   amount_max: "",
+  permission_search: "",
 };
 
 export function formatDate(value: string | null) {

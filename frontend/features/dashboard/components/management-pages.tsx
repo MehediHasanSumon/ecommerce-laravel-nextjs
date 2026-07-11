@@ -442,12 +442,14 @@ function UserForm({
 function RoleForm({
   role,
   permissions,
+  isActive,
   mode,
   onCancel,
   onSubmit,
 }: {
   role?: ManagedRole | null;
   permissions: Option[];
+  isActive: boolean;
   mode: DrawerMode;
   onCancel: () => void;
   onSubmit: (values: RoleFormValues) => Promise<void>;
@@ -465,37 +467,41 @@ function RoleForm({
   const selectedPermissions = useWatch({ control: form.control, name: "permissions" });
 
   useEffect(() => {
-    let active = true;
+    if (!isActive) {
+      return undefined;
+    }
+
+    let mounted = true;
 
     const timeout = window.setTimeout(() => {
       setPermissionLoading(true);
 
-      permissionService.list({
+      roleService.list({
         page: 1,
-        per_page: 100,
-        search: permissionSearch,
-        sort: "name",
+        per_page: 5,
+        sort: "created_at",
         direction: "asc",
+        permission_search: permissionSearch,
       }).then((response) => {
-        if (active) {
+        if (mounted) {
           setPermissionOptions(response.data.permissions);
         }
       }).catch((error) => {
-        if (active) {
+        if (mounted) {
           toast.error(toAppError(error).message);
         }
       }).finally(() => {
-        if (active) {
+        if (mounted) {
           setPermissionLoading(false);
         }
       });
     }, 300);
 
     return () => {
-      active = false;
+      mounted = false;
       window.clearTimeout(timeout);
     };
-  }, [permissionSearch]);
+  }, [isActive, permissionSearch]);
 
   useEffect(() => {
     setPermissionOptions(permissions);
@@ -1027,7 +1033,7 @@ export function RoleManagementContent() {
       />
       {deleteConfirmationDialog}
       <Drawer open={drawer.open} title={drawer.mode === "create" ? "Create Role" : "Edit Role"} description="Attach permissions that define what this role can access." onClose={() => setDrawer({ open: false, mode: "create", item: null })}>
-        <RoleForm mode={drawer.mode} role={drawer.item} permissions={permissions} onCancel={() => setDrawer({ open: false, mode: "create", item: null })} onSubmit={submit} />
+        <RoleForm mode={drawer.mode} role={drawer.item} permissions={permissions} isActive={drawer.open} onCancel={() => setDrawer({ open: false, mode: "create", item: null })} onSubmit={submit} />
       </Drawer>
     </>
   );

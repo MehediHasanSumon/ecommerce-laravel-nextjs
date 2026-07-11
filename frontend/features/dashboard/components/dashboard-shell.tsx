@@ -130,6 +130,18 @@ const settingsItems = [
   { href: routePaths.adminSettingsMaintenance, label: "Maintenance Mode", icon: ShieldAlert },
 ];
 
+const adminPermissionAliases: Record<string, string> = {
+  "users.view": "can_view_user",
+  "roles.view": "can_view_role",
+  "permissions.view": "can_view_permission",
+};
+
+const adminRoutePermissions: Record<string, string> = {
+  [routePaths.dashboardUsers]: "can_view_user",
+  [routePaths.dashboardRoles]: "can_view_role",
+  [routePaths.dashboardPermissions]: "can_view_permission",
+};
+
 const iconMap = {
   Bell,
   BadgeCheck,
@@ -227,6 +239,24 @@ function fallbackAdminNavigation(): RuntimeNavigationGroup[] {
   ];
 }
 
+function requiredPermissionForItem(item: RuntimeNavigationItem): string | null {
+  if (item.permission) {
+    return adminPermissionAliases[item.permission] ?? item.permission;
+  }
+
+  return adminRoutePermissions[item.href] ?? null;
+}
+
+function canAccessAdminItem(item: RuntimeNavigationItem, permissions: string[]) {
+  if (item.enabled === false) {
+    return false;
+  }
+
+  const requiredPermission = requiredPermissionForItem(item);
+
+  return !requiredPermission || permissions.includes(requiredPermission);
+}
+
 type DashboardShellProps = {
   user: User;
   children: React.ReactNode;
@@ -245,10 +275,11 @@ function AdminSidebar({
 }: AdminSidebarProps) {
   const dynamicGroups = useSettingsStore(selectAdminNavigation);
   const settingsLoading = useSettingsStore(selectSettingsPending);
+  const permissions = useAuthStore((state) => state.user?.permissions ?? []);
   const groups = (dynamicGroups.length ? dynamicGroups : fallbackAdminNavigation())
     .map((group) => ({
       ...group,
-      items: group.items.filter((item) => item.enabled !== false),
+      items: group.items.filter((item) => canAccessAdminItem(item, permissions)),
     }))
     .filter((group) => group.items.length);
   const activeGroups = groups

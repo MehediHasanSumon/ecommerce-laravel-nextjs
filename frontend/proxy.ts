@@ -16,6 +16,19 @@ type SessionPayload = {
   };
 };
 
+type MePayload = {
+  success?: boolean;
+  data?: {
+    user?: {
+      permissions?: string[];
+    };
+  };
+};
+
+const permissionRouteRequirements: Array<{ route: string; permission: string }> = [
+  { route: routePaths.adminPermissions, permission: "can_view_permission" },
+];
+
 function isRoute(pathname: string, routes: readonly string[]) {
   return routes.some((route) => pathname === route || pathname.startsWith(`${route}/`));
 }
@@ -104,6 +117,29 @@ async function isBlogEnabled(request: NextRequest) {
   }
 }
 
+async function userHasPermission(request: NextRequest, permission: string) {
+  try {
+    const response = await fetch(`${apiBaseUrl}/me`, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        Cookie: request.headers.get("cookie") ?? "",
+        "X-Requested-With": "XMLHttpRequest",
+      },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      return false;
+    }
+
+    const payload = await response.json() as MePayload;
+    return Boolean(payload.data?.user?.permissions?.includes(permission));
+  } catch {
+    return false;
+  }
+}
+
 async function authenticate(request: NextRequest) {
   const result = await getSession(request);
   const session = result?.session ?? null;
@@ -139,6 +175,19 @@ export async function proxy(request: NextRequest) {
     loginUrl.pathname = routePaths.login;
     loginUrl.searchParams.set("redirect", safeRedirectTarget(request));
     return NextResponse.redirect(loginUrl);
+  }
+
+  const requiredPermission = permissionRouteRequirements.find(({ route }) => isRoute(pathname, [route]))?.permission;
+
+  if (protectedRoute && requiredPermission && !await userHasPermission(request, requiredPermission)) {
+    const homeUrl = request.nextUrl.clone();
+    homeUrl.pathname = routePaths.home;
+    homeUrl.search = "";
+    const response = NextResponse.redirect(homeUrl);
+    if (sessionResponse) {
+      appendSetCookies(sessionResponse, response);
+    }
+    return response;
   }
 
   if (publicAuthRoute && authenticated) {

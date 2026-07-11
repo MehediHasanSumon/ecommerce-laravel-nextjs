@@ -37,6 +37,7 @@ export function useUrlQueryState(defaultSort = "created_at") {
     date_to: searchParams.get("date_to") || "",
     amount_min: searchParams.get("amount_min") || "",
     amount_max: searchParams.get("amount_max") || "",
+    permission_search: searchParams.get("permission_search") || "",
   }), [defaultSort, searchParams]);
 
   const setQuery = useCallback((patch: Partial<QueryState>, options: { replace?: boolean } = {}) => {

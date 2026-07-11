@@ -16,6 +16,9 @@ class ListRolesRequest extends FormRequest
 
     public function rules(): array
     {
-        return $this->sharedRules(['name', 'created_at']);
+        return [
+            ...$this->sharedRules(['name', 'created_at']),
+            'permission_search' => ['nullable', 'string', 'max:255'],
+        ];
     }
 }

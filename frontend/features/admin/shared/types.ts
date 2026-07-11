@@ -41,6 +41,7 @@ export type QueryState = {
   date_to: string;
   amount_min: string;
   amount_max: string;
+  permission_search: string;
 };
 
 export type Option = {

@@ -21,12 +21,20 @@ class RoleManagementController extends Controller
 
     public function index(ListRolesRequest $request): JsonResponse
     {
-        $roles = $this->roles->paginate($request->validated());
+        $filters = $request->validated();
+        $roles = $this->roles->paginate($filters);
+        $permissionSearch = $filters['permission_search'] ?? null;
 
         return ApiResponse::success(
             [
                 'roles' => RoleResource::collection($roles)->resolve(),
-                'permissions' => PermissionOptionResource::collection(Permission::query()->orderBy('name')->get(['id', 'name']))->resolve(),
+                'permissions' => PermissionOptionResource::collection(
+                    Permission::query()
+                        ->when($permissionSearch, fn ($query, string $search) => $query->where('name', 'like', "%{$search}%"))
+                        ->orderBy('name')
+                        ->limit(100)
+                        ->get(['id', 'name'])
+                )->resolve(),
             ],
             'Roles retrieved successfully.',
             200,
