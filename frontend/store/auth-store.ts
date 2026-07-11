@@ -47,6 +47,14 @@ function messageFrom(error: unknown) {
   return toAppError(error).message;
 }
 
+function normalizeUser(user: User): User {
+  return {
+    ...user,
+    roles: Array.isArray(user.roles) ? user.roles : [],
+    permissions: Array.isArray(user.permissions) ? user.permissions : [],
+  };
+}
+
 function readCachedUser(): User | null {
   if (typeof window === "undefined") {
     return null;
@@ -54,7 +62,7 @@ function readCachedUser(): User | null {
 
   try {
     const raw = window.sessionStorage.getItem(AUTH_USER_CACHE_KEY);
-    return raw ? (JSON.parse(raw) as User) : null;
+    return raw ? normalizeUser(JSON.parse(raw) as User) : null;
   } catch {
     window.sessionStorage.removeItem(AUTH_USER_CACHE_KEY);
     return null;
@@ -67,7 +75,7 @@ function writeCachedUser(user: User | null) {
   }
 
   if (user) {
-    window.sessionStorage.setItem(AUTH_USER_CACHE_KEY, JSON.stringify(user));
+    window.sessionStorage.setItem(AUTH_USER_CACHE_KEY, JSON.stringify(normalizeUser(user)));
     return;
   }
 

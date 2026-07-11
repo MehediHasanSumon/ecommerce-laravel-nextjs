@@ -83,11 +83,16 @@ class AuthController extends Controller
 
     public function me(Request $request): JsonResponse
     {
+        $user = $request->user();
+        $user->loadMissing('roles:id,name');
+
         return ApiResponse::success([
             'user' => [
-                'id' => $request->user()->id,
-                'name' => $request->user()->name,
-                'email' => $request->user()->email,
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'roles' => $user->roles->pluck('name')->values()->all(),
+                'permissions' => $user->getAllPermissions()->pluck('name')->values()->all(),
             ],
         ]);
     }

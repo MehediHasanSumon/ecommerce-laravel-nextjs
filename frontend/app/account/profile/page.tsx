@@ -29,6 +29,7 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<AccountProfile | null>(null);
   const [form, setForm] = useState({ name: "", email: "", phone: "", birthDate: "", gender: "" });
   const [passwordForm, setPasswordForm] = useState({ current: "", password: "", confirmation: "" });
+  const authUser = useAuthStore((state) => state.user);
   const setAuthUser = useAuthStore((state) => state.setUser);
 
   useEffect(() => {
@@ -58,7 +59,13 @@ export default function ProfilePage() {
         gender: form.gender || "prefer_not_to_say",
       });
       setProfile(next);
-      setAuthUser({ id: next.id, name: next.name, email: next.email });
+      setAuthUser({
+        id: next.id,
+        name: next.name,
+        email: next.email,
+        roles: authUser?.roles ?? [],
+        permissions: authUser?.permissions ?? [],
+      });
       toast.success("Profile updated successfully.");
     } catch {
       toast.error("Unable to update profile.");

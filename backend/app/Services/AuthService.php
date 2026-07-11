@@ -163,10 +163,20 @@ class AuthService
 
     private function serializeUser(User|Authenticatable $user): array
     {
+        if ($user instanceof User) {
+            $user->loadMissing('roles:id,name');
+        }
+
         return [
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
+            'roles' => $user instanceof User
+                ? $user->roles->pluck('name')->values()->all()
+                : [],
+            'permissions' => $user instanceof User
+                ? $user->getAllPermissions()->pluck('name')->values()->all()
+                : [],
         ];
     }
 }
