@@ -237,6 +237,7 @@ class ProductModuleService
             ],
             'categories' => [
                 'image_file' => ['column' => 'image_url', 'directory' => 'categories'],
+                'icon_file' => ['column' => 'icon', 'directory' => 'categories/icons'],
             ],
             'collections' => [
                 'banner_image_file' => ['column' => 'banner_image_url', 'directory' => 'collections/banners'],

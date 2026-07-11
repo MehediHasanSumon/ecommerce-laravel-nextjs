@@ -41,6 +41,7 @@ import { useUrlQueryState } from "@/features/admin/shared/hooks/use-url-query-st
 import { productManagementService } from "@/features/admin/products/services/product-management-service";
 import type { ProductModule, ProductModulePayload, ProductOptions, ProductRecord } from "@/features/admin/products/types";
 import type { Option, PaginationMeta, QueryState } from "@/features/admin/shared/types";
+import type { ApiValidationErrors } from "@/types/auth";
 import { exportCsv, formatDate, statusLabel } from "@/features/admin/shared/utils";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { toAppError } from "@/lib/errors";
@@ -61,6 +62,9 @@ type FieldConfig = {
   optional?: boolean;
   tab?: string;
   existingImageField?: string;
+  accept?: string;
+  allowedTypes?: string[];
+  helperText?: string;
   maxSizeMb?: number;
   showWhen?: (values: ProductModulePayload) => boolean;
 };
@@ -99,6 +103,10 @@ const homeSectionAnchors = [
   "blog",
   "newsletter",
 ];
+
+function firstValidationMessage(errors: ApiValidationErrors | undefined) {
+  return errors ? Object.values(errors).flat()[0] : undefined;
+}
 
 export const productModuleConfigs: Record<ProductModule, ModuleConfig> = {
   brands: {
@@ -143,8 +151,8 @@ export const productModuleConfigs: Record<ProductModule, ModuleConfig> = {
       { name: "parent_id", label: "Parent Category", type: "select", options: "categories", optional: true },
       { name: "name", label: "Name", type: "text" },
       { name: "description", label: "Description", type: "textarea", optional: true },
-      { name: "image_file", label: "Category Image", type: "file", optional: true, existingImageField: "image_url", maxSizeMb: 4 },
-      { name: "icon", label: "Icon", type: "text", optional: true },
+      { name: "image_file", label: "Category Image", type: "file", optional: true, existingImageField: "image_url", accept: "image/jpeg,image/png,image/webp,image/svg+xml,.svg", allowedTypes: ["image/jpeg", "image/png", "image/webp", "image/svg+xml"], helperText: "JPG, PNG, WebP, or SVG up to 4MB. Drag and drop or click to browse.", maxSizeMb: 4 },
+      { name: "icon_file", label: "Icon", type: "file", optional: true, existingImageField: "icon", accept: "image/svg+xml,.svg", allowedTypes: ["image/svg+xml"], helperText: "SVG only. Drag and drop or click to browse.", maxSizeMb: 1 },
       { tab: "SEO", name: "meta_title", label: "Meta Title", type: "text", optional: true },
       { tab: "SEO", name: "meta_description", label: "Meta Description", type: "textarea", optional: true },
       { tab: "SEO", name: "meta_keywords", label: "Meta Keywords", type: "textarea", optional: true },
@@ -457,7 +465,7 @@ function schemaFor(config: ModuleConfig) {
 
     if (field.type === "select") {
       rule = field.optional ? z.coerce.string() : z.coerce.string().min(1, `${field.label} is required.`);
-    } else if (!field.optional && field.type !== "checkbox" && field.type !== "multiselect" && field.type !== "number") {
+    } else if (!field.optional && field.type !== "checkbox" && field.type !== "file" && field.type !== "multiselect" && field.type !== "number") {
       rule = z.string().trim().min(1, `${field.label} is required.`);
     }
 
@@ -474,33 +482,26 @@ function schemaFor(config: ModuleConfig) {
 function categoryFieldsForMode(fields: FieldConfig[], settings: RuntimeCategoryDisplaySettings): FieldConfig[] {
   if (settings.category_display_mode === "landing_page") {
     return fields
-      .filter((field) => !["show_in_navbar", "navbar_display_order"].includes(field.name))
+      .filter((field) => !["icon_file", "show_in_navbar", "navbar_display_order"].includes(field.name))
       .map((field) =>
         field.name === "image_file"
-          ? { ...field, optional: false }
-          : field.name === "icon"
-            ? { ...field, optional: true }
-            : field,
-      );
-  }
-
-  if (settings.category_display_mode === "navbar_dropdown_only") {
-    return fields
-      .filter((field) => !["image_file", "show_on_home", "home_display_order"].includes(field.name))
-      .map((field) =>
-        field.name === "icon"
           ? { ...field, optional: false }
           : field,
       );
   }
 
-  return fields.map((field) =>
-    field.name === "icon"
-      ? { ...field, optional: false }
-      : field.name === "image_file"
-        ? { ...field, optional: true }
+  if (settings.category_display_mode === "navbar_dropdown_only") {
+    return fields
+      .filter((field) => !["image_file", "icon_file", "show_on_home", "home_display_order"].includes(field.name));
+  }
+
+  return fields
+    .filter((field) => field.name !== "image_file")
+    .map((field) =>
+      field.name === "icon_file"
+        ? { ...field, optional: false }
         : field,
-  );
+    );
 }
 
 function defaultValues(config: ModuleConfig, item?: ProductRecord | null): ProductModulePayload {
@@ -788,9 +789,12 @@ function ImageUploadField({
   const [preview, setPreview] = useState<string>("");
   const [clientError, setClientError] = useState<string>("");
   const selectedFile = value instanceof File ? value : null;
-  const displayUrl = preview || existingUrl;
+  const existingPreviewUrl = existingUrl && isImagePreviewUrl(existingUrl) ? existingUrl : "";
+  const displayUrl = preview || existingPreviewUrl;
   const maxSizeMb = field.maxSizeMb ?? 4;
-  const accept = "image/jpeg,image/png,image/webp";
+  const accept = field.accept ?? "image/jpeg,image/png,image/webp";
+  const allowedTypes = field.allowedTypes ?? ["image/jpeg", "image/png", "image/webp"];
+  const helperText = field.helperText ?? `JPG, PNG, or WebP up to ${maxSizeMb}MB. Drag and drop or click to browse.`;
 
   useEffect(() => {
     if (!selectedFile) {
@@ -812,9 +816,10 @@ function ImageUploadField({
       return;
     }
 
-    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
-    if (!allowedTypes.includes(file.type)) {
-      setClientError("Only JPG, PNG, and WebP images are supported.");
+    const allowedByType = allowedTypes.includes(file.type);
+    const allowedByExtension = field.accept?.includes(".svg") && file.name.toLowerCase().endsWith(".svg");
+    if (!allowedByType && !allowedByExtension) {
+      setClientError(field.allowedTypes?.includes("image/svg+xml") ? "Only SVG files are supported." : "Only JPG, PNG, and WebP images are supported.");
       onChange(null);
       return;
     }
@@ -832,7 +837,6 @@ function ImageUploadField({
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm font-semibold text-foreground">{field.label}</p>
-        {selectedFile ? <span className="text-xs text-muted-foreground">{selectedFile.name}</span> : null}
       </div>
       <label
         className={cn(
@@ -850,8 +854,8 @@ function ImageUploadField({
           <img src={displayUrl} alt={`${field.label} preview`} className="max-h-36 rounded-md object-contain" />
         ) : (
           <div>
-            <p className="text-sm font-semibold">Upload image</p>
-            <p className="mt-1 text-xs text-muted-foreground">JPG, PNG, or WebP up to {maxSizeMb}MB. Drag and drop or click to browse.</p>
+            <p className="text-sm font-semibold">Upload {field.label.toLowerCase()}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{helperText}</p>
           </div>
         )}
         <input
@@ -871,6 +875,23 @@ function ImageUploadField({
       </div>
       {clientError || error ? <p className="text-sm text-destructive">{clientError || error}</p> : null}
     </div>
+  );
+}
+
+function isImagePreviewUrl(value: string) {
+  const trimmed = value.trim().toLowerCase();
+
+  return (
+    trimmed.startsWith("http://") ||
+    trimmed.startsWith("https://") ||
+    trimmed.startsWith("/storage/") ||
+    trimmed.startsWith("storage/") ||
+    trimmed.startsWith("data:image/") ||
+    trimmed.endsWith(".svg") ||
+    trimmed.endsWith(".jpg") ||
+    trimmed.endsWith(".jpeg") ||
+    trimmed.endsWith(".png") ||
+    trimmed.endsWith(".webp")
   );
 }
 
@@ -1181,7 +1202,8 @@ export function ProductManagementContent({ module }: { module: ProductModule }) 
       setDrawer({ open: false, mode: "create", item: null });
       await load();
     } catch (error) {
-      toast.error(toAppError(error).message);
+      const appError = toAppError(error);
+      toast.error(firstValidationMessage(appError.validationErrors) ?? appError.message);
     }
   }
 

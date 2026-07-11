@@ -7,6 +7,7 @@ import { ChevronRight } from 'lucide-react';
 import { AnnouncementBar } from '@/components/layout/AnnouncementBar';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
+import { CategoryIcon } from '@/components/category/CategoryIcon';
 import { ProductCard } from '@/components/product/ProductCard';
 import { ProductGridSkeleton } from '@/components/skeleton';
 import { fetchProducts } from '@/services/catalog-service';
@@ -118,7 +119,7 @@ export default function CategoryDetailPage({ params }: { params: Promise<{ slug:
             <Image src={category.image_url} alt={category.name} fill unoptimized className="object-cover" />
           ) : (
             <div className="flex h-full items-center justify-center text-5xl font-bold text-muted-foreground">
-              {category.icon || category.name.slice(0, 1)}
+              <CategoryIcon icon={category.icon} name={category.name} className="h-20 w-20" />
             </div>
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />

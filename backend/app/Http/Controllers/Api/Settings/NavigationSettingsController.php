@@ -208,7 +208,7 @@ class NavigationSettingsController extends Controller
                 'slug' => $child->slug,
                 'description' => $child->description,
                 'image_url' => $this->assetUrl($child->image_url),
-                'icon' => $child->icon,
+                'icon' => $this->categoryIcon($child->icon),
                 'product_count' => (int) ($counts[$child->id] ?? 0),
                 'show_on_home' => (bool) $child->show_on_home,
                 'show_in_navbar' => (bool) $child->show_in_navbar,
@@ -225,7 +225,7 @@ class NavigationSettingsController extends Controller
             'slug' => $category->slug,
             'description' => $category->description,
             'image_url' => $this->assetUrl($category->image_url),
-            'icon' => $category->icon,
+            'icon' => $this->categoryIcon($category->icon),
             'product_count' => (int) ($counts[$category->id] ?? 0) + $childProductCount,
             'show_on_home' => (bool) $category->show_on_home,
             'show_in_navbar' => (bool) $category->show_in_navbar,
@@ -378,5 +378,24 @@ class NavigationSettingsController extends Controller
         }
 
         return Storage::disk('public')->url($path);
+    }
+
+    private function categoryIcon(?string $icon): ?string
+    {
+        if (! $icon) {
+            return null;
+        }
+
+        $value = trim($icon);
+        $lower = strtolower($value);
+        $isAsset = str_starts_with($lower, 'http://')
+            || str_starts_with($lower, 'https://')
+            || str_starts_with($lower, '/storage/')
+            || str_starts_with($lower, 'storage/')
+            || str_starts_with($lower, 'data:image/')
+            || str_ends_with($lower, '.svg')
+            || str_contains($lower, '/');
+
+        return $isAsset ? $this->assetUrl($value) : $value;
     }
 }

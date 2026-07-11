@@ -36,7 +36,10 @@ export function BrandLogo({
     <span className={cn("flex min-w-0 max-w-full items-center gap-2", className)}>
       <span
         className={cn(
-          "flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-primary text-primary-foreground ring-1 ring-black/5",
+          "flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden",
+          logo
+            ? "bg-transparent text-foreground"
+            : "rounded-lg border border-border bg-primary text-primary-foreground ring-1 ring-black/5",
           iconClassName,
         )}
       >

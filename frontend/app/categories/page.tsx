@@ -8,6 +8,7 @@ import { ChevronRight } from 'lucide-react';
 import { AnnouncementBar } from '@/components/layout/AnnouncementBar';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
+import { CategoryIcon } from '@/components/category/CategoryIcon';
 import {
   selectCategoryDisplaySettings,
   selectRuntimeCategories,
@@ -133,7 +134,7 @@ function CategoriesPageContent() {
                       />
                     ) : (
                       <div className="flex h-full items-center justify-center text-4xl font-bold text-muted-foreground">
-                        {cat.icon || cat.name.slice(0, 1)}
+                        <CategoryIcon icon={cat.icon} name={cat.name} className="h-16 w-16" />
                       </div>
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />

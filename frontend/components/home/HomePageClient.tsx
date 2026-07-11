@@ -14,6 +14,7 @@ import * as LucideIcons from 'lucide-react';
 import { AnnouncementBar } from '@/components/layout/AnnouncementBar';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
+import { CategoryIcon } from '@/components/category/CategoryIcon';
 import { ProductCard } from '@/components/product/ProductCard';
 import { ProductGridSkeleton } from '@/components/skeleton';
 import { useCountdown } from '@/hooks/useCountdown';
@@ -655,19 +656,19 @@ export default function HomePage() {
                 ))}
               </div>
             ) : categoryDisplay.home_category_variant === 'icon_grid' ? (
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
                 {homeCategories.map((cat) => (
                   <Link
                     key={cat.id}
                     href={`/categories/${cat.slug}`}
-                    className="group flex min-h-36 flex-col items-center justify-center gap-3 rounded-2xl border border-border bg-card p-4 text-center transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md"
+                    className="group flex min-h-44 flex-col items-center justify-center gap-4 rounded-xl border border-border bg-card p-5 text-center transition-colors hover:border-primary/50 hover:bg-muted/30"
                   >
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-lg font-bold text-primary">
-                      {cat.icon || cat.name.slice(0, 1)}
+                    <div className="flex h-24 w-24 items-center justify-center rounded-xl bg-muted text-3xl font-bold text-primary ring-1 ring-border transition-colors group-hover:bg-background">
+                      <CategoryIcon icon={cat.icon} name={cat.name} className="h-20 w-20" />
                     </div>
                     <div className="min-w-0">
-                      <p className="truncate font-bold group-hover:text-primary">{cat.name}</p>
-                      <p className="text-xs text-muted-foreground">{cat.product_count} items</p>
+                      <p className="truncate text-sm font-bold group-hover:text-primary">{cat.name}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{cat.product_count} items</p>
                     </div>
                   </Link>
                 ))}
@@ -691,7 +692,7 @@ export default function HomePage() {
                         />
                       ) : (
                         <div className="flex h-full w-full items-center justify-center text-3xl font-bold text-muted-foreground">
-                          {cat.icon || cat.name.slice(0, 1)}
+                          <CategoryIcon icon={cat.icon} name={cat.name} className="h-16 w-16" />
                         </div>
                       )}
                       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />

@@ -131,6 +131,14 @@ class ProductModuleSaveRequest extends FormRequest
                 'applicable_scope' => $this->input('applicable_scope', 'all'),
             ]);
         }
+
+        if ((string) $this->route('module') === 'categories') {
+            $this->merge([
+                'is_featured' => filter_var($this->input('is_featured', false), FILTER_VALIDATE_BOOL),
+                'show_on_home' => filter_var($this->input('show_on_home', false), FILTER_VALIDATE_BOOL),
+                'show_in_navbar' => filter_var($this->input('show_in_navbar', false), FILTER_VALIDATE_BOOL),
+            ]);
+        }
     }
 
     public function authorize(): bool
@@ -167,8 +175,9 @@ class ProductModuleSaveRequest extends FormRequest
                 'name' => ['required', 'string', 'max:255'],
                 'description' => ['nullable', 'string'],
                 'image_url' => ['nullable', 'string'],
-                'image_file' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+                'image_file' => ['nullable', 'file', 'extensions:jpg,jpeg,png,webp,svg', 'mimetypes:image/jpeg,image/png,image/webp,image/svg+xml,text/plain,application/xml,text/xml', 'max:4096'],
                 'icon' => ['nullable', 'string', 'max:255'],
+                'icon_file' => ['nullable', 'file', 'extensions:svg', 'mimetypes:image/svg+xml,text/plain,application/xml,text/xml', 'max:1024'],
                 'meta_title' => ['nullable', 'string', 'max:255'],
                 'meta_description' => ['nullable', 'string', 'max:500'],
                 'meta_keywords' => ['nullable', 'string', 'max:500'],
@@ -347,11 +356,12 @@ class ProductModuleSaveRequest extends FormRequest
             $mode = app(CategoryDisplaySettingsService::class)->get()->category_display_mode
                 ?: CategoryDisplaySettingsService::MODE_LANDING_PAGE;
 
-            if (in_array($mode, [
-                CategoryDisplaySettingsService::MODE_HOME_GRID_NAVBAR_DROPDOWN,
-                CategoryDisplaySettingsService::MODE_NAVBAR_DROPDOWN_ONLY,
-            ], true) && ! filled($this->input('icon'))) {
-                $validator->errors()->add('icon', 'The icon field is required for the selected category display mode.');
+            if ($mode === CategoryDisplaySettingsService::MODE_HOME_GRID_NAVBAR_DROPDOWN
+                && ! filled($this->input('icon'))
+                && ! $this->hasFile('icon_file')
+                && ! $this->hasExistingCategoryIcon()
+            ) {
+                $validator->errors()->add('icon_file', 'The icon field is required for the selected category display mode.');
             }
 
             if ($mode !== CategoryDisplaySettingsService::MODE_LANDING_PAGE) {
@@ -392,6 +402,15 @@ class ProductModuleSaveRequest extends FormRequest
                 $fail("The {$attribute} field must be a valid URL or relative path.");
             }
         };
+    }
+
+    private function hasExistingCategoryIcon(): bool
+    {
+        $id = $this->route('id');
+
+        return $id
+            ? Category::query()->whereKey($id)->whereNotNull('icon')->where('icon', '!=', '')->exists()
+            : false;
     }
 
     private function productRules(mixed $id): array
