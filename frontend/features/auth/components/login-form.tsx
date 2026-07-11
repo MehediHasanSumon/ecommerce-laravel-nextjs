@@ -20,7 +20,7 @@ export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { login, isAuthenticated, isLoading, error, clearError, fetchCurrentUser } = useAuthStore();
+  const { login, isLoading, error, clearError, fetchCurrentUser } = useAuthStore();
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const redirectTo = safeRedirect(searchParams.get("redirect"), routePaths.account);
   const sessionExpired = searchParams.get("session") === "expired";
@@ -45,11 +45,6 @@ export function LoginForm() {
     let active = true;
 
     async function checkSession() {
-      if (isAuthenticated) {
-        router.replace(redirectTo);
-        return;
-      }
-
       try {
         const user = await fetchCurrentUser();
         if (active && user) {
@@ -69,7 +64,7 @@ export function LoginForm() {
     return () => {
       active = false;
     };
-  }, [fetchCurrentUser, isAuthenticated, redirectTo, router]);
+  }, [fetchCurrentUser, redirectTo, router]);
 
   if (isCheckingSession) {
     return (
