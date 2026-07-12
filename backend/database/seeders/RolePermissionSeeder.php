@@ -59,6 +59,13 @@ class RolePermissionSeeder extends Seeder
             'payment_report',
             'shipping_report',
             'inventory_report',
+            'account_dashboard',
+            'account_profile',
+            'account_settings',
+            'address',
+            'notification',
+            'wishlist',
+            'checkout',
         ];
 
         $permissions = collect($resources)
@@ -68,6 +75,7 @@ class RolePermissionSeeder extends Seeder
                 "can_create_{$resource}",
                 "can_view_{$resource}",
             ])
+            ->push('can_apply_coupon')
             ->all();
 
         foreach ($permissions as $permission) {
@@ -92,7 +100,31 @@ class RolePermissionSeeder extends Seeder
             'guard_name' => $guard,
         ]);
 
-        $user->syncPermissions([]);
+        $user->syncPermissions([
+            'can_view_account_dashboard',
+            'can_view_account_profile',
+            'can_edit_account_profile',
+            'can_view_account_settings',
+            'can_edit_account_settings',
+            'can_view_address',
+            'can_create_address',
+            'can_edit_address',
+            'can_delete_address',
+            'can_view_order',
+            'can_edit_order',
+            'can_view_review',
+            'can_create_review',
+            'can_edit_review',
+            'can_delete_review',
+            'can_view_notification',
+            'can_edit_notification',
+            'can_delete_notification',
+            'can_view_wishlist',
+            'can_edit_wishlist',
+            'can_view_checkout',
+            'can_create_checkout',
+            'can_apply_coupon',
+        ]);
         $admin->syncPermissions($permissions);
         $superAdmin->syncPermissions($permissions);
 

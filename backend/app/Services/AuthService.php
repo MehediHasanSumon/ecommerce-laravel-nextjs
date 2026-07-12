@@ -12,6 +12,7 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\NewAccessToken;
 use Laravel\Sanctum\PersonalAccessToken;
+use Spatie\Permission\Models\Role;
 
 class AuthService
 {
@@ -22,6 +23,8 @@ class AuthService
             'email' => $data['email'],
             'password' => $data['password'],
         ]);
+
+        $this->ensureCustomerRole($user);
 
         Log::info('auth.registered', ['user_id' => $user->id, 'email' => $user->email]);
 
@@ -48,6 +51,8 @@ class AuthService
         }
 
         Log::info('auth.login_succeeded', ['user_id' => $user->id]);
+
+        $this->ensureCustomerRole($user);
 
         return [
             'user' => $this->serializeUser($user),
@@ -76,6 +81,8 @@ class AuthService
         if (! $tokenable instanceof User) {
             return null;
         }
+
+        $this->ensureCustomerRole($tokenable);
 
         $token->forceFill([
             'last_used_at' => now(),
@@ -178,5 +185,17 @@ class AuthService
                 ? $user->getAllPermissions()->pluck('name')->values()->all()
                 : [],
         ];
+    }
+
+    private function ensureCustomerRole(User $user): void
+    {
+        if (! Role::query()->where('name', 'user')->where('guard_name', 'web')->exists()) {
+            return;
+        }
+
+        if (! $user->roles()->exists()) {
+            $user->assignRole('user');
+            $user->loadMissing('roles:id,name');
+        }
     }
 }

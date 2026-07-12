@@ -21,6 +21,7 @@ import {
 } from '@/services/checkout-service';
 import { toAppError } from '@/lib/errors';
 import { toast } from 'sonner';
+import { hasPermission } from '@/lib/permissions';
 
 const STEPS = ['Cart', 'Shipping', 'Payment'];
 
@@ -114,6 +115,8 @@ export default function CheckoutPage() {
   const paymentStatus = searchParams.get('payment');
   const paymentOrderNumber = searchParams.get('order');
   const isPaymentRecovery = paymentStatus === 'failed' || paymentStatus === 'cancelled' || paymentStatus === 'cancel';
+  const canCreateCheckout = hasPermission('can_create_checkout');
+  const canApplyCoupon = hasPermission('can_apply_coupon');
 
   const items = useCartStore((s) => s.items);
   const cart = useCartStore((s) => s.cart);
@@ -295,6 +298,7 @@ export default function CheckoutPage() {
   };
 
   const handlePlaceOrder = async () => {
+    if (!canCreateCheckout) return;
     if (!selectedShippingMethodId || !selectedPaymentMethod) {
       toast.error('Please select shipping and payment methods.');
       return;
@@ -335,6 +339,8 @@ export default function CheckoutPage() {
   const couponActionLabel = couponInput.trim().length > 0 ? 'Apply' : 'Cancel';
 
   async function handleCouponApply() {
+    if (!canApplyCoupon) return;
+
     if (!couponInput.trim()) {
       setCouponInput('');
       setCouponOpen(false);
@@ -348,6 +354,8 @@ export default function CheckoutPage() {
   }
 
   async function handleCouponAction() {
+    if (!canApplyCoupon) return;
+
     if (couponInput.trim().length > 0) {
       await handleCouponApply();
       return;
@@ -550,7 +558,7 @@ export default function CheckoutPage() {
                   </button>
                   <button
                     onClick={handlePlaceOrder}
-                    disabled={isSubmitting || paymentMethods.length === 0}
+                    disabled={!canCreateCheckout || isSubmitting || paymentMethods.length === 0}
                     className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-primary text-primary-foreground rounded-xl font-bold hover:opacity-90 transition-opacity text-sm"
                   >
                     {isSubmitting ? 'Placing order...' : <>Place Order <ChevronRight size={16} /></>}
@@ -654,7 +662,7 @@ export default function CheckoutPage() {
                     <span className="text-muted-foreground">Tax</span>
                     <span>{formatPrice(tax)}</span>
                   </div>
-                  {!hasCoupon && couponOpen ? (
+                  {!hasCoupon && canApplyCoupon && couponOpen ? (
                     <div className="space-y-2 py-1">
                       <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/40 px-3 py-2.5">
                         <input
@@ -684,7 +692,7 @@ export default function CheckoutPage() {
                         </p>
                       ) : null}
                     </div>
-                  ) : !hasCoupon ? (
+                  ) : !hasCoupon && canApplyCoupon ? (
                     <button
                       type="button"
                       onClick={() => setCouponOpen(true)}
@@ -709,7 +717,7 @@ export default function CheckoutPage() {
                     <span>{formatPrice(total)}</span>
                   </div>
                 </div>
-                {hasCoupon ? (
+                {hasCoupon && canApplyCoupon ? (
                   <button
                     type="button"
                     disabled={couponLoading}

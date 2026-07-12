@@ -63,6 +63,8 @@ class CartController extends Controller
 
     public function applyCoupon(ApplyCouponRequest $request): JsonResponse
     {
+        $this->authorizeIfAuthenticated($request, 'can_apply_coupon');
+
         return ApiResponse::success([
             'cart' => CartResource::make($this->service->applyCoupon($request, (string) $request->string('code')))->resolve(),
         ], 'Coupon applied successfully.');
@@ -70,8 +72,17 @@ class CartController extends Controller
 
     public function removeCoupon(Request $request): JsonResponse
     {
+        $this->authorizeIfAuthenticated($request, 'can_apply_coupon');
+
         return ApiResponse::success([
             'cart' => CartResource::make($this->service->removeCoupon($request))->resolve(),
         ], 'Coupon removed successfully.');
+    }
+
+    private function authorizeIfAuthenticated(Request $request, string $permission): void
+    {
+        if ($request->user()) {
+            abort_unless($request->user()->can($permission), 403);
+        }
     }
 }

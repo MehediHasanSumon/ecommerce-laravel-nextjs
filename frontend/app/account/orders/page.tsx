@@ -16,6 +16,7 @@ import type { PaginationMeta } from "@/features/admin/shared/types";
 import { selectCurrencyFingerprint, useSettingsStore } from "@/store/settings-store";
 import { formatPrice } from "@/utils/format";
 import { ORDER_STATUS_COLORS, formatOrderStatus } from "@/constants";
+import { hasPermission } from "@/lib/permissions";
 
 export default function OrdersPage() {
   useSettingsStore(selectCurrencyFingerprint);
@@ -28,6 +29,7 @@ export default function OrdersPage() {
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState<PaginationMeta | null>(null);
   const [cancellingOrder, setCancellingOrder] = useState<string | null>(null);
+  const canEditOrder = hasPermission("can_edit_order");
 
   useEffect(() => {
     setLoading(true);
@@ -54,6 +56,8 @@ export default function OrdersPage() {
   };
 
   const canCancel = (order: OrderListItem) =>
+    canEditOrder
+    &&
     ["pending", "confirmed"].includes(order.status)
     && (order.shippingStatus ?? "pending") === "pending"
     && order.paymentStatus !== "paid";

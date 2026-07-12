@@ -16,6 +16,8 @@ class WishlistController extends Controller
 
     public function show(Request $request): JsonResponse
     {
+        $this->authorizeIfAuthenticated($request, 'can_view_wishlist');
+
         return ApiResponse::success([
             'wishlist' => WishlistResource::make($this->service->get($request))->resolve(),
         ]);
@@ -23,6 +25,8 @@ class WishlistController extends Controller
 
     public function toggle(ToggleWishlistRequest $request): JsonResponse
     {
+        $this->authorizeIfAuthenticated($request, 'can_edit_wishlist');
+
         return ApiResponse::success([
             'wishlist' => WishlistResource::make($this->service->toggle($request, (int) $request->integer('product_id')))->resolve(),
         ]);
@@ -30,6 +34,8 @@ class WishlistController extends Controller
 
     public function destroy(Request $request, int $itemId): JsonResponse
     {
+        $this->authorizeIfAuthenticated($request, 'can_edit_wishlist');
+
         return ApiResponse::success([
             'wishlist' => WishlistResource::make($this->service->remove($request, $itemId))->resolve(),
         ]);
@@ -37,6 +43,8 @@ class WishlistController extends Controller
 
     public function clear(Request $request): JsonResponse
     {
+        $this->authorizeIfAuthenticated($request, 'can_edit_wishlist');
+
         return ApiResponse::success([
             'wishlist' => WishlistResource::make($this->service->clear($request))->resolve(),
         ]);
@@ -45,9 +53,17 @@ class WishlistController extends Controller
     public function merge(Request $request): JsonResponse
     {
         abort_unless($request->user(), 401, 'Unauthenticated.');
+        $this->authorizeIfAuthenticated($request, 'can_edit_wishlist');
 
         return ApiResponse::success([
             'wishlist' => WishlistResource::make($this->service->merge($request, $request->user()))->resolve(),
         ]);
+    }
+
+    private function authorizeIfAuthenticated(Request $request, string $permission): void
+    {
+        if ($request->user()) {
+            abort_unless($request->user()->can($permission), 403);
+        }
     }
 }

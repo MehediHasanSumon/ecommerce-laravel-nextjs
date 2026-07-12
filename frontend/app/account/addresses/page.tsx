@@ -17,6 +17,7 @@ import {
   type CheckoutAddressPayload,
   type CustomerAddress,
 } from '@/services/checkout-service';
+import { hasPermission } from '@/lib/permissions';
 
 type AddressForm = CheckoutAddressPayload & {
   isDefaultBilling: boolean;
@@ -46,6 +47,9 @@ export default function AddressesPage() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<AddressForm>(emptyForm);
   const { confirmDelete, deleteConfirmationDialog } = useDeleteConfirmation();
+  const canCreateAddress = hasPermission('can_create_address');
+  const canEditAddress = hasPermission('can_edit_address');
+  const canDeleteAddress = hasPermission('can_delete_address');
 
   useEffect(() => {
     setLoading(true);
@@ -59,12 +63,14 @@ export default function AddressesPage() {
   }, []);
 
   const startAdd = () => {
+    if (!canCreateAddress) return;
     setEditingId(null);
     setForm(emptyForm);
     setShowForm(true);
   };
 
   const startEdit = (address: CustomerAddress) => {
+    if (!canEditAddress) return;
     setEditingId(address.id);
     setForm({
       fullName: address.fullName,
@@ -85,6 +91,7 @@ export default function AddressesPage() {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (editingId ? !canEditAddress : !canCreateAddress) return;
     setSaving(true);
     try {
       const saved = editingId ? await updateAddress(editingId, form) : await createAddress(form);
@@ -108,6 +115,7 @@ export default function AddressesPage() {
   };
 
   const handleSetDefault = async (address: CustomerAddress, type: 'billing' | 'shipping') => {
+    if (!canEditAddress) return;
     try {
       const saved = await updateAddress(address.id, {
         fullName: address.fullName,
@@ -137,6 +145,7 @@ export default function AddressesPage() {
   };
 
   const handleDelete = async (id: string) => {
+    if (!canDeleteAddress) return;
     try {
       await deleteAddress(id);
       setAddresses((prev) => prev.filter((address) => address.id !== id));
@@ -164,12 +173,14 @@ export default function AddressesPage() {
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between mb-6">
               <h1 className="text-2xl font-extrabold">Address Book</h1>
-              <button
-                onClick={startAdd}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity"
-              >
-                <Plus size={15} /> Add Address
-              </button>
+              {canCreateAddress ? (
+                <button
+                  onClick={startAdd}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity"
+                >
+                  <Plus size={15} /> Add Address
+                </button>
+              ) : null}
             </div>
 
             {showForm && (
@@ -252,9 +263,11 @@ export default function AddressesPage() {
                 <MapPin size={48} className="mx-auto mb-4 text-muted-foreground opacity-40" />
                 <h3 className="mb-2 text-lg font-bold">No addresses found</h3>
                 <p className="mb-6 text-sm text-muted-foreground">Add a billing or shipping address to use during checkout.</p>
-                <button onClick={startAdd} className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 font-semibold text-primary-foreground hover:opacity-90">
-                  <Plus size={16} /> Add Address
-                </button>
+                {canCreateAddress ? (
+                  <button onClick={startAdd} className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 font-semibold text-primary-foreground hover:opacity-90">
+                    <Plus size={16} /> Add Address
+                  </button>
+                ) : null}
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -281,13 +294,15 @@ export default function AddressesPage() {
                     <p className="text-sm text-muted-foreground mt-1">{addr.phone}</p>
 
                     <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-border">
-                      <button
-                        onClick={() => startEdit(addr)}
-                        className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        <Edit2 size={13} /> Edit
-                      </button>
-                      {!addr.isDefaultBilling && (
+                      {canEditAddress ? (
+                        <button
+                          onClick={() => startEdit(addr)}
+                          className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          <Edit2 size={13} /> Edit
+                        </button>
+                      ) : null}
+                      {canEditAddress && !addr.isDefaultBilling && (
                         <>
                           <span className="text-muted-foreground">·</span>
                           <button onClick={() => handleSetDefault(addr, 'billing')} className="text-xs font-medium text-primary hover:underline">
@@ -295,7 +310,7 @@ export default function AddressesPage() {
                           </button>
                         </>
                       )}
-                      {!addr.isDefaultShipping && (
+                      {canEditAddress && !addr.isDefaultShipping && (
                         <>
                           <span className="text-muted-foreground">·</span>
                           <button onClick={() => handleSetDefault(addr, 'shipping')} className="text-xs font-medium text-primary hover:underline">
@@ -303,13 +318,17 @@ export default function AddressesPage() {
                           </button>
                         </>
                       )}
-                      <span className="text-muted-foreground">·</span>
-                      <button
-                        onClick={() => confirmDelete({ onConfirm: () => handleDelete(addr.id) })}
-                        className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-destructive transition-colors"
-                      >
-                        <Trash2 size={13} /> Delete
-                      </button>
+                      {canDeleteAddress ? (
+                        <>
+                          {canEditAddress ? <span className="text-muted-foreground">·</span> : null}
+                          <button
+                            onClick={() => confirmDelete({ onConfirm: () => handleDelete(addr.id) })}
+                            className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-destructive transition-colors"
+                          >
+                            <Trash2 size={13} /> Delete
+                          </button>
+                        </>
+                      ) : null}
                     </div>
                   </div>
                 ))}

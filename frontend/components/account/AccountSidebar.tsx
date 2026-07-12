@@ -13,18 +13,19 @@ import {
   LogOut,
 } from 'lucide-react';
 import { routePaths } from '@/constants/routes';
+import { hasPermission } from '@/lib/permissions';
 import { useAuthStore } from '@/store/auth-store';
 import { getInitials } from '@/utils/sanitize';
 
 const NAV_ITEMS = [
-  { id: 'dashboard', label: 'Dashboard', href: '/account', icon: LayoutDashboard },
-  { id: 'orders', label: 'My Orders', href: '/account/orders', icon: ShoppingBag },
-  { id: 'wishlist', label: 'Wishlist', href: '/wishlist', icon: Heart },
-  { id: 'profile', label: 'Profile', href: '/account/profile', icon: User },
-  { id: 'addresses', label: 'Addresses', href: '/account/addresses', icon: MapPin },
-  { id: 'notifications', label: 'Notifications', href: '/account/notifications', icon: Bell },
-  { id: 'reviews', label: 'My Reviews', href: '/account/reviews', icon: Star },
-  { id: 'settings', label: 'Settings', href: '/account/settings', icon: Settings },
+  { id: 'dashboard', label: 'Dashboard', href: routePaths.accountDashboard, icon: LayoutDashboard, permission: 'can_view_account_dashboard' },
+  { id: 'orders', label: 'My Orders', href: routePaths.accountOrders, icon: ShoppingBag, permission: 'can_view_order' },
+  { id: 'wishlist', label: 'Wishlist', href: routePaths.wishlist, icon: Heart, permission: 'can_view_wishlist' },
+  { id: 'profile', label: 'Profile', href: routePaths.accountProfile, icon: User, permission: 'can_view_account_profile' },
+  { id: 'addresses', label: 'Addresses', href: routePaths.accountAddresses, icon: MapPin, permission: 'can_view_address' },
+  { id: 'notifications', label: 'Notifications', href: routePaths.accountNotifications, icon: Bell, permission: 'can_view_notification' },
+  { id: 'reviews', label: 'My Reviews', href: routePaths.accountReviews, icon: Star, permission: 'can_view_review' },
+  { id: 'settings', label: 'Settings', href: routePaths.accountSettings, icon: Settings, permission: 'can_view_account_settings' },
 ];
 
 interface AccountSidebarProps {
@@ -35,6 +36,8 @@ export function AccountSidebar({ active }: AccountSidebarProps) {
   const router = useRouter();
   const logout = useAuthStore((state) => state.logout);
   const user = useAuthStore((state) => state.user);
+  useAuthStore((state) => state.user?.permissions ?? []);
+  const items = NAV_ITEMS.filter((item) => hasPermission(item.permission));
 
   async function handleLogout() {
     await logout();
@@ -55,7 +58,7 @@ export function AccountSidebar({ active }: AccountSidebarProps) {
 
         {/* Navigation */}
         <div className="bg-card border border-border rounded-2xl p-2">
-          {NAV_ITEMS.map(({ id, label, href, icon: Icon }) => (
+          {items.map(({ id, label, href, icon: Icon }) => (
             <Link
               key={id}
               href={href}

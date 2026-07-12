@@ -11,6 +11,7 @@ import { useCartStore } from '@/store/cartStore';
 import { selectBrandsEnabled, selectCurrencyFingerprint, useSettingsStore } from '@/store/settings-store';
 import { formatPrice } from '@/utils/format';
 import { toast } from 'sonner';
+import { hasPermission } from '@/lib/permissions';
 
 export default function WishlistPage() {
   useSettingsStore(selectCurrencyFingerprint);
@@ -18,6 +19,7 @@ export default function WishlistPage() {
   const [mounted, setMounted] = useState(false);
   const initialize = useWishlistStore((s) => s.initialize);
   const storeLoading = useWishlistStore((s) => s.isLoading);
+  const canEditWishlist = hasPermission('can_edit_wishlist');
   useEffect(() => {
     setMounted(true);
     initialize().catch(() => undefined);
@@ -34,6 +36,7 @@ export default function WishlistPage() {
   };
 
   const handleRemove = (itemId: string, name: string) => {
+    if (!canEditWishlist) return;
     void removeItem(itemId);
     toast(`${name} removed from wishlist`, { icon: '💔' });
   };
@@ -100,15 +103,17 @@ export default function WishlistPage() {
               >
                 <ShoppingCart size={15} /> Add All to Cart
               </button>
-              <button
-                onClick={() => {
-                  void clearWishlist();
-                  toast('Wishlist cleared');
-                }}
-                className="text-sm text-muted-foreground hover:text-destructive flex items-center gap-1.5 transition-colors"
-              >
-                <Trash2 size={14} /> Clear
-              </button>
+              {canEditWishlist ? (
+                <button
+                  onClick={() => {
+                    void clearWishlist();
+                    toast('Wishlist cleared');
+                  }}
+                  className="text-sm text-muted-foreground hover:text-destructive flex items-center gap-1.5 transition-colors"
+                >
+                  <Trash2 size={14} /> Clear
+                </button>
+              ) : null}
             </div>
           )}
         </div>
@@ -146,15 +151,17 @@ export default function WishlistPage() {
                     fill
                     className="object-cover group-hover:scale-105 transition-transform duration-500"
                   />
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      handleRemove(item.id, item.product.name);
-                    }}
-                    className="absolute top-3 right-3 w-8 h-8 bg-background/90 backdrop-blur-sm rounded-full flex items-center justify-center text-rose-500 hover:bg-destructive hover:text-white transition-colors shadow-md"
-                  >
-                    <Trash2 size={14} />
-                  </button>
+                  {canEditWishlist ? (
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleRemove(item.id, item.product.name);
+                      }}
+                      className="absolute top-3 right-3 w-8 h-8 bg-background/90 backdrop-blur-sm rounded-full flex items-center justify-center text-rose-500 hover:bg-destructive hover:text-white transition-colors shadow-md"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  ) : null}
                 </Link>
                 <div className="p-4">
                   {brandsEnabled && item.product.brand ? <p className="text-xs text-muted-foreground mb-0.5">{item.product.brand}</p> : null}

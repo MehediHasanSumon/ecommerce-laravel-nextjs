@@ -10,6 +10,7 @@ import { AccountSidebar } from "@/components/account/AccountSidebar";
 import { toast } from "sonner";
 import { accountService, type AccountSettings } from "@/services/account-service";
 import { useNotificationStore } from "@/store/notification-store";
+import { hasPermission } from "@/lib/permissions";
 
 function iconFor(type: string) {
   if (type === "order" || type === "shipping" || type === "payment") return Package;
@@ -27,6 +28,9 @@ export default function NotificationsPage() {
   const fetchNotifications = useNotificationStore((state) => state.fetchNotifications);
   const markAllReadStore = useNotificationStore((state) => state.markAllRead);
   const deleteNotificationStore = useNotificationStore((state) => state.deleteNotification);
+  const canEditNotification = hasPermission("can_edit_notification");
+  const canDeleteNotification = hasPermission("can_delete_notification");
+  const canEditAccountSettings = hasPermission("can_edit_account_settings");
 
   useEffect(() => {
     void fetchNotifications({ per_page: 20, force: true });
@@ -34,11 +38,13 @@ export default function NotificationsPage() {
   }, [fetchNotifications]);
 
   const markAllRead = async () => {
+    if (!canEditNotification) return;
     await markAllReadStore();
     toast.success("All notifications marked as read");
   };
 
   const deleteNotification = async (id: number) => {
+    if (!canDeleteNotification) return;
     setDeletingId(id);
     try {
       await deleteNotificationStore(id);
@@ -51,6 +57,7 @@ export default function NotificationsPage() {
   };
 
   const togglePreference = async (key: keyof AccountSettings) => {
+    if (!canEditAccountSettings) return;
     if (!prefs) return;
     const next = { ...prefs, [key]: !prefs[key] };
     setPrefs(next);
@@ -88,7 +95,7 @@ export default function NotificationsPage() {
                   Notifications
                   {unreadCount > 0 && <span className="text-sm font-normal text-muted-foreground">({unreadCount} unread)</span>}
                 </h1>
-                {unreadCount > 0 && <button onClick={markAllRead} className="text-sm text-primary hover:underline flex items-center gap-1"><Check size={13} /> Mark all read</button>}
+                {canEditNotification && unreadCount > 0 && <button onClick={markAllRead} className="text-sm text-primary hover:underline flex items-center gap-1"><Check size={13} /> Mark all read</button>}
               </div>
 
               <div className="space-y-3">
@@ -105,15 +112,17 @@ export default function NotificationsPage() {
                         <p className="text-xs text-muted-foreground mt-1">{item.createdAt ? new Date(item.createdAt).toLocaleString() : ""}</p>
                       </div>
                       {!item.read && <div className="w-2 h-2 rounded-full bg-primary shrink-0 mt-2" />}
-                      <button
-                        type="button"
-                        disabled={deletingId === item.id}
-                        onClick={() => void deleteNotification(item.id)}
-                        className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
-                        aria-label="Delete notification"
-                      >
-                        <Trash2 size={15} />
-                      </button>
+                      {canDeleteNotification ? (
+                        <button
+                          type="button"
+                          disabled={deletingId === item.id}
+                          onClick={() => void deleteNotification(item.id)}
+                          className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                          aria-label="Delete notification"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      ) : null}
                     </div>
                   );
                 }) : <div className="rounded-2xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">No notifications yet.</div>}
@@ -137,7 +146,7 @@ export default function NotificationsPage() {
                     <div><p className="text-sm font-semibold">{label}</p><p className="text-xs text-muted-foreground">{desc}</p></div>
                     <button
                       type="button"
-                      disabled={!prefs || Boolean(savingPreference)}
+                      disabled={!canEditAccountSettings || !prefs || Boolean(savingPreference)}
                       onClick={() => void togglePreference(key)}
                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-60 ${checked ? "bg-primary" : "bg-muted"}`}
                       aria-pressed={checked}
