@@ -38,6 +38,7 @@ import {
 } from '@/services/catalog-service';
 import { useAuthStore } from '@/store/auth-store';
 import { toAppError } from '@/lib/errors';
+import { hasPermission } from '@/lib/permissions';
 
 function findSelectedVariant(
   product: ProductDetail | null,
@@ -88,6 +89,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const authInitialized = useAuthStore((s) => s.initialized);
   const fetchCurrentUser = useAuthStore((s) => s.fetchCurrentUser);
+  const canCreateReview = hasPermission('can_create_review');
   const router = useRouter();
 
   useEffect(() => {
@@ -251,6 +253,10 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
 
     if (!isAuthenticated) {
       toast.error('Please sign in to write a review.');
+      return;
+    }
+
+    if (!canCreateReview) {
       return;
     }
 
@@ -640,7 +646,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
 
           {activeTab === 'reviews' && (
             <div className="space-y-5 max-w-3xl">
-              {isAuthenticated && (
+              {isAuthenticated && canCreateReview && (
                 <form onSubmit={handleReviewSubmit} className="rounded-2xl border border-border bg-card p-5">
                   <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
