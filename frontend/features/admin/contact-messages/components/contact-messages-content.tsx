@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, ChevronsUpDown, Filter, Mail, Search, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsUpDown, Filter, Mail, Search, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -140,8 +140,7 @@ export function ContactMessagesContent() {
             <Button size="sm" variant="secondary" icon={<Filter className="h-4 w-4" />} onClick={() => setQuery({ status: "", search: "", page: 1 })}>Reset</Button>
           </div>
 
-          <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_24rem]">
-            <div className="overflow-x-auto">
+          <div className="overflow-x-auto">
               <table className="w-full min-w-[860px] text-left text-sm">
                 <thead className="border-b border-border bg-muted text-xs uppercase text-muted-foreground">
                   <tr>
@@ -198,17 +197,6 @@ export function ContactMessagesContent() {
                   )}
                 </tbody>
               </table>
-            </div>
-
-            <aside className="border-t border-border p-4 lg:border-l lg:border-t-0">
-              {selected ? (
-                <MessageDetail message={selected} canEdit={canEdit} onUpdate={updateMessage} />
-              ) : (
-                <div className="flex h-full min-h-64 items-center justify-center rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-                  Select a message to view details.
-                </div>
-              )}
-            </aside>
           </div>
 
           <div className="flex flex-col gap-3 border-t border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
@@ -224,8 +212,47 @@ export function ContactMessagesContent() {
           </div>
         </section>
       </div>
+      <MessageDetailModal
+        message={selected}
+        canEdit={canEdit}
+        onClose={() => setSelected(null)}
+        onUpdate={updateMessage}
+      />
       {deleteConfirmationDialog}
     </>
+  );
+}
+
+function MessageDetailModal({
+  message,
+  canEdit,
+  onClose,
+  onUpdate,
+}: {
+  message: ContactMessage | null;
+  canEdit: boolean;
+  onClose: () => void;
+  onUpdate: (message: ContactMessage, status: ContactMessageStatus, note?: string) => Promise<void>;
+}) {
+  if (!message) {
+    return null;
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-6" role="dialog" aria-modal="true">
+      <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-lg border border-border bg-background shadow-xl">
+        <div className="flex items-center justify-between border-b border-border px-5 py-4">
+          <div>
+            <p className="text-xs font-semibold uppercase text-muted-foreground">Selected Message</p>
+            <h2 className="text-lg font-bold">{message.subject}</h2>
+          </div>
+          <Button variant="ghost" size="icon" aria-label="Close" icon={<X className="h-4 w-4" />} onClick={onClose} />
+        </div>
+        <div className="p-5">
+          <MessageDetail message={message} canEdit={canEdit} onUpdate={onUpdate} />
+        </div>
+      </div>
+    </div>
   );
 }
 

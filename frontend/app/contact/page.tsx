@@ -24,13 +24,45 @@ export default function ContactPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const payload = {
+      name: form.name.trim(),
+      email: form.email.trim(),
+      phone: form.phone.trim(),
+      subject: form.subject.trim(),
+      message: form.message.trim(),
+    };
+
+    if (payload.name.length < 2) {
+      toast.error('Enter your name.');
+      return;
+    }
+
+    if (!payload.email) {
+      toast.error('Enter a valid email address.');
+      return;
+    }
+
+    if (!payload.subject) {
+      toast.error('Select a subject.');
+      return;
+    }
+
+    if (payload.message.length < 10) {
+      toast.error('Message must be at least 10 characters.');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      await submitContactMessage(form);
+      await submitContactMessage(payload);
       toast.success("Message sent! We'll get back to you within 24 hours.");
       setForm({ name: '', email: '', phone: '', subject: '', message: '' });
     } catch (error) {
-      toast.error(toAppError(error).message || 'Unable to send message.');
+      const appError = toAppError(error);
+      const validationMessage = appError.validationErrors
+        ? Object.values(appError.validationErrors).flat().find(Boolean)
+        : null;
+      toast.error(validationMessage || appError.message || 'Unable to send message.');
     } finally {
       setIsSubmitting(false);
     }
@@ -116,7 +148,7 @@ export default function ContactPage() {
                   onValueChange={(value) => setForm((f) => ({ ...f, subject: value }))}
                   required
                 >
-                  <SelectTrigger className="h-12 rounded-xl border-transparent bg-muted px-4 text-sm focus:bg-background">
+                  <SelectTrigger className="h-12 rounded-xl border-border bg-background px-4 text-sm focus:border-primary">
                     <SelectValue placeholder="Select a subject" />
                   </SelectTrigger>
                   <SelectContent>
