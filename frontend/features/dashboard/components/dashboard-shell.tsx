@@ -321,14 +321,14 @@ function requiredPermissionForItem(item: RuntimeNavigationItem): string | null {
   return adminRoutePermissions[item.href] ?? null;
 }
 
-function canAccessAdminItem(item: RuntimeNavigationItem, permissions: string[]) {
+function canAccessAdminItem(item: RuntimeNavigationItem, permissions?: string[]) {
   if (item.enabled === false) {
     return false;
   }
 
   const requiredPermission = requiredPermissionForItem(item);
 
-  return !requiredPermission || permissions.includes(requiredPermission);
+  return !requiredPermission || permissions?.includes(requiredPermission);
 }
 
 type DashboardShellProps = {
@@ -349,7 +349,7 @@ function AdminSidebar({
 }: AdminSidebarProps) {
   const dynamicGroups = useSettingsStore(selectAdminNavigation);
   const settingsLoading = useSettingsStore(selectSettingsPending);
-  const permissions = useAuthStore((state) => state.user?.permissions ?? []);
+  const permissions = useAuthStore((state) => state.user?.permissions);
   const groups = (dynamicGroups.length ? dynamicGroups : fallbackAdminNavigation())
     .map((group) => ({
       ...group,

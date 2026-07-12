@@ -50,6 +50,7 @@ function messageFrom(error: unknown) {
 function normalizeUser(user: User): User {
   return {
     ...user,
+    avatar: user.avatar ?? null,
     roles: Array.isArray(user.roles) ? user.roles : [],
     permissions: Array.isArray(user.permissions) ? user.permissions : [],
   };
@@ -96,14 +97,15 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       await useCartStore.getState().resetAfterLogout();
       const user = await authService.login(payload);
-      writeCachedUser(user);
-      set({ user, isAuthenticated: true });
+      const normalizedUser = normalizeUser(user);
+      writeCachedUser(normalizedUser);
+      set({ user: normalizedUser, isAuthenticated: true });
       await Promise.all([
         useCartStore.getState().syncAfterAuth().catch(() => undefined),
         useWishlistStore.getState().syncAfterAuth().catch(() => undefined),
       ]);
-      set({ user, isAuthenticated: true, isLoading: false, initialized: true });
-      return user;
+      set({ user: normalizedUser, isAuthenticated: true, isLoading: false, initialized: true });
+      return normalizedUser;
     } catch (error) {
       set({
         user: null,
@@ -121,14 +123,15 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       await useCartStore.getState().resetAfterLogout();
       const user = await authService.register(payload);
-      writeCachedUser(user);
-      set({ user, isAuthenticated: true });
+      const normalizedUser = normalizeUser(user);
+      writeCachedUser(normalizedUser);
+      set({ user: normalizedUser, isAuthenticated: true });
       await Promise.all([
         useCartStore.getState().syncAfterAuth().catch(() => undefined),
         useWishlistStore.getState().syncAfterAuth().catch(() => undefined),
       ]);
-      set({ user, isAuthenticated: true, isLoading: false, initialized: true });
-      return user;
+      set({ user: normalizedUser, isAuthenticated: true, isLoading: false, initialized: true });
+      return normalizedUser;
     } catch (error) {
       set({ isLoading: false, initialized: true, error: messageFrom(error) });
       throw error;
@@ -191,7 +194,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         return null;
       }
 
-      const user = await authService.me();
+      const user = normalizeUser(await authService.me());
       writeCachedUser(user);
       set({ user, isAuthenticated: true });
       await Promise.all([
@@ -228,10 +231,11 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   setUser(user) {
-    writeCachedUser(user);
+    const normalizedUser = user ? normalizeUser(user) : null;
+    writeCachedUser(normalizedUser);
     set({
-      user,
-      isAuthenticated: Boolean(user),
+      user: normalizedUser,
+      isAuthenticated: Boolean(normalizedUser),
       initialized: true,
       error: null,
     });

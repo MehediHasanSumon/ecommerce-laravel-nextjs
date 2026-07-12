@@ -311,12 +311,12 @@ class DashboardAnalyticsService
         return User::query()
             ->latest()
             ->limit(8)
-            ->get(['id', 'name', 'email', 'created_at'])
+            ->get(['id', 'name', 'email', 'avatar', 'created_at'])
             ->map(fn (User $user) => [
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
-                'avatar' => 'https://ui-avatars.com/api/?name='.urlencode($user->name).'&background=111827&color=fff',
+                'avatar' => $this->assetUrl($user->avatar) ?: 'https://ui-avatars.com/api/?name='.urlencode($user->name).'&background=111827&color=fff',
                 'registered_at' => optional($user->created_at)->toISOString(),
             ])
             ->all();
@@ -477,6 +477,6 @@ class DashboardAnalyticsService
             return url($path);
         }
 
-        return Storage::disk('public')->url($path);
+        return url(Storage::disk('public')->url($path));
     }
 }

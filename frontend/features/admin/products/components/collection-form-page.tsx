@@ -39,7 +39,7 @@ function firstValidationMessage(errors: ApiValidationErrors | undefined) {
 export function CollectionFormPage({ mode, collectionId }: { mode: DrawerMode; collectionId?: number }) {
   const router = useRouter();
   const config = productModuleConfigs.collections;
-  useAuthStore((state) => state.user?.permissions ?? []);
+  useAuthStore((state) => state.user?.permissions);
   const canSave = hasPermission(mode === "edit" ? "can_edit_collection" : "can_create_collection");
   const [item, setItem] = useState<ProductRecord | null>(null);
   const [options, setOptions] = useState<ProductOptions>(emptyOptions);

@@ -419,7 +419,7 @@ export function ShippingZonesContent() {
   const [selected, setSelected] = useState<number[]>([]);
   const [drawer, setDrawer] = useState<{ open: boolean; mode: DrawerMode; item: ShippingZone | null }>({ open: false, mode: "create", item: null });
   const { confirmDelete, deleteConfirmationDialog } = useDeleteConfirmation();
-  useAuthStore((state) => state.user?.permissions ?? []);
+  useAuthStore((state) => state.user?.permissions);
   const canCreate = hasPermission("can_create_shipping_zone");
   const canEdit = hasPermission("can_edit_shipping_zone");
   const canDelete = hasPermission("can_delete_shipping_zone");
@@ -518,7 +518,7 @@ export function ShippingMethodsContent() {
   const [selected, setSelected] = useState<number[]>([]);
   const [drawer, setDrawer] = useState<{ open: boolean; mode: DrawerMode; item: ShippingMethod | null }>({ open: false, mode: "create", item: null });
   const { confirmDelete, deleteConfirmationDialog } = useDeleteConfirmation();
-  useAuthStore((state) => state.user?.permissions ?? []);
+  useAuthStore((state) => state.user?.permissions);
   const canCreate = hasPermission("can_create_shipping_method");
   const canEdit = hasPermission("can_edit_shipping_method");
   const canDelete = hasPermission("can_delete_shipping_method");

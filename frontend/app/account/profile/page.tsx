@@ -38,6 +38,15 @@ export default function ProfilePage() {
     accountService.profile()
       .then((next) => {
         setProfile(next);
+        const currentAuthUser = useAuthStore.getState().user;
+        setAuthUser({
+          id: next.id,
+          name: next.name,
+          email: next.email,
+          avatar: next.avatar ?? null,
+          roles: currentAuthUser?.roles ?? [],
+          permissions: currentAuthUser?.permissions ?? [],
+        });
         setForm({
           name: next.name ?? "",
           email: next.email ?? "",
@@ -47,7 +56,7 @@ export default function ProfilePage() {
         });
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [setAuthUser]);
 
   async function handleSave(event: React.FormEvent) {
     event.preventDefault();
@@ -66,6 +75,7 @@ export default function ProfilePage() {
         id: next.id,
         name: next.name,
         email: next.email,
+        avatar: next.avatar ?? authUser?.avatar ?? null,
         roles: authUser?.roles ?? [],
         permissions: authUser?.permissions ?? [],
       });
@@ -97,6 +107,14 @@ export default function ProfilePage() {
     try {
       const next = await accountService.uploadAvatar(file);
       setProfile(next);
+      setAuthUser({
+        id: next.id,
+        name: next.name,
+        email: next.email,
+        avatar: next.avatar ?? null,
+        roles: authUser?.roles ?? [],
+        permissions: authUser?.permissions ?? [],
+      });
       toast.success("Profile picture updated.");
     } catch {
       toast.error("Unable to upload profile picture.");

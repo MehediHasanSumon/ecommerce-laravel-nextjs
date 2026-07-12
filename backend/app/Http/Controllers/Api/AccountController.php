@@ -279,7 +279,7 @@ class AccountController extends Controller implements HasMiddleware
             'phone' => $user->phone,
             'dateOfBirth' => optional($user->date_of_birth)->format('Y-m-d'),
             'gender' => $user->gender,
-            'avatar' => $user->avatar,
+            'avatar' => $this->avatarUrl($user->avatar),
             'memberSince' => optional($user->created_at)->toISOString(),
             'membershipLevel' => 'Member',
             'profileCompletion' => $this->profileCompletion($user),
@@ -323,6 +323,23 @@ class AccountController extends Controller implements HasMiddleware
         if (str_starts_with($path, 'storage/')) {
             Storage::disk('public')->delete(substr($path, strlen('storage/')));
         }
+    }
+
+    private function avatarUrl(?string $avatar): ?string
+    {
+        if (! $avatar) {
+            return null;
+        }
+
+        if (str_starts_with($avatar, 'http://') || str_starts_with($avatar, 'https://')) {
+            return $avatar;
+        }
+
+        if (str_starts_with($avatar, '/storage/') || str_starts_with($avatar, 'storage/')) {
+            return url($avatar);
+        }
+
+        return url(Storage::disk('public')->url($avatar));
     }
 
     private function settingsPayload($user): array

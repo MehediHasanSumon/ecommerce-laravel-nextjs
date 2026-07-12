@@ -77,7 +77,7 @@ export function HomePageSettingsContent() {
   const [initial, setInitial] = useState<MergedHomePageSettingsForm>(mergedDefaults);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  useAuthStore((state) => state.user?.permissions ?? []);
+  useAuthStore((state) => state.user?.permissions);
   const canEdit = hasPermission("can_edit_home_page_setting");
 
   useEffect(() => {

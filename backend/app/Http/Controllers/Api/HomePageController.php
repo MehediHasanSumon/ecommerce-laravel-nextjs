@@ -19,6 +19,7 @@ use App\Services\Collections\CollectionProductResolver;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
 
 class HomePageController extends Controller
 {
@@ -128,7 +129,7 @@ class HomePageController extends Controller
         return ProductReview::query()
             ->where('status', 'approved')
             ->with([
-                'user:id,name,email',
+                'user:id,name,email,avatar',
                 'product.brand:id,name,slug',
                 'product.category:id,parent_id,name,slug',
                 'product.images:id,product_id,url,is_primary,sort_order',
@@ -147,6 +148,7 @@ class HomePageController extends Controller
                 'user' => [
                     'id' => (string) $review->user?->id,
                     'name' => $review->user?->name ?: 'Customer',
+                    'avatar' => $this->assetUrl($review->user?->avatar),
                 ],
                 'product' => $review->product
                     ? ProductCardResource::make($review->product)->resolve()
@@ -167,5 +169,22 @@ class HomePageController extends Controller
             'products' => ['enabled' => (bool) $homeRuntime['product_section']['enabled'], 'limit' => (int) $homeRuntime['product_section']['limit'], 'displayOrder' => 90],
             'testimonials' => ['enabled' => (bool) $homeRuntime['testimonial_section']['enabled'], 'displayOrder' => 100],
         ];
+    }
+
+    private function assetUrl(?string $path): ?string
+    {
+        if (! $path) {
+            return null;
+        }
+
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
+        if (str_starts_with($path, '/storage/') || str_starts_with($path, 'storage/')) {
+            return url($path);
+        }
+
+        return url(Storage::disk('public')->url($path));
     }
 }

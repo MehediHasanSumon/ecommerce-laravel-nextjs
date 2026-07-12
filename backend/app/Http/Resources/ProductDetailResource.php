@@ -96,7 +96,7 @@ class ProductDetailResource extends JsonResource
                     'user' => [
                         'id' => (string) ($review->user_id ?? ''),
                         'name' => $review->user?->name ?: 'Customer',
-                        'avatar' => 'https://ui-avatars.com/api/?name='.urlencode($review->user?->name ?: 'Customer').'&background=111827&color=fff',
+                        'avatar' => $this->assetUrl($review->user?->avatar) ?: 'https://ui-avatars.com/api/?name='.urlencode($review->user?->name ?: 'Customer').'&background=111827&color=fff',
                     ],
                     'rating' => (int) $review->rating,
                     'comment' => $review->comment,
@@ -305,6 +305,6 @@ class ProductDetailResource extends JsonResource
             return url($path);
         }
 
-        return Storage::disk('public')->url($path);
+        return url(Storage::disk('public')->url($path));
     }
 }

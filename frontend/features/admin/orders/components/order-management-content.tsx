@@ -41,7 +41,7 @@ export function OrderManagementContent() {
   const [bulkStatus, setBulkStatus] = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
   const [searchInput, setSearchInput] = useState(query.search);
-  useAuthStore((state) => state.user?.permissions ?? []);
+  useAuthStore((state) => state.user?.permissions);
   const canEditOrder = hasPermission("can_edit_order");
 
   const load = useCallback(async () => {
@@ -353,7 +353,7 @@ export function AdminOrderDetailContent({ orderNumber }: { orderNumber: string }
   const [note, setNote] = useState("");
   const [refund, setRefund] = useState({ amount: "", reason: "", note: "" });
   const [shippingLog, setShippingLog] = useState({ status: "shipped", courier: "", tracking_number: "", tracking_url: "", note: "" });
-  useAuthStore((state) => state.user?.permissions ?? []);
+  useAuthStore((state) => state.user?.permissions);
   const canEditOrder = hasPermission("can_edit_order");
 
   const load = useCallback(async (page = 1) => {

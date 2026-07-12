@@ -66,7 +66,7 @@ export type PublicReview = {
   comment: string;
   verified: boolean;
   createdAt: string;
-  user: { id: string; name: string };
+  user: { id: string; name: string; avatar?: string | null };
   product: Product | null;
 };
 

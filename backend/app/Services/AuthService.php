@@ -8,6 +8,7 @@ use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\NewAccessToken;
@@ -168,7 +169,7 @@ class AuthService
         return $user->createToken($name, $abilities, now()->addMinutes($minutes));
     }
 
-    private function serializeUser(User|Authenticatable $user): array
+    public function serializeUser(User|Authenticatable $user): array
     {
         if ($user instanceof User) {
             $user->loadMissing('roles:id,name');
@@ -178,6 +179,7 @@ class AuthService
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
+            'avatar' => $user instanceof User ? $this->avatarUrl($user->avatar) : null,
             'roles' => $user instanceof User
                 ? $user->roles->pluck('name')->values()->all()
                 : [],
@@ -197,5 +199,22 @@ class AuthService
             $user->assignRole('user');
             $user->loadMissing('roles:id,name');
         }
+    }
+
+    private function avatarUrl(?string $avatar): ?string
+    {
+        if (! $avatar) {
+            return null;
+        }
+
+        if (str_starts_with($avatar, 'http://') || str_starts_with($avatar, 'https://')) {
+            return $avatar;
+        }
+
+        if (str_starts_with($avatar, '/storage/') || str_starts_with($avatar, 'storage/')) {
+            return url($avatar);
+        }
+
+        return url(Storage::disk('public')->url($avatar));
     }
 }

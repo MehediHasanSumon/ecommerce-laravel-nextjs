@@ -72,7 +72,7 @@ const devices: Array<{ key: HeroDevice; icon: typeof Monitor; label: string }> =
 ];
 
 export function HeroSectionManagementContent() {
-  useAuthStore((state) => state.user?.permissions ?? []);
+  useAuthStore((state) => state.user?.permissions);
   const canCreate = hasPermission("can_create_hero_section");
   const canEdit = hasPermission("can_edit_hero_section");
   const canDelete = hasPermission("can_delete_hero_section");

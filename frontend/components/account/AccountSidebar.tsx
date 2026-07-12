@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
@@ -36,7 +37,7 @@ export function AccountSidebar({ active }: AccountSidebarProps) {
   const router = useRouter();
   const logout = useAuthStore((state) => state.logout);
   const user = useAuthStore((state) => state.user);
-  useAuthStore((state) => state.user?.permissions ?? []);
+  useAuthStore((state) => state.user?.permissions);
   const items = NAV_ITEMS.filter((item) => hasPermission(item.permission));
 
   async function handleLogout() {
@@ -50,7 +51,18 @@ export function AccountSidebar({ active }: AccountSidebarProps) {
         {/* User Card */}
         <div className="bg-card border border-border rounded-2xl p-5 mb-4 text-center">
           <div className="w-16 h-16 bg-gradient-to-br from-primary/20 to-primary/10 rounded-full mx-auto mb-3 flex items-center justify-center overflow-hidden">
-            <span className="text-lg font-extrabold text-primary">{getInitials(user?.name ?? 'User')}</span>
+            {user?.avatar ? (
+              <Image
+                src={user.avatar}
+                alt={user.name}
+                width={64}
+                height={64}
+                unoptimized
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <span className="text-lg font-extrabold text-primary">{getInitials(user?.name ?? 'User')}</span>
+            )}
           </div>
           <p className="font-bold text-sm">{user?.name ?? 'Customer'}</p>
           <p className="text-xs text-muted-foreground">{user?.email ?? ''}</p>

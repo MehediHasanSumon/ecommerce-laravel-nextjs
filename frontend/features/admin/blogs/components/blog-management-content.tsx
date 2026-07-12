@@ -76,7 +76,7 @@ export function BlogManagementContent() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [drawer, setDrawer] = useState<{ open: boolean; mode: "create" | "edit"; item: ManagedBlog | null }>({ open: false, mode: "create", item: null });
   const { confirmDelete, deleteConfirmationDialog } = useDeleteConfirmation();
-  useAuthStore((state) => state.user?.permissions ?? []);
+  useAuthStore((state) => state.user?.permissions);
   const canCreate = hasPermission("can_create_blog");
   const canEdit = hasPermission("can_edit_blog");
   const canDelete = hasPermission("can_delete_blog");

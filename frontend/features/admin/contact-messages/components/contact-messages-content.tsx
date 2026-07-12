@@ -37,7 +37,7 @@ export function ContactMessagesContent() {
   const [searchInput, setSearchInput] = useState(query.search);
   const [selected, setSelected] = useState<ContactMessage | null>(null);
   const { confirmDelete, deleteConfirmationDialog } = useDeleteConfirmation();
-  useAuthStore((state) => state.user?.permissions ?? []);
+  useAuthStore((state) => state.user?.permissions);
   const canEdit = hasPermission("can_edit_contact_message");
   const canDelete = hasPermission("can_delete_contact_message");
 

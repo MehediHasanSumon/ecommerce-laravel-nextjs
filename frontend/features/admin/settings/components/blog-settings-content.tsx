@@ -63,7 +63,7 @@ export function BlogSettingsContent() {
   const [initial, setInitial] = useState<BlogSettingsForm>(defaults);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  useAuthStore((state) => state.user?.permissions ?? []);
+  useAuthStore((state) => state.user?.permissions);
   const canEdit = hasPermission("can_edit_blog_setting");
 
   useEffect(() => {

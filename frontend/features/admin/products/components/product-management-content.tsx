@@ -1188,7 +1188,7 @@ export function ProductManagementContent({ module }: { module: ProductModule }) 
   const [filterOpen, setFilterOpen] = useState(false);
   const [drawer, setDrawer] = useState<{ open: boolean; mode: DrawerMode; item: ProductRecord | null }>({ open: false, mode: "create", item: null });
   const { confirmDelete, deleteConfirmationDialog } = useDeleteConfirmation();
-  useAuthStore((state) => state.user?.permissions ?? []);
+  useAuthStore((state) => state.user?.permissions);
   const permissionResource = modulePermissionResources[module];
   const canCreate = hasPermission(`can_create_${permissionResource}`);
   const canEdit = hasPermission(`can_edit_${permissionResource}`);

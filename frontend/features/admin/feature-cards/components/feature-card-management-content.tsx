@@ -71,7 +71,7 @@ export function HomeFeatureCardsSettingsContent() {
   const [initialEnabled, setInitialEnabled] = useState(true);
   const [loadingSettings, setLoadingSettings] = useState(true);
   const [savingSettings, setSavingSettings] = useState(false);
-  useAuthStore((state) => state.user?.permissions ?? []);
+  useAuthStore((state) => state.user?.permissions);
   const canEditSettings = hasPermission("can_edit_home_feature_card_setting");
 
   useEffect(() => {
@@ -184,7 +184,7 @@ function FeatureCardCrudContent() {
   const [draggedId, setDraggedId] = useState<number | null>(null);
   const [searchInput, setSearchInput] = useState(query.search);
   const [filterOpen, setFilterOpen] = useState(false);
-  useAuthStore((state) => state.user?.permissions ?? []);
+  useAuthStore((state) => state.user?.permissions);
   const canCreate = hasPermission("can_create_home_feature_card_setting");
   const canEdit = hasPermission("can_edit_home_feature_card_setting");
   const canDelete = hasPermission("can_delete_home_feature_card_setting");

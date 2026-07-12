@@ -18,6 +18,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -159,7 +160,7 @@ class ProductCatalogController extends Controller implements HasMiddleware
                 'variants' => fn ($query) => $query->where('status', 'active')->orderBy('id'),
                 'variants.attributeValues.attribute:id,name,slug,type',
                 'reviews' => fn ($query) => $query->where('status', 'approved')->latest()->limit(20),
-                'reviews.user:id,name,email',
+                'reviews.user:id,name,email,avatar',
                 'relatedProducts' => fn ($query) => $query
                     ->where('products.status', 'active')
                     ->with(['brand:id,name,slug', 'category:id,name,slug', 'images:id,product_id,url,is_primary,sort_order', 'tags:id,name'])
@@ -181,7 +182,7 @@ class ProductCatalogController extends Controller implements HasMiddleware
         $reviews = ProductReview::query()
             ->where('status', 'approved')
             ->with([
-                'user:id,name,email',
+                'user:id,name,email,avatar',
                 'product.brand:id,name,slug',
                 'product.category:id,parent_id,name,slug',
                 'product.images:id,product_id,url,is_primary,sort_order',
@@ -203,6 +204,7 @@ class ProductCatalogController extends Controller implements HasMiddleware
                     'user' => [
                         'id' => (string) $review->user?->id,
                         'name' => $review->user?->name ?: 'Customer',
+                        'avatar' => $this->assetUrl($review->user?->avatar),
                     ],
                     'product' => $review->product
                         ? ProductCardResource::make($review->product)->resolve()
@@ -398,5 +400,22 @@ class ProductCatalogController extends Controller implements HasMiddleware
             ->unique()
             ->values()
             ->all();
+    }
+
+    private function assetUrl(?string $path): ?string
+    {
+        if (! $path) {
+            return null;
+        }
+
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
+        if (str_starts_with($path, '/storage/') || str_starts_with($path, 'storage/')) {
+            return url($path);
+        }
+
+        return url(Storage::disk('public')->url($path));
     }
 }

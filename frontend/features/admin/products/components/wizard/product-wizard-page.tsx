@@ -129,7 +129,7 @@ function firstFormError(errors: FieldErrors<ProductWizardValues>, prefix = ""): 
 export function ProductWizardPage({ mode, productId }: { mode: ProductWizardMode; productId?: number }) {
   const router = useRouter();
   const brandsEnabled = useSettingsStore(selectBrandsEnabled);
-  useAuthStore((state) => state.user?.permissions ?? []);
+  useAuthStore((state) => state.user?.permissions);
   const canSave = hasPermission(mode === "edit" ? "can_edit_product" : "can_create_product");
   const [options, setOptions] = useState<ProductOptions>(emptyOptions);
   const [loading, setLoading] = useState(mode === "edit");

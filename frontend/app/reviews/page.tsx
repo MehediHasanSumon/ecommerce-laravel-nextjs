@@ -169,9 +169,20 @@ function ReviewsContent() {
                   ) : null}
 
                   <div className="mt-auto flex items-center gap-3 border-t border-border pt-4">
-                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-                      {initials(review.user.name)}
-                    </span>
+                    {review.user.avatar ? (
+                      <Image
+                        src={review.user.avatar}
+                        alt={review.user.name}
+                        width={36}
+                        height={36}
+                        unoptimized
+                        className="h-9 w-9 rounded-full object-cover"
+                      />
+                    ) : (
+                      <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                        {initials(review.user.name)}
+                      </span>
+                    )}
                     <div>
                       <p className="text-sm font-semibold">{review.user.name}</p>
                       <p className="text-xs text-muted-foreground">

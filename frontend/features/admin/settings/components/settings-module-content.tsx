@@ -468,7 +468,7 @@ export function SettingsModuleContent({ module }: { module: keyof typeof moduleC
   const [resetOpen, setResetOpen] = React.useState(false);
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [companyCurrencyOptions, setCompanyCurrencyOptions] = React.useState<Array<{ label: string; value: string }>>([]);
-  useAuthStore((state) => state.user?.permissions ?? []);
+  useAuthStore((state) => state.user?.permissions);
   const canEdit = hasPermission(settingEditPermissions[module] ?? "");
   const isDirty = JSON.stringify(values) !== JSON.stringify(initial);
   const sections = React.useMemo(() => {
@@ -645,7 +645,7 @@ export function SmsSettingsContent() {
   const [saving, setSaving] = React.useState(false);
   const [testing, setTesting] = React.useState("");
   const [resetOpen, setResetOpen] = React.useState(false);
-  useAuthStore((state) => state.user?.permissions ?? []);
+  useAuthStore((state) => state.user?.permissions);
   const canEdit = hasPermission("can_edit_sms_setting");
   const isDirty = JSON.stringify(providers) !== JSON.stringify(initial);
   useUnsavedChanges(isDirty);
@@ -735,7 +735,7 @@ export function PaymentSettingsContent() {
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
   const [resetOpen, setResetOpen] = React.useState(false);
-  useAuthStore((state) => state.user?.permissions ?? []);
+  useAuthStore((state) => state.user?.permissions);
   const canEdit = hasPermission("can_edit_payment_setting");
   const isDirty = JSON.stringify(gateways) !== JSON.stringify(initial);
   useUnsavedChanges(isDirty);
@@ -887,7 +887,7 @@ export function SocialMediaSettingsContent() {
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
   const [resetOpen, setResetOpen] = React.useState(false);
-  useAuthStore((state) => state.user?.permissions ?? []);
+  useAuthStore((state) => state.user?.permissions);
   const canEdit = hasPermission("can_edit_social_setting");
   const isDirty = JSON.stringify(items) !== JSON.stringify(initial);
   useUnsavedChanges(isDirty);

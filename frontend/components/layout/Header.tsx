@@ -797,13 +797,24 @@ export function Header() {
                 >
                   <button
                     type="button"
-                    className="rounded-lg p-2 transition-colors hover:bg-muted"
+                    className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-lg transition-colors hover:bg-muted"
                     aria-label="Account"
                     aria-haspopup="menu"
                     aria-expanded={isAccountMenuOpen}
                     onClick={() => setIsAccountMenuOpen((open) => !open)}
                   >
-                    <User size={20} />
+                    {user.avatar ? (
+                      <Image
+                        src={user.avatar}
+                        alt={user.name}
+                        width={28}
+                        height={28}
+                        unoptimized
+                        className="h-7 w-7 rounded-full object-cover"
+                      />
+                    ) : (
+                      <User size={20} />
+                    )}
                   </button>
                   <div
                     className={cn(

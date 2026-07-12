@@ -83,17 +83,8 @@ class AuthController extends Controller
 
     public function me(Request $request): JsonResponse
     {
-        $user = $request->user();
-        $user->loadMissing('roles:id,name');
-
         return ApiResponse::success([
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'roles' => $user->roles->pluck('name')->values()->all(),
-                'permissions' => $user->getAllPermissions()->pluck('name')->values()->all(),
-            ],
+            'user' => $this->authService->serializeUser($request->user()),
         ]);
     }
 }

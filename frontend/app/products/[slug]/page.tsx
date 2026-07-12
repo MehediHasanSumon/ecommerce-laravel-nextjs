@@ -711,14 +711,20 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
                   <div key={review.id} className="bg-card border border-border rounded-2xl p-5">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                       <div className="flex items-center gap-3">
-                        <Image
-                          src={review.user.avatar ?? ''}
-                          alt={review.user.name}
-                          width={40}
-                          height={40}
-                          unoptimized
-                          className="rounded-full"
-                        />
+                        {review.user.avatar ? (
+                          <Image
+                            src={review.user.avatar}
+                            alt={review.user.name}
+                            width={40}
+                            height={40}
+                            unoptimized
+                            className="h-10 w-10 rounded-full object-cover"
+                          />
+                        ) : (
+                          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                            {review.user.name.split(' ').filter(Boolean).map((part) => part[0]).join('').slice(0, 2).toUpperCase() || 'CU'}
+                          </span>
+                        )}
                         <div>
                           <p className="font-semibold text-sm">{review.user.name}</p>
                           <div className="flex items-center gap-1.5 mt-0.5">
