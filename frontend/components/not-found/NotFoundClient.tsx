@@ -1,174 +1,114 @@
 'use client';
 
-import { usePathname, useRouter } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { FormEvent, useMemo, useState } from 'react';
+import { ArrowLeft, Home, Search, ShoppingBag } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { BrandLogo } from '@/components/settings/BrandLogo';
+import { NAV_LINKS } from '@/constants';
+import { cn } from '@/utils/cn';
 
-interface ParentSitemap {
-  webPages?: Array<{
-    id: string;
-    name: string;
-    filePath: string;
-    cleanRoute?: string;
-  }>;
-}
+const supportLinks = [
+  { label: 'Collections', href: '/collections/new-arrivals' },
+  { label: 'Contact', href: '/contact' },
+];
 
-export default function NotFound() {
-  const [siteMap, setSitemap] = useState<ParentSitemap | null>(null);
+export default function NotFoundClient() {
   const router = useRouter();
-  const pathname = usePathname();
-  const missingPath = pathname.replace(/^\//, '');
+  const [query, setQuery] = useState('');
+  const quickLinks = useMemo(
+    () => [
+      ...NAV_LINKS.filter((link) => ['Home', 'Shop', 'Categories', 'Brands'].includes(link.label)),
+      ...supportLinks,
+    ],
+    [],
+  );
 
-  useEffect(() => {
-    if (
-      typeof window === 'undefined' ||
-      !window.parent ||
-      window.parent === window
-    ) {
-      return;
-    }
-
-    const handler = (event: MessageEvent) => {
-      if (event.data.type === 'sandbox:sitemap') {
-        window.removeEventListener('message', handler);
-        setSitemap(event.data.sitemap);
-      }
-    };
-
-    window.parent.postMessage({ type: 'sandbox:sitemap' }, '*');
-    window.addEventListener('message', handler);
-
-    return () => {
-      window.removeEventListener('message', handler);
-    };
-  }, []);
-
-  const handleNavigate = (path: string) => {
-    router.push(siteMap ? path : `/${path}`);
-  };
-
-  const handleCreatePage = useCallback(() => {
-    window.parent.postMessage(
-      {
-        type: 'sandbox:web:create',
-        path: missingPath,
-        view: 'web',
-      },
-      '*'
-    );
-  }, [missingPath]);
+  function handleSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const trimmed = query.trim();
+    if (!trimmed) return;
+    router.push(`/search?q=${encodeURIComponent(trimmed)}`);
+  }
 
   return (
-    <div className="flex sm:w-full w-screen sm:min-w-[850px] flex-col">
-      <div className="flex w-full items-center gap-2 p-5">
-        <button
-          type="button"
-          onClick={() => router.push('/')}
-          className="flex items-center justify-center w-10 h-10 rounded-md"
-        >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 18 18"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            aria-label="Back"
-            role="img"
-          >
-            <path
-              d="M8.5957 2.65435L2.25005 9L8.5957 15.3457"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M2.25007 9L15.75 9"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
-        <div className="flex flex-row divide-x divide-gray-200 rounded-[8px] h-8 w-[300px] border border-gray-200 bg-gray-50 text-gray-500">
-          <div className="flex items-center px-[14px] py-[5px]">
-            <span>/</span>
-          </div>
-          <div className="flex items-center min-w-0">
-            <p
-              className="border-0 bg-transparent px-3 py-2 focus:outline-none truncate max-w-[300px]"
-              style={{ minWidth: 0 }}
-              title={missingPath}
-            >
-              {missingPath}
-            </p>
-          </div>
-        </div>
-      </div>
+    <main className="min-h-screen bg-background text-foreground">
+      <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 py-5 sm:px-6 lg:px-8">
+        <header className="flex items-center justify-between gap-4">
+          <BrandLogo href="/" className="w-36 shrink-0 sm:w-44" textClassName="text-lg sm:text-xl" />
+          <Button type="button" variant="ghost" size="sm" icon={<ArrowLeft className="h-4 w-4" />} onClick={() => router.back()}>
+            Go Back
+          </Button>
+        </header>
 
-      <div className="flex flex-grow flex-col items-center justify-center pt-[100px] text-center gap-[20px]">
-        <h1 className="text-4xl font-medium text-gray-900 px-2">
-          Uh-oh! This page doesn&apos;t exist (yet).
-        </h1>
-
-        <p className="pt-4 pb-12 px-2 text-gray-500">
-          Looks like &quot;<span className="font-bold">/{missingPath}</span>
-          &quot; isn&apos;t part of your project. But no worries, you&apos;ve
-          got options!
-        </p>
-
-        <div className="px-[20px] w-full">
-          <div className="flex flex-row justify-center items-center w-full max-w-[800px] mx-auto border border-gray-200 rounded-lg p-[20px] mb-[40px] gap-[20px]">
-            <div className="flex flex-col gap-[5px] items-start self-start w-1/2">
-              <p className="text-sm text-black text-left">
-                Build it from scratch
+        <section className="flex flex-1 items-center py-10 lg:py-12">
+          <div className="w-full max-w-2xl space-y-7">
+            <div className="space-y-4">
+              <p className="inline-flex items-center gap-2 rounded-full border border-border bg-muted/50 px-3 py-1 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                <Search className="h-3.5 w-3.5" aria-hidden="true" />
+                Page not found
               </p>
-              <p className="text-sm text-gray-500 text-left">
-                Create a new page to live at &quot;
-                <span>/{missingPath}</span>&quot;
-              </p>
-            </div>
-            <div className="flex flex-row items-center justify-end w-1/2">
-              <button
-                type="button"
-                className="bg-black text-white px-[10px] py-[5px] rounded-md"
-                onClick={handleCreatePage}
-              >
-                Create Page
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {siteMap?.webPages && siteMap.webPages.length > 0 && (
-          <>
-            <div className="pb-20 lg:pb-[80px]">
-              <p className="flex items-center text-gray-500">
-                Check out all your project&apos;s routes here &darr;
-              </p>
-            </div>
-
-            <div className="flex flex-col justify-center items-center w-full px-[50px]">
-              <div className="flex flex-col justify-between items-center w-full max-w-[600px] gap-[10px]">
-                <p className="text-sm text-gray-300 pb-[10px] self-start p-4">
-                  PAGES
+              <h1 className="text-7xl font-black tracking-tight text-foreground sm:text-8xl lg:text-9xl">404</h1>
+              <div className="space-y-3">
+                <h2 className="max-w-2xl text-2xl font-extrabold tracking-tight sm:text-3xl lg:text-4xl">
+                  Oops! This page could not be found.
+                </h2>
+                <p className="max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">
+                  The page you&apos;re looking for doesn&apos;t exist or may have been moved. Try searching or use one of the links below.
                 </p>
-                {siteMap.webPages.map((route) => (
-                  <button
-                    type="button"
-                    onClick={() => handleNavigate(route.cleanRoute || '')}
-                    key={route.id}
-                    className="flex flex-row justify-between text-center items-center p-4 rounded-lg bg-white shadow-sm w-full hover:bg-gray-50"
-                  >
-                    <h3 className="font-medium text-gray-900">{route.name}</h3>
-                    <p className="text-sm text-gray-400">{route.cleanRoute}</p>
-                  </button>
-                ))}
               </div>
             </div>
-          </>
-        )}
+
+            <form onSubmit={handleSearch} className="max-w-xl" role="search" aria-label="Search the store">
+              <div className="flex items-center gap-2 rounded-2xl border border-border bg-card p-2 transition focus-within:border-primary">
+                <Search className="ml-2 h-5 w-5 text-muted-foreground" aria-hidden="true" />
+                <input
+                  type="search"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Search products, categories or pages..."
+                  className="min-w-0 flex-1 bg-transparent px-1 py-2 text-sm outline-none placeholder:text-muted-foreground"
+                />
+                <Button type="submit" size="sm" className="rounded-xl">
+                  Search
+                </Button>
+              </div>
+            </form>
+
+            <div className="flex flex-wrap gap-3">
+              <Link href="/" className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:opacity-95 active:scale-[0.99]">
+                <Home className="h-4 w-4" aria-hidden="true" />
+                Go Home
+              </Link>
+              <Link href="/shop" className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-border bg-background px-4 text-sm font-semibold text-foreground transition hover:bg-muted active:scale-[0.99]">
+                <ShoppingBag className="h-4 w-4" aria-hidden="true" />
+                Browse Products
+              </Link>
+              <Link href="/contact" className="inline-flex h-12 items-center justify-center rounded-2xl border border-border bg-background px-4 text-sm font-semibold text-foreground transition hover:bg-muted active:scale-[0.99]">
+                Contact Support
+              </Link>
+            </div>
+
+            <nav aria-label="Helpful links" className="space-y-3">
+              <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Helpful links</p>
+              <div className="flex flex-wrap gap-2">
+                {quickLinks.map((link) => (
+                  <Link
+                    key={`${link.href}-${link.label}`}
+                    href={link.href}
+                    className={cn(
+                      'rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground',
+                    )}
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+              </div>
+            </nav>
+          </div>
+        </section>
       </div>
-    </div>
+    </main>
   );
 }
