@@ -7,6 +7,7 @@ import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { CartItemSkeleton } from '@/components/skeleton';
 import { useCartStore } from '@/store/cartStore';
+import { useAuthStore } from '@/store/auth-store';
 import { selectBrandsEnabled, selectCurrencyFingerprint, useSettingsStore } from '@/store/settings-store';
 import { formatPrice } from '@/utils/format';
 import {
@@ -47,10 +48,24 @@ export default function CartPage() {
   const [mounted, setMounted] = useState(false);
   const initialize = useCartStore((s) => s.initialize);
   const cartInitialized = useCartStore((s) => s.initialized);
+  const cartLoading = useCartStore((s) => s.isLoading);
+  const authInitialized = useAuthStore((s) => s.initialized);
+  const fetchCurrentUser = useAuthStore((s) => s.fetchCurrentUser);
+
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+
+    if (!authInitialized) {
+      fetchCurrentUser().catch(() => undefined);
+      return;
+    }
+
     initialize().catch(() => undefined);
-  }, [initialize]);
+  }, [authInitialized, fetchCurrentUser, initialize, mounted]);
 
   const items = useCartStore((s) => s.items);
   const updateQuantity = useCartStore((s) => s.updateQuantity);
@@ -66,7 +81,7 @@ export default function CartPage() {
     toast(`${name} removed from cart`, { icon: '🗑️' });
   };
 
-  if (!mounted || !cartInitialized) {
+  if (!mounted || !authInitialized || !cartInitialized || cartLoading) {
     return (
       <div className="min-h-screen bg-background">
         <AnnouncementBar />

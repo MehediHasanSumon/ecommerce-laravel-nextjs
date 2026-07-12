@@ -78,14 +78,18 @@ export function SettingsSection({
   description,
   icon: Icon,
   children,
+  className,
+  bodyClassName,
 }: {
   title: string;
   description: string;
   icon: LucideIcon;
   children: React.ReactNode;
+  className?: string;
+  bodyClassName?: string;
 }) {
   return (
-    <Card className="rounded-lg">
+    <Card className={cn("rounded-lg", className)}>
       <div className="flex items-start gap-3 border-b border-border p-3.5 sm:p-4">
         <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted text-foreground">
           <Icon className="h-4 w-4" />
@@ -95,7 +99,7 @@ export function SettingsSection({
           <p className="mt-1 text-sm leading-6 text-muted-foreground">{description}</p>
         </div>
       </div>
-      <div className="p-3.5 sm:p-4">{children}</div>
+      <div className={cn("p-3.5 sm:p-4", bodyClassName)}>{children}</div>
     </Card>
   );
 }

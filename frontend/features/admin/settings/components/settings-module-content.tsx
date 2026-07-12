@@ -140,6 +140,14 @@ const timezoneOptions = [
 const smsProviderLabels: Record<string, string> = { twilio: "Twilio", vonage: "Vonage", ssl_wireless: "SSL Wireless", custom: "Custom Provider" };
 const paymentGatewayLabels: Record<string, string> = { stripe: "Stripe", sslcommerz: "SSLCommerz", bkash: "bKash", nagad: "Nagad", rocket: "Rocket", paypal: "PayPal", aamarpay: "aamarPay", cash_on_delivery: "Cash On Delivery" };
 const offlinePaymentGateways = new Set(["cash_on_delivery"]);
+const paymentBooleanOptions = [
+  { label: "Enabled", value: "true" },
+  { label: "Disabled", value: "false" },
+];
+const paymentModeOptions = [
+  { label: "Sandbox", value: "true" },
+  { label: "Live", value: "false" },
+];
 
 const yesNo = [
   { label: "Left", value: "left" },
@@ -804,16 +812,18 @@ export function PaymentSettingsContent() {
                   title={paymentGatewayLabels[String(gateway.gateway)] ?? String(gateway.gateway)}
                   description={isOfflineGateway ? "Gateway status only. No API credentials are required." : "Gateway status, mode, credentials, merchant identity, and webhook secret."}
                   icon={CreditCard}
+                  className="flex h-[34rem] flex-col overflow-hidden"
+                  bodyClassName="min-h-0 flex-1 overflow-y-auto"
                 >
                   <FormGrid>
-                    <ToggleSwitch label="Enable Gateway" checked={Boolean(gateway.enabled)} onChange={(checked) => patch(index, "enabled", checked)} />
+                    <SelectInput label="Enable Gateway" value={String(Boolean(gateway.enabled))} options={paymentBooleanOptions} onChange={(value) => patch(index, "enabled", value === "true")} />
                     <TextInput label="Display Name" value={gatewayConfigValue(gateway, "display_name")} onChange={(event) => patchGatewayConfig(index, "display_name", event.target.value)} />
                     <TextInput label="Display Description" value={gatewayConfigValue(gateway, "checkout_description")} onChange={(event) => patchGatewayConfig(index, "checkout_description", event.target.value)} />
                     <TextInput label="Sort Order" type="number" value={String(gateway.display_order ?? index)} onChange={(event) => patch(index, "display_order", Number(event.target.value))} />
                     <TextInput label="Gateway Logo/Icon URL" value={gatewayConfigValue(gateway, "logo_url")} onChange={(event) => patchGatewayConfig(index, "logo_url", event.target.value)} />
                     {!isOfflineGateway ? (
                       <>
-                        <ToggleSwitch label="Sandbox Mode" checked={Boolean(gateway.sandbox_mode)} onChange={(checked) => patch(index, "sandbox_mode", checked)} />
+                        <SelectInput label="Sandbox Mode" value={String(Boolean(gateway.sandbox_mode))} options={paymentModeOptions} onChange={(value) => patch(index, "sandbox_mode", value === "true")} />
                         {gateway.gateway === "sslcommerz" ? (
                           <>
                             <TextInput label="Store ID" value={gateway.merchant_id ?? ""} onChange={(event) => patch(index, "merchant_id", event.target.value)} />

@@ -8,6 +8,7 @@ import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { useWishlistStore } from '@/store/wishlistStore';
 import { useCartStore } from '@/store/cartStore';
+import { useAuthStore } from '@/store/auth-store';
 import { selectBrandsEnabled, selectCurrencyFingerprint, useSettingsStore } from '@/store/settings-store';
 import { formatPrice } from '@/utils/format';
 import { toast } from 'sonner';
@@ -19,11 +20,25 @@ export default function WishlistPage() {
   const [mounted, setMounted] = useState(false);
   const initialize = useWishlistStore((s) => s.initialize);
   const storeLoading = useWishlistStore((s) => s.isLoading);
+  const wishlistInitialized = useWishlistStore((s) => s.initialized);
+  const authInitialized = useAuthStore((s) => s.initialized);
+  const fetchCurrentUser = useAuthStore((s) => s.fetchCurrentUser);
   const canEditWishlist = hasPermission('can_edit_wishlist');
+
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+
+    if (!authInitialized) {
+      fetchCurrentUser().catch(() => undefined);
+      return;
+    }
+
     initialize().catch(() => undefined);
-  }, [initialize]);
+  }, [authInitialized, fetchCurrentUser, initialize, mounted]);
 
   const items = useWishlistStore((s) => s.items);
   const removeItem = useWishlistStore((s) => s.removeItem);
@@ -41,7 +56,7 @@ export default function WishlistPage() {
     toast(`${name} removed from wishlist`, { icon: '💔' });
   };
 
-  if (!mounted || storeLoading) {
+  if (!mounted || !authInitialized || !wishlistInitialized || storeLoading) {
     return (
       <div className="min-h-screen bg-background">
         <AnnouncementBar />
