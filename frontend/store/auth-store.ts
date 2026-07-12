@@ -44,7 +44,8 @@ type AuthState = {
 };
 
 function messageFrom(error: unknown) {
-  return toAppError(error).message;
+  const appError = toAppError(error);
+  return appError.status === 422 ? null : appError.message;
 }
 
 function normalizeUser(user: User): User {

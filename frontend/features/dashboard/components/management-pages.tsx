@@ -40,6 +40,7 @@ import { roleService } from "@/features/admin/roles/services/role-service";
 import { useUrlQueryState } from "@/features/admin/shared/hooks/use-url-query-state";
 import { userService } from "@/features/admin/users/services/user-service";
 import { toAppError } from "@/lib/errors";
+import { applyValidationErrors, shouldToastFormError, validationSummary } from "@/lib/form-errors";
 import { hasPermission } from "@/lib/permissions";
 import { useAuthStore } from "@/store/auth-store";
 import { cn } from "@/utils/cn";
@@ -409,8 +410,18 @@ function UserForm({
   const selectedStatus = useWatch({ control: form.control, name: "status" });
   const emailVerifiedAt = useWatch({ control: form.control, name: "email_verified_at" });
 
+  async function handleSubmit(values: UserFormValues) {
+    try {
+      await onSubmit(values);
+    } catch (error) {
+      if (!applyValidationErrors(form, error) && shouldToastFormError(error)) {
+        toast.error(validationSummary(error));
+      }
+    }
+  }
+
   return (
-    <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
+    <form className="space-y-4" onSubmit={form.handleSubmit(handleSubmit)}>
       <Input label="Name" className="h-10 rounded-lg" {...form.register("name")} error={form.formState.errors.name?.message} />
       <Input label="Email" type="email" className="h-10 rounded-lg" {...form.register("email")} error={form.formState.errors.email?.message} />
       <Input label={mode === "create" ? "Password" : "Password (leave blank to keep current)"} type="password" className="h-10 rounded-lg" {...form.register("password")} error={form.formState.errors.password?.message} />
@@ -511,8 +522,18 @@ function RoleForm({
     setPermissionSearch("");
   }, [mode, role?.id]);
 
+  async function handleSubmit(values: RoleFormValues) {
+    try {
+      await onSubmit(values);
+    } catch (error) {
+      if (!applyValidationErrors(form, error) && shouldToastFormError(error)) {
+        toast.error(validationSummary(error));
+      }
+    }
+  }
+
   return (
-    <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
+    <form className="space-y-4" onSubmit={form.handleSubmit(handleSubmit)}>
       <Input label="Role Name" className="h-10 rounded-lg" {...form.register("name")} error={form.formState.errors.name?.message} />
       <div className="space-y-1.5">
         <p className="text-sm font-semibold">Permissions</p>
@@ -557,8 +578,18 @@ function PermissionForm({
     values: { name: permission?.name ?? "" },
   });
 
+  async function handleSubmit(values: PermissionFormValues) {
+    try {
+      await onSubmit(values);
+    } catch (error) {
+      if (!applyValidationErrors(form, error) && shouldToastFormError(error)) {
+        toast.error(validationSummary(error));
+      }
+    }
+  }
+
   return (
-    <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
+    <form className="space-y-4" onSubmit={form.handleSubmit(handleSubmit)}>
       <Input label="Permission Name" className="h-10 rounded-lg" {...form.register("name")} error={form.formState.errors.name?.message} />
       <div className="flex gap-2 pt-1">
         <Button type="submit" size="sm" isLoading={form.formState.isSubmitting}>{mode === "create" ? "Create Permission" : "Save Changes"}</Button>
@@ -874,7 +905,7 @@ export function UserManagementContent() {
       setDrawer({ open: false, mode: "create", item: null });
       await load();
     } catch (error) {
-      toast.error(toAppError(error).message);
+      throw error;
     }
   }
 
@@ -995,7 +1026,7 @@ export function RoleManagementContent() {
       setDrawer({ open: false, mode: "create", item: null });
       await load();
     } catch (error) {
-      toast.error(toAppError(error).message);
+      throw error;
     }
   }
 
@@ -1113,7 +1144,7 @@ export function PermissionManagementContent() {
       setDrawer({ open: false, mode: "create", item: null });
       await load();
     } catch (error) {
-      toast.error(toAppError(error).message);
+      throw error;
     }
   }
 

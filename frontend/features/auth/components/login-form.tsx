@@ -13,7 +13,7 @@ import { Alert } from "@/components/ui/alert";
 import { routePaths } from "@/constants/routes";
 import { loginSchema, type LoginFormValues } from "@/schemas/auth";
 import { useAuthStore } from "@/store/auth-store";
-import { toAppError } from "@/lib/errors";
+import { applyValidationErrors, shouldToastFormError, validationSummary } from "@/lib/form-errors";
 import { safeRedirect } from "@/utils/sanitize";
 
 export function LoginForm() {
@@ -37,7 +37,9 @@ export function LoginForm() {
       toast.success("Welcome back.");
       router.replace(redirectTo);
     } catch (err) {
-      toast.error(toAppError(err).message);
+      if (!applyValidationErrors(form, err) && shouldToastFormError(err)) {
+        toast.error(validationSummary(err));
+      }
     }
   }
 

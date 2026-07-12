@@ -12,15 +12,7 @@ import { Alert } from "@/components/ui/alert";
 import { routePaths } from "@/constants/routes";
 import { registerSchema, type RegisterFormValues } from "@/schemas/auth";
 import { useAuthStore } from "@/store/auth-store";
-import { toAppError } from "@/lib/errors";
-
-const registerFields = ["name", "email", "password", "password_confirmation"] as const;
-
-function firstValidationMessage(errors: Record<string, string[]> | undefined) {
-  return registerFields
-    .map((field) => errors?.[field]?.[0])
-    .find((message): message is string => Boolean(message));
-}
+import { applyValidationErrors, shouldToastFormError, validationSummary } from "@/lib/form-errors";
 
 export function RegisterForm() {
   const [showPassword, setShowPassword] = useState(false);
@@ -39,16 +31,9 @@ export function RegisterForm() {
       toast.success("Account created.");
       router.replace(routePaths.home);
     } catch (err) {
-      const appError = toAppError(err);
-
-      registerFields.forEach((field) => {
-        const message = appError.validationErrors?.[field]?.[0];
-        if (message) {
-          form.setError(field, { type: "server", message });
-        }
-      });
-
-      toast.error(firstValidationMessage(appError.validationErrors) ?? appError.message);
+      if (!applyValidationErrors(form, err) && shouldToastFormError(err)) {
+        toast.error(validationSummary(err));
+      }
     }
   }
 

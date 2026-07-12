@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { routePaths } from "@/constants/routes";
 import { forgotPasswordSchema, type ForgotPasswordFormValues } from "@/schemas/auth";
 import { useAuthStore } from "@/store/auth-store";
-import { toAppError } from "@/lib/errors";
+import { applyValidationErrors, shouldToastFormError, validationSummary } from "@/lib/form-errors";
 import { cn } from "@/utils/cn";
 
 export function ForgotPasswordForm() {
@@ -31,7 +31,9 @@ export function ForgotPasswordForm() {
       setSuccess(message);
       toast.success("Check your email.");
     } catch (err) {
-      toast.error(toAppError(err).message);
+      if (!applyValidationErrors(form, err) && shouldToastFormError(err)) {
+        toast.error(validationSummary(err));
+      }
     }
   }
 

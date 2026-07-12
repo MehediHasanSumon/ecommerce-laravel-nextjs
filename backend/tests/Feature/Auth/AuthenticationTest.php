@@ -27,6 +27,7 @@ it('rejects invalid registration payloads', function (array $payload, string $fi
 
     $response->assertStatus(422)
         ->assertJsonPath('success', false)
+        ->assertJsonPath('message', 'Validation failed.')
         ->assertJsonValidationErrors($field);
 })->with([
     'missing name' => [['email' => 'a@example.test', 'password' => 'Str0ng!Passw0rd', 'password_confirmation' => 'Str0ng!Passw0rd'], 'name'],

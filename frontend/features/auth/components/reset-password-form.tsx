@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { routePaths } from "@/constants/routes";
 import { resetPasswordSchema, type ResetPasswordFormValues } from "@/schemas/auth";
 import { useAuthStore } from "@/store/auth-store";
-import { toAppError } from "@/lib/errors";
+import { applyValidationErrors, shouldToastFormError, validationSummary } from "@/lib/form-errors";
 import { cn } from "@/utils/cn";
 
 export function ResetPasswordForm() {
@@ -36,7 +36,9 @@ export function ResetPasswordForm() {
       toast.success("Password reset successful.");
       router.replace(routePaths.login);
     } catch (err) {
-      toast.error(toAppError(err).message);
+      if (!applyValidationErrors(form, err) && shouldToastFormError(err)) {
+        toast.error(validationSummary(err));
+      }
     }
   }
 

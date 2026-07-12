@@ -5,12 +5,13 @@ import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
-import type { FieldErrors, Path, Resolver, UseFormReturn } from "react-hook-form";
+import type { FieldErrors, Resolver } from "react-hook-form";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import type { ProductOptions, ProductRecord } from "@/features/admin/products/types";
 import { productManagementService } from "@/features/admin/products/services/product-management-service";
 import { toAppError } from "@/lib/errors";
+import { applyValidationErrors, shouldToastFormError, validationSummary } from "@/lib/form-errors";
 import { hasPermission } from "@/lib/permissions";
 import { routePaths } from "@/constants/routes";
 import { ProductFormLayout } from "@/features/admin/products/components/wizard/product-form-layout";
@@ -91,25 +92,6 @@ function mergeSavedDraft(baseValues: ProductWizardValues, saved: string | null, 
   }
 
   return { ...baseValues, ...parsed };
-}
-
-function firstValidationMessage(errors: Record<string, string[]> | undefined) {
-  if (!errors) return null;
-  const first = Object.entries(errors)[0];
-  if (!first) return null;
-
-  return `${first[0]}: ${first[1]?.[0] ?? "Invalid value."}`;
-}
-
-function applyServerValidationErrors(form: UseFormReturn<ProductWizardValues>, errors: Record<string, string[]> | undefined) {
-  if (!errors) return;
-
-  Object.entries(errors).forEach(([field, messages]) => {
-    form.setError(field as Path<ProductWizardValues>, {
-      type: "server",
-      message: messages[0] ?? "Invalid value.",
-    });
-  });
 }
 
 function firstFormError(errors: FieldErrors<ProductWizardValues>, prefix = ""): string | null {
@@ -242,9 +224,9 @@ export function ProductWizardPage({ mode, productId }: { mode: ProductWizardMode
       router.push(routePaths.adminProducts);
       router.refresh();
     } catch (error) {
-      const appError = toAppError(error);
-      applyServerValidationErrors(form, appError.validationErrors);
-      toast.error(firstValidationMessage(appError.validationErrors) ?? appError.message);
+      if (!applyValidationErrors(form, error) && shouldToastFormError(error)) {
+        toast.error(validationSummary(error));
+      }
     }
   }
 

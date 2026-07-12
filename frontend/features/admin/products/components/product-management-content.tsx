@@ -41,10 +41,10 @@ import { useUrlQueryState } from "@/features/admin/shared/hooks/use-url-query-st
 import { productManagementService } from "@/features/admin/products/services/product-management-service";
 import type { ProductModule, ProductModulePayload, ProductOptions, ProductRecord } from "@/features/admin/products/types";
 import type { Option, PaginationMeta, QueryState } from "@/features/admin/shared/types";
-import type { ApiValidationErrors } from "@/types/auth";
 import { exportCsv, formatDate, statusLabel } from "@/features/admin/shared/utils";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { toAppError } from "@/lib/errors";
+import { applyValidationErrors, shouldToastFormError, validationSummary } from "@/lib/form-errors";
 import { hasPermission } from "@/lib/permissions";
 import { selectBrandsEnabled, selectCategoryDisplaySettings, selectCurrencySettings, useSettingsStore } from "@/store/settings-store";
 import { useAuthStore } from "@/store/auth-store";
@@ -118,10 +118,6 @@ const homeSectionAnchors = [
   "blog",
   "newsletter",
 ];
-
-function firstValidationMessage(errors: ApiValidationErrors | undefined) {
-  return errors ? Object.values(errors).flat()[0] : undefined;
-}
 
 export const productModuleConfigs: Record<ProductModule, ModuleConfig> = {
   brands: {
@@ -645,7 +641,13 @@ export function ProductForm({
   });
 
   async function handleSubmit(values: ProductModulePayload) {
-    await onSubmit(toPayload(values, config));
+    try {
+      await onSubmit(toPayload(values, config));
+    } catch (error) {
+      if (!applyValidationErrors(form, error) && shouldToastFormError(error)) {
+        toast.error(validationSummary(error));
+      }
+    }
   }
 
   return (
@@ -1222,8 +1224,7 @@ export function ProductManagementContent({ module }: { module: ProductModule }) 
       setDrawer({ open: false, mode: "create", item: null });
       await load();
     } catch (error) {
-      const appError = toAppError(error);
-      toast.error(firstValidationMessage(appError.validationErrors) ?? appError.message);
+      throw error;
     }
   }
 

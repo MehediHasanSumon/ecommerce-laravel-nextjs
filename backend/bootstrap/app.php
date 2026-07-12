@@ -58,6 +58,6 @@ return Application::configure(basePath: dirname(__DIR__))
                 return null;
             }
 
-            return ApiResponse::error('The given data was invalid.', 422, $e->errors());
+            return ApiResponse::error('Validation failed.', 422, $e->errors());
         });
     })->create();

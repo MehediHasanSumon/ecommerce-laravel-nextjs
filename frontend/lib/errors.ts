@@ -54,3 +54,31 @@ export function toAppError(error: unknown): AppError {
 
   return new AppError("Unexpected error. Please try again.");
 }
+
+export function isValidationError(error: unknown): boolean {
+  return toAppError(error).status === 422;
+}
+
+export function firstValidationMessage(errors: ApiValidationErrors | undefined) {
+  if (!errors) {
+    return undefined;
+  }
+
+  return Object.values(errors).flat().find((message): message is string => Boolean(message));
+}
+
+export function flattenValidationErrors(errors: ApiValidationErrors | undefined): Record<string, string> {
+  if (!errors) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(errors)
+      .map(([field, messages]) => [field, messages.find(Boolean)] as const)
+      .filter((entry): entry is readonly [string, string] => Boolean(entry[1])),
+  );
+}
+
+export function shouldToastError(error: unknown): boolean {
+  return !isValidationError(error);
+}
