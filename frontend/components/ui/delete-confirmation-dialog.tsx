@@ -80,7 +80,7 @@ export function DeleteConfirmationDialog({
         aria-labelledby="delete-confirmation-title"
         aria-describedby="delete-confirmation-message"
         className={cn(
-          "relative w-full max-w-md rounded-lg border border-border bg-background p-5 text-foreground shadow-2xl transition-all duration-200",
+          "relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg border border-border bg-background p-5 text-foreground shadow-2xl transition-all duration-200",
           open ? "translate-y-0 scale-100 opacity-100" : "translate-y-2 scale-95 opacity-0",
         )}
       >

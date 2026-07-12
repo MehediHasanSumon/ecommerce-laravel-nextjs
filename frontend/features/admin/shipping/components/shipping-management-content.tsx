@@ -73,7 +73,7 @@ function FilterModal({ open, status, zoneId, zones, showZones, onClose, onApply 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
       <button className="absolute inset-0 bg-black/50" onClick={onClose} aria-label="Close filters" type="button" />
-      <div className="relative w-full max-w-2xl rounded-lg border border-border bg-background p-5 shadow-2xl">
+      <div className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-border bg-background p-5 shadow-2xl">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-lg font-bold">Advanced Filter</h2>

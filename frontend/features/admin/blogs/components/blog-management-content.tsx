@@ -513,7 +513,7 @@ function BlogFilterModal({ open, filters, onClose, onApply }: { open: boolean; f
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
       <button className="absolute inset-0 bg-black/50" onClick={onClose} aria-label="Close filters" type="button" />
-      <div className="relative w-full max-w-2xl rounded-lg border border-border bg-background p-5 shadow-2xl">
+      <div className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-border bg-background p-5 shadow-2xl">
         <div className="flex items-start justify-between gap-4">
           <div><h2 className="text-lg font-bold">Advanced Filter</h2><p className="mt-1 text-sm text-muted-foreground">Refine blogs by status and dates.</p></div>
           <Button variant="ghost" size="icon" icon={<X className="h-4 w-4" />} aria-label="Close filters" onClick={onClose} />

@@ -341,11 +341,30 @@ export function ResetConfirmation({
   onClose: () => void;
   onConfirm: () => void;
 }) {
+  React.useEffect(() => {
+    if (!open) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+    const previousOverflow = document.body.style.overflow;
+
+    document.addEventListener("keydown", handleKeyDown);
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [onClose, open]);
+
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
       <button type="button" className="absolute inset-0 bg-black/60 backdrop-blur-sm" aria-label="Close reset confirmation" onClick={onClose} />
-      <div role="alertdialog" aria-modal="true" className="relative w-full max-w-md rounded-lg border border-border bg-background p-5 shadow-2xl">
+      <div role="alertdialog" aria-modal="true" className="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg border border-border bg-background p-5 shadow-2xl">
         <div className="flex items-start gap-3">
           <span className="flex h-10 w-10 items-center justify-center rounded-full bg-destructive/10 text-destructive">
             <AlertTriangle className="h-5 w-5" />
