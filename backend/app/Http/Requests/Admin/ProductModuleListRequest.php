@@ -19,7 +19,8 @@ class ProductModuleListRequest extends FormRequest
     {
         $module = (string) $this->route('module');
         $sorts = match ($module) {
-            'brands', 'categories', 'tags', 'discounts', 'warehouses' => ['name', 'status', 'created_at', 'updated_at'],
+            'brands', 'categories' => ['name', 'status', 'sort_order', 'created_at', 'updated_at'],
+            'tags', 'discounts', 'warehouses' => ['name', 'status', 'created_at', 'updated_at'],
             'currencies' => ['country', 'currency', 'status', 'created_at', 'updated_at'],
             'collections' => ['name', 'status', 'collection_type', 'home_sort_order', 'priority', 'created_at', 'updated_at'],
             'attributes' => ['name', 'type', 'sort_order', 'created_at', 'updated_at'],

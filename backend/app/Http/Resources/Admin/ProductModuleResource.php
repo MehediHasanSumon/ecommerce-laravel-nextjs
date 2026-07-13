@@ -31,6 +31,7 @@ class ProductModuleResource extends JsonResource
                 'og_description' => $this->og_description,
                 'og_image_url' => $this->og_image_url,
                 'is_featured' => (bool) $this->is_featured,
+                'sort_order' => $this->sort_order,
                 'status' => $this->status,
                 'products_count' => $this->products_count ?? 0,
             ],

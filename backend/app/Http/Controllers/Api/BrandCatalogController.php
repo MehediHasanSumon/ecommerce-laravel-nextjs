@@ -32,7 +32,7 @@ class BrandCatalogController extends Controller
             ->whereHas('products', fn(Builder $query) => $query->where('status', 'active'))
             ->withCount(['products' => fn(Builder $query) => $query->where('status', 'active')])
             ->when($request->filled('search'), fn(Builder $query) => $query->where('name', 'like', '%' . trim((string) $request->query('search')) . '%'))
-            ->orderByDesc('is_featured')
+            ->orderBy('sort_order')
             ->orderBy('name');
 
         $brands = $query->paginate((int) ($validated['per_page'] ?? 48))->withQueryString();
@@ -44,6 +44,7 @@ class BrandCatalogController extends Controller
                     ->where('is_featured', true)
                     ->whereHas('products', fn(Builder $query) => $query->where('status', 'active'))
                     ->withCount(['products' => fn(Builder $query) => $query->where('status', 'active')])
+                    ->orderBy('sort_order')
                     ->orderBy('name')
                     ->limit(6)
                     ->get()

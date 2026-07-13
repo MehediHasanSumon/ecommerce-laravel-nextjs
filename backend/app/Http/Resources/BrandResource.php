@@ -21,6 +21,7 @@ class BrandResource extends JsonResource
             'coverImage' => $this->assetUrl($this->cover_image_url) ?: 'https://images.unsplash.com/photo-1567401893414-76b7b1e5a7a5?w=1200&auto=format&fit=crop',
             'productCount' => (int) ($this->products_count ?? 0),
             'featured' => (bool) $this->is_featured,
+            'sortOrder' => (int) ($this->sort_order ?? 0),
             'website' => $this->website_url,
             'seo' => [
                 'title' => $this->meta_title ?: "{$this->name} | {$appName}",

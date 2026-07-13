@@ -1,7 +1,10 @@
 <?php
 
+use App\Models\Brand;
 use App\Models\Category;
+use App\Models\Product;
 use App\Models\ProductAttribute;
+use App\Models\Settings\BrandSetting;
 use App\Models\Settings\ShippingMethod;
 use App\Models\Settings\ShippingZone;
 use App\Models\User;
@@ -42,6 +45,12 @@ it('reorders product management modules with continuous positions', function ():
         ->and($third->navbar_display_order)->toBe(0)
         ->and($first->refresh()->sort_order)->toBe(1)
         ->and($second->refresh()->sort_order)->toBe(2);
+
+    $this->getJson('/api/settings/navigation')
+        ->assertOk()
+        ->assertJsonPath('data.categories.0.slug', 'third')
+        ->assertJsonPath('data.categories.1.slug', 'first')
+        ->assertJsonPath('data.categories.2.slug', 'second');
 });
 
 it('validates duplicate reorder positions', function (): void {
@@ -56,6 +65,40 @@ it('validates duplicate reorder positions', function (): void {
         ],
     ])->assertStatus(422)
         ->assertJsonValidationErrors(['items.1.sort_order']);
+});
+
+it('uses brand drag order on the public brand catalog', function (): void {
+    $token = reorderAdminToken(['can_edit_brand']);
+    BrandSetting::query()->create(['enabled' => true, 'show_on_home' => true]);
+    $first = Brand::query()->create(['name' => 'Alpha', 'slug' => 'alpha', 'status' => 'active', 'sort_order' => 0]);
+    $second = Brand::query()->create(['name' => 'Beta', 'slug' => 'beta', 'status' => 'active', 'sort_order' => 1]);
+
+    foreach ([$first, $second] as $brand) {
+        Product::query()->create([
+            'brand_id' => $brand->id,
+            'name' => $brand->name.' Product',
+            'slug' => $brand->slug.'-product',
+            'status' => 'active',
+            'product_type' => 'physical',
+            'sku' => strtoupper($brand->slug),
+            'base_price_cents' => 1000,
+            'currency' => 'BDT',
+            'track_inventory' => false,
+            'published_at' => now(),
+        ]);
+    }
+
+    $this->withToken($token)->postJson('/api/admin/product-management/brands/reorder', [
+        'items' => [
+            ['id' => $second->id, 'sort_order' => 0],
+            ['id' => $first->id, 'sort_order' => 1],
+        ],
+    ])->assertOk();
+
+    $this->getJson('/api/brands')
+        ->assertOk()
+        ->assertJsonPath('data.items.0.slug', 'beta')
+        ->assertJsonPath('data.items.1.slug', 'alpha');
 });
 
 it('reorders shipping zones and methods', function (): void {

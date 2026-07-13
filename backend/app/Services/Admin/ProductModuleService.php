@@ -89,7 +89,7 @@ class ProductModuleService
         if ($module === 'categories') {
             $this->clearCategoryCaches();
         }
-        if (in_array($module, ['collections', 'currencies'], true)) {
+        if (in_array($module, ['brands', 'collections', 'currencies'], true)) {
             $this->clearCollectionCaches();
         }
         $this->clearSeoCaches($module);
@@ -104,7 +104,7 @@ class ProductModuleService
         if ($module === 'categories') {
             $this->clearCategoryCaches();
         }
-        if (in_array($module, ['collections', 'currencies'], true)) {
+        if (in_array($module, ['brands', 'collections', 'currencies'], true)) {
             $this->clearCollectionCaches();
         }
         $this->clearSeoCaches($module);
@@ -160,7 +160,7 @@ class ProductModuleService
             if ($module === 'categories') {
                 $this->clearCategoryCaches();
             }
-            if (in_array($module, ['collections', 'currencies'], true)) {
+            if (in_array($module, ['brands', 'collections', 'currencies'], true)) {
                 $this->clearCollectionCaches();
             }
 
@@ -174,7 +174,7 @@ class ProductModuleService
 
         return [
             'brands' => $this->brandSettings->enabled()
-                ? Brand::query()->orderBy('name')->get(['id', 'name'])
+                ? Brand::query()->orderBy('sort_order')->orderBy('name')->get(['id', 'name'])
                 : collect(),
             'categories' => Category::query()->orderBy('name')->get(['id', 'name', 'parent_id']),
             'attributes' => ProductAttribute::query()->orderBy('sort_order')->orderBy('name')->get(['id', 'name', 'type']),
@@ -218,6 +218,7 @@ class ProductModuleService
                 $data['discount_value'] = null;
                 $data['discount_apply_to'] = 'entire_collection';
             }
+            $this->assignSortOrderOnCreate($module, $model, $data);
             $model->fill($data)->save();
             $model->products()->sync(collect($products)->mapWithKeys(fn ($item) => [$item['id'] => ['sort_order' => $item['sort_order'] ?? 0]])->all());
             $this->clearCollectionCaches();
@@ -264,6 +265,7 @@ class ProductModuleService
         }
 
         $this->applySlug($module, $model, $data);
+        $this->assignSortOrderOnCreate($module, $model, $data);
         $model->fill($data)->save();
 
         if ($module === 'reviews' && ! empty($data['admin_reply'])) {
@@ -279,6 +281,9 @@ class ProductModuleService
 
         if ($module === 'categories') {
             $this->clearCategoryCaches();
+        }
+        if ($module === 'brands') {
+            $this->clearCollectionCaches();
         }
         $this->clearSeoCaches($module);
 
@@ -535,10 +540,33 @@ class ProductModuleService
     private function reorderColumn(string $module): string
     {
         return match ($module) {
-            'categories', 'attributes', 'attribute-values' => 'sort_order',
+            'brands', 'categories', 'attributes', 'attribute-values' => 'sort_order',
             'collections' => 'home_sort_order',
             default => abort(422, 'This module does not support drag sorting.'),
         };
+    }
+
+    private function assignSortOrderOnCreate(string $module, Model $model, array &$data): void
+    {
+        if ($model->exists) {
+            return;
+        }
+
+        if (! in_array($module, ['brands', 'categories', 'attributes', 'attribute-values', 'collections'], true)) {
+            return;
+        }
+
+        $column = $this->reorderColumn($module);
+        if (array_key_exists($column, $data) && $data[$column] !== null && $data[$column] !== '') {
+            return;
+        }
+
+        $data[$column] = ((int) $this->modelClass($module)::query()->max($column)) + 1;
+
+        if ($module === 'categories') {
+            $data['home_display_order'] = $data[$column];
+            $data['navbar_display_order'] = $data[$column];
+        }
     }
 
     private function normalizeOrder(string $class, string $column, string $module): int

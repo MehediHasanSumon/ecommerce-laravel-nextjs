@@ -29,13 +29,15 @@ class HomePageController extends Controller
         $homeRuntime = $homeSettings->runtime();
         $productRuntime = $homeRuntime['product_section'];
         $testimonialRuntime = $homeRuntime['testimonial_section'];
+        $brandVersion = strtotime((string) Brand::query()->max('updated_at')) ?: 0;
         $cacheKey = 'home-page:product-brand-sections:v5:'
             .((int) $brandRuntime['enabled']).':'
             .((int) $brandRuntime['show_on_home']).':'
             .((int) $productRuntime['enabled']).':'
             .$productRuntime['limit'].':'
             .((int) $testimonialRuntime['enabled']).':'
-            .($homeRuntime['version'] ?? 0);
+            .($homeRuntime['version'] ?? 0).':'
+            .$brandVersion;
 
         $payload = Cache::remember($cacheKey, now()->addMinutes(5), function () use ($collections, $brandRuntime, $homeRuntime, $productRuntime, $testimonialRuntime): array {
             $showBrands = (bool) ($brandRuntime['enabled'] && $brandRuntime['show_on_home']);
@@ -117,7 +119,7 @@ class HomePageController extends Controller
                 ->where('status', 'active')
                 ->whereHas('products', fn (Builder $query) => $query->where('status', 'active'))
                 ->withCount(['products' => fn (Builder $query) => $query->where('status', 'active')])
-                ->orderByDesc('is_featured')
+                ->orderBy('sort_order')
                 ->orderBy('name')
                 ->limit($limit)
                 ->get()

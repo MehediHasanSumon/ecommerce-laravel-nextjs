@@ -109,8 +109,9 @@ const emptyOptions: ProductOptions = {
 };
 
 const commonStatus = ["active", "inactive"];
-const reorderableModules = new Set<ProductModule>(["categories", "attributes", "attribute-values", "collections"]);
+const reorderableModules = new Set<ProductModule>(["brands", "categories", "attributes", "attribute-values", "collections"]);
 const reorderColumnByModule: Partial<Record<ProductModule, string>> = {
+  brands: "sort_order",
   categories: "sort_order",
   attributes: "sort_order",
   "attribute-values": "sort_order",
@@ -133,7 +134,7 @@ export const productModuleConfigs: Record<ProductModule, ModuleConfig> = {
     title: "Brand Management",
     description: "Manage product brands, media, featured state, and availability.",
     createLabel: "Create Brand",
-    defaultSort: "created_at",
+    defaultSort: "sort_order",
     statuses: commonStatus,
     fields: [
       { name: "name", label: "Name", type: "text" },
@@ -154,6 +155,7 @@ export const productModuleConfigs: Record<ProductModule, ModuleConfig> = {
     columns: [
       { key: "name", label: "Name", sortable: true, render: (item) => <span className="font-semibold">{String(item.name ?? "")}</span> },
       { key: "slug", label: "Slug", sortable: true },
+      { key: "sort_order", label: "Sort" },
       { key: "status", label: "Status", sortable: true, render: (item) => <StatusBadge value={String(item.status ?? "active")} /> },
       { key: "products_count", label: "Products" },
       { key: "created_at", label: "Created At", sortable: true, render: (item) => formatDate(item.created_at) },
@@ -164,7 +166,7 @@ export const productModuleConfigs: Record<ProductModule, ModuleConfig> = {
     title: "Category Management",
     description: "Organize product taxonomy with hierarchy, icons, images, and ordering.",
     createLabel: "Create Category",
-    defaultSort: "created_at",
+    defaultSort: "sort_order",
     statuses: commonStatus,
     fields: [
       { name: "parent_id", label: "Parent Category", type: "select", options: "categories", optional: true },

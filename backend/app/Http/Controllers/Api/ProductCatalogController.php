@@ -300,6 +300,7 @@ class ProductCatalogController extends Controller implements HasMiddleware
                 ->where('status', 'active')
                 ->whereHas('products', fn ($query) => $query->where('status', 'active'))
                 ->withCount(['products' => fn ($query) => $query->where('status', 'active')])
+                ->orderBy('sort_order')
                 ->orderBy('name')
                 ->get(['id', 'name', 'slug'])
                 ->map(fn (Brand $brand): array => [
