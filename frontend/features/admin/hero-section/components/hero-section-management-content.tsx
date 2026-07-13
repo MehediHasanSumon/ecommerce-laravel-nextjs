@@ -592,7 +592,7 @@ function CanvasBuilder({ slide, canEdit, onChange }: { slide: HeroSlide; canEdit
   }
 
   function updateElement(target: HeroSlideElement, patch: Partial<HeroSlideElement>) {
-    commit({ ...slide, elements: slide.elements.map((element) => element === target ? { ...element, ...patch } : element) });
+    commit({ ...slide, elements: slide.elements.map((element) => element === target || element.z_index === target.z_index ? { ...element, ...patch } : element) });
   }
 
   const duplicateElement = useCallback((target: HeroSlideElement) => {
@@ -844,9 +844,16 @@ function CanvasBuilder({ slide, canEdit, onChange }: { slide: HeroSlide; canEdit
       <ElementEditModal
         element={editingElement}
         device={device}
-        onClose={() => setEditingElement(null)}
         onUpload={async (file) => (await heroSectionService.uploadImage(file)).data.url}
-        onSave={(next) => {
+        onPreview={(next) => {
+          updateElement(editingElement!, next);
+        }}
+        onClose={() => setEditingElement(null)}
+        onCancel={(original) => {
+          updateElement(editingElement!, original);
+          setEditingElement(null);
+        }}
+        onApply={(next) => {
           updateElement(editingElement!, next);
           setEditingElement(null);
         }}
@@ -1287,35 +1294,103 @@ function ContextMenuButton({ icon, label, onClick, disabled, destructive }: { ic
   );
 }
 
-function ElementEditModal({ element, device, onClose, onUpload, onSave }: { element: HeroSlideElement | null; device: HeroDevice; onClose: () => void; onUpload: (file: File) => Promise<string>; onSave: (patch: Partial<HeroSlideElement>) => void }) {
+function normalizeColor(value: string, fallback = "#000000") {
+  return /^#[0-9a-f]{6}$/i.test(value) ? value : fallback;
+}
+
+function ColorPickerField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  const color = normalizeColor(value);
+
+  return (
+    <label className="space-y-2 text-sm font-semibold">
+      <span>{label}</span>
+      <span className="flex h-11 items-center gap-3 rounded-lg border border-border bg-background px-3">
+        <input
+          type="color"
+          value={color}
+          onChange={(event) => onChange(event.target.value)}
+          className="h-7 w-10 cursor-pointer rounded border border-border bg-transparent p-0"
+          aria-label={label}
+        />
+        <span className="font-mono text-xs text-muted-foreground">{color.toUpperCase()}</span>
+      </span>
+    </label>
+  );
+}
+
+function ElementEditModal({
+  element,
+  device,
+  onClose,
+  onCancel,
+  onApply,
+  onPreview,
+  onUpload,
+}: {
+  element: HeroSlideElement | null;
+  device: HeroDevice;
+  onClose: () => void;
+  onCancel: (original: HeroSlideElement) => void;
+  onApply: (next: Partial<HeroSlideElement>) => void;
+  onPreview: (next: Partial<HeroSlideElement>) => void;
+  onUpload: (file: File) => Promise<string>;
+}) {
   const [draft, setDraft] = useState<HeroSlideElement | null>(element);
+  const [original, setOriginal] = useState<HeroSlideElement | null>(element);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
     setDraft(element);
+    setOriginal(element);
+    setPosition({ x: 0, y: 0 });
   }, [element]);
 
-  if (!element || !draft) return null;
+  function updateDraft(next: HeroSlideElement) {
+    setDraft(next);
+    onPreview(next);
+  }
+
+  function startDrag(event: PointerEvent<HTMLDivElement>) {
+    const target = event.target as HTMLElement;
+    if (target.closest("button,input,textarea,select,[role='combobox']")) return;
+    event.preventDefault();
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const origin = position;
+    const move = (moveEvent: globalThis.PointerEvent) => {
+      setPosition({ x: origin.x + moveEvent.clientX - startX, y: origin.y + moveEvent.clientY - startY });
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  }
+
+  if (!element || !draft || !original) return null;
 
   const box = draft.responsive[device];
   const style = draft.style;
   const content = draft.content;
-  const setStyle = (patch: Record<string, string | number>) => setDraft({ ...draft, style: { ...style, ...patch } });
-  const setContent = (patch: Record<string, string>) => setDraft({ ...draft, content: { ...content, ...patch } });
-  const setBox = (patch: Partial<HeroElementBox>) => setDraft({ ...draft, responsive: { ...draft.responsive, [device]: { ...box, ...patch } } });
+  const setDraftPatch = (patch: Partial<HeroSlideElement>) => updateDraft({ ...draft, ...patch });
+  const setStyle = (patch: Record<string, string | number>) => updateDraft({ ...draft, style: { ...style, ...patch } });
+  const setContent = (patch: Record<string, string>) => updateDraft({ ...draft, content: { ...content, ...patch } });
+  const setBox = (patch: Partial<HeroElementBox>) => updateDraft({ ...draft, responsive: { ...draft.responsive, [device]: { ...box, ...patch } } });
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-xl border border-border bg-background shadow-2xl">
-        <div className="flex items-center justify-between border-b border-border p-4">
+      <div className="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-xl border border-border bg-background shadow-2xl" style={{ transform: `translate(${position.x}px, ${position.y}px)` }}>
+        <div className="cursor-move select-none flex items-center justify-between border-b border-border p-4" onPointerDown={startDrag}>
           <div>
             <h2 className="text-base font-bold">Edit {draft.type}</h2>
             <p className="text-xs text-muted-foreground">Configure this layer without leaving the canvas.</p>
           </div>
-          <Button type="button" size="sm" variant="secondary" onClick={onClose}>Close</Button>
+          <Button type="button" size="sm" variant="secondary" onClick={() => { onCancel(original); onClose(); }}>Close</Button>
         </div>
         <div className="max-h-[68vh] overflow-y-auto p-4">
           <FormGrid>
-            <Input label="Layer Name" value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} />
+            <Input label="Layer Name" value={draft.name} onChange={(event) => setDraftPatch({ name: event.target.value })} />
             <TextInput label="Opacity" type="number" min={0} max={1} step={0.05} value={String(style.opacity ?? 1)} onChange={(event) => setStyle({ opacity: Number(event.target.value || 1) })} />
             <TextInput label="Rotation" type="number" value={String(box.rotation ?? 0)} onChange={(event) => setBox({ rotation: Number(event.target.value || 0) })} />
             <Input label="Link" value={content.url ?? ""} onChange={(event) => setContent({ url: event.target.value })} />
@@ -1326,7 +1401,8 @@ function ElementEditModal({ element, device, onClose, onUpload, onSave }: { elem
               <TextareaInput label={draft.type === "paragraph" ? "Rich Text" : "Text"} value={content.text ?? ""} onChange={(event) => setContent({ text: event.target.value })} />
               <FormGrid>
                 <Input label="Font Family" value={String(style.fontFamily ?? "Inter, sans-serif")} onChange={(event) => setStyle({ fontFamily: event.target.value })} />
-                <Input label="Font Color" value={String(style.color ?? "#ffffff")} onChange={(event) => setStyle({ color: event.target.value })} />
+                <TextInput label="Font Size" type="number" min={8} max={180} value={String(style.fontSize ?? (draft.type === "heading" ? 56 : 16))} onChange={(event) => setStyle({ fontSize: Number(event.target.value || 16) })} />
+                <ColorPickerField label="Font Color" value={String(style.color ?? "#ffffff")} onChange={(color) => setStyle({ color })} />
                 <Input label="Text Shadow" value={String(style.textShadow ?? "")} onChange={(event) => setStyle({ textShadow: event.target.value })} />
                 <Input label="Letter Spacing" value={String(style.letterSpacing ?? 0)} onChange={(event) => setStyle({ letterSpacing: Number(event.target.value || 0) })} />
                 <Input label="Line Height" value={String(style.lineHeight ?? 1.2)} onChange={(event) => setStyle({ lineHeight: Number(event.target.value || 1.2) })} />
@@ -1340,13 +1416,13 @@ function ElementEditModal({ element, device, onClose, onUpload, onSave }: { elem
               <FormGrid>
                 <Input label="Button Text" value={content.text ?? ""} onChange={(event) => setContent({ text: event.target.value })} />
                 <Input label="Open Target" value={content.target ?? "_self"} onChange={(event) => setContent({ target: event.target.value })} />
-                <Input label="Background Color" value={String(style.backgroundColor ?? "#ffffff")} onChange={(event) => setStyle({ backgroundColor: event.target.value })} />
-                <Input label="Text Color" value={String(style.textColor ?? "#0f172a")} onChange={(event) => setStyle({ textColor: event.target.value })} />
-                <Input label="Hover Background" value={String(style.hoverBackgroundColor ?? "")} onChange={(event) => setStyle({ hoverBackgroundColor: event.target.value })} />
-                <Input label="Hover Text Color" value={String(style.hoverTextColor ?? "")} onChange={(event) => setStyle({ hoverTextColor: event.target.value })} />
+                <ColorPickerField label="Background Color" value={String(style.backgroundColor ?? "#ffffff")} onChange={(backgroundColor) => setStyle({ backgroundColor })} />
+                <ColorPickerField label="Text Color" value={String(style.textColor ?? "#0f172a")} onChange={(textColor) => setStyle({ textColor })} />
+                <ColorPickerField label="Hover Background" value={String(style.hoverBackgroundColor ?? "#ffffff")} onChange={(hoverBackgroundColor) => setStyle({ hoverBackgroundColor })} />
+                <ColorPickerField label="Hover Text Color" value={String(style.hoverTextColor ?? "#0f172a")} onChange={(hoverTextColor) => setStyle({ hoverTextColor })} />
                 <Input label="Border Radius" type="number" value={String(style.borderRadius ?? 12)} onChange={(event) => setStyle({ borderRadius: Number(event.target.value || 0) })} />
                 <Input label="Border Width" value={String(style.borderWidth ?? 0)} onChange={(event) => setStyle({ borderWidth: Number(event.target.value || 0), border: `${Number(event.target.value || 0)}px solid ${String(style.borderColor ?? "transparent")}` })} />
-                <Input label="Border Color" value={String(style.borderColor ?? "transparent")} onChange={(event) => setStyle({ borderColor: event.target.value, border: `${Number(style.borderWidth ?? 0)}px solid ${event.target.value}` })} />
+                <ColorPickerField label="Border Color" value={String(style.borderColor ?? "#000000")} onChange={(borderColor) => setStyle({ borderColor, border: `${Number(style.borderWidth ?? 0)}px solid ${borderColor}` })} />
                 <Input label="Shadow" value={String(style.boxShadow ?? "")} onChange={(event) => setStyle({ boxShadow: event.target.value })} />
                 <Input label="Padding" value={String(style.padding ?? "12px 22px")} onChange={(event) => setStyle({ padding: event.target.value })} />
               </FormGrid>
@@ -1373,10 +1449,10 @@ function ElementEditModal({ element, device, onClose, onUpload, onSave }: { elem
                 <label className="space-y-2 text-sm font-semibold">Shape<Select value={content.shape ?? "rectangle"} onValueChange={(shape) => setContent({ shape })}><SelectTrigger className="h-10 rounded-lg"><SelectValue /></SelectTrigger><SelectContent>{shapeOptions.map((shape) => <SelectItem key={shape} value={shape}>{shape.replace(/-/g, " ")}</SelectItem>)}</SelectContent></Select></label>
                 <Input label="Width" type="number" value={String(box.width)} onChange={(event) => setBox({ width: Number(event.target.value || 0) })} />
                 <Input label="Height" type="number" value={String(box.height)} onChange={(event) => setBox({ height: Number(event.target.value || 0) })} />
-                <Input label="Fill Color" value={String(style.backgroundColor ?? "#ffffff")} onChange={(event) => setStyle({ backgroundColor: event.target.value })} />
+                <ColorPickerField label="Fill Color" value={String(style.backgroundColor ?? "#ffffff")} onChange={(backgroundColor) => setStyle({ backgroundColor })} />
                 <Input label="Gradient Fill" value={String(style.gradientFill ?? "")} onChange={(event) => setStyle({ gradientFill: event.target.value })} />
                 <Input label="Border Width" value={String(style.borderWidth ?? 0)} onChange={(event) => setStyle({ borderWidth: Number(event.target.value || 0), border: `${Number(event.target.value || 0)}px solid ${String(style.borderColor ?? "transparent")}` })} />
-                <Input label="Border Color" value={String(style.borderColor ?? "transparent")} onChange={(event) => setStyle({ borderColor: event.target.value, border: `${Number(style.borderWidth ?? 0)}px solid ${event.target.value}` })} />
+                <ColorPickerField label="Border Color" value={String(style.borderColor ?? "#000000")} onChange={(borderColor) => setStyle({ borderColor, border: `${Number(style.borderWidth ?? 0)}px solid ${borderColor}` })} />
                 <Input label="Corner Radius" type="number" value={String(style.borderRadius ?? 0)} onChange={(event) => setStyle({ borderRadius: Number(event.target.value || 0) })} />
                 <Input label="Shadow" value={String(style.boxShadow ?? "")} onChange={(event) => setStyle({ boxShadow: event.target.value })} />
               </FormGrid>
@@ -1384,8 +1460,8 @@ function ElementEditModal({ element, device, onClose, onUpload, onSave }: { elem
           ) : null}
         </div>
         <div className="flex justify-end gap-2 border-t border-border p-4">
-          <Button type="button" size="sm" variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button type="button" size="sm" onClick={() => onSave({ ...draft })}>Apply Changes</Button>
+          <Button type="button" size="sm" variant="secondary" onClick={() => onCancel(original)}>Cancel</Button>
+          <Button type="button" size="sm" onClick={() => onApply({ ...draft })}>Apply Changes</Button>
         </div>
       </div>
     </div>
