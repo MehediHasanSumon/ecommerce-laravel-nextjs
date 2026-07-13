@@ -359,8 +359,25 @@ function AdvancedElement({ element, device, lazyLoad }: { element: HeroSlideElem
   }
 
   if (element.type === 'button') {
+    const buttonStyle = {
+      ...frame,
+      '--hero-button-bg': String(style.backgroundColor ?? '#fff'),
+      '--hero-button-color': String(style.textColor ?? '#111'),
+      '--hero-button-border': String(style.border ?? '0 solid transparent'),
+      '--hero-button-hover-bg': String(style.hoverBackgroundColor || style.backgroundColor || '#fff'),
+      '--hero-button-hover-color': String(style.hoverTextColor || style.textColor || '#111'),
+      '--hero-button-hover-border-color': String(style.hoverBorderColor || style.borderColor || 'transparent'),
+      background: 'var(--hero-button-bg)',
+      color: 'var(--hero-button-color)',
+      border: 'var(--hero-button-border)',
+      borderRadius: style.borderRadius as number,
+      padding: String(style.padding ?? '12px 22px'),
+      boxShadow: String(style.boxShadow ?? ''),
+      fontSize: Number(style.fontSize ?? 16),
+    } as React.CSSProperties;
+
     return (
-      <Link href={element.content.url || '/shop'} target={element.content.target || '_self'} className="absolute flex items-center justify-center font-bold transition-colors" style={{ ...frame, background: String(style.backgroundColor ?? '#fff'), color: String(style.textColor ?? '#111'), borderRadius: style.borderRadius as number, padding: String(style.padding ?? '12px 22px'), border: String(style.border ?? '0 solid transparent'), boxShadow: String(style.boxShadow ?? ''), fontSize: Number(style.fontSize ?? 16) }}>
+      <Link href={element.content.url || '/shop'} target={element.content.target || '_self'} className="absolute flex items-center justify-center font-bold transition-colors hover:bg-[var(--hero-button-hover-bg)] hover:text-[var(--hero-button-hover-color)] hover:border-[var(--hero-button-hover-border-color)]" style={buttonStyle}>
         {element.content.text}
       </Link>
     );

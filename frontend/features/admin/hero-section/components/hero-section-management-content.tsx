@@ -1073,8 +1073,22 @@ function CanvasElement({ element }: { element: HeroSlideElement }) {
   }
 
   if (element.type === "button") {
+    const buttonStyle = {
+      ...common,
+      "--hero-button-bg": String(style.backgroundColor ?? "#fff"),
+      "--hero-button-color": String(style.textColor ?? "#111"),
+      "--hero-button-border": String(style.border ?? "0 solid transparent"),
+      "--hero-button-hover-bg": String(style.hoverBackgroundColor || style.backgroundColor || "#fff"),
+      "--hero-button-hover-color": String(style.hoverTextColor || style.textColor || "#111"),
+      "--hero-button-hover-border-color": String(style.hoverBorderColor || style.borderColor || "transparent"),
+      background: "var(--hero-button-bg)",
+      color: "var(--hero-button-color)",
+      border: "var(--hero-button-border)",
+      padding: String(style.padding ?? "12px 22px"),
+    } as CSSProperties;
+
     return (
-      <div className="flex h-full w-full items-center justify-center" style={{ ...common, background: String(style.backgroundColor ?? "#fff"), color: String(style.textColor ?? "#111"), padding: String(style.padding ?? "12px 22px") }}>
+      <div className="flex h-full w-full items-center justify-center transition-colors hover:bg-[var(--hero-button-hover-bg)] hover:text-[var(--hero-button-hover-color)] hover:border-[var(--hero-button-hover-border-color)]" style={buttonStyle}>
         <span className="truncate text-sm font-bold">{element.content.text}</span>
       </div>
     );
@@ -1318,6 +1332,34 @@ function ColorPickerField({ label, value, onChange }: { label: string; value: st
   );
 }
 
+function NumberSliderField({ label, value, min, max, step = 1, onChange }: { label: string; value: number; min: number; max: number; step?: number; onChange: (value: number) => void }) {
+  return (
+    <label className="space-y-2 text-sm font-semibold">
+      <span>{label}</span>
+      <span className="grid grid-cols-[1fr_5rem] items-center gap-3">
+        <input
+          type="range"
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          onChange={(event) => onChange(Number(event.target.value))}
+          className="w-full accent-primary"
+        />
+        <input
+          type="number"
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          onChange={(event) => onChange(Number(event.target.value || min))}
+          className="h-10 rounded-lg border border-border bg-background px-3 text-sm font-normal"
+        />
+      </span>
+    </label>
+  );
+}
+
 function ElementEditModal({
   element,
   device,
@@ -1401,7 +1443,7 @@ function ElementEditModal({
               <TextareaInput label={draft.type === "paragraph" ? "Rich Text" : "Text"} value={content.text ?? ""} onChange={(event) => setContent({ text: event.target.value })} />
               <FormGrid>
                 <Input label="Font Family" value={String(style.fontFamily ?? "Inter, sans-serif")} onChange={(event) => setStyle({ fontFamily: event.target.value })} />
-                <TextInput label="Font Size" type="number" min={8} max={180} value={String(style.fontSize ?? (draft.type === "heading" ? 56 : 16))} onChange={(event) => setStyle({ fontSize: Number(event.target.value || 16) })} />
+                <NumberSliderField label="Font Size" min={8} max={180} value={Number(style.fontSize ?? (draft.type === "heading" ? 56 : 16))} onChange={(fontSize) => setStyle({ fontSize })} />
                 <ColorPickerField label="Font Color" value={String(style.color ?? "#ffffff")} onChange={(color) => setStyle({ color })} />
                 <Input label="Text Shadow" value={String(style.textShadow ?? "")} onChange={(event) => setStyle({ textShadow: event.target.value })} />
                 <Input label="Letter Spacing" value={String(style.letterSpacing ?? 0)} onChange={(event) => setStyle({ letterSpacing: Number(event.target.value || 0) })} />
@@ -1420,6 +1462,7 @@ function ElementEditModal({
                 <ColorPickerField label="Text Color" value={String(style.textColor ?? "#0f172a")} onChange={(textColor) => setStyle({ textColor })} />
                 <ColorPickerField label="Hover Background" value={String(style.hoverBackgroundColor ?? "#ffffff")} onChange={(hoverBackgroundColor) => setStyle({ hoverBackgroundColor })} />
                 <ColorPickerField label="Hover Text Color" value={String(style.hoverTextColor ?? "#0f172a")} onChange={(hoverTextColor) => setStyle({ hoverTextColor })} />
+                <ColorPickerField label="Hover Border Color" value={String(style.hoverBorderColor ?? style.borderColor ?? "#000000")} onChange={(hoverBorderColor) => setStyle({ hoverBorderColor })} />
                 <Input label="Border Radius" type="number" value={String(style.borderRadius ?? 12)} onChange={(event) => setStyle({ borderRadius: Number(event.target.value || 0) })} />
                 <Input label="Border Width" value={String(style.borderWidth ?? 0)} onChange={(event) => setStyle({ borderWidth: Number(event.target.value || 0), border: `${Number(event.target.value || 0)}px solid ${String(style.borderColor ?? "transparent")}` })} />
                 <ColorPickerField label="Border Color" value={String(style.borderColor ?? "#000000")} onChange={(borderColor) => setStyle({ borderColor, border: `${Number(style.borderWidth ?? 0)}px solid ${borderColor}` })} />
