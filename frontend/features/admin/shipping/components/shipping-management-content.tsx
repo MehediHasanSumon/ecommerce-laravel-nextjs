@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
-import { ChevronLeft, ChevronRight, ChevronsUpDown, Download, Edit3, Eye, Filter, Plus, Search, Trash2, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsUpDown, Download, Edit3, Eye, Filter, GripVertical, Plus, Search, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -114,7 +114,7 @@ function FilterModal({ open, status, zoneId, zones, showZones, onClose, onApply 
   );
 }
 
-function ManagementPage<T extends { id: number }>({ title, description, createLabel, data, pagination, columns, loading, selected, sort, search, status, zoneId, zones, showZones, onSort, onSearch, onFilter, onPage, onPerPage, onToggle, onToggleAll, onCreate, onView, onEdit, onDelete, onBulkDelete, onExport, canCreate = true, canEdit = true, canDelete = true }: {
+function ManagementPage<T extends { id: number }>({ title, description, createLabel, data, pagination, columns, loading, selected, sort, search, status, zoneId, zones, showZones, onSort, onSearch, onFilter, onPage, onPerPage, onToggle, onToggleAll, onCreate, onView, onEdit, onDelete, onBulkDelete, onExport, canCreate = true, canEdit = true, canDelete = true, savingOrder = false, onReorder }: {
   title: string;
   description: string;
   createLabel: string;
@@ -145,14 +145,31 @@ function ManagementPage<T extends { id: number }>({ title, description, createLa
   canCreate?: boolean;
   canEdit?: boolean;
   canDelete?: boolean;
+  savingOrder?: boolean;
+  onReorder?: (items: T[]) => void;
 }) {
   const [searchInput, setSearchInput] = useState(search);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [draggedId, setDraggedId] = useState<number | null>(null);
+  const [dropId, setDropId] = useState<number | null>(null);
   const allSelected = data.length > 0 && data.every((item) => selected.includes(item.id));
   const page = pagination?.current_page ?? 1;
   const lastPage = pagination?.last_page ?? 1;
 
   useEffect(() => setSearchInput(search), [search]);
+
+  function moveRow(targetId: number) {
+    if (!canEdit || draggedId === null || draggedId === targetId || !onReorder) return;
+
+    const from = data.findIndex((item) => item.id === draggedId);
+    const to = data.findIndex((item) => item.id === targetId);
+    if (from < 0 || to < 0) return;
+
+    const next = data.slice();
+    const [item] = next.splice(from, 1);
+    next.splice(to, 0, item);
+    onReorder(next);
+  }
 
   return (
     <div className="space-y-5">
@@ -188,6 +205,7 @@ function ManagementPage<T extends { id: number }>({ title, description, createLa
           <table className="w-full min-w-[760px] text-left text-sm">
             <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
+                {canEdit ? <th className="w-10 px-2 py-3" aria-label="Reorder" /> : null}
                 <th className="w-10 px-4 py-3"><input type="checkbox" checked={allSelected} onChange={onToggleAll} aria-label="Select all rows" /></th>
                 {columns.map((column) => (
                   <th key={column.key} className={cn("px-4 py-3", column.className)}>
@@ -198,14 +216,50 @@ function ManagementPage<T extends { id: number }>({ title, description, createLa
                     ) : column.label}
                   </th>
                 ))}
-                <th className="px-4 py-3 text-right">Actions</th>
+                <th className="px-4 py-3 text-right">{savingOrder ? "Saving..." : "Actions"}</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <TableSkeleton rows={pagination?.per_page ?? 10} columns={columns.length} selectable actions />
               ) : data.length ? data.map((item) => (
-                <tr key={item.id} className="border-t border-border hover:bg-muted/40">
+                <tr
+                  key={item.id}
+                  className={cn("border-t border-border hover:bg-muted/40", draggedId === item.id && "bg-muted/60 opacity-80", dropId === item.id && "outline outline-2 outline-ring")}
+                  onDragOver={(event) => {
+                    if (!canEdit) return;
+                    event.preventDefault();
+                    setDropId(item.id);
+                  }}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    moveRow(item.id);
+                    setDraggedId(null);
+                    setDropId(null);
+                  }}
+                >
+                  {canEdit ? (
+                    <td className="px-2 py-3 align-middle">
+                      <button
+                        type="button"
+                        draggable
+                        className="inline-flex h-8 w-8 cursor-grab touch-none items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground active:cursor-grabbing"
+                        aria-label={`Drag to reorder ${String((item as { name?: string }).name ?? item.id)}`}
+                        aria-grabbed={draggedId === item.id}
+                        onDragStart={(event) => {
+                          setDraggedId(item.id);
+                          event.dataTransfer.effectAllowed = "move";
+                          event.dataTransfer.setData("text/plain", String(item.id));
+                        }}
+                        onDragEnd={() => {
+                          setDraggedId(null);
+                          setDropId(null);
+                        }}
+                      >
+                        <GripVertical className="h-4 w-4" />
+                      </button>
+                    </td>
+                  ) : null}
                   <td className="px-4 py-3"><input type="checkbox" checked={selected.includes(item.id)} onChange={() => onToggle(item.id)} aria-label={`Select row ${item.id}`} /></td>
                   {columns.map((column) => <td key={column.key} className={cn("px-4 py-3 align-middle", column.className)}>{column.render(item)}</td>)}
                   <td className="px-4 py-3">
@@ -217,7 +271,7 @@ function ManagementPage<T extends { id: number }>({ title, description, createLa
                   </td>
                 </tr>
               )) : (
-                <tr><td colSpan={columns.length + 2} className="h-48 text-center"><p className="font-semibold">No records found</p><p className="mt-1 text-sm text-muted-foreground">Try changing filters or create a new record.</p></td></tr>
+                <tr><td colSpan={columns.length + 2 + (canEdit ? 1 : 0)} className="h-48 text-center"><p className="font-semibold">No records found</p><p className="mt-1 text-sm text-muted-foreground">Try changing filters or create a new record.</p></td></tr>
               )}
             </tbody>
           </table>
@@ -324,7 +378,6 @@ function ZoneForm({ zone, mode, onCancel, onSubmit }: { zone?: ShippingZone | nu
       <Input label="Zone Name" className="h-10 rounded-lg" value={values.name} onChange={(event) => setValues({ ...values, name: event.target.value })} required />
       <Input label="Supported Countries" className="h-10 rounded-lg" value={values.countries} onChange={(event) => setValues({ ...values, countries: event.target.value })} required />
       <Input label="Description" className="h-10 rounded-lg" value={values.description} onChange={(event) => setValues({ ...values, description: event.target.value })} />
-      <Input label="Display Order" type="number" min={0} className="h-10 rounded-lg" value={values.display_order} onChange={(event) => setValues({ ...values, display_order: event.target.value })} />
       <label className="block space-y-1.5 text-sm font-semibold">
         <span>Status</span>
         <Select value={values.status} onValueChange={(status) => setValues({ ...values, status: status as ShippingStatus })}>
@@ -395,7 +448,6 @@ function MethodForm({ method, zones, mode, onCancel, onSubmit }: { method?: Ship
         <Input label="Minimum Order Amount" type="number" min={0} step="0.01" className="h-10 rounded-lg" value={values.minimum_order_amount} onChange={(event) => setValues({ ...values, minimum_order_amount: event.target.value })} />
       ) : null}
       <Input label="Description" className="h-10 rounded-lg" value={values.description} onChange={(event) => setValues({ ...values, description: event.target.value })} />
-      <Input label="Display Order" type="number" min={0} className="h-10 rounded-lg" value={values.display_order} onChange={(event) => setValues({ ...values, display_order: event.target.value })} />
       <label className="block space-y-1.5 text-sm font-semibold">
         <span>Status</span>
         <Select value={values.status} onValueChange={(status) => setValues({ ...values, status: status as ShippingStatus })}>
@@ -416,6 +468,7 @@ export function ShippingZonesContent() {
   const [items, setItems] = useState<ShippingZone[]>([]);
   const [pagination, setPagination] = useState<PaginationMeta | null>(null);
   const [loading, setLoading] = useState(true);
+  const [savingOrder, setSavingOrder] = useState(false);
   const [selected, setSelected] = useState<number[]>([]);
   const [drawer, setDrawer] = useState<{ open: boolean; mode: DrawerMode; item: ShippingZone | null }>({ open: false, mode: "create", item: null });
   const { confirmDelete, deleteConfirmationDialog } = useDeleteConfirmation();
@@ -463,6 +516,24 @@ export function ShippingZonesContent() {
     }
   }
 
+  async function reorder(nextItems: ShippingZone[]) {
+    const previous = items;
+    const offset = Math.max((pagination?.from ?? 1) - 1, 0);
+    const normalized = nextItems.map((item, index) => ({ ...item, display_order: offset + index }));
+
+    setItems(normalized);
+    setSavingOrder(true);
+    try {
+      await shippingService.reorderZones(normalized.map((item, index) => ({ id: item.id, sort_order: offset + index })));
+      toast.success("Order saved.");
+    } catch (error) {
+      setItems(previous);
+      toast.error(toAppError(error).message);
+    } finally {
+      setSavingOrder(false);
+    }
+  }
+
   return (
     <>
       <ManagementPage
@@ -496,6 +567,8 @@ export function ShippingZonesContent() {
         canCreate={canCreate}
         canEdit={canEdit}
         canDelete={canDelete}
+        savingOrder={savingOrder}
+        onReorder={(next) => void reorder(next)}
       />
       {deleteConfirmationDialog}
       <Drawer open={drawer.open} title={drawer.mode === "create" ? "Create Shipping Zone" : drawer.mode === "view" ? "Shipping Zone Details" : "Edit Shipping Zone"} description="Define delivery coverage by country." onClose={() => setDrawer({ open: false, mode: "create", item: null })}>
@@ -515,6 +588,7 @@ export function ShippingMethodsContent() {
   const [zones, setZones] = useState<ShippingZone[]>([]);
   const [pagination, setPagination] = useState<PaginationMeta | null>(null);
   const [loading, setLoading] = useState(true);
+  const [savingOrder, setSavingOrder] = useState(false);
   const [selected, setSelected] = useState<number[]>([]);
   const [drawer, setDrawer] = useState<{ open: boolean; mode: DrawerMode; item: ShippingMethod | null }>({ open: false, mode: "create", item: null });
   const { confirmDelete, deleteConfirmationDialog } = useDeleteConfirmation();
@@ -564,6 +638,24 @@ export function ShippingMethodsContent() {
     }
   }
 
+  async function reorder(nextItems: ShippingMethod[]) {
+    const previous = items;
+    const offset = Math.max((pagination?.from ?? 1) - 1, 0);
+    const normalized = nextItems.map((item, index) => ({ ...item, display_order: offset + index }));
+
+    setItems(normalized);
+    setSavingOrder(true);
+    try {
+      await shippingService.reorderMethods(normalized.map((item, index) => ({ id: item.id, sort_order: offset + index })));
+      toast.success("Order saved.");
+    } catch (error) {
+      setItems(previous);
+      toast.error(toAppError(error).message);
+    } finally {
+      setSavingOrder(false);
+    }
+  }
+
   return (
     <>
       <ManagementPage
@@ -597,6 +689,8 @@ export function ShippingMethodsContent() {
         canCreate={canCreate}
         canEdit={canEdit}
         canDelete={canDelete}
+        savingOrder={savingOrder}
+        onReorder={(next) => void reorder(next)}
       />
       {deleteConfirmationDialog}
       <Drawer open={drawer.open} title={drawer.mode === "create" ? "Create Shipping Method" : drawer.mode === "view" ? "Shipping Method Details" : "Edit Shipping Method"} description="Assign this method to one shipping zone." onClose={() => setDrawer({ open: false, mode: "create", item: null })}>

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\Shipping\ShippingBulkDeleteRequest;
 use App\Http\Requests\Admin\Shipping\ShippingZoneIndexRequest;
 use App\Http\Requests\Admin\Shipping\ShippingZoneRequest;
+use App\Http\Requests\Admin\ReorderRecordsRequest;
 use App\Http\Resources\Admin\ShippingZoneResource;
 use App\Http\Responses\ApiResponse;
 use App\Models\Settings\ShippingZone;
@@ -21,7 +22,7 @@ class ShippingZoneController extends Controller implements HasMiddleware
         return [
             new Middleware('permission:can_view_shipping_zone', only: ['index', 'show']),
             new Middleware('permission:can_create_shipping_zone', only: ['store']),
-            new Middleware('permission:can_edit_shipping_zone', only: ['update']),
+            new Middleware('permission:can_edit_shipping_zone', only: ['update', 'reorder']),
             new Middleware('permission:can_delete_shipping_zone', only: ['destroy', 'bulkDestroy']),
         ];
     }
@@ -71,6 +72,13 @@ class ShippingZoneController extends Controller implements HasMiddleware
         $deleted = $this->shipping->bulkDeleteZones($request->validated('ids'));
 
         return ApiResponse::success(['deleted' => $deleted], 'Selected shipping zones deleted successfully.');
+    }
+
+    public function reorder(ReorderRecordsRequest $request): JsonResponse
+    {
+        $updated = $this->shipping->reorderZones($request->validated('items'));
+
+        return ApiResponse::success(['updated' => $updated], 'Order saved successfully.');
     }
 
     private function paginationMeta($paginator): array

@@ -4,8 +4,6 @@ import * as Icons from "lucide-react";
 import { createElement, useCallback, useEffect, useMemo, useState } from "react";
 import type { ComponentType, FormEvent } from "react";
 import {
-  ArrowDown,
-  ArrowUp,
   BadgeCheck,
   ChevronLeft,
   ChevronRight,
@@ -322,15 +320,6 @@ function FeatureCardCrudContent() {
     }
   }
 
-  function move(cardId: number, direction: -1 | 1) {
-    const index = items.findIndex((item) => item.id === cardId);
-    const target = index + direction;
-    if (index < 0 || target < 0 || target >= items.length) return;
-    const next = [...items];
-    [next[index], next[target]] = [next[target], next[index]];
-    void persistOrder(next);
-  }
-
   function onDrop(targetId: number) {
     if (!draggedId || draggedId === targetId) return;
     const from = items.findIndex((item) => item.id === draggedId);
@@ -432,18 +421,14 @@ function FeatureCardCrudContent() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {items.map((card, index) => (
+                {items.map((card) => (
                   <FeatureCardTableRow
                     key={card.id}
                     card={card}
-                    isFirst={index === 0}
-                    isLast={index === items.length - 1}
                     dragging={draggedId === card.id}
                     onEdit={() => openEdit(card)}
                     onDelete={() => void destroy(card)}
                     onToggle={() => void toggleStatus(card)}
-                    onMoveUp={() => move(card.id, -1)}
-                    onMoveDown={() => move(card.id, 1)}
                     onDragStart={() => setDraggedId(card.id)}
                     onDragEnd={() => setDraggedId(null)}
                     onDrop={() => onDrop(card.id)}
@@ -535,14 +520,6 @@ function FeatureCardCrudContent() {
             <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
               <IconPicker value={form.icon} error={errors.icon} onChange={(icon) => setForm((current) => ({ ...current, icon }))} />
               <Input
-                label="Sort Order"
-                type="number"
-                min={0}
-                value={form.sort_order}
-                error={errors.sort_order}
-                onChange={(event) => setForm((current) => ({ ...current, sort_order: Number(event.target.value || 0) }))}
-              />
-              <Input
                 label="Card Title"
                 value={form.title}
                 maxLength={120}
@@ -587,31 +564,23 @@ function FeatureCardCrudContent() {
 
 function FeatureCardTableRow({
   card,
-  isFirst,
-  isLast,
   dragging,
   canEdit,
   canDelete,
   onEdit,
   onDelete,
   onToggle,
-  onMoveUp,
-  onMoveDown,
   onDragStart,
   onDragEnd,
   onDrop,
 }: {
   card: HomeFeatureCard;
-  isFirst: boolean;
-  isLast: boolean;
   dragging: boolean;
   canEdit: boolean;
   canDelete: boolean;
   onEdit: () => void;
   onDelete: () => void;
   onToggle: () => void;
-  onMoveUp: () => void;
-  onMoveDown: () => void;
   onDragStart: () => void;
   onDragEnd: () => void;
   onDrop: () => void;
@@ -650,8 +619,6 @@ function FeatureCardTableRow({
       </td>
       <td className="px-4 py-3 align-middle">
         <div className="flex flex-wrap items-center justify-end gap-2">
-          {canEdit ? <Button variant="ghost" size="icon" disabled={isFirst} aria-label="Move up" icon={<ArrowUp className="h-4 w-4" />} onClick={onMoveUp} /> : null}
-          {canEdit ? <Button variant="ghost" size="icon" disabled={isLast} aria-label="Move down" icon={<ArrowDown className="h-4 w-4" />} onClick={onMoveDown} /> : null}
           {canEdit ? <Button variant="secondary" size="sm" onClick={onToggle}>{card.status ? "Disable" : "Enable"}</Button> : null}
           {canEdit ? <Button variant="ghost" size="icon" aria-label="Edit" icon={<Edit3 className="h-4 w-4" />} onClick={onEdit} /> : null}
           {canDelete ? <Button variant="ghost" size="icon" aria-label="Delete" icon={<Trash2 className="h-4 w-4" />} onClick={onDelete} /> : null}

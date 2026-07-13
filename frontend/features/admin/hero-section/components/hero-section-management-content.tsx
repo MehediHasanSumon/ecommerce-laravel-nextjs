@@ -6,7 +6,6 @@ import {
   AlignCenter,
   AlignLeft,
   AlignRight,
-  ArrowDown,
   ArrowUp,
   Copy,
   Eye,
@@ -79,6 +78,7 @@ export function HeroSectionManagementContent() {
   const [settings, setSettings] = useState<HeroSettings>(defaultHeroSettings);
   const [slides, setSlides] = useState<HeroSlide[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [draggedSlideIndex, setDraggedSlideIndex] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [savingSettings, setSavingSettings] = useState(false);
   const [savingSlide, setSavingSlide] = useState(false);
@@ -192,17 +192,22 @@ export function HeroSectionManagementContent() {
     }
   }
 
-  async function moveSlide(index: number, direction: -1 | 1) {
-    if (!canEdit) return;
-    const target = index + direction;
-    if (target < 0 || target >= slides.length) return;
+  async function dropSlide(targetIndex: number) {
+    if (!canEdit || draggedSlideIndex === null || draggedSlideIndex === targetIndex) return;
+
     const next = [...slides];
-    [next[index], next[target]] = [next[target], next[index]];
+    const [dragged] = next.splice(draggedSlideIndex, 1);
+    next.splice(targetIndex, 0, dragged);
     const ordered = next.map((slide, itemIndex) => ({ ...slide, sort_order: itemIndex }));
+    const nextActiveIndex = activeSlide ? ordered.findIndex((slide) => slide === activeSlide || (slide.id && slide.id === activeSlide.id)) : targetIndex;
+
     setSlides(ordered);
-    setActiveIndex(target);
+    setActiveIndex(nextActiveIndex >= 0 ? nextActiveIndex : targetIndex);
+    setDraggedSlideIndex(null);
+
     const persisted = ordered.filter((slide) => slide.id).map((slide) => ({ id: slide.id!, sort_order: slide.sort_order }));
     if (!persisted.length) return;
+
     try {
       await heroSectionService.reorderSlides(persisted);
     } catch (error) {
@@ -243,10 +248,24 @@ export function HeroSectionManagementContent() {
                     <button
                       key={slide.id ?? `draft-${index}`}
                       type="button"
+                      draggable={canEdit}
                       onClick={() => setActiveIndex(index)}
-                      className={cn("flex w-full items-center gap-2 rounded-lg border p-2 text-left transition", index === activeIndex ? "border-primary bg-primary/10" : "border-border bg-background hover:bg-muted/50")}
+                      onDragStart={(event) => {
+                        setDraggedSlideIndex(index);
+                        event.dataTransfer.effectAllowed = "move";
+                        event.dataTransfer.setData("text/plain", String(index));
+                      }}
+                      onDragOver={(event) => {
+                        if (canEdit) event.preventDefault();
+                      }}
+                      onDrop={(event) => {
+                        event.preventDefault();
+                        void dropSlide(index);
+                      }}
+                      onDragEnd={() => setDraggedSlideIndex(null)}
+                      className={cn("flex w-full cursor-grab items-center gap-2 rounded-lg border p-2 text-left transition active:cursor-grabbing", index === activeIndex ? "border-primary bg-primary/10" : "border-border bg-background hover:bg-muted/50", draggedSlideIndex === index && "opacity-60")}
                     >
-                      <span className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-xs font-bold">{index + 1}</span>
+                      <span className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-xs font-bold"><GripVertical className="h-4 w-4" /></span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-bold">{slide.name || slide.title || "Hero Slide"}</span>
                         <span className="text-xs text-muted-foreground">{slide.status ? "Enabled" : "Disabled"}</span>
@@ -266,8 +285,6 @@ export function HeroSectionManagementContent() {
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                   <div className="flex flex-wrap gap-2">
                     {!slidesPanelOpen ? <Button size="sm" variant="secondary" icon={<PanelLeftOpen className="h-4 w-4" />} onClick={() => setSlidesPanelOpen(true)}>Slides</Button> : null}
-                    {canEdit ? <Button size="sm" variant="secondary" icon={<ArrowUp className="h-4 w-4" />} disabled={activeIndex === 0} onClick={() => void moveSlide(activeIndex, -1)}>Move Up</Button> : null}
-                    {canEdit ? <Button size="sm" variant="secondary" icon={<ArrowDown className="h-4 w-4" />} disabled={activeIndex === slides.length - 1} onClick={() => void moveSlide(activeIndex, 1)}>Move Down</Button> : null}
                     {canCreate ? <Button size="sm" variant="secondary" icon={<Copy className="h-4 w-4" />} onClick={() => void duplicateSlide(activeSlide, activeIndex)}>Duplicate</Button> : null}
                     {canDelete ? <Button size="sm" variant="danger" icon={<Trash2 className="h-4 w-4" />} onClick={() => void deleteSlide(activeSlide, activeIndex)}>Delete</Button> : null}
                   </div>
@@ -334,9 +351,8 @@ function HeroGeneralSettings({ settings, onChange }: { settings: HeroSettings; o
 
 function SlideBasics({ slide, onChange }: { slide: HeroSlide; onChange: (slide: HeroSlide) => void }) {
   return (
-    <div className="mb-4 grid gap-3 md:grid-cols-3">
+    <div className="mb-4 grid gap-3 md:grid-cols-2">
       <TextInput label="Slide Name" value={slide.name ?? ""} onChange={(event) => onChange({ ...slide, name: event.target.value })} />
-      <TextInput label="Sort Order" type="number" min={0} value={slide.sort_order} onChange={(event) => onChange({ ...slide, sort_order: Number(event.target.value || 0) })} />
       <ToggleSwitch label="Slide Status" checked={slide.status} onChange={(status) => onChange({ ...slide, status })} />
     </div>
   );

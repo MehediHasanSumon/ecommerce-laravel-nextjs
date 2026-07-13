@@ -24,6 +24,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ProductModuleService
 {
@@ -109,6 +110,62 @@ class ProductModuleService
         $this->clearSeoCaches($module);
 
         return $deleted;
+    }
+
+    public function reorder(string $module, array $items): int
+    {
+        $this->guardBrandModule($module);
+
+        $column = $this->reorderColumn($module);
+        $class = $this->modelClass($module);
+        $ids = collect($items)->pluck('id')->map(fn ($id) => (int) $id)->values();
+        $orders = collect($items)
+            ->mapWithKeys(fn ($item): array => [(int) $item['id'] => (int) $item['sort_order']])
+            ->all();
+
+        return DB::transaction(function () use ($module, $class, $column, $ids, $orders): int {
+            $records = $class::query()
+                ->whereIn('id', $ids)
+                ->lockForUpdate()
+                ->get(['id', $column]);
+
+            abort_if($records->count() !== $ids->count(), 422, 'One or more records are invalid.');
+
+            $updated = 0;
+            foreach ($records as $record) {
+                $next = $orders[(int) $record->id];
+                if ((int) $record->{$column} === $next) {
+                    continue;
+                }
+
+                $payload = [$column => $next];
+                if ($module === 'categories') {
+                    $payload['home_display_order'] = $next;
+                    $payload['navbar_display_order'] = $next;
+                }
+
+                $record->forceFill($payload)->save();
+                $updated++;
+            }
+
+            $updated += $this->normalizeOrder($class, $column, $module);
+
+            Log::info('Admin records reordered.', [
+                'module' => $module,
+                'column' => $column,
+                'updated' => $updated,
+                'user_id' => auth()->id(),
+            ]);
+
+            if ($module === 'categories') {
+                $this->clearCategoryCaches();
+            }
+            if (in_array($module, ['collections', 'currencies'], true)) {
+                $this->clearCollectionCaches();
+            }
+
+            return $updated;
+        });
     }
 
     public function options(array $filters = []): array
@@ -473,6 +530,42 @@ class ProductModuleService
             'reviews' => $query->with(['product:id,name', 'user:id,name', 'replies.user:id,name']),
             default => null,
         };
+    }
+
+    private function reorderColumn(string $module): string
+    {
+        return match ($module) {
+            'categories', 'attributes', 'attribute-values' => 'sort_order',
+            'collections' => 'home_sort_order',
+            default => abort(422, 'This module does not support drag sorting.'),
+        };
+    }
+
+    private function normalizeOrder(string $class, string $column, string $module): int
+    {
+        $updated = 0;
+
+        $class::query()
+            ->orderBy($column)
+            ->orderBy('id')
+            ->get(['id', $column])
+            ->values()
+            ->each(function (Model $record, int $index) use ($column, $module, &$updated): void {
+                if ((int) $record->{$column} === $index) {
+                    return;
+                }
+
+                $payload = [$column => $index];
+                if ($module === 'categories') {
+                    $payload['home_display_order'] = $index;
+                    $payload['navbar_display_order'] = $index;
+                }
+
+                $record->forceFill($payload)->save();
+                $updated++;
+            });
+
+        return $updated;
     }
 
     private function applySearch($query, string $module, ?string $search): void

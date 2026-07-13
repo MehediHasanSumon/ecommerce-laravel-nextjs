@@ -19,6 +19,7 @@ import {
   Download,
   Edit3,
   Filter,
+  GripVertical,
   Plus,
   Search,
   Trash2,
@@ -108,6 +109,13 @@ const emptyOptions: ProductOptions = {
 };
 
 const commonStatus = ["active", "inactive"];
+const reorderableModules = new Set<ProductModule>(["categories", "attributes", "attribute-values", "collections"]);
+const reorderColumnByModule: Partial<Record<ProductModule, string>> = {
+  categories: "sort_order",
+  attributes: "sort_order",
+  "attribute-values": "sort_order",
+  collections: "home_sort_order",
+};
 const homeSectionAnchors = [
   "feature_cards",
   "categories",
@@ -173,10 +181,7 @@ export const productModuleConfigs: Record<ProductModule, ModuleConfig> = {
       { tab: "SEO", name: "og_image_url", label: "OG Image URL", type: "text", optional: true },
       { name: "show_on_home", label: "Show On Home", type: "checkbox", optional: true },
       { name: "show_in_navbar", label: "Show In Navbar", type: "checkbox", optional: true },
-      { name: "home_display_order", label: "Home Display Order", type: "number", optional: true },
-      { name: "navbar_display_order", label: "Navbar Display Order", type: "number", optional: true },
       { name: "is_featured", label: "Featured", type: "checkbox", optional: true },
-      { name: "sort_order", label: "Sort Order", type: "number", optional: true },
       { name: "status", label: "Status", type: "select", options: commonStatus },
     ],
     columns: [
@@ -199,7 +204,6 @@ export const productModuleConfigs: Record<ProductModule, ModuleConfig> = {
       { name: "type", label: "Type", type: "select", options: ["text", "color", "image", "number", "select"] },
       { name: "is_filterable", label: "Filterable", type: "checkbox", optional: true },
       { name: "is_variant_defining", label: "Variant Defining", type: "checkbox", optional: true },
-      { name: "sort_order", label: "Sort Order", type: "number", optional: true },
     ],
     columns: [
       { key: "name", label: "Name", sortable: true, render: (item) => <span className="font-semibold">{String(item.name ?? "")}</span> },
@@ -220,7 +224,6 @@ export const productModuleConfigs: Record<ProductModule, ModuleConfig> = {
       { name: "value", label: "Value", type: "text" },
       { name: "display_value", label: "Display Value", type: "text", optional: true },
       { name: "hex_color", label: "Hex Color", type: "text", optional: true },
-      { name: "sort_order", label: "Sort Order", type: "number", optional: true },
     ],
     columns: [
       { key: "value", label: "Value", sortable: true, render: (item) => <span className="font-semibold">{String(item.value ?? "")}</span> },
@@ -307,7 +310,6 @@ export const productModuleConfigs: Record<ProductModule, ModuleConfig> = {
       { tab: "Home", name: "show_on_home", label: "Show On Home", type: "checkbox", optional: true },
       { tab: "Home", name: "display_position_placement", label: "Display Placement", type: "select", options: ["before", "after"] },
       { tab: "Home", name: "display_position_anchor", label: "Display Position", type: "select", options: homeSectionAnchors },
-      { tab: "Home", name: "home_sort_order", label: "Home Sort Order", type: "number", optional: true },
       { tab: "Home", name: "product_limit", label: "Product Limit", type: "number", optional: true },
       { tab: "Home", name: "priority", label: "Priority", type: "number", optional: true },
       { tab: "Schedule", name: "starts_at", label: "Start Date", type: "date", optional: true },
@@ -1186,6 +1188,7 @@ export function ProductManagementContent({ module }: { module: ProductModule }) 
   const [options, setOptions] = useState<ProductOptions>(emptyOptions);
   const [pagination, setPagination] = useState<PaginationMeta | null>(null);
   const [loading, setLoading] = useState(true);
+  const [savingOrder, setSavingOrder] = useState(false);
   const [selected, setSelected] = useState<number[]>([]);
   const [filterOpen, setFilterOpen] = useState(false);
   const [drawer, setDrawer] = useState<{ open: boolean; mode: DrawerMode; item: ProductRecord | null }>({ open: false, mode: "create", item: null });
@@ -1228,6 +1231,26 @@ export function ProductManagementContent({ module }: { module: ProductModule }) 
     }
   }
 
+  async function reorder(nextItems: ProductRecord[]) {
+    const previous = items;
+    const offset = Math.max((pagination?.from ?? 1) - 1, 0);
+    const column = reorderColumnByModule[module] ?? "sort_order";
+    const normalized = nextItems.map((item, index) => ({ ...item, [column]: offset + index }));
+
+    setItems(normalized);
+    setSavingOrder(true);
+
+    try {
+      await productManagementService.reorder(module, normalized.map((item, index) => ({ id: item.id, sort_order: offset + index })));
+      toast.success("Order saved.");
+    } catch (error) {
+      setItems(previous);
+      toast.error(toAppError(error).message);
+    } finally {
+      setSavingOrder(false);
+    }
+  }
+
   return (
     <>
       <ManagementPage
@@ -1252,6 +1275,9 @@ export function ProductManagementContent({ module }: { module: ProductModule }) 
         canCreate={canCreate}
         canEdit={canEdit}
         canDelete={canDelete}
+        canReorder={canEdit && reorderableModules.has(module)}
+        savingOrder={savingOrder}
+        onReorder={(next) => void reorder(next)}
       />
       {deleteConfirmationDialog}
       <FilterModal open={filterOpen} query={query} config={config} options={options} onClose={() => setFilterOpen(false)} onApply={(value) => { setQuery({ ...value, page: 1 } as Partial<QueryState>); setFilterOpen(false); }} />
@@ -1284,6 +1310,9 @@ function ManagementPage({
   canCreate = true,
   canEdit = true,
   canDelete = true,
+  canReorder = false,
+  savingOrder = false,
+  onReorder,
 }: {
   config: ModuleConfig;
   data: ProductRecord[];
@@ -1306,8 +1335,13 @@ function ManagementPage({
   canCreate?: boolean;
   canEdit?: boolean;
   canDelete?: boolean;
+  canReorder?: boolean;
+  savingOrder?: boolean;
+  onReorder?: (items: ProductRecord[]) => void;
 }) {
   const [searchInput, setSearchInput] = useState(query.search);
+  const [draggedId, setDraggedId] = useState<number | null>(null);
+  const [dropId, setDropId] = useState<number | null>(null);
   const allSelected = data.length > 0 && data.every((item) => selected.includes(item.id));
   const page = pagination?.current_page ?? 1;
   const lastPage = pagination?.last_page ?? 1;
@@ -1318,6 +1352,19 @@ function ManagementPage({
   })), [config.columns]);
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({ data, columns: tableColumns, getCoreRowModel: getCoreRowModel(), manualSorting: true, manualPagination: true });
+
+  function moveRow(targetId: number) {
+    if (!canReorder || draggedId === null || draggedId === targetId || !onReorder) return;
+
+    const from = data.findIndex((item) => item.id === draggedId);
+    const to = data.findIndex((item) => item.id === targetId);
+    if (from < 0 || to < 0) return;
+
+    const next = data.slice();
+    const [item] = next.splice(from, 1);
+    next.splice(to, 0, item);
+    onReorder(next);
+  }
 
   return (
     <div className="space-y-5">
@@ -1355,20 +1402,57 @@ function ManagementPage({
           <table className="w-full min-w-[760px] text-left text-sm">
             <thead className="sticky top-0 z-10 bg-muted/80 text-xs uppercase text-muted-foreground">
               <tr>
+                {canReorder ? <th className="w-10 px-2 py-3" aria-label="Reorder" /> : null}
                 <th className="w-12 px-4 py-3"><input type="checkbox" checked={allSelected} onChange={onToggleAll} aria-label="Select all" /></th>
                 {config.columns.map((column) => (
                   <th key={column.key} className="px-4 py-3">
                     {column.sortable ? <button className="inline-flex items-center gap-1 font-bold" onClick={() => onSort(column.key)}>{column.label}<ChevronsUpDown className="h-3.5 w-3.5" /></button> : column.label}
                   </th>
                 ))}
-                {canEdit || canDelete ? <th className="px-4 py-3 text-right">Actions</th> : null}
+                {canEdit || canDelete ? <th className="px-4 py-3 text-right">{savingOrder ? "Saving..." : "Actions"}</th> : null}
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <TableSkeleton rows={6} columns={config.columns.length} selectable actions />
               ) : table.getRowModel().rows.length ? table.getRowModel().rows.map((row) => (
-                <tr key={row.original.id} className="border-t border-border hover:bg-muted/40">
+                <tr
+                  key={row.original.id}
+                  className={cn("border-t border-border hover:bg-muted/40", draggedId === row.original.id && "bg-muted/60 opacity-80", dropId === row.original.id && "outline outline-2 outline-ring")}
+                  onDragOver={(event) => {
+                    if (!canReorder) return;
+                    event.preventDefault();
+                    setDropId(row.original.id);
+                  }}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    moveRow(row.original.id);
+                    setDraggedId(null);
+                    setDropId(null);
+                  }}
+                >
+                  {canReorder ? (
+                    <td className="px-2 py-3 align-middle">
+                      <button
+                        type="button"
+                        draggable
+                        className="inline-flex h-8 w-8 cursor-grab touch-none items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground active:cursor-grabbing"
+                        aria-label={`Drag to reorder ${String(row.original.name ?? row.original.value ?? row.original.id)}`}
+                        aria-grabbed={draggedId === row.original.id}
+                        onDragStart={(event) => {
+                          setDraggedId(row.original.id);
+                          event.dataTransfer.effectAllowed = "move";
+                          event.dataTransfer.setData("text/plain", String(row.original.id));
+                        }}
+                        onDragEnd={() => {
+                          setDraggedId(null);
+                          setDropId(null);
+                        }}
+                      >
+                        <GripVertical className="h-4 w-4" />
+                      </button>
+                    </td>
+                  ) : null}
                   <td className="px-4 py-3"><input type="checkbox" checked={selected.includes(row.original.id)} onChange={() => onToggle(row.original.id)} aria-label={`Select row ${row.original.id}`} /></td>
                   {row.getVisibleCells().map((cell) => <td key={cell.id} className="px-4 py-3 align-middle">{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>)}
                   {canEdit || canDelete ? (
@@ -1376,7 +1460,7 @@ function ManagementPage({
                   ) : null}
                 </tr>
               )) : (
-                <tr><td colSpan={config.columns.length + 1 + (canEdit || canDelete ? 1 : 0)} className="h-48 text-center"><p className="font-semibold">No records found</p><p className="mt-1 text-sm text-muted-foreground">Try changing filters or create a new record.</p></td></tr>
+                <tr><td colSpan={config.columns.length + 1 + (canEdit || canDelete ? 1 : 0) + (canReorder ? 1 : 0)} className="h-48 text-center"><p className="font-semibold">No records found</p><p className="mt-1 text-sm text-muted-foreground">Try changing filters or create a new record.</p></td></tr>
               )}
             </tbody>
           </table>

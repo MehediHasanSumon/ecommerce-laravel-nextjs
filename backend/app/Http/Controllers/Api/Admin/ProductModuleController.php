@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ProductModuleBulkDeleteRequest;
 use App\Http\Requests\Admin\ProductModuleListRequest;
 use App\Http\Requests\Admin\ProductModuleSaveRequest;
+use App\Http\Requests\Admin\ReorderRecordsRequest;
 use App\Http\Resources\Admin\ProductAdminResource;
 use App\Http\Resources\Admin\ProductModuleResource;
 use App\Http\Resources\Admin\ProductOptionResource;
@@ -76,6 +77,15 @@ class ProductModuleController extends Controller
         $deleted = $this->modules->bulkDelete($module, $request->validated('ids'));
 
         return ApiResponse::success(['deleted' => $deleted], 'Selected records deleted successfully.');
+    }
+
+    public function reorder(ReorderRecordsRequest $request, string $module): JsonResponse
+    {
+        $this->authorizeModule($module, 'edit');
+
+        $updated = $this->modules->reorder($module, $request->validated('items'));
+
+        return ApiResponse::success(['updated' => $updated], 'Order saved successfully.');
     }
 
     public function optionsOnly(Request $request): JsonResponse

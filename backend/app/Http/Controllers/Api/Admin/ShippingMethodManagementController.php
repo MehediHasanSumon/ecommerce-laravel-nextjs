@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\Shipping\ShippingBulkDeleteRequest;
 use App\Http\Requests\Admin\Shipping\ShippingMethodIndexRequest;
 use App\Http\Requests\Admin\Shipping\ShippingMethodRequest;
+use App\Http\Requests\Admin\ReorderRecordsRequest;
 use App\Http\Resources\Admin\ShippingMethodAdminResource;
 use App\Http\Resources\Admin\ShippingZoneResource;
 use App\Http\Responses\ApiResponse;
@@ -23,7 +24,7 @@ class ShippingMethodManagementController extends Controller implements HasMiddle
         return [
             new Middleware('permission:can_view_shipping_method', only: ['index', 'show']),
             new Middleware('permission:can_create_shipping_method', only: ['store']),
-            new Middleware('permission:can_edit_shipping_method', only: ['update']),
+            new Middleware('permission:can_edit_shipping_method', only: ['update', 'reorder']),
             new Middleware('permission:can_delete_shipping_method', only: ['destroy', 'bulkDestroy']),
         ];
     }
@@ -77,6 +78,13 @@ class ShippingMethodManagementController extends Controller implements HasMiddle
         $deleted = $this->shipping->bulkDeleteMethods($request->validated('ids'));
 
         return ApiResponse::success(['deleted' => $deleted], 'Selected shipping methods deleted successfully.');
+    }
+
+    public function reorder(ReorderRecordsRequest $request): JsonResponse
+    {
+        $updated = $this->shipping->reorderMethods($request->validated('items'));
+
+        return ApiResponse::success(['updated' => $updated], 'Order saved successfully.');
     }
 
     private function paginationMeta($paginator): array

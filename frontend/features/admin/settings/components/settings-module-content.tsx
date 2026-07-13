@@ -819,7 +819,6 @@ export function PaymentSettingsContent() {
                     <SelectInput label="Enable Gateway" value={String(Boolean(gateway.enabled))} options={paymentBooleanOptions} onChange={(value) => patch(index, "enabled", value === "true")} />
                     <TextInput label="Display Name" value={gatewayConfigValue(gateway, "display_name")} onChange={(event) => patchGatewayConfig(index, "display_name", event.target.value)} />
                     <TextInput label="Display Description" value={gatewayConfigValue(gateway, "checkout_description")} onChange={(event) => patchGatewayConfig(index, "checkout_description", event.target.value)} />
-                    <TextInput label="Sort Order" type="number" value={String(gateway.display_order ?? index)} onChange={(event) => patch(index, "display_order", Number(event.target.value))} />
                     <TextInput label="Gateway Logo/Icon URL" value={gatewayConfigValue(gateway, "logo_url")} onChange={(event) => patchGatewayConfig(index, "logo_url", event.target.value)} />
                     {!isOfflineGateway ? (
                       <>
@@ -935,7 +934,7 @@ export function SocialMediaSettingsContent() {
         <SettingsGrid>
           <SettingsSubnav items={settingsNavItems} pathname={pathname} />
           <div className="space-y-4">
-            {loading ? <SettingsLoading /> : <EditableRows title="Social Profiles" rows={items} addLabel="Add Profile" icon={Link2} fields={[["platform", "Platform"], ["url", "URL"], ["icon", "Icon"], ["display_order", "Display Order"]]} onChange={(rows) => setItems(rows as SocialMediaRow[])} canEdit={canEdit} />}
+            {loading ? <SettingsLoading /> : <EditableRows title="Social Profiles" rows={items} addLabel="Add Profile" icon={Link2} fields={[["platform", "Platform"], ["url", "URL"], ["icon", "Icon"]]} onChange={(rows) => setItems(rows as SocialMediaRow[])} canEdit={canEdit} />}
           </div>
         </SettingsGrid>
       </SettingsPageShell>

@@ -39,6 +39,10 @@ class ShippingService extends AdminApiService {
     return this.unwrap<{ deleted: number }>(this.client.delete("/admin/shipping-zones/bulk", { data: { ids } }));
   }
 
+  reorderZones(items: Array<{ id: number; sort_order: number }>) {
+    return this.unwrap<{ updated: number }>(this.client.post("/admin/shipping-zones/reorder", { items }));
+  }
+
   methods(query: Partial<QueryState> & { shipping_zone_id?: string | number }) {
     return this.unwrap<MethodListData>(this.client.get("/admin/shipping-methods", { params: cleanParams(query) }));
   }
@@ -57,6 +61,10 @@ class ShippingService extends AdminApiService {
 
   bulkDeleteMethods(ids: number[]) {
     return this.unwrap<{ deleted: number }>(this.client.delete("/admin/shipping-methods/bulk", { data: { ids } }));
+  }
+
+  reorderMethods(items: Array<{ id: number; sort_order: number }>) {
+    return this.unwrap<{ updated: number }>(this.client.post("/admin/shipping-methods/reorder", { items }));
   }
 }
 

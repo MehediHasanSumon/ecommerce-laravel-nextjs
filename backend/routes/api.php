@@ -164,9 +164,11 @@ Route::prefix('admin')
         Route::get('/orders/{order}/delivery-slip', [OrderManagementController::class, 'deliverySlip']);
 
         Route::delete('/shipping-zones/bulk', [ShippingZoneController::class, 'bulkDestroy']);
+        Route::post('/shipping-zones/reorder', [ShippingZoneController::class, 'reorder']);
         Route::apiResource('shipping-zones', ShippingZoneController::class);
 
         Route::delete('/shipping-methods/bulk', [ShippingMethodManagementController::class, 'bulkDestroy']);
+        Route::post('/shipping-methods/reorder', [ShippingMethodManagementController::class, 'reorder']);
         Route::apiResource('shipping-methods', ShippingMethodManagementController::class);
 
         Route::post('/feature-cards/reorder', [HomeFeatureCardController::class, 'reorder']);
@@ -224,6 +226,7 @@ Route::prefix('admin')
 
         Route::get('/product-options', [ProductModuleController::class, 'optionsOnly']);
         Route::delete('/product-management/{module}/bulk', [ProductModuleController::class, 'bulkDestroy']);
+        Route::post('/product-management/{module}/reorder', [ProductModuleController::class, 'reorder']);
         Route::get('/product-management/{module}', [ProductModuleController::class, 'index']);
         Route::post('/product-management/{module}', [ProductModuleController::class, 'store']);
         Route::get('/product-management/{module}/{id}', [ProductModuleController::class, 'show']);

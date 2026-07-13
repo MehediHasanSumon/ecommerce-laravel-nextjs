@@ -140,6 +140,15 @@ class ProductManagementService extends AdminApiService {
       return response;
     });
   }
+
+  reorder(module: ProductModule, items: Array<{ id: number; sort_order: number }>) {
+    return this.unwrap<{ updated: number }>(
+      this.client.post(`/admin/product-management/${module}/reorder`, { items }),
+    ).then(async (response) => {
+      await this.refreshRuntimeSettingsFor(module);
+      return response;
+    });
+  }
 }
 
 export const productManagementService = new ProductManagementService();

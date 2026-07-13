@@ -8,6 +8,8 @@ use App\Services\Admin\Concerns\BuildsManagementQueries;
 use App\Support\Identifiers\SlugGenerator;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ShippingManagementService
 {
@@ -72,6 +74,11 @@ class ShippingManagementService
         return $deleted;
     }
 
+    public function reorderZones(array $items): int
+    {
+        return $this->reorder(ShippingZone::class, $items, 'shipping_zones');
+    }
+
     public function createMethod(array $data): ShippingMethod
     {
         $method = ShippingMethod::query()->create($this->methodPayload($data));
@@ -100,6 +107,11 @@ class ShippingManagementService
         $this->clearRuntimeCache();
 
         return $deleted;
+    }
+
+    public function reorderMethods(array $items): int
+    {
+        return $this->reorder(ShippingMethod::class, $items, 'shipping_methods');
     }
 
     private function zonePayload(array $data): array
@@ -153,5 +165,66 @@ class ShippingManagementService
     private function clearRuntimeCache(): void
     {
         Cache::forget('settings.navigation.runtime');
+    }
+
+    private function reorder(string $class, array $items, string $type): int
+    {
+        $ids = collect($items)->pluck('id')->map(fn ($id) => (int) $id)->values();
+        $orders = collect($items)
+            ->mapWithKeys(fn ($item): array => [(int) $item['id'] => (int) $item['sort_order']])
+            ->all();
+
+        return DB::transaction(function () use ($class, $ids, $orders, $type): int {
+            $records = $class::query()
+                ->whereIn('id', $ids)
+                ->lockForUpdate()
+                ->get(['id', 'display_order']);
+
+            abort_if($records->count() !== $ids->count(), 422, 'One or more records are invalid.');
+
+            $updated = 0;
+            foreach ($records as $record) {
+                $next = $orders[(int) $record->id];
+                if ((int) $record->display_order === $next) {
+                    continue;
+                }
+
+                $record->forceFill(['display_order' => $next])->save();
+                $updated++;
+            }
+
+            $updated += $this->normalizeOrder($class);
+
+            Log::info('Admin shipping records reordered.', [
+                'type' => $type,
+                'updated' => $updated,
+                'user_id' => auth()->id(),
+            ]);
+
+            $this->clearRuntimeCache();
+
+            return $updated;
+        });
+    }
+
+    private function normalizeOrder(string $class): int
+    {
+        $updated = 0;
+
+        $class::query()
+            ->orderBy('display_order')
+            ->orderBy('id')
+            ->get(['id', 'display_order'])
+            ->values()
+            ->each(function ($record, int $index) use (&$updated): void {
+                if ((int) $record->display_order === $index) {
+                    return;
+                }
+
+                $record->forceFill(['display_order' => $index])->save();
+                $updated++;
+            });
+
+        return $updated;
     }
 }
