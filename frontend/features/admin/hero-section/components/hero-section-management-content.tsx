@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { MouseEvent as ReactMouseEvent, PointerEvent, ReactNode } from "react";
+import type { CSSProperties, MouseEvent as ReactMouseEvent, PointerEvent, ReactNode } from "react";
 import {
   AlignCenter,
   AlignLeft,
@@ -70,6 +70,64 @@ const devices: Array<{ key: HeroDevice; icon: typeof Monitor; label: string }> =
   { key: "tablet", icon: Tablet, label: "Tablet" },
   { key: "mobile", icon: Smartphone, label: "Mobile" },
 ];
+
+type ContextMenuPosition = {
+  x: number;
+  y: number;
+  z: number;
+  anchor?: { top: number; bottom: number; left: number; right: number };
+};
+
+function contextMenuPosition(event: ReactMouseEvent, z: number): ContextMenuPosition {
+  const rect = event.currentTarget.getBoundingClientRect();
+  return {
+    x: event.clientX,
+    y: event.clientY,
+    z,
+    anchor: { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right },
+  };
+}
+
+function smartContextMenuStyle(position: ContextMenuPosition, width = 224): CSSProperties {
+  const gap = 8;
+  const padding = 12;
+  const estimatedHeight = 448;
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+  const anchor = position.anchor;
+  const left = Math.min(Math.max(padding, position.x), Math.max(padding, viewportWidth - width - padding));
+
+  if (!anchor) {
+    return {
+      left,
+      top: Math.min(position.y, viewportHeight - padding),
+      width,
+      maxHeight: viewportHeight - padding * 2,
+      overflowY: "auto",
+    };
+  }
+
+  const spaceBelow = viewportHeight - anchor.bottom - gap - padding;
+  const spaceAbove = anchor.top - gap - padding;
+
+  if (spaceBelow >= estimatedHeight || spaceBelow >= spaceAbove) {
+    return {
+      left,
+      top: anchor.bottom + gap,
+      width,
+      maxHeight: Math.max(160, spaceBelow),
+      overflowY: "auto",
+    };
+  }
+
+  return {
+    left,
+    bottom: viewportHeight - anchor.top + gap,
+    width,
+    maxHeight: Math.max(160, spaceAbove),
+    overflowY: "auto",
+  };
+}
 
 const shapeOptions = [
   "rectangle",
@@ -496,7 +554,7 @@ function CanvasBuilder({ slide, canEdit, onChange }: { slide: HeroSlide; canEdit
   const [previewMode, setPreviewMode] = useState(false);
   const [clipboard, setClipboard] = useState<HeroSlideElement | null>(null);
   const [editingElement, setEditingElement] = useState<HeroSlideElement | null>(null);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; z: number } | null>(null);
+  const [contextMenu, setContextMenu] = useState<ContextMenuPosition | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<HeroSlideElement | null>(null);
   const selectedElements = slide.elements.filter((element) => selected.includes(element.z_index));
   const selectedElement = selectedElements[0] ?? slide.elements[0] ?? null;
@@ -591,7 +649,7 @@ function CanvasBuilder({ slide, canEdit, onChange }: { slide: HeroSlide; canEdit
     event.preventDefault();
     event.stopPropagation();
     onSelectForMenu(z, event.ctrlKey || event.metaKey || event.shiftKey);
-    setContextMenu({ x: event.clientX, y: event.clientY, z });
+    setContextMenu(contextMenuPosition(event, z));
   }
 
   function onSelectForMenu(z: number, additive = false) {
@@ -1075,7 +1133,7 @@ function LayerManager({
   onChange: (slide: HeroSlide) => void;
   onClose: () => void;
 }) {
-  const [menu, setMenu] = useState<{ x: number; y: number; z: number } | null>(null);
+  const [menu, setMenu] = useState<ContextMenuPosition | null>(null);
   const menuElement = menu ? slide.elements.find((element) => element.z_index === menu.z) ?? null : null;
 
   function patch(target: HeroSlideElement, patchValue: Partial<HeroSlideElement>) {
@@ -1085,7 +1143,7 @@ function LayerManager({
   function openMenu(event: ReactMouseEvent, target: HeroSlideElement) {
     event.preventDefault();
     onSelect(target.z_index, false);
-    setMenu({ x: event.clientX, y: event.clientY, z: target.z_index });
+    setMenu(contextMenuPosition(event, target.z_index));
   }
 
   function closeMenu() {
@@ -1124,8 +1182,8 @@ function LayerManager({
       </div>
       {menu && menuElement ? (
         <div
-          className="fixed z-50 w-48 overflow-hidden rounded-lg border border-border bg-background p-1 shadow-xl"
-          style={{ left: menu.x, top: menu.y }}
+          className="fixed z-50 rounded-lg border border-border bg-background p-1 shadow-xl"
+          style={smartContextMenuStyle(menu, 192)}
           onClick={(event) => event.stopPropagation()}
         >
           <button type="button" className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-muted" onClick={() => { onEdit(menuElement); closeMenu(); }} disabled={!canEdit}>
@@ -1174,7 +1232,7 @@ function HeroElementContextMenu({
   onDelete,
 }: {
   element: HeroSlideElement | null;
-  position: { x: number; y: number; z: number } | null;
+  position: ContextMenuPosition | null;
   canEdit: boolean;
   canPaste: boolean;
   onClose: () => void;
@@ -1197,7 +1255,7 @@ function HeroElementContextMenu({
   };
 
   return (
-    <div className="fixed z-50 w-56 overflow-hidden rounded-lg border border-border bg-background p-1 shadow-xl" style={{ left: position.x, top: position.y }} onClick={(event) => event.stopPropagation()}>
+    <div className="fixed z-50 rounded-lg border border-border bg-background p-1 shadow-xl" style={smartContextMenuStyle(position, 224)} onClick={(event) => event.stopPropagation()}>
       <ContextMenuButton icon={<Pencil className="h-4 w-4" />} label="Edit" onClick={() => run(() => onEdit(element))} disabled={!canEdit} />
       <ContextMenuButton icon={<Copy className="h-4 w-4" />} label="Duplicate" onClick={() => run(() => onDuplicate(element))} disabled={!canEdit} />
       <ContextMenuButton icon={<Copy className="h-4 w-4" />} label="Copy" onClick={() => run(() => onCopy(element))} />
