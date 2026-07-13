@@ -348,14 +348,17 @@ function MethodDetails({ method }: { method: ShippingMethod }) {
 }
 
 function ZoneForm({ zone, mode, onCancel, onSubmit }: { zone?: ShippingZone | null; mode: DrawerMode; onCancel: () => void; onSubmit: (values: ShippingZonePayload) => Promise<void> }) {
-  const [values, setValues] = useState({
+  const initialValues = useMemo(() => ({
     name: zone?.name ?? "",
     countries: zone?.countries.join(", ") ?? "Bangladesh",
     description: zone?.description ?? "",
     status: zone?.status ?? "active",
     display_order: String(zone?.display_order ?? 0),
-  });
+  }), [zone]);
+  const [values, setValues] = useState(initialValues);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => setValues(initialValues), [initialValues]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -368,6 +371,15 @@ function ZoneForm({ zone, mode, onCancel, onSubmit }: { zone?: ShippingZone | nu
         status: values.status === "active",
         display_order: Number(values.display_order || 0),
       });
+      if (mode === "create") {
+        setValues({
+          name: "",
+          countries: "Bangladesh",
+          description: "",
+          status: "active",
+          display_order: "0",
+        });
+      }
     } finally {
       setSaving(false);
     }
@@ -394,7 +406,7 @@ function ZoneForm({ zone, mode, onCancel, onSubmit }: { zone?: ShippingZone | nu
 }
 
 function MethodForm({ method, zones, mode, onCancel, onSubmit }: { method?: ShippingMethod | null; zones: ShippingZone[]; mode: DrawerMode; onCancel: () => void; onSubmit: (values: ShippingMethodPayload) => Promise<void> }) {
-  const [values, setValues] = useState({
+  const initialValues = useMemo(() => ({
     shipping_zone_id: String(method?.shipping_zone_id ?? zones[0]?.id ?? ""),
     name: method?.name ?? "",
     delivery_time: method?.delivery_time ?? "",
@@ -404,8 +416,11 @@ function MethodForm({ method, zones, mode, onCancel, onSubmit }: { method?: Ship
     status: method?.status ?? "active",
     display_order: String(method?.display_order ?? 0),
     description: method?.description ?? "",
-  });
+  }), [method, zones]);
+  const [values, setValues] = useState(initialValues);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => setValues(initialValues), [initialValues]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -423,6 +438,19 @@ function MethodForm({ method, zones, mode, onCancel, onSubmit }: { method?: Ship
         description: values.description || null,
         delivery_type: values.free_shipping ? "free_shipping" : "flat_rate",
       });
+      if (mode === "create") {
+        setValues({
+          shipping_zone_id: String(zones[0]?.id ?? ""),
+          name: "",
+          delivery_time: "",
+          shipping_cost: "0",
+          free_shipping: false,
+          minimum_order_amount: "0",
+          status: "active",
+          display_order: "0",
+          description: "",
+        });
+      }
     } finally {
       setSaving(false);
     }

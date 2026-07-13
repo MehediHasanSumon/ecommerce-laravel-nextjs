@@ -630,9 +630,10 @@ export function ProductForm({
   onSubmit: (values: ProductModulePayload) => Promise<void>;
 }) {
   const schema = useMemo(() => schemaFor(config), [config]);
+  const initialValues = useMemo(() => defaultValues(config, item), [config, item]);
   const form = useForm<ProductModulePayload>({
     resolver: zodResolver(schema),
-    values: defaultValues(config, item),
+    values: initialValues,
   });
   const [activeTab, setActiveTab] = useState(config.fields[0]?.tab ?? "Main");
   const watchedValues = useWatch({ control: form.control }) as ProductModulePayload;
@@ -647,6 +648,8 @@ export function ProductForm({
   async function handleSubmit(values: ProductModulePayload) {
     try {
       await onSubmit(toPayload(values, config));
+      form.reset(mode === "create" ? defaultValues(config, null) : initialValues);
+      setActiveTab(config.fields[0]?.tab ?? "Main");
     } catch (error) {
       if (!applyValidationErrors(form, error) && shouldToastFormError(error)) {
         toast.error(validationSummary(error));
