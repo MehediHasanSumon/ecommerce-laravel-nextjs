@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { PointerEvent } from "react";
+import type { MouseEvent as ReactMouseEvent, PointerEvent, ReactNode } from "react";
 import {
   AlignCenter,
   AlignLeft,
@@ -21,6 +21,7 @@ import {
   PanelRightOpen,
   Monitor,
   MousePointer2,
+  Pencil,
   Plus,
   Redo2,
   Save,
@@ -70,6 +71,77 @@ const devices: Array<{ key: HeroDevice; icon: typeof Monitor; label: string }> =
   { key: "mobile", icon: Smartphone, label: "Mobile" },
 ];
 
+const shapeOptions = [
+  "rectangle",
+  "rounded-rectangle",
+  "circle",
+  "oval",
+  "triangle",
+  "diamond",
+  "pentagon",
+  "hexagon",
+  "octagon",
+  "star",
+  "arrow",
+  "double-arrow",
+  "line",
+  "callout",
+  "speech-bubble",
+  "ribbon",
+  "banner",
+  "heart",
+  "cloud",
+  "lightning",
+  "plus",
+  "minus",
+  "cross",
+  "polygon",
+] as const;
+
+function offsetResponsive(responsive: HeroSlideElement["responsive"]): HeroSlideElement["responsive"] {
+  return {
+    desktop: { ...responsive.desktop, x: responsive.desktop.x + 24, y: responsive.desktop.y + 24 },
+    tablet: { ...responsive.tablet, x: responsive.tablet.x + 20, y: responsive.tablet.y + 20 },
+    mobile: { ...responsive.mobile, x: responsive.mobile.x + 16, y: responsive.mobile.y + 16 },
+  };
+}
+
+function shapeClipPath(shape?: string) {
+  switch (shape) {
+    case "circle":
+    case "oval":
+      return "ellipse(50% 50% at 50% 50%)";
+    case "triangle":
+      return "polygon(50% 0%, 0% 100%, 100% 100%)";
+    case "diamond":
+      return "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)";
+    case "pentagon":
+      return "polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%)";
+    case "hexagon":
+      return "polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)";
+    case "octagon":
+      return "polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%)";
+    case "star":
+      return "polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 92%, 50% 70%, 21% 92%, 32% 57%, 2% 35%, 39% 35%)";
+    case "arrow":
+      return "polygon(0% 35%, 60% 35%, 60% 15%, 100% 50%, 60% 85%, 60% 65%, 0% 65%)";
+    case "double-arrow":
+      return "polygon(0% 50%, 25% 15%, 25% 35%, 75% 35%, 75% 15%, 100% 50%, 75% 85%, 75% 65%, 25% 65%, 25% 85%)";
+    case "heart":
+      return "polygon(50% 90%, 8% 48%, 8% 22%, 28% 8%, 50% 28%, 72% 8%, 92% 22%, 92% 48%)";
+    case "lightning":
+      return "polygon(58% 0%, 18% 55%, 46% 55%, 35% 100%, 82% 38%, 54% 38%)";
+    case "plus":
+      return "polygon(35% 0%, 65% 0%, 65% 35%, 100% 35%, 100% 65%, 65% 65%, 65% 100%, 35% 100%, 35% 65%, 0% 65%, 0% 35%, 35% 35%)";
+    case "minus":
+      return "polygon(0% 35%, 100% 35%, 100% 65%, 0% 65%)";
+    case "cross":
+      return "polygon(20% 0%, 50% 30%, 80% 0%, 100% 20%, 70% 50%, 100% 80%, 80% 100%, 50% 70%, 20% 100%, 0% 80%, 30% 50%, 0% 20%)";
+    default:
+      return undefined;
+  }
+}
+
 export function HeroSectionManagementContent() {
   useAuthStore((state) => state.user?.permissions);
   const canCreate = hasPermission("can_create_hero_section");
@@ -83,6 +155,7 @@ export function HeroSectionManagementContent() {
   const [savingSettings, setSavingSettings] = useState(false);
   const [savingSlide, setSavingSlide] = useState(false);
   const [slidesPanelOpen, setSlidesPanelOpen] = useState(true);
+  const [deleteSlideTarget, setDeleteSlideTarget] = useState<{ slide: HeroSlide; index: number } | null>(null);
 
   const activeSlide = slides[activeIndex] ?? null;
 
@@ -176,16 +249,17 @@ export function HeroSectionManagementContent() {
 
   async function deleteSlide(slide: HeroSlide, index: number) {
     if (!canDelete) return;
-    if (!window.confirm(`Delete "${slide.name || "Hero Slide"}"?`)) return;
     if (!slide.id) {
       setSlides((current) => current.filter((_, itemIndex) => itemIndex !== index));
       setActiveIndex(Math.max(0, index - 1));
+      setDeleteSlideTarget(null);
       return;
     }
     try {
       const response = await heroSectionService.deleteSlide(slide.id);
       setSlides((current) => current.filter((item) => item.id !== slide.id));
       setActiveIndex(Math.max(0, index - 1));
+      setDeleteSlideTarget(null);
       toast.success(response.message);
     } catch (error) {
       toast.error(toAppError(error).message);
@@ -286,7 +360,7 @@ export function HeroSectionManagementContent() {
                   <div className="flex flex-wrap gap-2">
                     {!slidesPanelOpen ? <Button size="sm" variant="secondary" icon={<PanelLeftOpen className="h-4 w-4" />} onClick={() => setSlidesPanelOpen(true)}>Slides</Button> : null}
                     {canCreate ? <Button size="sm" variant="secondary" icon={<Copy className="h-4 w-4" />} onClick={() => void duplicateSlide(activeSlide, activeIndex)}>Duplicate</Button> : null}
-                    {canDelete ? <Button size="sm" variant="danger" icon={<Trash2 className="h-4 w-4" />} onClick={() => void deleteSlide(activeSlide, activeIndex)}>Delete</Button> : null}
+                    {canDelete ? <Button size="sm" variant="danger" icon={<Trash2 className="h-4 w-4" />} onClick={() => setDeleteSlideTarget({ slide: activeSlide, index: activeIndex })}>Delete</Button> : null}
                   </div>
                   {canEdit || (canCreate && !activeSlide.id) ? <Button size="sm" icon={<Save className="h-4 w-4" />} isLoading={savingSlide} onClick={() => void saveSlide()}>Save Slide</Button> : null}
                 </div>
@@ -303,6 +377,14 @@ export function HeroSectionManagementContent() {
           </div>
         </SettingsGrid>
       )}
+      <ConfirmActionModal
+        open={Boolean(deleteSlideTarget)}
+        title="Delete slide"
+        description={`Delete "${deleteSlideTarget?.slide.name || "Hero Slide"}"? This action cannot be undone.`}
+        confirmLabel="Delete Slide"
+        onCancel={() => setDeleteSlideTarget(null)}
+        onConfirm={() => deleteSlideTarget ? void deleteSlide(deleteSlideTarget.slide, deleteSlideTarget.index) : undefined}
+      />
     </SettingsPageShell>
   );
 }
@@ -353,7 +435,16 @@ function SlideBasics({ slide, onChange }: { slide: HeroSlide; onChange: (slide: 
   return (
     <div className="mb-4 grid gap-3 md:grid-cols-2">
       <TextInput label="Slide Name" value={slide.name ?? ""} onChange={(event) => onChange({ ...slide, name: event.target.value })} />
-      <ToggleSwitch label="Slide Status" checked={slide.status} onChange={(status) => onChange({ ...slide, status })} />
+      <label className="space-y-2">
+        <span className="text-sm font-semibold">Slide Status</span>
+        <Select value={slide.status ? "enabled" : "disabled"} onValueChange={(status) => onChange({ ...slide, status: status === "enabled" })}>
+          <SelectTrigger className="h-11 rounded-lg"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="enabled">Enabled</SelectItem>
+            <SelectItem value="disabled">Disabled</SelectItem>
+          </SelectContent>
+        </Select>
+      </label>
     </div>
   );
 }
@@ -399,8 +490,18 @@ function CanvasBuilder({ slide, canEdit, onChange }: { slide: HeroSlide; canEdit
   const [history, setHistory] = useState<HeroSlide[]>([]);
   const [future, setFuture] = useState<HeroSlide[]>([]);
   const [layersOpen, setLayersOpen] = useState(true);
+  const [zoom, setZoom] = useState(1);
+  const [showGrid, setShowGrid] = useState(false);
+  const [snapToGrid, setSnapToGrid] = useState(false);
+  const [previewMode, setPreviewMode] = useState(false);
+  const [clipboard, setClipboard] = useState<HeroSlideElement | null>(null);
+  const [editingElement, setEditingElement] = useState<HeroSlideElement | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; z: number } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<HeroSlideElement | null>(null);
   const selectedElements = slide.elements.filter((element) => selected.includes(element.z_index));
   const selectedElement = selectedElements[0] ?? slide.elements[0] ?? null;
+  const contextElement = contextMenu ? slide.elements.find((element) => element.z_index === contextMenu.z) ?? null : null;
+  const zoomScale = device === "desktop" ? 0.66 * zoom : device === "tablet" ? 0.78 * zoom : zoom;
 
   const commit = useCallback((next: HeroSlide) => {
     if (!canEdit) return;
@@ -436,23 +537,19 @@ function CanvasBuilder({ slide, canEdit, onChange }: { slide: HeroSlide; canEdit
     commit({ ...slide, elements: slide.elements.map((element) => element === target ? { ...element, ...patch } : element) });
   }
 
-  function updateBox(target: HeroSlideElement, box: Partial<HeroElementBox>) {
-    const current = target.responsive[device];
-    updateElement(target, { responsive: { ...target.responsive, [device]: { ...current, ...box } } });
-  }
-
-  function duplicateElement(target: HeroSlideElement) {
+  const duplicateElement = useCallback((target: HeroSlideElement) => {
     if (!canEdit) return;
     const nextZ = Math.max(0, ...slide.elements.map((element) => element.z_index)) + 1;
-    const copy = { ...target, id: undefined, name: `${target.name} Copy`, z_index: nextZ };
+    const copy = { ...target, id: undefined, name: `${target.name} Copy`, z_index: nextZ, responsive: offsetResponsive(target.responsive) };
     commit({ ...slide, elements: [...slide.elements, copy] });
     setSelected([nextZ]);
-  }
+  }, [canEdit, commit, slide]);
 
   function deleteElement(target: HeroSlideElement) {
     if (!canEdit) return;
     commit({ ...slide, elements: slide.elements.filter((element) => element !== target) });
     setSelected([]);
+    setDeleteTarget(null);
   }
 
   function layer(target: HeroSlideElement, direction: -1 | 1) {
@@ -469,6 +566,40 @@ function CanvasBuilder({ slide, canEdit, onChange }: { slide: HeroSlide; canEdit
           : element
       )),
     });
+  }
+
+  function layerToEdge(target: HeroSlideElement, edge: "front" | "back") {
+    if (!canEdit) return;
+    const zValues = slide.elements.map((element) => element.z_index);
+    updateElement(target, { z_index: edge === "front" ? Math.max(...zValues, 0) + 1 : 0 });
+  }
+
+  function copyElement(target: HeroSlideElement) {
+    setClipboard({ ...target, id: undefined });
+    toast.success("Layer copied.");
+  }
+
+  const pasteElement = useCallback(() => {
+    if (!canEdit || !clipboard) return;
+    const nextZ = Math.max(0, ...slide.elements.map((element) => element.z_index)) + 1;
+    const pasted = { ...clipboard, id: undefined, name: `${clipboard.name} Copy`, z_index: nextZ, responsive: offsetResponsive(clipboard.responsive) };
+    commit({ ...slide, elements: [...slide.elements, pasted] });
+    setSelected([nextZ]);
+  }, [canEdit, clipboard, commit, slide]);
+
+  function openElementMenu(event: ReactMouseEvent, z: number) {
+    event.preventDefault();
+    event.stopPropagation();
+    onSelectForMenu(z, event.ctrlKey || event.metaKey || event.shiftKey);
+    setContextMenu({ x: event.clientX, y: event.clientY, z });
+  }
+
+  function onSelectForMenu(z: number, additive = false) {
+    selectElement(z, additive);
+  }
+
+  function closeContextMenu() {
+    setContextMenu(null);
   }
 
   function selectElement(z: number | null, additive = false) {
@@ -525,12 +656,44 @@ function CanvasBuilder({ slide, canEdit, onChange }: { slide: HeroSlide; canEdit
         return;
       }
 
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "a") {
+        event.preventDefault();
+        setSelected(slide.elements.map((element) => element.z_index));
+        return;
+      }
+
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "c") {
+        if (selectedElement) {
+          event.preventDefault();
+          copyElement(selectedElement);
+        }
+        return;
+      }
+
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "v") {
+        event.preventDefault();
+        pasteElement();
+        return;
+      }
+
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "d") {
+        if (selectedElement) {
+          event.preventDefault();
+          duplicateElement(selectedElement);
+        }
+        return;
+      }
+
       if (event.key === "Delete" || event.key === "Backspace") {
         if (!canEdit) return;
         if (!selected.length) return;
         event.preventDefault();
-        commit({ ...slide, elements: slide.elements.filter((element) => !selected.includes(element.z_index)) });
-        setSelected([]);
+        if (selected.length === 1 && selectedElement) {
+          setDeleteTarget(selectedElement);
+        } else {
+          commit({ ...slide, elements: slide.elements.filter((element) => !selected.includes(element.z_index)) });
+          setSelected([]);
+        }
         return;
       }
 
@@ -549,7 +712,18 @@ function CanvasBuilder({ slide, canEdit, onChange }: { slide: HeroSlide; canEdit
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [canEdit, commit, future, history, moveSelected, redo, selected, slide, undo]);
+  }, [canEdit, clipboard, commit, duplicateElement, future, history, moveSelected, pasteElement, redo, selected, selectedElement, slide, undo]);
+
+  useEffect(() => {
+    if (!contextMenu) return;
+    const close = () => closeContextMenu();
+    window.addEventListener("click", close);
+    window.addEventListener("keydown", close);
+    return () => {
+      window.removeEventListener("click", close);
+      window.removeEventListener("keydown", close);
+    };
+  }, [contextMenu]);
 
   return (
     <div className="mt-4 space-y-4">
@@ -575,6 +749,15 @@ function CanvasBuilder({ slide, canEdit, onChange }: { slide: HeroSlide; canEdit
         {canEdit ? <span className="mx-1 h-6 w-px bg-border" /> : null}
         {canEdit ? <Button size="icon" variant="ghost" aria-label="Undo" icon={<Undo2 className="h-4 w-4" />} disabled={!history.length} onClick={undo} /> : null}
         {canEdit ? <Button size="icon" variant="ghost" aria-label="Redo" icon={<Redo2 className="h-4 w-4" />} disabled={!future.length} onClick={redo} /> : null}
+        <Select value={String(zoom)} onValueChange={(value) => setZoom(Number(value))}>
+          <SelectTrigger className="h-9 w-24 rounded-lg"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {[0.25, 0.5, 0.75, 1, 1.5, 2].map((value) => <SelectItem key={value} value={String(value)}>{Math.round(value * 100)}%</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Button size="sm" variant={showGrid ? "primary" : "secondary"} onClick={() => setShowGrid((value) => !value)}>Grid</Button>
+        <Button size="sm" variant={snapToGrid ? "primary" : "secondary"} onClick={() => setSnapToGrid((value) => !value)}>Snap</Button>
+        <Button size="sm" variant={previewMode ? "primary" : "secondary"} icon={previewMode ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />} onClick={() => setPreviewMode((value) => !value)}>Preview</Button>
         <Button size="sm" variant="secondary" icon={layersOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />} onClick={() => setLayersOpen((value) => !value)}>
           {layersOpen ? "Hide Panels" : "Panels"}
         </Button>
@@ -587,27 +770,85 @@ function CanvasBuilder({ slide, canEdit, onChange }: { slide: HeroSlide; canEdit
             <Button size="icon" variant="ghost" aria-label="Align left" icon={<AlignLeft className="h-4 w-4" />} onClick={() => updateSelectedBoxes(() => ({ x: 0 }))} />
             <Button size="icon" variant="ghost" aria-label="Align center" icon={<AlignCenter className="h-4 w-4" />} onClick={() => updateSelectedBoxes((box) => ({ x: Math.round((slide.canvas_size[device].width - box.width) / 2) }))} />
             <Button size="icon" variant="ghost" aria-label="Align right" icon={<AlignRight className="h-4 w-4" />} onClick={() => updateSelectedBoxes((box) => ({ x: slide.canvas_size[device].width - box.width }))} />
+            <Button size="sm" variant="secondary" onClick={() => setEditingElement(selectedElement)}>Edit</Button>
           </>
         ) : null}
       </div>
 
       <div className={cn("grid gap-4", layersOpen ? "xl:grid-cols-[minmax(0,1fr)_320px]" : "xl:grid-cols-1")}>
-        <CanvasStage slide={slide} device={device} selected={selected} onSelect={selectElement} onChange={commit} />
+        <CanvasStage slide={slide} device={device} selected={selected} scale={zoomScale} showGrid={showGrid} snapToGrid={snapToGrid} previewMode={previewMode} onSelect={selectElement} onContextMenu={openElementMenu} onChange={commit} />
         {layersOpen ? (
           <div className="space-y-3">
-            <LayerManager slide={slide} selected={selected} onSelect={selectElement} onChange={commit} onClose={() => setLayersOpen(false)} />
-            {selectedElement ? <ElementInspector element={selectedElement} device={device} onChange={(patch) => updateElement(selectedElement, patch)} onBoxChange={(box) => updateBox(selectedElement, box)} /> : null}
+            <LayerManager slide={slide} selected={selected} canEdit={canEdit} clipboard={clipboard} onSelect={selectElement} onEdit={setEditingElement} onDuplicate={duplicateElement} onCopy={copyElement} onPaste={pasteElement} onDelete={setDeleteTarget} onChange={commit} onClose={() => setLayersOpen(false)} />
           </div>
         ) : null}
       </div>
+      <ElementEditModal
+        element={editingElement}
+        device={device}
+        onClose={() => setEditingElement(null)}
+        onUpload={async (file) => (await heroSectionService.uploadImage(file)).data.url}
+        onSave={(next) => {
+          updateElement(editingElement!, next);
+          setEditingElement(null);
+        }}
+      />
+      <HeroElementContextMenu
+        element={contextElement}
+        position={contextMenu}
+        canEdit={canEdit}
+        canPaste={Boolean(clipboard)}
+        onClose={closeContextMenu}
+        onEdit={(element) => setEditingElement(element)}
+        onDuplicate={duplicateElement}
+        onCopy={copyElement}
+        onPaste={pasteElement}
+        onBringForward={(element) => layer(element, 1)}
+        onBringToFront={(element) => layerToEdge(element, "front")}
+        onSendBackward={(element) => layer(element, -1)}
+        onSendToBack={(element) => layerToEdge(element, "back")}
+        onToggleLock={(element) => updateElement(element, { locked: !element.locked })}
+        onToggleHide={(element) => updateElement(element, { hidden: !element.hidden })}
+        onDelete={(element) => setDeleteTarget(element)}
+      />
+      <ConfirmActionModal
+        open={Boolean(deleteTarget)}
+        title="Delete layer"
+        description={`Delete "${deleteTarget?.name || "Layer"}"? This action cannot be undone.`}
+        confirmLabel="Delete Layer"
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={() => deleteTarget ? deleteElement(deleteTarget) : undefined}
+      />
     </div>
   );
 }
 
-function CanvasStage({ slide, device, selected, onSelect, onChange }: { slide: HeroSlide; device: HeroDevice; selected: number[]; onSelect: (z: number | null, additive?: boolean) => void; onChange: (slide: HeroSlide) => void }) {
+function CanvasStage({
+  slide,
+  device,
+  selected,
+  scale,
+  showGrid,
+  snapToGrid,
+  previewMode,
+  onSelect,
+  onContextMenu,
+  onChange,
+}: {
+  slide: HeroSlide;
+  device: HeroDevice;
+  selected: number[];
+  scale: number;
+  showGrid: boolean;
+  snapToGrid: boolean;
+  previewMode: boolean;
+  onSelect: (z: number | null, additive?: boolean) => void;
+  onContextMenu: (event: ReactMouseEvent, z: number) => void;
+  onChange: (slide: HeroSlide) => void;
+}) {
   const size = slide.canvas_size[device];
-  const scale = device === "desktop" ? 0.66 : device === "tablet" ? 0.78 : 1;
   const stageRef = useRef<HTMLDivElement>(null);
+  const snap = (value: number) => snapToGrid ? Math.round(value / 8) * 8 : value;
 
   function moveElement(target: HeroSlideElement, start: PointerEvent<HTMLElement>, mode: "move" | "resize") {
     if (target.locked) return;
@@ -622,8 +863,8 @@ function CanvasStage({ slide, device, selected, onSelect, onChange }: { slide: H
       const dx = Math.round((event.clientX - startX) / scale);
       const dy = Math.round((event.clientY - startY) / scale);
       const nextTargetBox = mode === "move"
-        ? { ...origin, x: Math.max(0, origin.x + dx), y: Math.max(0, origin.y + dy) }
-        : { ...origin, width: Math.max(24, origin.width + dx), height: Math.max(20, origin.height + dy) };
+        ? { ...origin, x: Math.max(0, snap(origin.x + dx)), y: Math.max(0, snap(origin.y + dy)) }
+        : { ...origin, width: Math.max(24, snap(origin.width + dx)), height: Math.max(20, snap(origin.height + dy)) };
       onChange({
         ...slide,
         elements: slide.elements.map((element) => {
@@ -632,7 +873,7 @@ function CanvasStage({ slide, device, selected, onSelect, onChange }: { slide: H
           }
           if (!activeZ.includes(element.z_index) || element.locked) return element;
           const elementOrigin = origins.get(element.z_index) ?? element.responsive[device];
-          const nextBox = { ...elementOrigin, x: Math.max(0, elementOrigin.x + dx), y: Math.max(0, elementOrigin.y + dy) };
+          const nextBox = { ...elementOrigin, x: Math.max(0, snap(elementOrigin.x + dx)), y: Math.max(0, snap(elementOrigin.y + dy)) };
           return { ...element, responsive: { ...element.responsive, [device]: nextBox } };
         }),
       });
@@ -666,6 +907,13 @@ function CanvasStage({ slide, device, selected, onSelect, onChange }: { slide: H
           }}
           onPointerDown={() => onSelect(null)}
         >
+          {showGrid && !previewMode ? <div className="pointer-events-none absolute inset-0 opacity-30" style={{ backgroundImage: "linear-gradient(rgba(255,255,255,.2) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.2) 1px, transparent 1px)", backgroundSize: "32px 32px" }} /> : null}
+          {!previewMode ? (
+            <>
+              <div className="pointer-events-none absolute left-1/2 top-0 h-full w-px bg-primary/30" />
+              <div className="pointer-events-none absolute left-0 top-1/2 h-px w-full bg-primary/30" />
+            </>
+          ) : null}
           {slide.background_overlay ? <div className="absolute inset-0 bg-black" style={{ opacity: slide.canvas_overlay_opacity / 100 }} /> : null}
           {slide.elements.slice().sort((a, b) => a.z_index - b.z_index).map((element) => {
             const box = element.responsive[device];
@@ -678,6 +926,7 @@ function CanvasStage({ slide, device, selected, onSelect, onChange }: { slide: H
                   onSelect(element.z_index, event.ctrlKey || event.metaKey);
                   moveElement(element, event, "move");
                 }}
+                onContextMenu={(event) => onContextMenu(event, element.z_index)}
                 className={cn("absolute cursor-move border", selected.includes(element.z_index) ? "border-primary" : "border-transparent", selected.length > 1 && selected.includes(element.z_index) && "ring-1 ring-primary/40", element.locked && "cursor-not-allowed")}
                 style={{
                   left: box.x,
@@ -689,7 +938,7 @@ function CanvasStage({ slide, device, selected, onSelect, onChange }: { slide: H
                 }}
               >
                 <CanvasElement element={element} />
-                {selected.includes(element.z_index) && selected.length === 1 && !element.locked ? (
+                {selected.includes(element.z_index) && selected.length === 1 && !element.locked && !previewMode ? (
                   <button
                     type="button"
                     aria-label="Resize element"
@@ -733,7 +982,17 @@ function CanvasElement({ element }: { element: HeroSlideElement }) {
   }
 
   if (element.type === "shape") {
-    return <div className="h-full w-full" style={{ ...common, background: String(style.backgroundColor ?? "#fff"), border: String(style.border ?? "0 solid transparent") }} />;
+    return (
+      <div
+        className="h-full w-full"
+        style={{
+          ...common,
+          background: String(style.gradientFill || (style.backgroundColor ?? "#fff")),
+          border: String(style.border ?? "0 solid transparent"),
+          clipPath: shapeClipPath(element.content.shape),
+        }}
+      />
+    );
   }
 
   return (
@@ -755,10 +1014,60 @@ function CanvasElement({ element }: { element: HeroSlideElement }) {
   );
 }
 
-function LayerManager({ slide, selected, onSelect, onChange, onClose }: { slide: HeroSlide; selected: number[]; onSelect: (z: number, additive?: boolean) => void; onChange: (slide: HeroSlide) => void; onClose: () => void }) {
+function LayerManager({
+  slide,
+  selected,
+  canEdit,
+  clipboard,
+  onSelect,
+  onEdit,
+  onDuplicate,
+  onCopy,
+  onPaste,
+  onDelete,
+  onChange,
+  onClose,
+}: {
+  slide: HeroSlide;
+  selected: number[];
+  canEdit: boolean;
+  clipboard: HeroSlideElement | null;
+  onSelect: (z: number, additive?: boolean) => void;
+  onEdit: (element: HeroSlideElement) => void;
+  onDuplicate: (element: HeroSlideElement) => void;
+  onCopy: (element: HeroSlideElement) => void;
+  onPaste: () => void;
+  onDelete: (element: HeroSlideElement) => void;
+  onChange: (slide: HeroSlide) => void;
+  onClose: () => void;
+}) {
+  const [menu, setMenu] = useState<{ x: number; y: number; z: number } | null>(null);
+  const menuElement = menu ? slide.elements.find((element) => element.z_index === menu.z) ?? null : null;
+
   function patch(target: HeroSlideElement, patchValue: Partial<HeroSlideElement>) {
     onChange({ ...slide, elements: slide.elements.map((element) => element === target ? { ...element, ...patchValue } : element) });
   }
+
+  function openMenu(event: ReactMouseEvent, target: HeroSlideElement) {
+    event.preventDefault();
+    onSelect(target.z_index, false);
+    setMenu({ x: event.clientX, y: event.clientY, z: target.z_index });
+  }
+
+  function closeMenu() {
+    setMenu(null);
+  }
+
+  useEffect(() => {
+    if (!menu) return;
+    const close = () => closeMenu();
+    window.addEventListener("click", close);
+    window.addEventListener("keydown", close);
+    return () => {
+      window.removeEventListener("click", close);
+      window.removeEventListener("keydown", close);
+    };
+  }, [menu]);
 
   return (
     <div className="rounded-lg border border-border bg-background">
@@ -768,46 +1077,240 @@ function LayerManager({ slide, selected, onSelect, onChange, onClose }: { slide:
       </div>
       <div className="max-h-72 overflow-auto p-2">
         {slide.elements.slice().sort((a, b) => b.z_index - a.z_index).map((element) => (
-          <div key={`${element.name}-${element.z_index}`} className={cn("flex items-center gap-2 rounded-lg p-2", selected.includes(element.z_index) && "bg-primary/10")}>
+          <div
+            key={`${element.name}-${element.z_index}`}
+            className={cn("flex items-center gap-2 rounded-lg p-2", selected.includes(element.z_index) && "bg-primary/10")}
+            onContextMenu={(event) => openMenu(event, element)}
+          >
             <button type="button" className="min-w-0 flex-1 text-left text-sm font-medium" onClick={(event) => onSelect(element.z_index, event.ctrlKey || event.metaKey)}>{element.name}</button>
             <Button size="icon" variant="ghost" aria-label="Toggle hidden" icon={element.hidden ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />} onClick={() => patch(element, { hidden: !element.hidden })} />
             <Button size="icon" variant="ghost" aria-label="Toggle locked" icon={element.locked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />} onClick={() => patch(element, { locked: !element.locked })} />
           </div>
         ))}
       </div>
+      {menu && menuElement ? (
+        <div
+          className="fixed z-50 w-48 overflow-hidden rounded-lg border border-border bg-background p-1 shadow-xl"
+          style={{ left: menu.x, top: menu.y }}
+          onClick={(event) => event.stopPropagation()}
+        >
+          <button type="button" className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-muted" onClick={() => { onEdit(menuElement); closeMenu(); }} disabled={!canEdit}>
+            <Pencil className="h-4 w-4" /> Edit
+          </button>
+          <button type="button" className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-muted" onClick={() => { onDuplicate(menuElement); closeMenu(); }} disabled={!canEdit}>
+            <Copy className="h-4 w-4" /> Duplicate Layer
+          </button>
+          <button type="button" className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-muted" onClick={() => { onCopy(menuElement); closeMenu(); }}>
+            <Copy className="h-4 w-4" /> Copy
+          </button>
+          <button type="button" className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-muted" onClick={() => { onPaste(); closeMenu(); }} disabled={!canEdit || !clipboard}>
+            <Copy className="h-4 w-4" /> Paste
+          </button>
+          <button type="button" className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-muted" onClick={() => { patch(menuElement, { hidden: !menuElement.hidden }); closeMenu(); }}>
+            {menuElement.hidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />} {menuElement.hidden ? "Show Layer" : "Hide Layer"}
+          </button>
+          <button type="button" className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-muted" onClick={() => { patch(menuElement, { locked: !menuElement.locked }); closeMenu(); }}>
+            {menuElement.locked ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />} {menuElement.locked ? "Unlock Layer" : "Lock Layer"}
+          </button>
+          <button type="button" className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm text-destructive hover:bg-destructive/10" onClick={() => { onDelete(menuElement); closeMenu(); }} disabled={!canEdit}>
+            <Trash2 className="h-4 w-4" /> Delete Layer
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }
 
-function ElementInspector({ element, device, onChange, onBoxChange }: { element: HeroSlideElement; device: HeroDevice; onChange: (patch: Partial<HeroSlideElement>) => void; onBoxChange: (box: Partial<HeroElementBox>) => void }) {
-  const box = element.responsive[device];
-  const style = element.style;
+function HeroElementContextMenu({
+  element,
+  position,
+  canEdit,
+  canPaste,
+  onClose,
+  onEdit,
+  onDuplicate,
+  onCopy,
+  onPaste,
+  onBringForward,
+  onBringToFront,
+  onSendBackward,
+  onSendToBack,
+  onToggleLock,
+  onToggleHide,
+  onDelete,
+}: {
+  element: HeroSlideElement | null;
+  position: { x: number; y: number; z: number } | null;
+  canEdit: boolean;
+  canPaste: boolean;
+  onClose: () => void;
+  onEdit: (element: HeroSlideElement) => void;
+  onDuplicate: (element: HeroSlideElement) => void;
+  onCopy: (element: HeroSlideElement) => void;
+  onPaste: () => void;
+  onBringForward: (element: HeroSlideElement) => void;
+  onBringToFront: (element: HeroSlideElement) => void;
+  onSendBackward: (element: HeroSlideElement) => void;
+  onSendToBack: (element: HeroSlideElement) => void;
+  onToggleLock: (element: HeroSlideElement) => void;
+  onToggleHide: (element: HeroSlideElement) => void;
+  onDelete: (element: HeroSlideElement) => void;
+}) {
+  if (!element || !position) return null;
+  const run = (action: () => void) => {
+    action();
+    onClose();
+  };
+
   return (
-    <div className="space-y-3 rounded-lg border border-border bg-background p-3">
-      <Input label="Layer Name" value={element.name} onChange={(event) => onChange({ name: event.target.value })} />
-      {element.type !== "shape" ? (
-        element.type === "image" ? (
-          <ImagePicker label="Image" value={element.content.src ?? ""} onChange={(src) => onChange({ content: { ...element.content, src } })} compact />
-        ) : (
-          <Input
-            label={element.type === "button" ? "Button Text" : "Text"}
-            value={element.content.text ?? ""}
-            onChange={(event) => onChange({ content: { ...element.content, text: event.target.value } })}
-          />
-        )
-      ) : null}
-      {element.type === "button" ? <Input label="Button URL" value={element.content.url ?? ""} onChange={(event) => onChange({ content: { ...element.content, url: event.target.value } })} /> : null}
-      <div className="grid grid-cols-2 gap-2">
-        <Input label="X" type="number" value={box.x} onChange={(event) => onBoxChange({ x: Number(event.target.value || 0) })} />
-        <Input label="Y" type="number" value={box.y} onChange={(event) => onBoxChange({ y: Number(event.target.value || 0) })} />
-        <Input label="Width" type="number" value={box.width} onChange={(event) => onBoxChange({ width: Number(event.target.value || 0) })} />
-        <Input label="Height" type="number" value={box.height} onChange={(event) => onBoxChange({ height: Number(event.target.value || 0) })} />
+    <div className="fixed z-50 w-56 overflow-hidden rounded-lg border border-border bg-background p-1 shadow-xl" style={{ left: position.x, top: position.y }} onClick={(event) => event.stopPropagation()}>
+      <ContextMenuButton icon={<Pencil className="h-4 w-4" />} label="Edit" onClick={() => run(() => onEdit(element))} disabled={!canEdit} />
+      <ContextMenuButton icon={<Copy className="h-4 w-4" />} label="Duplicate" onClick={() => run(() => onDuplicate(element))} disabled={!canEdit} />
+      <ContextMenuButton icon={<Copy className="h-4 w-4" />} label="Copy" onClick={() => run(() => onCopy(element))} />
+      <ContextMenuButton icon={<Copy className="h-4 w-4" />} label="Paste" onClick={() => run(onPaste)} disabled={!canEdit || !canPaste} />
+      <div className="my-1 h-px bg-border" />
+      <ContextMenuButton icon={<ArrowUp className="h-4 w-4" />} label="Bring Forward" onClick={() => run(() => onBringForward(element))} disabled={!canEdit} />
+      <ContextMenuButton icon={<ArrowUp className="h-4 w-4" />} label="Bring to Front" onClick={() => run(() => onBringToFront(element))} disabled={!canEdit} />
+      <ContextMenuButton icon={<SendToBack className="h-4 w-4" />} label="Send Backward" onClick={() => run(() => onSendBackward(element))} disabled={!canEdit} />
+      <ContextMenuButton icon={<SendToBack className="h-4 w-4" />} label="Send to Back" onClick={() => run(() => onSendToBack(element))} disabled={!canEdit} />
+      <div className="my-1 h-px bg-border" />
+      <ContextMenuButton icon={element.locked ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />} label={element.locked ? "Unlock" : "Lock"} onClick={() => run(() => onToggleLock(element))} disabled={!canEdit} />
+      <ContextMenuButton icon={element.hidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />} label={element.hidden ? "Show" : "Hide"} onClick={() => run(() => onToggleHide(element))} disabled={!canEdit} />
+      <ContextMenuButton icon={<Pencil className="h-4 w-4" />} label="Rename" onClick={() => run(() => onEdit(element))} disabled={!canEdit} />
+      <ContextMenuButton icon={<Trash2 className="h-4 w-4" />} label="Delete" destructive onClick={() => run(() => onDelete(element))} disabled={!canEdit} />
+    </div>
+  );
+}
+
+function ContextMenuButton({ icon, label, onClick, disabled, destructive }: { icon: ReactNode; label: string; onClick: () => void; disabled?: boolean; destructive?: boolean }) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      className={cn("flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50", destructive && "text-destructive hover:bg-destructive/10")}
+      onClick={onClick}
+    >
+      {icon} {label}
+    </button>
+  );
+}
+
+function ElementEditModal({ element, device, onClose, onUpload, onSave }: { element: HeroSlideElement | null; device: HeroDevice; onClose: () => void; onUpload: (file: File) => Promise<string>; onSave: (patch: Partial<HeroSlideElement>) => void }) {
+  const [draft, setDraft] = useState<HeroSlideElement | null>(element);
+
+  useEffect(() => {
+    setDraft(element);
+  }, [element]);
+
+  if (!element || !draft) return null;
+
+  const box = draft.responsive[device];
+  const style = draft.style;
+  const content = draft.content;
+  const setStyle = (patch: Record<string, string | number>) => setDraft({ ...draft, style: { ...style, ...patch } });
+  const setContent = (patch: Record<string, string>) => setDraft({ ...draft, content: { ...content, ...patch } });
+  const setBox = (patch: Partial<HeroElementBox>) => setDraft({ ...draft, responsive: { ...draft.responsive, [device]: { ...box, ...patch } } });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-xl border border-border bg-background shadow-2xl">
+        <div className="flex items-center justify-between border-b border-border p-4">
+          <div>
+            <h2 className="text-base font-bold">Edit {draft.type}</h2>
+            <p className="text-xs text-muted-foreground">Configure this layer without leaving the canvas.</p>
+          </div>
+          <Button type="button" size="sm" variant="secondary" onClick={onClose}>Close</Button>
+        </div>
+        <div className="max-h-[68vh] overflow-y-auto p-4">
+          <FormGrid>
+            <Input label="Layer Name" value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} />
+            <TextInput label="Opacity" type="number" min={0} max={1} step={0.05} value={String(style.opacity ?? 1)} onChange={(event) => setStyle({ opacity: Number(event.target.value || 1) })} />
+            <TextInput label="Rotation" type="number" value={String(box.rotation ?? 0)} onChange={(event) => setBox({ rotation: Number(event.target.value || 0) })} />
+            <Input label="Link" value={content.url ?? ""} onChange={(event) => setContent({ url: event.target.value })} />
+          </FormGrid>
+
+          {(draft.type === "heading" || draft.type === "subheading" || draft.type === "paragraph") ? (
+            <div className="mt-4 space-y-3">
+              <TextareaInput label={draft.type === "paragraph" ? "Rich Text" : "Text"} value={content.text ?? ""} onChange={(event) => setContent({ text: event.target.value })} />
+              <FormGrid>
+                <Input label="Font Family" value={String(style.fontFamily ?? "Inter, sans-serif")} onChange={(event) => setStyle({ fontFamily: event.target.value })} />
+                <Input label="Font Color" value={String(style.color ?? "#ffffff")} onChange={(event) => setStyle({ color: event.target.value })} />
+                <Input label="Text Shadow" value={String(style.textShadow ?? "")} onChange={(event) => setStyle({ textShadow: event.target.value })} />
+                <Input label="Letter Spacing" value={String(style.letterSpacing ?? 0)} onChange={(event) => setStyle({ letterSpacing: Number(event.target.value || 0) })} />
+                <Input label="Line Height" value={String(style.lineHeight ?? 1.2)} onChange={(event) => setStyle({ lineHeight: Number(event.target.value || 1.2) })} />
+                <label className="space-y-2 text-sm font-semibold">Text Alignment<Select value={String(style.textAlign ?? "left")} onValueChange={(textAlign) => setStyle({ textAlign })}><SelectTrigger className="h-10 rounded-lg"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="left">Left</SelectItem><SelectItem value="center">Center</SelectItem><SelectItem value="right">Right</SelectItem></SelectContent></Select></label>
+              </FormGrid>
+            </div>
+          ) : null}
+
+          {draft.type === "button" ? (
+            <div className="mt-4 space-y-3">
+              <FormGrid>
+                <Input label="Button Text" value={content.text ?? ""} onChange={(event) => setContent({ text: event.target.value })} />
+                <Input label="Open Target" value={content.target ?? "_self"} onChange={(event) => setContent({ target: event.target.value })} />
+                <Input label="Background Color" value={String(style.backgroundColor ?? "#ffffff")} onChange={(event) => setStyle({ backgroundColor: event.target.value })} />
+                <Input label="Text Color" value={String(style.textColor ?? "#0f172a")} onChange={(event) => setStyle({ textColor: event.target.value })} />
+                <Input label="Hover Background" value={String(style.hoverBackgroundColor ?? "")} onChange={(event) => setStyle({ hoverBackgroundColor: event.target.value })} />
+                <Input label="Hover Text Color" value={String(style.hoverTextColor ?? "")} onChange={(event) => setStyle({ hoverTextColor: event.target.value })} />
+                <Input label="Border Radius" type="number" value={String(style.borderRadius ?? 12)} onChange={(event) => setStyle({ borderRadius: Number(event.target.value || 0) })} />
+                <Input label="Border Width" value={String(style.borderWidth ?? 0)} onChange={(event) => setStyle({ borderWidth: Number(event.target.value || 0), border: `${Number(event.target.value || 0)}px solid ${String(style.borderColor ?? "transparent")}` })} />
+                <Input label="Border Color" value={String(style.borderColor ?? "transparent")} onChange={(event) => setStyle({ borderColor: event.target.value, border: `${Number(style.borderWidth ?? 0)}px solid ${event.target.value}` })} />
+                <Input label="Shadow" value={String(style.boxShadow ?? "")} onChange={(event) => setStyle({ boxShadow: event.target.value })} />
+                <Input label="Padding" value={String(style.padding ?? "12px 22px")} onChange={(event) => setStyle({ padding: event.target.value })} />
+              </FormGrid>
+            </div>
+          ) : null}
+
+          {draft.type === "image" ? (
+            <div className="mt-4 space-y-3">
+              <ImageDropzone label="Replace Image" value={content.src ?? ""} onChange={(src) => setContent({ src })} onUpload={onUpload} />
+              <FormGrid>
+                <Input label="Alt Text" value={content.alt ?? ""} onChange={(event) => setContent({ alt: event.target.value })} />
+                <Input label="Object Fit" value={String(style.objectFit ?? "cover")} onChange={(event) => setStyle({ objectFit: event.target.value })} />
+                <Input label="Width" type="number" value={String(box.width)} onChange={(event) => setBox({ width: Number(event.target.value || 0) })} />
+                <Input label="Height" type="number" value={String(box.height)} onChange={(event) => setBox({ height: Number(event.target.value || 0) })} />
+                <Input label="Border Radius" type="number" value={String(style.borderRadius ?? 0)} onChange={(event) => setStyle({ borderRadius: Number(event.target.value || 0) })} />
+                <Input label="Shadow" value={String(style.boxShadow ?? "")} onChange={(event) => setStyle({ boxShadow: event.target.value })} />
+              </FormGrid>
+            </div>
+          ) : null}
+
+          {draft.type === "shape" ? (
+            <div className="mt-4 space-y-3">
+              <FormGrid>
+                <label className="space-y-2 text-sm font-semibold">Shape<Select value={content.shape ?? "rectangle"} onValueChange={(shape) => setContent({ shape })}><SelectTrigger className="h-10 rounded-lg"><SelectValue /></SelectTrigger><SelectContent>{shapeOptions.map((shape) => <SelectItem key={shape} value={shape}>{shape.replace(/-/g, " ")}</SelectItem>)}</SelectContent></Select></label>
+                <Input label="Width" type="number" value={String(box.width)} onChange={(event) => setBox({ width: Number(event.target.value || 0) })} />
+                <Input label="Height" type="number" value={String(box.height)} onChange={(event) => setBox({ height: Number(event.target.value || 0) })} />
+                <Input label="Fill Color" value={String(style.backgroundColor ?? "#ffffff")} onChange={(event) => setStyle({ backgroundColor: event.target.value })} />
+                <Input label="Gradient Fill" value={String(style.gradientFill ?? "")} onChange={(event) => setStyle({ gradientFill: event.target.value })} />
+                <Input label="Border Width" value={String(style.borderWidth ?? 0)} onChange={(event) => setStyle({ borderWidth: Number(event.target.value || 0), border: `${Number(event.target.value || 0)}px solid ${String(style.borderColor ?? "transparent")}` })} />
+                <Input label="Border Color" value={String(style.borderColor ?? "transparent")} onChange={(event) => setStyle({ borderColor: event.target.value, border: `${Number(style.borderWidth ?? 0)}px solid ${event.target.value}` })} />
+                <Input label="Corner Radius" type="number" value={String(style.borderRadius ?? 0)} onChange={(event) => setStyle({ borderRadius: Number(event.target.value || 0) })} />
+                <Input label="Shadow" value={String(style.boxShadow ?? "")} onChange={(event) => setStyle({ boxShadow: event.target.value })} />
+              </FormGrid>
+            </div>
+          ) : null}
+        </div>
+        <div className="flex justify-end gap-2 border-t border-border p-4">
+          <Button type="button" size="sm" variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button type="button" size="sm" onClick={() => onSave({ ...draft })}>Apply Changes</Button>
+        </div>
       </div>
-      <div className="grid grid-cols-2 gap-2">
-        <Input label="Font Size" type="number" value={String(style.fontSize ?? 16)} onChange={(event) => onChange({ style: { ...style, fontSize: Number(event.target.value || 0) } })} />
-        <Input label="Weight" type="number" value={String(style.fontWeight ?? 600)} onChange={(event) => onChange({ style: { ...style, fontWeight: Number(event.target.value || 0) } })} />
-        <Input label="Text Color" value={String(style.color ?? style.textColor ?? "#ffffff")} onChange={(event) => onChange({ style: { ...style, color: event.target.value, textColor: event.target.value } })} />
-        <Input label="Background" value={String(style.backgroundColor ?? "transparent")} onChange={(event) => onChange({ style: { ...style, backgroundColor: event.target.value } })} />
+    </div>
+  );
+}
+
+function ConfirmActionModal({ open, title, description, confirmLabel, onCancel, onConfirm }: { open: boolean; title: string; description: string; confirmLabel: string; onCancel: () => void; onConfirm: () => void }) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-md rounded-xl border border-border bg-background p-5 shadow-2xl">
+        <h2 className="text-base font-bold">{title}</h2>
+        <p className="mt-2 text-sm text-muted-foreground">{description}</p>
+        <div className="mt-5 flex justify-end gap-2">
+          <Button type="button" size="sm" variant="secondary" onClick={onCancel}>Cancel</Button>
+          <Button type="button" size="sm" variant="danger" onClick={onConfirm}>{confirmLabel}</Button>
+        </div>
       </div>
     </div>
   );

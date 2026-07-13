@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { createElement, useMemo, useRef, useState, useEffect } from 'react';
+import type { TouchEvent } from 'react';
 import {
   ArrowRight,
   Star,
@@ -41,20 +42,25 @@ function HeroSlider({
 }) {
   const [current, setCurrent] = useState(0);
   const [mounted, setMounted] = useState(false);
+  const [paused, setPaused] = useState(false);
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
   const slides = useMemo(() => hero?.slides?.filter((slide) => slide.status) ?? [], [hero?.slides]);
   const settings = hero?.settings;
   const simpleMode = settings?.mode !== 'advanced';
   const activeSlides = settings?.enabled === false ? [] : slides;
+  const loop = settings?.infinite_loop ?? true;
+  const previous = () => setCurrent((c) => previousIndex(c, activeSlides.length, loop));
+  const next = () => setCurrent((c) => nextIndex(c, activeSlides.length, loop));
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
   useEffect(() => {
-    if (!settings?.slider_autoplay || activeSlides.length <= 1) return;
+    if (!settings?.slider_autoplay || paused || activeSlides.length <= 1) return;
     const timer = setInterval(() => setCurrent((c) => nextIndex(c, activeSlides.length, settings.infinite_loop)), settings.autoplay_delay);
     return () => clearInterval(timer);
-  }, [activeSlides.length, settings?.autoplay_delay, settings?.infinite_loop, settings?.slider_autoplay]);
+  }, [activeSlides.length, paused, settings?.autoplay_delay, settings?.infinite_loop, settings?.slider_autoplay]);
 
   useEffect(() => {
     setCurrent(0);
@@ -68,17 +74,44 @@ function HeroSlider({
     return null;
   }
 
+  const interactionProps = {
+    onMouseEnter: () => {
+      if (settings?.pause_on_hover) setPaused(true);
+    },
+    onMouseLeave: () => {
+      if (settings?.pause_on_hover) setPaused(false);
+    },
+    onTouchStart: (event: TouchEvent) => {
+      if (!settings?.swipe_support) return;
+      const touch = event.touches[0];
+      touchStart.current = touch ? { x: touch.clientX, y: touch.clientY } : null;
+    },
+    onTouchEnd: (event: TouchEvent) => {
+      if (!settings?.swipe_support || !touchStart.current || activeSlides.length <= 1) return;
+      const touch = event.changedTouches[0];
+      if (!touch) return;
+      const dx = touch.clientX - touchStart.current.x;
+      const dy = touch.clientY - touchStart.current.y;
+      touchStart.current = null;
+      if (Math.abs(dx) < 48 || Math.abs(dx) < Math.abs(dy) * 1.25) return;
+      if (dx > 0) previous();
+      else next();
+    },
+  };
+
   if (!simpleMode && activeSlides.length > 0) {
     return (
-      <AdvancedHeroSlider
-        slides={activeSlides}
-        current={current}
-        settings={settings}
-        mounted={mounted}
-        onPrevious={() => setCurrent((c) => previousIndex(c, activeSlides.length, settings?.infinite_loop ?? true))}
-        onNext={() => setCurrent((c) => nextIndex(c, activeSlides.length, settings?.infinite_loop ?? true))}
-        onSelect={setCurrent}
-      />
+      <div {...interactionProps}>
+        <AdvancedHeroSlider
+          slides={activeSlides}
+          current={current}
+          settings={settings}
+          mounted={mounted}
+          onPrevious={previous}
+          onNext={next}
+          onSelect={setCurrent}
+        />
+      </div>
     );
   }
 
@@ -87,8 +120,8 @@ function HeroSlider({
     const image = slide.mobile_image || slide.background_image;
     const alignClass = slide.text_alignment === 'center' ? 'mx-auto text-center' : slide.text_alignment === 'right' ? 'ml-auto text-right' : '';
     return (
-      <div className="relative h-[480px] md:h-[560px] lg:h-[620px] rounded-2xl overflow-hidden">
-        {image ? <Image src={image} alt={slide.title || slide.name || 'Hero slide'} fill unoptimized className="object-cover" priority={!settings?.lazy_load_images} /> : null}
+      <div {...interactionProps} className="relative h-[480px] md:h-[560px] lg:h-[620px] rounded-2xl overflow-hidden">
+        {image ? <Image src={image} alt={slide.title || slide.name || 'Hero slide'} fill unoptimized className="object-cover" priority={!settings?.lazy_load_images} loading={settings?.lazy_load_images ? 'lazy' : undefined} /> : null}
         {slide.overlay ? <div className="absolute inset-0 bg-gradient-to-r from-slate-950 to-slate-800" style={{ opacity: slide.overlay_opacity / 100 }} /> : null}
         <div className="absolute inset-0 flex items-center">
           <div className="max-w-7xl mx-auto px-8 md:px-12 w-full">
@@ -124,8 +157,8 @@ function HeroSlider({
           current={current}
           showNavigation={settings?.show_navigation ?? true}
           showPagination={settings?.show_pagination ?? true}
-          onPrevious={() => setCurrent((c) => previousIndex(c, activeSlides.length, settings?.infinite_loop ?? true))}
-          onNext={() => setCurrent((c) => nextIndex(c, activeSlides.length, settings?.infinite_loop ?? true))}
+          onPrevious={previous}
+          onNext={next}
           onSelect={setCurrent}
         />
         {!mounted && <div className="absolute inset-0 bg-slate-900 animate-pulse" />}
@@ -220,7 +253,7 @@ function AdvancedHeroSlider({
       className="relative overflow-hidden rounded-2xl"
       style={{ aspectRatio: `${size.width} / ${size.height}`, height: width > 0 ? size.height * scale : undefined }}
     >
-      <AdvancedSlide slide={slide} device={device} size={size} scale={scale} />
+      <AdvancedSlide slide={slide} device={device} size={size} scale={scale} lazyLoad={settings?.lazy_load_images ?? true} />
       <HeroControls
         count={slides.length}
         current={current}
@@ -278,7 +311,7 @@ function useHeroDevice(): HeroDevice {
   return device;
 }
 
-function AdvancedSlide({ slide, device, size, scale }: { slide: HeroSlide; device: HeroDevice; size: { width: number; height: number }; scale: number }) {
+function AdvancedSlide({ slide, device, size, scale, lazyLoad }: { slide: HeroSlide; device: HeroDevice; size: { width: number; height: number }; scale: number; lazyLoad: boolean }) {
   return (
     <div
       className="absolute left-0 top-0 origin-top-left overflow-hidden"
@@ -296,12 +329,12 @@ function AdvancedSlide({ slide, device, size, scale }: { slide: HeroSlide; devic
       {slide.elements
         .filter((element) => !element.hidden)
         .sort((a, b) => a.z_index - b.z_index)
-        .map((element) => <AdvancedElement key={`${element.id}-${element.z_index}`} element={element} device={device} />)}
+        .map((element) => <AdvancedElement key={`${element.id}-${element.z_index}`} element={element} device={device} lazyLoad={lazyLoad} />)}
     </div>
   );
 }
 
-function AdvancedElement({ element, device }: { element: HeroSlideElement; device: HeroDevice }) {
+function AdvancedElement({ element, device, lazyLoad }: { element: HeroSlideElement; device: HeroDevice; lazyLoad: boolean }) {
   const box = element.responsive?.[device] ?? element.responsive?.desktop;
   if (!box) return null;
   const style = element.style ?? {};
@@ -314,12 +347,13 @@ function AdvancedElement({ element, device }: { element: HeroSlideElement; devic
     opacity: Number(style.opacity ?? 1),
     transform: `rotate(${box.rotation ?? 0}deg)`,
   };
+  const wrap = (node: React.ReactNode) => wrapHeroElement(node, element.content.url, element.content.target);
 
   if (element.type === 'image') {
     return element.content.src ? (
       <div className="absolute" style={frame}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={element.content.src} alt={element.content.alt ?? ''} loading="lazy" className="h-full w-full object-cover" style={{ borderRadius: style.borderRadius as number, boxShadow: String(style.boxShadow ?? '') }} />
+        {wrap(<img src={element.content.src} alt={element.content.alt ?? ''} loading={lazyLoad ? 'lazy' : 'eager'} className="h-full w-full" style={{ objectFit: String(style.objectFit ?? 'cover') as React.CSSProperties['objectFit'], borderRadius: style.borderRadius as number, boxShadow: String(style.boxShadow ?? '') }} />)}
       </div>
     ) : null;
   }
@@ -333,10 +367,25 @@ function AdvancedElement({ element, device }: { element: HeroSlideElement; devic
   }
 
   if (element.type === 'shape') {
-    return <div className="absolute" style={{ ...frame, background: String(style.backgroundColor ?? '#fff'), borderRadius: style.borderRadius as number, border: String(style.border ?? '0 solid transparent'), boxShadow: String(style.boxShadow ?? '') }} />;
+    return (
+      <div className="absolute" style={frame}>
+        {wrap(
+          <span
+            className="block h-full w-full"
+            style={{
+              background: String(style.gradientFill || (style.backgroundColor ?? '#fff')),
+              borderRadius: style.borderRadius as number,
+              border: String(style.border ?? '0 solid transparent'),
+              boxShadow: String(style.boxShadow ?? ''),
+              clipPath: heroShapeClipPath(element.content.shape),
+            }}
+          />
+        )}
+      </div>
+    );
   }
 
-  return (
+  return wrap(
     <div
       className="absolute overflow-hidden"
       style={{
@@ -348,11 +397,68 @@ function AdvancedElement({ element, device }: { element: HeroSlideElement; devic
         lineHeight: Number(style.lineHeight ?? 1.2),
         letterSpacing: Number(style.letterSpacing ?? 0),
         textAlign: style.textAlign as 'left' | 'center' | 'right',
+        textShadow: String(style.textShadow ?? ''),
       }}
     >
       {element.content.text}
     </div>
   );
+}
+
+function wrapHeroElement(node: React.ReactNode, href?: string, target?: string) {
+  if (!href) return node;
+  const external = /^https?:\/\//i.test(href);
+  const className = "block h-full w-full";
+
+  if (external) {
+    return (
+      <a href={href} target={target || '_self'} rel={target === '_blank' ? 'noopener noreferrer' : undefined} className={className}>
+        {node}
+      </a>
+    );
+  }
+
+  return (
+    <Link href={href} target={target || '_self'} className={className}>
+      {node}
+    </Link>
+  );
+}
+
+function heroShapeClipPath(shape?: string) {
+  switch (shape) {
+    case 'circle':
+    case 'oval':
+      return 'ellipse(50% 50% at 50% 50%)';
+    case 'triangle':
+      return 'polygon(50% 0%, 0% 100%, 100% 100%)';
+    case 'diamond':
+      return 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)';
+    case 'pentagon':
+      return 'polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%)';
+    case 'hexagon':
+      return 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)';
+    case 'octagon':
+      return 'polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%)';
+    case 'star':
+      return 'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 92%, 50% 70%, 21% 92%, 32% 57%, 2% 35%, 39% 35%)';
+    case 'arrow':
+      return 'polygon(0% 35%, 60% 35%, 60% 15%, 100% 50%, 60% 85%, 60% 65%, 0% 65%)';
+    case 'double-arrow':
+      return 'polygon(0% 50%, 25% 15%, 25% 35%, 75% 35%, 75% 15%, 100% 50%, 75% 85%, 75% 65%, 25% 65%, 25% 85%)';
+    case 'heart':
+      return 'polygon(50% 90%, 8% 48%, 8% 22%, 28% 8%, 50% 28%, 72% 8%, 92% 22%, 92% 48%)';
+    case 'lightning':
+      return 'polygon(58% 0%, 18% 55%, 46% 55%, 35% 100%, 82% 38%, 54% 38%)';
+    case 'plus':
+      return 'polygon(35% 0%, 65% 0%, 65% 35%, 100% 35%, 100% 65%, 65% 65%, 65% 100%, 35% 100%, 35% 65%, 0% 65%, 0% 35%, 35% 35%)';
+    case 'minus':
+      return 'polygon(0% 35%, 100% 35%, 100% 65%, 0% 65%)';
+    case 'cross':
+      return 'polygon(20% 0%, 50% 30%, 80% 0%, 100% 20%, 70% 50%, 100% 80%, 80% 100%, 50% 70%, 20% 100%, 0% 80%, 30% 50%, 0% 20%)';
+    default:
+      return undefined;
+  }
 }
 
 function FlashSaleTimer({ endsAt }: { endsAt: string }) {
