@@ -164,14 +164,7 @@ export default function CategoryDetailPage({ params }: { params: Promise<{ slug:
 
           {!mounted || productsLoading ? (
             <ProductGridSkeleton count={8} />
-          ) : products.length === 0 ? (
-            <div className="text-center py-16">
-              <p className="text-muted-foreground mb-4">No products in this category yet.</p>
-              <Link href="/shop" className="text-primary hover:underline">
-                Browse All Products
-              </Link>
-            </div>
-          ) : (
+          ) : products.length > 0 ? (
             <>
               <p className="text-sm text-muted-foreground mb-6">
                 {pagination?.total ?? products.length} products in {category.name}
@@ -218,7 +211,7 @@ export default function CategoryDetailPage({ params }: { params: Promise<{ slug:
                 </nav>
               ) : null}
             </>
-          )}
+          ) : null}
         </div>
       </main>
       <Footer />

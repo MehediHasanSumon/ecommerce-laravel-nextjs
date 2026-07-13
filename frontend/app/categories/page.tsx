@@ -178,14 +178,7 @@ function CategoriesPageContent() {
               </nav>
             ) : null}
           </>
-        ) : (
-          <div className="rounded-2xl border border-border bg-card p-8 text-center">
-            <p className="font-semibold">No categories available</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Add active categories from the admin panel to populate this page.
-            </p>
-          </div>
-        )}
+        ) : null}
       </main>
       <Footer />
     </div>

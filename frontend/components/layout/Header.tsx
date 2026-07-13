@@ -337,6 +337,10 @@ function CategoryDropdown({
   onClose: () => void;
   className?: string;
 }) {
+  if (categories.length === 0) {
+    return null;
+  }
+
   return (
     <div
       className={cn(
@@ -347,47 +351,43 @@ function CategoryDropdown({
       aria-label="Category navigation"
     >
       <div className="max-h-[70vh] overflow-y-auto p-4">
-        {categories.length ? (
-          <div className="grid gap-4 lg:grid-cols-3">
-            {categories.map((category) => (
-              <div key={category.id} className="min-w-0 rounded-lg bg-muted/40 p-3">
-                <Link
-                  href={`/categories/${category.slug}`}
-                  onClick={onClose}
-                  role="menuitem"
-                  className="group flex items-center justify-between gap-3 rounded-md px-2 py-2 transition-colors hover:bg-background"
-                >
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm font-bold group-hover:text-primary">
-                      {category.name}
-                    </span>
-                  <span className="text-xs text-muted-foreground">
-                      {category.product_count} products
-                    </span>
+        <div className="grid gap-4 lg:grid-cols-3">
+          {categories.map((category) => (
+            <div key={category.id} className="min-w-0 rounded-lg bg-muted/40 p-3">
+              <Link
+                href={`/categories/${category.slug}`}
+                onClick={onClose}
+                role="menuitem"
+                className="group flex items-center justify-between gap-3 rounded-md px-2 py-2 transition-colors hover:bg-background"
+              >
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-bold group-hover:text-primary">
+                    {category.name}
                   </span>
-                  <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                </Link>
-                {category.children.length ? (
-                  <div className="mt-2 grid gap-1">
-                    {category.children.map((child) => (
-                      <Link
-                        key={child.id}
-                        href={`/categories/${child.slug}`}
-                        onClick={onClose}
-                        role="menuitem"
-                        className="truncate rounded-md px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-background hover:text-primary"
-                      >
-                        {child.name}
-                      </Link>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="px-2 py-4 text-sm text-muted-foreground">No categories available.</p>
-        )}
+                  <span className="text-xs text-muted-foreground">
+                    {category.product_count} products
+                  </span>
+                </span>
+                <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              </Link>
+              {category.children.length ? (
+                <div className="mt-2 grid gap-1">
+                  {category.children.map((child) => (
+                    <Link
+                      key={child.id}
+                      href={`/categories/${child.slug}`}
+                      onClick={onClose}
+                      role="menuitem"
+                      className="truncate rounded-md px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-background hover:text-primary"
+                    >
+                      {child.name}
+                    </Link>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -400,37 +400,37 @@ function MobileCategoryLinks({
   categories: RuntimeCategory[];
   onNavigate: () => void;
 }) {
+  if (categories.length === 0) {
+    return null;
+  }
+
   return (
     <div className="space-y-1 rounded-xl bg-muted/40 p-2">
-      {categories.length ? (
-        categories.map((category) => (
-          <div key={category.id}>
-            <Link
-              href={`/categories/${category.slug}`}
-              onClick={onNavigate}
-              className="block truncate rounded-lg px-3 py-2 text-sm font-semibold transition-colors hover:bg-background"
-            >
-              {category.name}
-            </Link>
-            {category.children.length ? (
-              <div className="ml-3 border-l border-border pl-2">
-                {category.children.map((child) => (
-                  <Link
-                    key={child.id}
-                    href={`/categories/${child.slug}`}
-                    onClick={onNavigate}
-                    className="block truncate rounded-lg px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-background hover:text-primary"
-                  >
-                    {child.name}
-                  </Link>
-                ))}
-              </div>
-            ) : null}
-          </div>
-        ))
-      ) : (
-        <p className="px-3 py-2 text-sm text-muted-foreground">No categories available.</p>
-      )}
+      {categories.map((category) => (
+        <div key={category.id}>
+          <Link
+            href={`/categories/${category.slug}`}
+            onClick={onNavigate}
+            className="block truncate rounded-lg px-3 py-2 text-sm font-semibold transition-colors hover:bg-background"
+          >
+            {category.name}
+          </Link>
+          {category.children.length ? (
+            <div className="ml-3 border-l border-border pl-2">
+              {category.children.map((child) => (
+                <Link
+                  key={child.id}
+                  href={`/categories/${child.slug}`}
+                  onClick={onNavigate}
+                  className="block truncate rounded-lg px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-background hover:text-primary"
+                >
+                  {child.name}
+                </Link>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ))}
     </div>
   );
 }
@@ -704,7 +704,7 @@ export function Header() {
               ) : null}
               {!isSettingsLoading && navLinks.map((link) => {
                 const isCategoriesLink = 'module' in link && link.module === 'categories' || link.href === '/categories';
-                if (isCategoriesLink && categoryDisplay.navbar_dropdown_enabled) {
+                if (isCategoriesLink && categoryDisplay.navbar_dropdown_enabled && navbarCategories.length > 0) {
                   return (
                     <div
                       key={`${link.href}-${link.label}`}
@@ -949,7 +949,7 @@ export function Header() {
               <nav className="space-y-1">
                 {navLinks.map((link) => {
                   const isCategoriesLink = 'module' in link && link.module === 'categories' || link.href === '/categories';
-                  if (isCategoriesLink && categoryDisplay.navbar_dropdown_enabled) {
+                  if (isCategoriesLink && categoryDisplay.navbar_dropdown_enabled && navbarCategories.length > 0) {
                     return (
                       <div key={`${link.href}-${link.label}`} className="space-y-2">
                         <p className="px-4 py-2 font-medium">{link.label}</p>

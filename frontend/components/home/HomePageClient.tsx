@@ -553,11 +553,7 @@ function HomeCollectionSection({
             <ProductCard key={p.id} product={p} />
           ))}
         </div>
-      ) : (
-        <div className="rounded-2xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
-          No products available right now.
-        </div>
-      )}
+      ) : null}
     </section>
   );
 }
@@ -584,7 +580,8 @@ export default function HomePage() {
   );
   const showHomeCategories =
     categoryDisplay.enable_home_category_section &&
-    categoryDisplay.home_category_variant !== 'hidden';
+    categoryDisplay.home_category_variant !== 'hidden' &&
+    (settingsLoading || homeCategories.length > 0);
 
   useEffect(() => {
     setMounted(true);
@@ -619,6 +616,10 @@ export default function HomePage() {
   const homeBlogsLoading = homeLoading;
   const homeReviews = homeData?.sections.reviews.items ?? [];
   const homeReviewsLoading = homeLoading && showHomeTestimonials;
+  const shouldShowTopBrands = showHomeBrands && (homeLoading || topBrands.length > 0);
+  const shouldShowHomeProducts = showHomeProducts && (homeLoading || homeProducts.length > 0);
+  const shouldShowHomeReviews = showHomeTestimonials && (homeReviewsLoading || homeReviews.length > 0);
+  const shouldShowHomeBlogs = homeBlogsLoading || (homeBlogsEnabled && homeBlogs.length > 0);
   const renderCollections = (anchor: string, placement: 'before' | 'after') =>
     homeCollections
       .filter((entry) => entry.collection.displayPositionAnchor === anchor && entry.collection.displayPositionPlacement === placement)
@@ -726,7 +727,7 @@ export default function HomePage() {
         {renderCollections('promo_banners', 'after')}
 
         {renderCollections('top_brands', 'before')}
-        {showHomeBrands ? (
+        {shouldShowTopBrands ? (
           <section className="py-10">
             <SectionHeader
               title="Top Brands"
@@ -757,18 +758,13 @@ export default function HomePage() {
                 </Link>
               ))}
             </div>
-            {!homeLoading && topBrands.length === 0 && (
-              <div className="mt-4 rounded-2xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
-                No brands available right now.
-              </div>
-            )}
           </section>
         ) : null}
         {renderCollections('top_brands', 'after')}
 
         {renderCollections('products', 'before')}
         {/* Products */}
-        {showHomeProducts ? (
+        {shouldShowHomeProducts ? (
         <section className="py-10">
           <SectionHeader
             title="Products"
@@ -793,18 +789,14 @@ export default function HomePage() {
                 </Link>
               </div>
             </>
-          ) : (
-            <div className="rounded-2xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
-              No products available right now.
-            </div>
-          )}
+          ) : null}
         </section>
         ) : null}
         {renderCollections('products', 'after')}
 
         {renderCollections('reviews', 'before')}
         {/* Reviews */}
-        {showHomeTestimonials ? (
+        {shouldShowHomeReviews ? (
         <section className="py-10">
           <SectionHeader
             title="What Our Customers Say"
@@ -817,10 +809,6 @@ export default function HomePage() {
               {Array.from({ length: 3 }).map((_, index) => (
                 <div key={index} className="h-56 animate-pulse rounded-2xl bg-muted" />
               ))}
-            </div>
-          ) : homeReviews.length === 0 ? (
-            <div className="rounded-2xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
-              No customer reviews available right now.
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -879,7 +867,7 @@ export default function HomePage() {
         {renderCollections('reviews', 'after')}
 
         {renderCollections('blog', 'before')}
-        {homeBlogsEnabled || homeBlogsLoading ? (
+        {shouldShowHomeBlogs ? (
           <section className="py-10">
             <SectionHeader
               title="From Our Blog"

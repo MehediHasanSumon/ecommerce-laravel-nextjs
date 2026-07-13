@@ -43,6 +43,8 @@ export default function BrandsPage() {
 
   const featuredBrands = data?.featured ?? [];
   const brands = data?.items ?? [];
+  const showFeaturedBrands = !mounted || loading || featuredBrands.length > 0;
+  const showBrands = !mounted || loading || brands.length > 0;
 
   if (mounted && !settingsPending && !brandsEnabled) {
     return (
@@ -81,6 +83,7 @@ export default function BrandsPage() {
         </div>
 
         {/* Featured Brands */}
+        {showFeaturedBrands ? (
         <section className="mb-12">
           <h2 className="text-lg font-bold mb-5">Featured Brands</h2>
           {!mounted || loading ? (
@@ -114,14 +117,12 @@ export default function BrandsPage() {
                 </Link>
               ))}
             </div>
-          ) : (
-            <div className="rounded-2xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
-              No featured brands available right now.
-            </div>
-          )}
+          ) : null}
         </section>
+        ) : null}
 
         {/* All Brands Grid */}
+        {showBrands ? (
         <section>
           <h2 className="text-lg font-bold mb-5">All Brands</h2>
           {!mounted || loading ? (
@@ -152,12 +153,9 @@ export default function BrandsPage() {
               </Link>
               ))}
             </div>
-          ) : (
-            <div className="rounded-2xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
-              No brands available right now.
-            </div>
-          )}
+          ) : null}
         </section>
+        ) : null}
       </main>
       <Footer />
     </div>

@@ -41,7 +41,6 @@ function CollectionHero({ data }: { data: CollectionDetailResponse }) {
       <div className="inline-flex items-center gap-2 bg-white/20 text-white rounded-full px-4 py-1.5 text-sm font-semibold mb-4">
         <Icon size={14} className={isFlash ? 'fill-white' : ''} /> {collection.promotionalText ?? collection.title}
       </div>
-      <h1 className="text-4xl font-extrabold text-white mb-2">{isFlash ? 'Mega Flash Sale' : collection.title}</h1>
       <p className="text-white/80">{collection.description || collection.subtitle}</p>
       {isFlash && collection.endsAt ? (
         <div className="mt-8 flex items-center justify-center gap-4">
@@ -185,12 +184,7 @@ export function CollectionPageContent({ slug }: { slug: string }) {
             <span className="text-foreground font-medium">{data?.collection.title ?? 'Collection'}</span>
           </nav>
 
-          {data?.collection.startsAt && data.collection.endsAt && !loading ? (
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold">{data.products.length} products on sale</h2>
-            </div>
-          ) : null}
-
+          
           {!mounted || loading ? (
             <ProductGridSkeleton count={8} />
           ) : data && data.products.length > 0 ? (
@@ -199,11 +193,7 @@ export function CollectionPageContent({ slug }: { slug: string }) {
                 <ProductCard key={p.id} product={p} />
               ))}
             </div>
-          ) : (
-            <div className="rounded-2xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
-              No products available in this collection right now.
-            </div>
-          )}
+          ) : null}
 
           {!loading && data && data.pagination.last_page > 1 ? (
             <nav className="mt-8 flex flex-wrap items-center justify-center gap-2" aria-label="Collection pagination">

@@ -178,14 +178,7 @@ export default function BrandDetailPage({ params }: { params: Promise<{ slug: st
 
           {!mounted ? (
             <ProductGridSkeleton count={8} />
-          ) : products.length === 0 ? (
-            <div className="text-center py-16">
-              <p className="text-muted-foreground mb-4">No products from this brand yet.</p>
-              <Link href="/shop" className="text-primary hover:underline">
-                Browse All Products
-              </Link>
-            </div>
-          ) : (
+          ) : products.length > 0 ? (
             <>
               <p className="text-sm text-muted-foreground mb-6">
                 {pagination?.total ?? products.length} products from {brand.name}
@@ -232,7 +225,7 @@ export default function BrandDetailPage({ params }: { params: Promise<{ slug: st
                 </nav>
               ) : null}
             </>
-          )}
+          ) : null}
         </div>
       </main>
       <Footer />
