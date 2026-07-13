@@ -26,6 +26,7 @@ return Application::configure(basePath: dirname(__DIR__))
         'middleware' => ['api', 'auth.cookie:access', 'throttle:public-settings'],
     ])
     ->withCommands([
+        App\Console\Commands\ImportDemoAssets::class,
         App\Console\Commands\ImportProductImages::class,
         App\Console\Commands\SyncCollectionSchedules::class,
     ])

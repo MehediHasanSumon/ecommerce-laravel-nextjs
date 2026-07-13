@@ -87,3 +87,5 @@ frontend/.vercel/
 *.tsbuildinfo
 /LuxaCart/*
 /images/*
+products.txt
+/output_folder/*
