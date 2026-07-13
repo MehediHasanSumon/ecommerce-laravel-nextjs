@@ -850,7 +850,7 @@ function CanvasStage({
   const stageRef = useRef<HTMLDivElement>(null);
   const snap = (value: number) => snapToGrid ? Math.round(value / 8) * 8 : value;
 
-  function moveElement(target: HeroSlideElement, start: PointerEvent<HTMLElement>, mode: "move" | "resize") {
+  function moveElement(target: HeroSlideElement, start: PointerEvent<HTMLElement>, mode: "move" | "resize" | "rotate") {
     if (target.locked) return;
     start.preventDefault();
     const activeZ = mode === "move" && selected.includes(target.z_index) ? selected : [target.z_index];
@@ -860,6 +860,25 @@ function CanvasStage({
     const startY = start.clientY;
 
     const move = (event: globalThis.PointerEvent) => {
+      if (mode === "rotate") {
+        const rect = stageRef.current?.getBoundingClientRect();
+        if (!rect) return;
+        const centerX = rect.left + (origin.x + origin.width / 2) * scale;
+        const centerY = rect.top + (origin.y + origin.height / 2) * scale;
+        const radians = Math.atan2(event.clientY - centerY, event.clientX - centerX);
+        let rotation = Math.round((radians * 180) / Math.PI + 90);
+        if (event.shiftKey) rotation = Math.round(rotation / 15) * 15;
+        onChange({
+          ...slide,
+          elements: slide.elements.map((element) => (
+            element === target
+              ? { ...element, responsive: { ...element.responsive, [device]: { ...origin, rotation } } }
+              : element
+          )),
+        });
+        return;
+      }
+
       const dx = Math.round((event.clientX - startX) / scale);
       const dy = Math.round((event.clientY - startY) / scale);
       const nextTargetBox = mode === "move"
@@ -939,15 +958,30 @@ function CanvasStage({
               >
                 <CanvasElement element={element} />
                 {selected.includes(element.z_index) && selected.length === 1 && !element.locked && !previewMode ? (
-                  <button
-                    type="button"
-                    aria-label="Resize element"
-                    className="absolute -bottom-1.5 -right-1.5 h-3 w-3 rounded-full bg-primary"
-                    onPointerDown={(event) => {
-                      event.stopPropagation();
-                      moveElement(element, event, "resize");
-                    }}
-                  />
+                  <>
+                    <span className="pointer-events-none absolute left-1/2 top-[-34px] h-8 w-px -translate-x-1/2 bg-primary/70" />
+                    <button
+                      type="button"
+                      aria-label="Rotate element"
+                      title="Drag to rotate. Hold Shift for 15 degree snapping."
+                      className="absolute left-1/2 top-[-46px] flex h-5 w-5 -translate-x-1/2 items-center justify-center rounded-full border border-primary bg-background text-[10px] text-primary shadow-sm"
+                      onPointerDown={(event) => {
+                        event.stopPropagation();
+                        moveElement(element, event, "rotate");
+                      }}
+                    >
+                      ↻
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Resize element"
+                      className="absolute -bottom-1.5 -right-1.5 h-3 w-3 rounded-full bg-primary"
+                      onPointerDown={(event) => {
+                        event.stopPropagation();
+                        moveElement(element, event, "resize");
+                      }}
+                    />
+                  </>
                 ) : null}
               </div>
             );
