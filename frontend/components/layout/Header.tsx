@@ -30,7 +30,6 @@ import { useNotificationStore } from '@/store/notification-store';
 import {
   selectBranding,
   selectBlogSettings,
-  selectBrandsEnabled,
   selectCategoryDisplaySettings,
   selectCurrencyFingerprint,
   selectFrontendNavigation,
@@ -190,7 +189,6 @@ function ThemeToggle() {
 
 function SearchOverlay({ onClose }: { onClose: () => void }) {
   const [query, setQuery] = useState('');
-  const brandsEnabled = useSettingsStore(selectBrandsEnabled);
   const [results, setResults] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
@@ -252,12 +250,12 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="max-w-3xl mx-auto px-4 py-4">
-          <div className="flex items-center gap-3 rounded-xl bg-muted px-4 py-3 ring-1 ring-transparent transition focus-within:bg-background focus-within:ring-primary/20">
+          <div className="flex items-center gap-3 rounded-xl border border-border bg-background px-4 py-3 shadow-sm transition focus-within:border-primary focus-within:ring-2 focus-within:ring-ring/15">
             <Search size={20} className="text-muted-foreground shrink-0" />
             <input
               ref={inputRef}
               type="text"
-              placeholder={brandsEnabled ? "Search products, brands, categories..." : "Search products and categories..."}
+              placeholder="Search..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className="min-w-0 flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground focus-visible:shadow-none"
@@ -759,10 +757,10 @@ export function Header() {
             <div className="flex-1 max-w-lg mx-4 hidden md:block">
               <button
                 onClick={() => setIsSearchOpen(true)}
-                className="flex w-full items-center gap-3 rounded-xl bg-muted px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted/80"
+                className="flex w-full items-center gap-3 rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-muted-foreground shadow-sm transition-colors hover:border-primary/50 hover:bg-background"
               >
                 <Search size={16} />
-                <span>Search products...</span>
+                <span>Search...</span>
                 <kbd className="ml-auto text-xs bg-background border border-border rounded px-1.5 py-0.5">
                   ⌘K
                 </kbd>
@@ -940,7 +938,7 @@ export function Header() {
                     setIsSearchOpen(true);
                     setIsMobileMenuOpen(false);
                   }}
-                  className="flex w-full items-center gap-3 rounded-xl bg-muted px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted/80"
+                  className="flex w-full items-center gap-3 rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-muted-foreground shadow-sm transition-colors hover:border-primary/50 hover:bg-background"
                 >
                   <Search size={16} />
                   <span>Search...</span>

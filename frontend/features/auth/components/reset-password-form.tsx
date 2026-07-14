@@ -68,10 +68,10 @@ export function ResetPasswordForm() {
             {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
         }
-        placeholder="Create a strong password"
+        placeholder="Enter password"
         {...form.register("password")}
       />
-      <Input label="Confirm password" type={showPassword ? "text" : "password"} autoComplete="new-password" disabled={isLoading} error={form.formState.errors.password_confirmation?.message} leftIcon={<Lock className="h-4 w-4" />} placeholder="Confirm your password" {...form.register("password_confirmation")} />
+      <Input label="Confirm password" type={showPassword ? "text" : "password"} autoComplete="new-password" disabled={isLoading} error={form.formState.errors.password_confirmation?.message} leftIcon={<Lock className="h-4 w-4" />} placeholder="Confirm password" {...form.register("password_confirmation")} />
       <Button className="w-full" type="submit" isLoading={isLoading}>
         Reset password
       </Button>

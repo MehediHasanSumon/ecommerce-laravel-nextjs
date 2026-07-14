@@ -132,8 +132,8 @@ export function AdminDashboardContent() {
           </Select>
           {showCustom ? (
             <>
-              <DatePicker value={dateFrom} placeholder="From" onChange={setDateFrom} />
-              <DatePicker value={dateTo} placeholder="To" onChange={setDateTo} />
+              <DatePicker value={dateFrom} placeholder="Select date" onChange={setDateFrom} />
+              <DatePicker value={dateTo} placeholder="Select date" onChange={setDateTo} />
             </>
           ) : null}
           <Button variant="secondary" size="sm" isLoading={refreshing} icon={<RefreshCw className="h-4 w-4" />} onClick={() => void load(true)}>Refresh</Button>

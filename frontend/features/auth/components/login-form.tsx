@@ -90,7 +90,7 @@ export function LoginForm() {
         disabled={isLoading}
         error={form.formState.errors.email?.message}
         leftIcon={<Mail className="h-4 w-4" />}
-        placeholder="john@example.com"
+        placeholder="Enter email"
         {...form.register("email")}
       />
 
@@ -112,7 +112,7 @@ export function LoginForm() {
               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           }
-          placeholder="Enter your password"
+          placeholder="Enter password"
           {...form.register("password")}
         />
         <div className="mt-2 text-right">

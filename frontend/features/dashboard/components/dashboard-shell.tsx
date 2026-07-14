@@ -737,7 +737,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
 
             <div className="hidden max-w-xs flex-1 items-center gap-2 rounded-xl border border-border bg-muted/60 px-3 py-2 xl:flex">
               <Search className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">Search admin...</span>
+              <span className="text-sm text-muted-foreground">Search...</span>
             </div>
 
             <div className="flex items-center gap-2">

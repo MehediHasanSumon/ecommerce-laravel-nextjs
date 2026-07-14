@@ -170,7 +170,7 @@ export function HomePageSettingsContent() {
                 label="Announcement Text"
                 value={form.home.announcement_text}
                 onChange={(event) => setForm((current) => ({ ...current, home: { ...current.home, announcement_text: event.target.value } }))}
-                helper="Example: Free shipping on orders over ৳75.00! Limited time offer."
+                helper="Enter announcement text for the storefront."
               />
               <TextInput
                 label="Link Text"

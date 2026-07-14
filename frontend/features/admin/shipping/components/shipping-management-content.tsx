@@ -190,7 +190,7 @@ function ManagementPage<T extends { id: number }>({ title, description, createLa
           <form className="flex min-w-0 flex-1 gap-2" onSubmit={(event) => { event.preventDefault(); onSearch(searchInput); }}>
             <div className="relative min-w-0 flex-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Search records..." className="h-10 w-full rounded-lg border border-border bg-background pl-9 pr-3 text-sm outline-none transition focus:border-primary" />
+              <input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Search..." className="h-10 w-full rounded-lg border border-border bg-background pl-9 pr-3 text-sm outline-none transition focus:border-primary" />
             </div>
             <Button size="sm" type="submit">Search</Button>
           </form>

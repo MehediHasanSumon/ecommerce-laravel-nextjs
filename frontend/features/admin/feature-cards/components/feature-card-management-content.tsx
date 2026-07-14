@@ -350,7 +350,7 @@ function FeatureCardCrudContent() {
                 value={searchInput}
                 onChange={(event) => setSearchInput(event.target.value)}
                 onKeyDown={(event) => event.key === "Enter" && setQuery((current) => ({ ...current, page: 1, search: searchInput }))}
-                placeholder="Search feature cards..."
+                placeholder="Search..."
                 className="h-9 min-w-0 flex-1 bg-transparent text-sm outline-none"
               />
             </div>
@@ -525,7 +525,7 @@ function FeatureCardCrudContent() {
                 maxLength={120}
                 error={errors.title}
                 onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
-                placeholder="Free Shipping"
+                placeholder="Enter title"
               />
               <label className="flex items-center justify-between gap-3 rounded-xl bg-muted px-4 py-3">
                 <span>
@@ -546,7 +546,7 @@ function FeatureCardCrudContent() {
                   maxLength={255}
                   onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))}
                   className={cn("min-h-28 w-full rounded-xl border border-transparent bg-muted px-4 py-3 text-sm focus:border-primary focus:bg-background", errors.description && "border-destructive")}
-                  placeholder="On qualifying orders"
+                  placeholder="Enter description"
                 />
                 {errors.description ? <p className="text-sm text-destructive">{errors.description}</p> : null}
               </label>
@@ -714,7 +714,7 @@ function IconPicker({ value, error, onChange }: { value: string; error?: string;
           value={value}
           onChange={(event) => onChange(event.target.value)}
           className={cn("h-11 w-full rounded-xl border border-transparent bg-muted pl-9 pr-3 text-sm focus:border-primary focus:bg-background", error && "border-destructive")}
-          placeholder="Lucide icon name"
+          placeholder="Enter icon name"
         />
       </div>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}

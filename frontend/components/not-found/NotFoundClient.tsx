@@ -67,7 +67,7 @@ export default function NotFoundClient() {
                   type="search"
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Search products, categories or pages..."
+                  placeholder="Search..."
                   className="min-w-0 flex-1 bg-transparent px-1 py-2 text-sm outline-none placeholder:text-muted-foreground"
                 />
                 <Button type="submit" size="sm" className="rounded-xl">

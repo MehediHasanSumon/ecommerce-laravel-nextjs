@@ -169,7 +169,7 @@ export function BlogManagementContent() {
                 value={searchInput}
                 onChange={(event) => setSearchInput(event.target.value)}
                 onKeyDown={(event) => event.key === "Enter" && setQuery({ search: searchInput, page: 1 })}
-                placeholder="Search blogs..."
+                placeholder="Search..."
                 className="h-9 min-w-0 flex-1 bg-transparent text-sm outline-none"
               />
             </div>

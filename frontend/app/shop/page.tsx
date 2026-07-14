@@ -259,7 +259,7 @@ function FilterSidebar({
             inputMode="decimal"
             value={query.price_min}
             onChange={(event) => onPatch({ price_min: parsePositiveNumber(event.target.value), page: 1 })}
-            placeholder={`Min ${filters.price.min || 0}`}
+            placeholder="Enter minimum price"
             className="h-10 rounded-xl border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
             aria-label="Minimum price"
           />
@@ -269,7 +269,7 @@ function FilterSidebar({
             inputMode="decimal"
             value={query.price_max}
             onChange={(event) => onPatch({ price_max: parsePositiveNumber(event.target.value), page: 1 })}
-            placeholder={`Max ${filters.price.max || 0}`}
+            placeholder="Enter maximum price"
             className="h-10 rounded-xl border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
             aria-label="Maximum price"
           />
@@ -495,7 +495,7 @@ export default function ShopPage() {
                   type="search"
                   value={searchInput}
                   onChange={(event) => setSearchInput(event.target.value)}
-                  placeholder="Search products..."
+                  placeholder="Search..."
                   className="h-10 w-full rounded-xl border border-border bg-card pl-10 pr-3 text-sm outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-ring/20"
                 />
               </div>

@@ -27,13 +27,16 @@ type AddressForm = CheckoutAddressPayload & {
 const emptyForm: AddressForm = {
   fullName: '',
   phone: '',
+  alternativePhone: '',
   email: '',
-  country: '',
+  country: 'Bangladesh',
   state: '',
   district: '',
   city: '',
   area: '',
   postalCode: '',
+  landmark: '',
+  addressLabel: '',
   addressLine: '',
   isDefaultBilling: false,
   isDefaultShipping: false,
@@ -75,6 +78,7 @@ export default function AddressesPage() {
     setForm({
       fullName: address.fullName,
       phone: address.phone,
+      alternativePhone: address.alternativePhone ?? '',
       email: address.email ?? '',
       country: address.country,
       state: address.state,
@@ -82,6 +86,8 @@ export default function AddressesPage() {
       city: address.city,
       area: address.area ?? '',
       postalCode: address.postalCode ?? '',
+      landmark: address.landmark ?? '',
+      addressLabel: address.addressLabel ?? '',
       addressLine: address.addressLine,
       isDefaultBilling: address.isDefaultBilling,
       isDefaultShipping: address.isDefaultShipping,
@@ -120,6 +126,7 @@ export default function AddressesPage() {
       const saved = await updateAddress(address.id, {
         fullName: address.fullName,
         phone: address.phone,
+        alternativePhone: address.alternativePhone ?? '',
         email: address.email ?? '',
         country: address.country,
         state: address.state,
@@ -127,6 +134,8 @@ export default function AddressesPage() {
         city: address.city,
         area: address.area ?? '',
         postalCode: address.postalCode ?? '',
+        landmark: address.landmark ?? '',
+        addressLabel: address.addressLabel ?? '',
         addressLine: address.addressLine,
         isDefaultBilling: type === 'billing' ? true : address.isDefaultBilling,
         isDefaultShipping: type === 'shipping' ? true : address.isDefaultShipping,
@@ -194,14 +203,16 @@ export default function AddressesPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {[
                     ['fullName', 'Full Name'],
-                    ['phone', 'Phone Number'],
+                    ['phone', 'Mobile Number'],
+                    ['alternativePhone', 'Alternative Phone'],
                     ['email', 'Email'],
-                    ['country', 'Country'],
-                    ['state', 'State / Division'],
+                    ['state', 'Division'],
                     ['district', 'District'],
-                    ['city', 'City'],
-                    ['area', 'Area / Zone'],
-                    ['postalCode', 'Postal Code'],
+                    ['city', 'Upazila / Thana'],
+                    ['area', 'Union / Area'],
+                    ['postalCode', 'Post Code'],
+                    ['addressLabel', 'Address Label'],
+                    ['landmark', 'Landmark'],
                   ].map(([key, label]) => (
                     <label key={key} className="block">
                       <span className="text-xs font-semibold text-muted-foreground">{label}</span>
@@ -209,16 +220,32 @@ export default function AddressesPage() {
                         value={String(form[key as keyof AddressForm] ?? '')}
                         onChange={(event) => setForm((current) => ({ ...current, [key]: event.target.value }))}
                         className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
-                        required={!['email', 'area', 'postalCode'].includes(key)}
+                        placeholder={
+                          {
+                            fullName: 'Enter name',
+                            phone: 'Enter phone number',
+                            alternativePhone: 'Enter phone number',
+                            email: 'Enter email',
+                            state: 'Enter state',
+                            district: 'Enter district',
+                            city: 'Enter city',
+                            area: 'Enter area',
+                            postalCode: 'Enter postal code',
+                            addressLabel: 'Enter address label',
+                            landmark: 'Enter landmark',
+                          }[key] ?? ''
+                        }
+                        required={!['alternativePhone', 'email', 'area', 'postalCode', 'landmark'].includes(key)}
                       />
                     </label>
                   ))}
                   <label className="block md:col-span-2">
-                    <span className="text-xs font-semibold text-muted-foreground">Full Address</span>
+                    <span className="text-xs font-semibold text-muted-foreground">Road / Village / House No.</span>
                     <textarea
                       value={form.addressLine}
                       onChange={(event) => setForm((current) => ({ ...current, addressLine: event.target.value }))}
                       className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+                      placeholder="Enter address"
                       rows={3}
                       required
                     />

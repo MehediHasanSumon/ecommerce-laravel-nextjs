@@ -92,10 +92,10 @@ export default function BlogPostPage() {
                     >
                       {commentSent ? <p className="rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">Comment submitted for moderation.</p> : null}
                       <div className="grid gap-3 sm:grid-cols-2">
-                        <input required placeholder="Name" value={comment.author_name} onChange={(event) => setComment((current) => ({ ...current, author_name: event.target.value }))} className="h-11 rounded-xl border border-border bg-background px-3 text-sm" />
-                        <input required type="email" placeholder="Email" value={comment.author_email} onChange={(event) => setComment((current) => ({ ...current, author_email: event.target.value }))} className="h-11 rounded-xl border border-border bg-background px-3 text-sm" />
+                        <input required placeholder="Enter name" value={comment.author_name} onChange={(event) => setComment((current) => ({ ...current, author_name: event.target.value }))} className="h-11 rounded-xl border border-border bg-background px-3 text-sm" />
+                        <input required type="email" placeholder="Enter email" value={comment.author_email} onChange={(event) => setComment((current) => ({ ...current, author_email: event.target.value }))} className="h-11 rounded-xl border border-border bg-background px-3 text-sm" />
                       </div>
-                      <textarea required placeholder="Comment" value={comment.content} onChange={(event) => setComment((current) => ({ ...current, content: event.target.value }))} className="min-h-28 rounded-xl border border-border bg-background px-3 py-2 text-sm" />
+                      <textarea required placeholder="Enter comment" value={comment.content} onChange={(event) => setComment((current) => ({ ...current, content: event.target.value }))} className="min-h-28 rounded-xl border border-border bg-background px-3 py-2 text-sm" />
                       <button className="inline-flex w-fit items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"><Send size={14} /> Submit Comment</button>
                     </form>
                     <div className="space-y-3">

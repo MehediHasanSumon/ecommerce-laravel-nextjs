@@ -92,7 +92,7 @@ export function Footer() {
 
     if (!value) {
       setMessageType('error');
-      setMessage('Enter your email address.');
+      setMessage('Enter email.');
       return;
     }
 
@@ -215,7 +215,7 @@ export function Footer() {
                 type="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                placeholder="Enter your email address"
+                placeholder="Enter email"
                 disabled={submitting}
                 className="min-w-0 flex-1 rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-foreground transition-colors placeholder:text-muted-foreground focus:border-primary disabled:cursor-not-allowed disabled:opacity-70"
               />

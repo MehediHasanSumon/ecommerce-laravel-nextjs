@@ -41,9 +41,9 @@ export function RegisterForm() {
     <form className="space-y-5" onSubmit={form.handleSubmit(onSubmit)} noValidate>
       {error ? <Alert type="error" message={error} /> : null}
 
-      <Input label="Full name" autoComplete="name" disabled={isLoading} error={form.formState.errors.name?.message} leftIcon={<User className="h-4 w-4" />} placeholder="John Doe" {...form.register("name")} />
+      <Input label="Full name" autoComplete="name" disabled={isLoading} error={form.formState.errors.name?.message} leftIcon={<User className="h-4 w-4" />} placeholder="Enter name" {...form.register("name")} />
 
-      <Input label="Email address" type="email" autoComplete="email" disabled={isLoading} error={form.formState.errors.email?.message} leftIcon={<Mail className="h-4 w-4" />} placeholder="john@example.com" {...form.register("email")} />
+      <Input label="Email address" type="email" autoComplete="email" disabled={isLoading} error={form.formState.errors.email?.message} leftIcon={<Mail className="h-4 w-4" />} placeholder="Enter email" {...form.register("email")} />
 
       <Input
         label="Password"
@@ -57,7 +57,7 @@ export function RegisterForm() {
             {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
         }
-        placeholder="Create a strong password"
+        placeholder="Enter password"
         {...form.register("password")}
       />
 
@@ -77,7 +77,7 @@ export function RegisterForm() {
         </div>
       ) : null}
 
-      <Input label="Confirm password" type={showPassword ? "text" : "password"} autoComplete="new-password" disabled={isLoading} error={form.formState.errors.password_confirmation?.message} leftIcon={<Lock className="h-4 w-4" />} placeholder="Confirm your password" {...form.register("password_confirmation")} />
+      <Input label="Confirm password" type={showPassword ? "text" : "password"} autoComplete="new-password" disabled={isLoading} error={form.formState.errors.password_confirmation?.message} leftIcon={<Lock className="h-4 w-4" />} placeholder="Confirm password" {...form.register("password_confirmation")} />
 
       <Button className="w-full" type="submit" isLoading={isLoading}>
         <span>Create account</span>

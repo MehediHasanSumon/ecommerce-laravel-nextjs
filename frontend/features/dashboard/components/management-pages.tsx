@@ -541,7 +541,7 @@ function RoleForm({
           aria-label="Search permissions"
           className="h-10 rounded-lg"
           leftIcon={<Search className="h-4 w-4" />}
-          placeholder="Search permissions..."
+          placeholder="Search..."
           value={permissionSearch}
           onChange={(event) => setPermissionSearch(event.target.value)}
         />
@@ -707,7 +707,7 @@ function ManagementPage<T extends { id: number }>({
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
               onKeyDown={(event) => event.key === "Enter" && onSearch(searchInput)}
-              placeholder={`Search ${resource}...`}
+              placeholder="Search..."
               className="h-9 min-w-0 flex-1 bg-transparent text-sm"
             />
           </div>

@@ -684,7 +684,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
                       value={reviewComment}
                       onChange={(event) => setReviewComment(event.target.value)}
                       className="min-h-28 w-full resize-y rounded-xl border border-border bg-background px-3 py-3 text-sm outline-none transition-colors focus:border-primary"
-                      placeholder="Write your review"
+                      placeholder="Enter review"
                       minLength={10}
                       maxLength={2000}
                       required

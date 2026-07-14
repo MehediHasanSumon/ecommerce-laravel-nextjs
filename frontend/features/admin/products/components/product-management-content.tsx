@@ -974,7 +974,7 @@ function MultiSelect({ options, values, onChange }: { options: Array<Option & Re
       <div className="flex flex-col gap-2 sm:flex-row">
         <Input
           className="h-9 rounded-lg"
-          placeholder="Search products"
+          placeholder="Search..."
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />
@@ -1388,7 +1388,7 @@ function ManagementPage({
           <form className="flex flex-1 gap-2" onSubmit={(event) => { event.preventDefault(); onSearch(searchInput); }}>
             <div className="relative flex-1">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <input className="h-10 w-full rounded-lg border border-border bg-background pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-ring" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder={`Search ${config.title.toLowerCase()}`} />
+              <input className="h-10 w-full rounded-lg border border-border bg-background pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-ring" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Search..." />
             </div>
             <Button size="sm" type="submit">Search</Button>
             <Button size="sm" type="button" variant="secondary" icon={<Filter className="h-4 w-4" />} onClick={onFilterOpen}>Advanced Filter</Button>

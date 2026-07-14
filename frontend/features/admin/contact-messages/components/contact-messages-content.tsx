@@ -124,14 +124,14 @@ export function ContactMessagesContent() {
                 value={searchInput}
                 onChange={(event) => setSearchInput(event.target.value)}
                 onKeyDown={(event) => event.key === "Enter" && setQuery({ search: searchInput, page: 1 })}
-                placeholder="Search messages..."
+                placeholder="Search..."
                 className="h-9 min-w-0 flex-1 bg-transparent text-sm outline-none"
               />
             </div>
             <Button size="sm" variant="secondary" icon={<Search className="h-4 w-4" />} onClick={() => setQuery({ search: searchInput, page: 1 })}>Search</Button>
             <Select value={query.status || "all"} onValueChange={(value) => setQuery({ status: value === "all" ? "" : value, page: 1 })}>
               <SelectTrigger className="h-9 w-40 rounded-lg px-3 text-sm">
-                <SelectValue placeholder="Status" />
+                <SelectValue placeholder="Select status" />
               </SelectTrigger>
               <SelectContent>
                 {statuses.map((status) => <SelectItem key={status} value={status}>{status === "all" ? "Any status" : statusLabel(status)}</SelectItem>)}

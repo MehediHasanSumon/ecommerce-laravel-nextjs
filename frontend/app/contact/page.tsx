@@ -135,7 +135,7 @@ export default function ContactPage() {
                   type="text"
                   value={form.phone}
                   onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-                  placeholder="Enter phone"
+                  placeholder="Enter phone number"
                   className="w-full px-4 py-3 bg-muted border border-transparent rounded-xl text-sm focus:border-primary focus:bg-background outline-none transition-colors"
                 />
               </div>

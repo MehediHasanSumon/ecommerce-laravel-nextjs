@@ -2,7 +2,6 @@
 
 import { createAuthAwareClient } from "@/lib/api-client";
 import type { ApiEnvelope } from "@/features/admin/shared/types";
-import axios from "axios";
 
 const apiBaseUrl = (
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/auth"
@@ -31,6 +30,9 @@ export type CustomerAddress = {
   city: string;
   area?: string | null;
   postalCode?: string | null;
+  alternativePhone?: string | null;
+  landmark?: string | null;
+  addressLabel?: string | null;
   addressLine: string;
   isDefaultBilling: boolean;
   isDefaultShipping: boolean;
@@ -55,6 +57,9 @@ export type CheckoutAddressPayload = {
   city: string;
   area?: string;
   postalCode?: string;
+  alternativePhone?: string;
+  landmark?: string;
+  addressLabel?: string;
   addressLine: string;
 };
 
@@ -83,11 +88,8 @@ export type PlaceOrderResponse = {
 };
 
 export async function fetchAddresses(): Promise<CustomerAddress[]> {
-  const response = await axios.get<ApiEnvelope<{ items: CustomerAddress[] }>>(`${apiBaseUrl}/addresses`, {
-    withCredentials: true,
+  const response = await client.get<ApiEnvelope<{ items: CustomerAddress[] }>>("/addresses", {
     headers: {
-      Accept: "application/json",
-      "X-Requested-With": "XMLHttpRequest",
       ...checkoutHeaders(),
     },
     validateStatus: (status) => (status >= 200 && status < 300) || status === 401,

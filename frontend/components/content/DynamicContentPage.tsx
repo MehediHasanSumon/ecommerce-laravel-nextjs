@@ -231,7 +231,7 @@ function FaqContent({ page }: { page: ContentPage }) {
         </div>
         <div className="relative mb-8">
           <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input type="text" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search FAQs..." className="w-full rounded-2xl border border-transparent bg-muted py-3.5 pl-12 pr-4 text-sm outline-none transition-colors focus:border-primary focus:bg-background" />
+          <input type="text" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search..." className="w-full rounded-2xl border border-transparent bg-muted py-3.5 pl-12 pr-4 text-sm outline-none transition-colors focus:border-primary focus:bg-background" />
         </div>
         <div className="mb-8 flex gap-2 overflow-x-auto pb-2">
           {categories.map((category) => (

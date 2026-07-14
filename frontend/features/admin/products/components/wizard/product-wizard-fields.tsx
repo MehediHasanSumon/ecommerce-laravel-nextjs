@@ -175,7 +175,7 @@ export function MultiSelectField({
               }
               setLocalSearch(event.target.value);
             }}
-            placeholder={`Search ${title.toLowerCase()}`}
+            placeholder="Search..."
           />
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex gap-2">
@@ -282,7 +282,7 @@ export function TagInputField({
           <input
             className="min-w-40 flex-1 bg-transparent py-1 text-sm outline-none placeholder:text-muted-foreground focus-visible:shadow-none"
             value={input}
-            placeholder={values.length ? "Add more tags" : "Type tags, separate with comma"}
+            placeholder="Enter tags"
             onChange={(event) => {
               const next = event.target.value;
               if (next.includes(",")) {

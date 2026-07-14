@@ -26,6 +26,7 @@ class CheckoutService
         private readonly PaymentGatewayManager $payments,
         private readonly OrderService $orders,
         private readonly ShippingZoneMatcher $shippingZones,
+        private readonly CustomerAddressService $customerAddresses,
     ) {}
 
     public function place(Request $request, array $payload): array
@@ -177,7 +178,7 @@ class CheckoutService
         $id = $payload[$type.'_address_id'] ?? null;
         if ($id) {
             $address = CustomerAddress::query()->where('user_id', $request->user()?->id)->findOrFail($id);
-            return AddressData::normalize($address->toArray());
+            return AddressData::snapshot(AddressData::normalize($address->toArray()));
         }
 
         $data = AddressData::normalize((array) ($payload[$type.'_address'] ?? []));
@@ -187,7 +188,13 @@ class CheckoutService
             }
         }
 
-        return $data;
+        if ($request->user()) {
+            $address = $this->customerAddresses->createOrReuse($request->user(), $data);
+
+            return AddressData::snapshot(AddressData::normalize($address->toArray()));
+        }
+
+        return AddressData::snapshot($data);
     }
 
     private function summary(Cart $cart, ShippingMethod $shippingMethod): array

@@ -253,7 +253,7 @@ export function VariantSection({ form, options }: SectionProps) {
             className="h-10 w-full rounded-lg border border-border bg-muted px-3 text-sm outline-none transition focus:border-primary focus:bg-background"
             value={attributeSearch}
             onChange={(event) => setAttributeSearch(event.target.value)}
-            placeholder="Search attribute values"
+            placeholder="Search..."
           />
         </div>
         <div className="max-h-80 space-y-4 overflow-y-auto p-3">
@@ -301,11 +301,11 @@ export function VariantSection({ form, options }: SectionProps) {
             {openVariantIds.includes(variant.id) ? (
               <div className="border-t border-border p-4">
                 <div className="grid gap-3 md:grid-cols-3">
-                  <Input label="Price" type="number" min={0} step="0.01" placeholder="Use product price" value={variant.price_cents ?? ""} onChange={(event) => updateVariant(variant.id, { price_cents: event.target.value ? Number(event.target.value) : undefined })} />
-                  <Input label="Compare Price" type="number" min={0} step="0.01" placeholder="Use product compare price" value={variant.compare_at_price_cents ?? ""} onChange={(event) => updateVariant(variant.id, { compare_at_price_cents: event.target.value ? Number(event.target.value) : undefined })} />
-                  <Input label="Cost Price" type="number" min={0} step="0.01" placeholder="Use product cost price" value={variant.cost_price_cents ?? ""} onChange={(event) => updateVariant(variant.id, { cost_price_cents: event.target.value ? Number(event.target.value) : undefined })} />
+                  <Input label="Price" type="number" min={0} step="0.01" placeholder="Enter price" value={variant.price_cents ?? ""} onChange={(event) => updateVariant(variant.id, { price_cents: event.target.value ? Number(event.target.value) : undefined })} />
+                  <Input label="Compare Price" type="number" min={0} step="0.01" placeholder="Enter price" value={variant.compare_at_price_cents ?? ""} onChange={(event) => updateVariant(variant.id, { compare_at_price_cents: event.target.value ? Number(event.target.value) : undefined })} />
+                  <Input label="Cost Price" type="number" min={0} step="0.01" placeholder="Enter price" value={variant.cost_price_cents ?? ""} onChange={(event) => updateVariant(variant.id, { cost_price_cents: event.target.value ? Number(event.target.value) : undefined })} />
                   <SelectField label="Track Inventory" value={variant.track_inventory === null || variant.track_inventory === undefined ? "inherit" : String(variant.track_inventory)} placeholder="Select inventory behavior" options={[{ id: "inherit", name: "Use product setting" }, { id: "true", name: "Track inventory" }, { id: "false", name: "Do not track" }]} onChange={(value) => updateVariant(variant.id, { track_inventory: value === "inherit" ? null : value === "true" })} />
-                  <Input label="Quantity" type="number" min={0} placeholder="Use product stock" value={variant.stock_quantity ?? ""} onChange={(event) => updateVariant(variant.id, { stock_quantity: event.target.value ? Number(event.target.value) : "" })} />
+                  <Input label="Quantity" type="number" min={0} placeholder="Enter quantity" value={variant.stock_quantity ?? ""} onChange={(event) => updateVariant(variant.id, { stock_quantity: event.target.value ? Number(event.target.value) : "" })} />
                   <SelectField label="Status" value={variant.status} placeholder="Select status" options={[{ id: "active", name: "Active" }, { id: "inactive", name: "Inactive" }]} onChange={(value) => updateVariant(variant.id, { status: value as ProductVariantDraft["status"] })} />
                 </div>
               </div>

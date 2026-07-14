@@ -23,6 +23,9 @@ const genderOptions = [
   { value: "prefer_not_to_say", label: "Prefer not to say" },
 ];
 
+const profileFieldClass =
+  "w-full px-4 py-3 bg-background border border-border rounded-xl text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-ring/15 disabled:bg-muted/50 disabled:text-muted-foreground disabled:opacity-100";
+
 export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -212,8 +215,8 @@ export default function ProfilePage() {
               <form onSubmit={handleSave} className="space-y-5">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   {[
-                    { label: "Full Name", key: "name", type: "text", placeholder: "Enter full name" },
-                    { label: "Email Address", key: "email", type: "email", placeholder: "Enter email address" },
+                    { label: "Full Name", key: "name", type: "text", placeholder: "Enter name" },
+                    { label: "Email Address", key: "email", type: "email", placeholder: "Enter email" },
                     { label: "Phone Number", key: "phone", type: "tel", placeholder: "Enter phone number" },
                   ].map(({ label, key, type, placeholder }) => (
                     <div key={key}>
@@ -224,7 +227,7 @@ export default function ProfilePage() {
                         onChange={(event) => setForm((current) => ({ ...current, [key]: event.target.value }))}
                         placeholder={placeholder}
                         disabled={!canEditProfile}
-                        className="w-full px-4 py-3 bg-muted border border-transparent rounded-xl text-sm focus:border-primary focus:bg-background outline-none transition-colors"
+                        className={profileFieldClass}
                       />
                     </div>
                   ))}
@@ -235,7 +238,7 @@ export default function ProfilePage() {
                       onValueChange={(value) => setForm((current) => ({ ...current, gender: value }))}
                       disabled={!canEditProfile}
                     >
-                      <SelectTrigger className="h-[46px] rounded-xl border-transparent bg-muted px-4 text-sm focus:border-primary focus:bg-background">
+                      <SelectTrigger className="h-[46px] rounded-xl border-border bg-background px-4 text-sm shadow-sm focus:border-primary focus:ring-2 focus:ring-ring/15 disabled:bg-muted/50 disabled:text-muted-foreground disabled:opacity-100">
                         <SelectValue placeholder="Select gender" />
                       </SelectTrigger>
                       <SelectContent>
@@ -264,8 +267,8 @@ export default function ProfilePage() {
               <form onSubmit={handlePassword} className="space-y-4">
                 {[
                   { label: "Current Password", key: "current", placeholder: "Enter current password" },
-                  { label: "New Password", key: "password", placeholder: "At least 8 characters" },
-                  { label: "Confirm New Password", key: "confirmation", placeholder: "Repeat new password" },
+                  { label: "New Password", key: "password", placeholder: "Enter password" },
+                  { label: "Confirm New Password", key: "confirmation", placeholder: "Confirm password" },
                 ].map(({ label, key, placeholder }) => (
                   <div key={label}>
                     <label className="block text-sm font-semibold mb-2">{label}</label>
@@ -274,7 +277,7 @@ export default function ProfilePage() {
                       value={passwordForm[key as keyof typeof passwordForm]}
                       onChange={(event) => setPasswordForm((current) => ({ ...current, [key]: event.target.value }))}
                       placeholder={placeholder}
-                      className="w-full px-4 py-3 bg-muted border border-transparent rounded-xl text-sm focus:border-primary focus:bg-background outline-none transition-colors"
+                      className={profileFieldClass}
                     />
                   </div>
                 ))}

@@ -75,7 +75,7 @@ export default function BlogsPage() {
               }}
             >
               <Search size={16} className="text-muted-foreground" />
-              <input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Search blogs..." className="min-w-0 flex-1 bg-transparent text-sm outline-none" />
+              <input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="Search..." className="min-w-0 flex-1 bg-transparent text-sm outline-none" />
             </form>
           ) : <span />}
           <Select value={sort} onValueChange={(value) => updateQuery({ sort: value, page: 1 })}>

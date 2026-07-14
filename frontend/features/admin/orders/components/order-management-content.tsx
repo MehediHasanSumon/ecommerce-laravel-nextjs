@@ -128,7 +128,7 @@ export function OrderManagementContent() {
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
               onKeyDown={(event) => event.key === "Enter" && setQuery({ search: searchInput, page: 1 })}
-              placeholder="Search orders..."
+              placeholder="Search..."
               className="h-9 min-w-0 flex-1 bg-transparent text-sm"
             />
           </div>
@@ -142,7 +142,7 @@ export function OrderManagementContent() {
           <p className="text-sm font-semibold">{selected.length} selected</p>
           <div className="flex flex-wrap gap-2">
             <Select value={bulkStatus || "none"} onValueChange={(value) => setBulkStatus(value === "none" ? "" : value)}>
-              <SelectTrigger className="h-10 w-[180px] rounded-lg border-border bg-background px-3 text-sm text-foreground"><SelectValue placeholder="Bulk status" /></SelectTrigger>
+              <SelectTrigger className="h-10 w-[180px] rounded-lg border-border bg-background px-3 text-sm text-foreground"><SelectValue placeholder="Select status" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">Bulk status</SelectItem>
                 {orderStatuses.filter(Boolean).map((status) => <SelectItem key={status} value={status}>{label(status)}</SelectItem>)}
@@ -267,11 +267,11 @@ function OrderFilterModal({ open, query, onClose, onApply }: { open: boolean; qu
           <CompactSelect label="Payment Status" value={draft.payment_status} options={paymentStatuses.filter(Boolean)} onChange={(payment_status) => setDraft({ ...draft, payment_status })} />
           <CompactSelect label="Shipping Status" value={draft.shipping_status} options={shippingStatuses.filter(Boolean)} onChange={(shipping_status) => setDraft({ ...draft, shipping_status })} />
           <CompactSelect label="Payment Method" value={draft.payment_method} options={paymentMethods.filter(Boolean)} onChange={(payment_method) => setDraft({ ...draft, payment_method })} />
-          <CompactText label="Shipping Method" value={draft.shipping_method} placeholder="Home Delivery" onChange={(shipping_method) => setDraft({ ...draft, shipping_method })} />
-          <CompactText label="Minimum Amount" type="number" value={draft.amount_min} placeholder="0" onChange={(amount_min) => setDraft({ ...draft, amount_min })} />
+          <CompactText label="Shipping Method" value={draft.shipping_method} placeholder="Enter shipping method" onChange={(shipping_method) => setDraft({ ...draft, shipping_method })} />
+          <CompactText label="Minimum Amount" type="number" value={draft.amount_min} placeholder="Enter amount" onChange={(amount_min) => setDraft({ ...draft, amount_min })} />
           <CompactDate label="Date From" value={draft.date_from} onChange={(date_from) => setDraft({ ...draft, date_from })} />
           <CompactDate label="Date To" value={draft.date_to} onChange={(date_to) => setDraft({ ...draft, date_to })} />
-          <CompactText label="Maximum Amount" type="number" value={draft.amount_max} placeholder="10000" onChange={(amount_max) => setDraft({ ...draft, amount_max })} />
+          <CompactText label="Maximum Amount" type="number" value={draft.amount_max} placeholder="Enter amount" onChange={(amount_max) => setDraft({ ...draft, amount_max })} />
         </div>
 
         <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
@@ -519,7 +519,7 @@ export function AdminOrderDetailContent({ orderNumber }: { orderNumber: string }
           <div className="space-y-3">
             <Input label="Amount" type="number" value={refund.amount} onChange={(event) => setRefund((current) => ({ ...current, amount: event.target.value }))} />
             <Input label="Reason" value={refund.reason} onChange={(event) => setRefund((current) => ({ ...current, reason: event.target.value }))} />
-            <textarea placeholder="Refund note" value={refund.note} onChange={(event) => setRefund((current) => ({ ...current, note: event.target.value }))} rows={3} className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary" />
+            <textarea placeholder="Enter note" value={refund.note} onChange={(event) => setRefund((current) => ({ ...current, note: event.target.value }))} rows={3} className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary" />
             <Button size="sm" disabled={!refund.amount || !refund.reason} onClick={async () => {
               try {
                 await orderManagementService.refund(order.orderNumber, { amount: Number(refund.amount), reason: refund.reason, note: refund.note });
@@ -540,7 +540,7 @@ export function AdminOrderDetailContent({ orderNumber }: { orderNumber: string }
             <Input label="Courier" value={shippingLog.courier} onChange={(event) => setShippingLog((current) => ({ ...current, courier: event.target.value }))} />
             <Input label="Tracking Number" value={shippingLog.tracking_number} onChange={(event) => setShippingLog((current) => ({ ...current, tracking_number: event.target.value }))} />
             <Input label="Tracking URL" value={shippingLog.tracking_url} onChange={(event) => setShippingLog((current) => ({ ...current, tracking_url: event.target.value }))} />
-            <textarea placeholder="Shipping note" value={shippingLog.note} onChange={(event) => setShippingLog((current) => ({ ...current, note: event.target.value }))} rows={3} className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary" />
+            <textarea placeholder="Enter note" value={shippingLog.note} onChange={(event) => setShippingLog((current) => ({ ...current, note: event.target.value }))} rows={3} className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary" />
             <Button size="sm" onClick={async () => {
               try {
                 await orderManagementService.shippingLog(order.orderNumber, shippingLog);

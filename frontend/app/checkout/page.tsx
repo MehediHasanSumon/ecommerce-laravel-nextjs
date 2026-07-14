@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ChevronRight, CreditCard, MapPin, Check, Lock, ShoppingBag, Truck } from 'lucide-react';
@@ -13,6 +13,7 @@ import { useRouter } from 'next/navigation';
 import { useSearchParams } from 'next/navigation';
 import { fetchShippingMethods, type ShippingMethod } from '@/services/catalog-service';
 import {
+  createAddress,
   fetchAddresses,
   fetchPaymentMethods,
   placeOrder,
@@ -22,8 +23,60 @@ import {
 import { toAppError } from '@/lib/errors';
 import { toast } from 'sonner';
 import { hasPermission } from '@/lib/permissions';
+import { useAuthStore } from '@/store/auth-store';
 
 const STEPS = ['Cart', 'Shipping', 'Payment'];
+
+const emptyCheckoutForm = {
+  fullName: '',
+  email: '',
+  phone: '',
+  alternativePhone: '',
+  address: '',
+  city: '',
+  state: '',
+  district: '',
+  area: '',
+  zip: '',
+  landmark: '',
+  addressLabel: '',
+  country: 'Bangladesh',
+};
+
+type CheckoutForm = typeof emptyCheckoutForm;
+type ValidationErrors = Partial<Record<keyof CheckoutForm | 'shippingMethod' | 'paymentMethod', string>>;
+
+const bangladeshPhonePattern = /^(?:\+?88)?01[3-9]\d{8}$/;
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const addressFieldOrder: Array<keyof CheckoutForm | 'shippingMethod' | 'paymentMethod'> = [
+  'fullName',
+  'phone',
+  'address',
+  'city',
+  'state',
+  'district',
+  'zip',
+  'shippingMethod',
+  'paymentMethod',
+];
+
+function addressToCheckoutForm(address: CustomerAddress) {
+  return {
+    fullName: address.fullName,
+    email: address.email ?? '',
+    phone: address.phone,
+    alternativePhone: address.alternativePhone ?? '',
+    address: address.addressLine,
+    city: address.city,
+    state: address.state,
+    district: address.district,
+    area: address.area ?? '',
+    zip: address.postalCode ?? '',
+    landmark: address.landmark ?? '',
+    addressLabel: address.addressLabel ?? '',
+    country: address.country,
+  };
+}
 
 function StepIndicator({ current }: { current: number }) {
   return (
@@ -98,25 +151,18 @@ export default function CheckoutPage() {
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [paymentLoading, setPaymentLoading] = useState(true);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
-  const [form, setForm] = useState({
-    fullName: '',
-    email: '',
-    phone: '',
-    address: '',
-    city: '',
-    state: '',
-    district: '',
-    area: '',
-    zip: '',
-    country: 'Bangladesh',
-  });
+  const [form, setForm] = useState(emptyCheckoutForm);
+  const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const inputRefs = useRef<Partial<Record<keyof CheckoutForm, HTMLInputElement | null>>>({});
+  const shippingMethodsRef = useRef<HTMLDivElement | null>(null);
   const router = useRouter();
   const paymentStatus = searchParams.get('payment');
   const paymentOrderNumber = searchParams.get('order');
   const isPaymentRecovery = paymentStatus === 'failed' || paymentStatus === 'cancelled' || paymentStatus === 'cancel';
   const canCreateCheckout = hasPermission('can_create_checkout');
   const canApplyCoupon = hasPermission('can_apply_coupon');
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
   const items = useCartStore((s) => s.items);
   const cart = useCartStore((s) => s.cart);
@@ -203,9 +249,13 @@ export default function CheckoutPage() {
           return;
         }
         setAddresses(savedAddresses);
-        const defaultAddress = savedAddresses.find((address) => address.isDefaultBilling) ?? savedAddresses[0];
+        const defaultAddress =
+          savedAddresses.find((address) => address.isDefaultShipping) ??
+          savedAddresses.find((address) => address.isDefaultBilling) ??
+          savedAddresses[0];
         if (defaultAddress) {
           setSelectedBillingAddressId(defaultAddress.id);
+          setForm(addressToCheckoutForm(defaultAddress));
         }
       })
       .catch(() => undefined);
@@ -214,6 +264,14 @@ export default function CheckoutPage() {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!selectedBillingAddress) {
+      return;
+    }
+
+    setForm(addressToCheckoutForm(selectedBillingAddress));
+  }, [selectedBillingAddress]);
 
   useEffect(() => {
     if (!cart.couponCode) {
@@ -288,17 +346,153 @@ export default function CheckoutPage() {
     fullName: form.fullName,
     email: form.email,
     phone: form.phone,
+    alternativePhone: form.alternativePhone,
     addressLine: form.address,
     city: form.city,
     state: form.state,
     district: form.district || form.city,
     area: form.area,
     postalCode: form.zip,
+    landmark: form.landmark,
+    addressLabel: form.addressLabel,
     country: form.country,
+  };
+
+  const validateCheckout = (includePayment = false): ValidationErrors => {
+    const nextErrors: ValidationErrors = {};
+    const trimmed = {
+      fullName: form.fullName.trim(),
+      email: form.email.trim(),
+      phone: form.phone.trim(),
+      alternativePhone: form.alternativePhone.trim(),
+      address: form.address.trim(),
+      city: form.city.trim(),
+      state: form.state.trim(),
+      district: form.district.trim(),
+      zip: form.zip.trim(),
+      landmark: form.landmark.trim(),
+      addressLabel: form.addressLabel.trim(),
+      country: form.country.trim(),
+    };
+
+    if (!trimmed.fullName) {
+      nextErrors.fullName = 'Full name is required.';
+    } else if (trimmed.fullName.length < 2) {
+      nextErrors.fullName = 'Full name must be at least 2 characters.';
+    }
+
+    if (trimmed.email && !emailPattern.test(trimmed.email)) {
+      nextErrors.email = 'Enter a valid email address.';
+    }
+
+    if (!trimmed.phone) {
+      nextErrors.phone = 'Mobile number is required.';
+    } else if (!bangladeshPhonePattern.test(trimmed.phone)) {
+      nextErrors.phone = 'Enter a valid Bangladeshi mobile number.';
+    }
+
+    if (trimmed.alternativePhone && !bangladeshPhonePattern.test(trimmed.alternativePhone)) {
+      nextErrors.alternativePhone = 'Enter a valid Bangladeshi mobile number.';
+    }
+
+    if (!trimmed.address) {
+      nextErrors.address = 'Address line is required.';
+    } else if (trimmed.address.length < 5) {
+      nextErrors.address = 'Address line must be at least 5 characters.';
+    }
+
+    if (!trimmed.city) {
+      nextErrors.city = 'Upazila / Thana is required.';
+    }
+
+    if (!trimmed.state) {
+      nextErrors.state = 'Division is required.';
+    }
+
+    if (!trimmed.district) {
+      nextErrors.district = 'District is required.';
+    }
+
+    if (!trimmed.country) {
+      nextErrors.country = 'Country is required.';
+    }
+
+    if (!selectedShippingMethodId) {
+      nextErrors.shippingMethod = 'Select a shipping method.';
+    }
+
+    if (includePayment && !selectedPaymentMethod) {
+      nextErrors.paymentMethod = 'Select a payment method.';
+    }
+
+    return nextErrors;
+  };
+
+  const focusFirstInvalidField = (errors: ValidationErrors) => {
+    const firstKey = addressFieldOrder.find((key) => errors[key]);
+    if (!firstKey) {
+      return;
+    }
+
+    if (firstKey === 'shippingMethod') {
+      shippingMethodsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+
+    if (firstKey === 'paymentMethod') {
+      return;
+    }
+
+    const input = inputRefs.current[firstKey];
+    input?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    window.setTimeout(() => input?.focus(), 250);
+  };
+
+  const handleContinueToPayment = async () => {
+    const errors = validateCheckout(false);
+    setValidationErrors(errors);
+
+    if (Object.keys(errors).length > 0) {
+      focusFirstInvalidField(errors);
+      return;
+    }
+
+    if (selectedBillingAddress || !isAuthenticated) {
+      setStep(2);
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const savedAddress = await createAddress({
+        ...checkoutAddress,
+        isDefaultBilling: addresses.length === 0,
+        isDefaultShipping: addresses.length === 0,
+      });
+      setAddresses((current) => {
+        const withoutDuplicate = current.filter((address) => address.id !== savedAddress.id);
+        return [savedAddress, ...withoutDuplicate];
+      });
+      setSelectedBillingAddressId(savedAddress.id);
+      setForm(addressToCheckoutForm(savedAddress));
+      setStep(2);
+    } catch (error) {
+      toast.error(toAppError(error).message || 'Unable to save address. Please check the fields and try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handlePlaceOrder = async () => {
     if (!canCreateCheckout) return;
+    const errors = validateCheckout(true);
+    setValidationErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      setStep(1);
+      window.setTimeout(() => focusFirstInvalidField(errors), 0);
+      return;
+    }
+
     if (!selectedShippingMethodId || !selectedPaymentMethod) {
       toast.error('Please select shipping and payment methods.');
       return;
@@ -327,9 +521,22 @@ export default function CheckoutPage() {
     }
   };
 
-  const updateForm = (key: string, value: string) => setForm((f) => ({ ...f, [key]: value }));
+  const updateForm = (key: string, value: string) => {
+    setForm((f) => ({ ...f, [key]: value }));
+    setValidationErrors((errors) => {
+      if (!(key in errors)) {
+        return errors;
+      }
+
+      const nextErrors = { ...errors };
+      delete nextErrors[key as keyof CheckoutForm];
+      return nextErrors;
+    });
+  };
   const fieldClass =
-    'w-full px-4 py-3 bg-muted border border-transparent rounded-xl text-sm focus:border-primary focus:bg-background outline-none transition-colors';
+    'w-full px-4 py-3 bg-background border border-border rounded-xl text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-ring/15 disabled:bg-muted/50 disabled:text-muted-foreground disabled:opacity-100';
+  const getFieldClass = (key: keyof CheckoutForm) =>
+    validationErrors[key] ? `${fieldClass} border-destructive focus:border-destructive` : fieldClass;
   const selectedShippingMethod = shippingMethods.find((method) => method.id === selectedShippingMethodId) ?? null;
   const couponDiscount = cart.summary?.couponDiscount ?? cart.coupon?.discount ?? 0;
   const hasCoupon = Boolean(cart.couponCode);
@@ -423,13 +630,23 @@ export default function CheckoutPage() {
                         <button
                           key={address.id}
                           type="button"
-                          onClick={() => setSelectedBillingAddressId(address.id)}
+                          onClick={() => {
+                            setSelectedBillingAddressId(address.id);
+                            setValidationErrors({});
+                          }}
                           className={`w-full rounded-xl border p-3 text-left transition-colors ${
                             selected
                               ? 'border-primary bg-primary/5'
                               : 'border-border hover:border-primary/40 hover:bg-muted/50'
                           }`}
                         >
+                          <input
+                            type="radio"
+                            checked={selected}
+                            onChange={() => undefined}
+                            className="sr-only"
+                            tabIndex={-1}
+                          />
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
                               <p className="text-sm font-semibold">{address.fullName}</p>
@@ -444,7 +661,11 @@ export default function CheckoutPage() {
                     })}
                     <button
                       type="button"
-                      onClick={() => setSelectedBillingAddressId('')}
+                      onClick={() => {
+                        setSelectedBillingAddressId('');
+                        setForm(emptyCheckoutForm);
+                        setValidationErrors({});
+                      }}
                       className="text-left text-sm font-medium text-primary transition-colors hover:underline"
                     >
                       Add a new address
@@ -454,33 +675,45 @@ export default function CheckoutPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {[
                     { label: 'Full Name', key: 'fullName', placeholder: 'Enter name', col: 2 },
+                    { label: 'Mobile Number', key: 'phone', placeholder: 'Enter phone number', type: 'tel' },
+                    { label: 'Alternative Phone', key: 'alternativePhone', placeholder: 'Enter phone number', type: 'tel' },
                     {
                       label: 'Email',
                       key: 'email',
                       placeholder: 'Enter email',
                       type: 'email',
                     },
-                    { label: 'Phone', key: 'phone', placeholder: 'Enter phone', type: 'tel' },
-                    { label: 'Street Address', key: 'address', placeholder: 'Enter address', col: 2 },
-                    { label: 'City', key: 'city', placeholder: 'Enter city' },
-                    { label: 'State', key: 'state', placeholder: 'Enter state' },
+                    { label: 'Division', key: 'state', placeholder: 'Enter state' },
                     { label: 'District', key: 'district', placeholder: 'Enter district' },
-                    { label: 'Area / Zone', key: 'area', placeholder: 'Enter area' },
-                    { label: 'ZIP Code', key: 'zip', placeholder: 'Enter postal code' },
-                    { label: 'Country', key: 'country', placeholder: 'Enter country' },
+                    { label: 'Upazila / Thana', key: 'city', placeholder: 'Enter city' },
+                    { label: 'Union / Area', key: 'area', placeholder: 'Enter area' },
+                    { label: 'Post Code', key: 'zip', placeholder: 'Enter postal code' },
+                    { label: 'Address Label', key: 'addressLabel', placeholder: 'Enter address label' },
+                    { label: 'Road / Village / House No.', key: 'address', placeholder: 'Enter address', col: 2 },
+                    { label: 'Landmark', key: 'landmark', placeholder: 'Enter landmark', col: 2 },
                   ].map(({ label, key, placeholder, col, type }) => (
                     <div key={key} className={col === 2 ? 'md:col-span-2' : ''}>
                       <label className="block text-xs font-semibold mb-1.5 text-muted-foreground uppercase tracking-wide">
                         {label}
                       </label>
                       <input
+                        ref={(element) => {
+                          inputRefs.current[key as keyof CheckoutForm] = element;
+                        }}
                         type={type ?? 'text'}
                         value={form[key as keyof typeof form]}
                         onChange={(e) => updateForm(key, e.target.value)}
                         placeholder={placeholder}
-                        className={fieldClass}
+                        className={getFieldClass(key as keyof CheckoutForm)}
                         disabled={Boolean(selectedBillingAddress)}
+                        aria-invalid={Boolean(validationErrors[key as keyof CheckoutForm])}
+                        aria-describedby={validationErrors[key as keyof CheckoutForm] ? `checkout-${key}-error` : undefined}
                       />
+                      {validationErrors[key as keyof CheckoutForm] ? (
+                        <p id={`checkout-${key}-error`} className="mt-1.5 text-xs text-destructive">
+                          {validationErrors[key as keyof CheckoutForm]}
+                        </p>
+                      ) : null}
                     </div>
                   ))}
                 </div>
@@ -494,10 +727,11 @@ export default function CheckoutPage() {
                   Shipping address same as billing address
                 </label>
                 <button
-                  onClick={() => setStep(2)}
+                  onClick={() => void handleContinueToPayment()}
+                  disabled={isSubmitting}
                   className="mt-6 w-full flex items-center justify-center gap-2 py-3.5 bg-primary text-primary-foreground rounded-xl font-bold hover:opacity-90 transition-opacity"
                 >
-                  Continue to Payment <ChevronRight size={16} />
+                  {isSubmitting ? 'Saving address...' : <>Continue to Payment <ChevronRight size={16} /></>}
                 </button>
               </div>
             )}
@@ -571,7 +805,7 @@ export default function CheckoutPage() {
           {/* Order Summary */}
           <div className="lg:col-span-2">
             <div className="sticky top-24 space-y-4">
-              <div className="bg-card border border-border rounded-2xl p-5">
+              <div ref={shippingMethodsRef} className="bg-card border border-border rounded-2xl p-5">
                 <div className="mb-3 flex items-center gap-2">
                   <Truck size={16} className="text-primary" />
                   <h2 className="font-bold">Shipping Method</h2>
@@ -593,7 +827,18 @@ export default function CheckoutPage() {
                         <button
                           key={method.id}
                           type="button"
-                          onClick={() => setSelectedShippingMethodId(method.id)}
+                          onClick={() => {
+                            setSelectedShippingMethodId(method.id);
+                            setValidationErrors((errors) => {
+                              if (!errors.shippingMethod) {
+                                return errors;
+                              }
+
+                              const nextErrors = { ...errors };
+                              delete nextErrors.shippingMethod;
+                              return nextErrors;
+                            });
+                          }}
                           className={`w-full rounded-xl border p-3 text-left transition-colors ${
                             selected
                               ? 'border-primary bg-primary/5'
@@ -621,6 +866,9 @@ export default function CheckoutPage() {
                         </button>
                       );
                     })}
+                    {validationErrors.shippingMethod ? (
+                      <p className="text-xs text-destructive">{validationErrors.shippingMethod}</p>
+                    ) : null}
                   </div>
                 )}
               </div>
@@ -674,7 +922,7 @@ export default function CheckoutPage() {
                               void handleCouponApply();
                             }
                           }}
-                          placeholder="Coupon code"
+                          placeholder="Enter coupon code"
                           className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
                         />
                         <button

@@ -890,7 +890,7 @@ export function PaymentSettingsContent() {
 
 export function SocialMediaSettingsContent() {
   const pathname = usePathname();
-  const defaults = React.useMemo<SocialMediaRow[]>(() => ["facebook", "instagram", "linkedin", "x", "youtube", "tiktok", "pinterest"].map((platform, index) => ({ platform, url: `https://example.com/${platform}`, icon: platform, display_order: index, open_in_new_tab: true, status: index < 3 })), []);
+  const defaults = React.useMemo<SocialMediaRow[]>(() => ["facebook", "instagram", "linkedin", "x", "youtube", "tiktok", "pinterest"].map((platform, index) => ({ platform, url: "", icon: platform, display_order: index, open_in_new_tab: true, status: false })), []);
   const [items, setItems] = React.useState(defaults);
   const [initial, setInitial] = React.useState(defaults);
   const [loading, setLoading] = React.useState(true);
