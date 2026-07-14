@@ -13,7 +13,6 @@ import { useRouter } from 'next/navigation';
 import { useSearchParams } from 'next/navigation';
 import { fetchShippingMethods, type ShippingMethod } from '@/services/catalog-service';
 import {
-  createAddress,
   fetchAddresses,
   fetchPaymentMethods,
   placeOrder,
@@ -23,7 +22,6 @@ import {
 import { toAppError } from '@/lib/errors';
 import { toast } from 'sonner';
 import { hasPermission } from '@/lib/permissions';
-import { useAuthStore } from '@/store/auth-store';
 
 const STEPS = ['Cart', 'Shipping', 'Payment'];
 
@@ -154,6 +152,7 @@ export default function CheckoutPage() {
   const [form, setForm] = useState(emptyCheckoutForm);
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasRenderedCheckoutContent, setHasRenderedCheckoutContent] = useState(false);
   const inputRefs = useRef<Partial<Record<keyof CheckoutForm, HTMLInputElement | null>>>({});
   const shippingMethodsRef = useRef<HTMLDivElement | null>(null);
   const router = useRouter();
@@ -162,7 +161,6 @@ export default function CheckoutPage() {
   const isPaymentRecovery = paymentStatus === 'failed' || paymentStatus === 'cancelled' || paymentStatus === 'cancel';
   const canCreateCheckout = hasPermission('can_create_checkout');
   const canApplyCoupon = hasPermission('can_apply_coupon');
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
   const items = useCartStore((s) => s.items);
   const cart = useCartStore((s) => s.cart);
@@ -181,6 +179,12 @@ export default function CheckoutPage() {
     setMounted(true);
     initializeCart().catch(() => undefined);
   }, [initializeCart]);
+
+  useEffect(() => {
+    if (mounted && cartInitialized) {
+      setHasRenderedCheckoutContent(true);
+    }
+  }, [cartInitialized, mounted]);
 
   useEffect(() => {
     let active = true;
@@ -280,7 +284,7 @@ export default function CheckoutPage() {
     }
   }, [cart.couponCode]);
 
-  if (!mounted || !cartInitialized) {
+  if (!hasRenderedCheckoutContent) {
     return <CheckoutSkeleton />;
   }
 
@@ -457,30 +461,7 @@ export default function CheckoutPage() {
       return;
     }
 
-    if (selectedBillingAddress || !isAuthenticated) {
-      setStep(2);
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      const savedAddress = await createAddress({
-        ...checkoutAddress,
-        isDefaultBilling: addresses.length === 0,
-        isDefaultShipping: addresses.length === 0,
-      });
-      setAddresses((current) => {
-        const withoutDuplicate = current.filter((address) => address.id !== savedAddress.id);
-        return [savedAddress, ...withoutDuplicate];
-      });
-      setSelectedBillingAddressId(savedAddress.id);
-      setForm(addressToCheckoutForm(savedAddress));
-      setStep(2);
-    } catch (error) {
-      toast.error(toAppError(error).message || 'Unable to save address. Please check the fields and try again.');
-    } finally {
-      setIsSubmitting(false);
-    }
+    setStep(2);
   };
 
   const handlePlaceOrder = async () => {
@@ -544,6 +525,8 @@ export default function CheckoutPage() {
   const tax = getTax();
   const total = Math.max(0, subtotal - couponDiscount + shippingAmount + tax);
   const couponActionLabel = couponInput.trim().length > 0 ? 'Apply' : 'Cancel';
+  const showShippingSkeleton = shippingLoading && shippingMethods.length === 0;
+  const showPaymentSkeleton = paymentLoading && paymentMethods.length === 0;
 
   async function handleCouponApply() {
     if (!canApplyCoupon) return;
@@ -745,7 +728,7 @@ export default function CheckoutPage() {
                   <span className="text-xs text-muted-foreground">Encrypted & secure</span>
                 </div>
                 <div className="space-y-4">
-                  {paymentLoading ? (
+                  {showPaymentSkeleton ? (
                     <div className="space-y-2">
                       <div className="h-14 rounded-xl bg-muted animate-pulse" />
                       <div className="h-14 rounded-xl bg-muted animate-pulse" />
@@ -811,7 +794,7 @@ export default function CheckoutPage() {
                   <h2 className="font-bold">Shipping Method</h2>
                 </div>
 
-                {shippingLoading ? (
+                {showShippingSkeleton ? (
                   <div className="space-y-2">
                     <div className="h-12 rounded-xl bg-muted animate-pulse" />
                     <div className="h-12 rounded-xl bg-muted animate-pulse" />

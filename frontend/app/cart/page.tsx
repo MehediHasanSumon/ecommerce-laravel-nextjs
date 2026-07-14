@@ -48,7 +48,6 @@ export default function CartPage() {
   const [mounted, setMounted] = useState(false);
   const initialize = useCartStore((s) => s.initialize);
   const cartInitialized = useCartStore((s) => s.initialized);
-  const cartLoading = useCartStore((s) => s.isLoading);
   const authInitialized = useAuthStore((s) => s.initialized);
   const fetchCurrentUser = useAuthStore((s) => s.fetchCurrentUser);
 
@@ -76,12 +75,13 @@ export default function CartPage() {
   const getTax = useCartStore((s) => s.getTax);
   const getTotal = useCartStore((s) => s.getTotal);
   const cart = useCartStore((s) => s.cart);
+  const showInitialSkeleton = !mounted || !authInitialized || !cartInitialized;
   const handleRemove = (itemId: string, name: string) => {
     void removeItem(itemId);
     toast(`${name} removed from cart`, { icon: '🗑️' });
   };
 
-  if (!mounted || !authInitialized || !cartInitialized || cartLoading) {
+  if (showInitialSkeleton) {
     return (
       <div className="min-h-screen bg-background">
         <AnnouncementBar />

@@ -14,6 +14,8 @@ import { toAppError } from '@/lib/errors';
 const GUEST_TOKEN_KEY = 'luxecart-guest-token';
 const CART_STORAGE_PREFIXES = ['luxecart-cart', 'cart'];
 
+let cartInitializePromise: Promise<void> | null = null;
+
 function browserGuestToken() {
   if (typeof window === 'undefined') {
     return 'server-guest-token';
@@ -274,26 +276,36 @@ export const useCartStore = create<CartStore>()((set, get) => ({
       return;
     }
 
-    const requestVersion = get().requestVersion;
-    set({ isLoading: true });
-    try {
-      const guestToken = ensureGuestToken(get().guestToken, set);
-      if (activeCartMode() === 'authenticated') {
-        await get().syncAfterAuth();
-      } else {
-        const cart = await cartService.getCart(guestToken, 'guest');
-        if (get().requestVersion === requestVersion && activeCartMode() === 'guest') {
-          applyCartState(set, cart);
-        }
-      }
-      if (get().requestVersion === requestVersion) {
-        set({ initialized: true, isLoading: false });
-      }
-    } catch {
-      if (get().requestVersion === requestVersion) {
-        set({ initialized: true, isLoading: false });
-      }
+    if (cartInitializePromise) {
+      return cartInitializePromise;
     }
+
+    cartInitializePromise = (async () => {
+      const requestVersion = get().requestVersion;
+      set({ isLoading: true });
+      try {
+        const guestToken = ensureGuestToken(get().guestToken, set);
+        if (activeCartMode() === 'authenticated') {
+          await get().syncAfterAuth();
+        } else {
+          const cart = await cartService.getCart(guestToken, 'guest');
+          if (get().requestVersion === requestVersion && activeCartMode() === 'guest') {
+            applyCartState(set, cart);
+          }
+        }
+        if (get().requestVersion === requestVersion) {
+          set({ initialized: true, isLoading: false });
+        }
+      } catch {
+        if (get().requestVersion === requestVersion) {
+          set({ initialized: true, isLoading: false });
+        }
+      } finally {
+        cartInitializePromise = null;
+      }
+    })();
+
+    return cartInitializePromise;
   },
 
   async refresh() {
