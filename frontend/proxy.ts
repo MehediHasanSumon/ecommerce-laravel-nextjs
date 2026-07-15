@@ -31,6 +31,7 @@ const permissionRouteRequirements: Array<{ route: string; permission: string }> 
   { route: routePaths.adminRoles, permission: "can_view_role" },
   { route: routePaths.adminPermissions, permission: "can_view_permission" },
   { route: routePaths.adminOrders, permission: "can_view_order" },
+  { route: routePaths.adminCustomers, permission: "can_view_customer" },
   { route: routePaths.adminProducts, permission: "can_view_product" },
   { route: routePaths.adminBrands, permission: "can_view_brand" },
   { route: routePaths.adminCategories, permission: "can_view_category" },
@@ -64,6 +65,9 @@ const permissionRouteRequirements: Array<{ route: string; permission: string }> 
 ];
 
 function requiredPermissionForPath(pathname: string) {
+  if (pathname === routePaths.adminOrderCreate) {
+    return "can_create_order";
+  }
   if (pathname === routePaths.adminProductCreate) {
     return "can_create_product";
   }
@@ -171,6 +175,34 @@ async function isBlogEnabled(request: NextRequest) {
   }
 }
 
+async function customerSettings(request: NextRequest) {
+  try {
+    const response = await fetch(`${apiRootUrl}/settings/navigation`, {
+      headers: {
+        Accept: "application/json",
+        Cookie: request.headers.get("cookie") ?? "",
+        "X-Requested-With": "XMLHttpRequest",
+      },
+      cache: "no-store",
+    });
+    const payload = await response.json() as {
+      data?: {
+        customer_settings?: {
+          allow_registration?: boolean;
+          allow_guest_checkout?: boolean;
+        };
+      };
+    };
+
+    return {
+      allowRegistration: payload.data?.customer_settings?.allow_registration !== false,
+      allowGuestCheckout: payload.data?.customer_settings?.allow_guest_checkout !== false,
+    };
+  } catch {
+    return { allowRegistration: true, allowGuestCheckout: false };
+  }
+}
+
 async function userHasPermission(request: NextRequest, permission: string) {
   try {
     const response = await fetch(`${apiBaseUrl}/me`, {
@@ -207,6 +239,7 @@ async function authenticate(request: NextRequest) {
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const blogRoute = pathname === "/blogs" || pathname.startsWith("/blogs/");
+  const checkoutRoute = pathname === routePaths.checkout;
 
   if (blogRoute && !await isBlogEnabled(request)) {
     const notFoundUrl = request.nextUrl.clone();
@@ -218,11 +251,21 @@ export async function proxy(request: NextRequest) {
   const protectedRoute = isRoute(pathname, protectedRoutes);
   const publicAuthRoute = isRoute(pathname, publicAuthRoutes);
 
-  if (!protectedRoute && !publicAuthRoute) {
+  if (!protectedRoute && !publicAuthRoute && !checkoutRoute) {
     return NextResponse.next();
   }
 
   const { authenticated, sessionResponse } = await authenticate(request);
+
+  if (checkoutRoute && !authenticated) {
+    const settings = await customerSettings(request);
+    if (!settings.allowGuestCheckout) {
+      const loginUrl = request.nextUrl.clone();
+      loginUrl.pathname = routePaths.login;
+      loginUrl.searchParams.set("redirect", routePaths.checkout);
+      return NextResponse.redirect(loginUrl);
+    }
+  }
 
   if (protectedRoute && !authenticated) {
     const loginUrl = request.nextUrl.clone();

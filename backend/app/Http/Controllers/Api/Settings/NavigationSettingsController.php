@@ -98,6 +98,11 @@ class NavigationSettingsController extends Controller
                     'center_mode' => (bool) $store->product_slider_center_mode,
                 ],
             ],
+            'customer_settings' => [
+                'allow_registration' => (bool) $store->allow_customer_registration,
+                'allow_guest_checkout' => (bool) $store->allow_guest_checkout,
+                'require_login_before_checkout' => ! (bool) $store->allow_guest_checkout,
+            ],
             'appearance_settings' => [
                 'logo' => $this->assetUrl($company->logo),
                 'dark_logo' => $this->assetUrl($company->dark_logo),
@@ -265,6 +270,14 @@ class NavigationSettingsController extends Controller
                 'type' => 'single',
                 'items' => [
                     ['label' => 'Order Management', 'href' => '/admin/orders', 'icon' => 'PackageCheck', 'permission' => 'can_view_order', 'enabled' => true],
+                ],
+            ],
+            [
+                'key' => 'customers',
+                'label' => 'Customer Management',
+                'type' => 'single',
+                'items' => [
+                    ['label' => 'Customer Management', 'href' => '/admin/customers', 'icon' => 'UsersRound', 'permission' => 'can_view_customer', 'enabled' => true],
                 ],
             ],
             [

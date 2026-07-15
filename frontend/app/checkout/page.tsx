@@ -7,7 +7,8 @@ import { AnnouncementBar } from '@/components/layout/AnnouncementBar';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { useCartStore } from '@/store/cartStore';
-import { selectCurrencyFingerprint, useSettingsStore } from '@/store/settings-store';
+import { selectCurrencyFingerprint, selectCustomerSettings, useSettingsStore } from '@/store/settings-store';
+import { useAuthStore } from '@/store/auth-store';
 import { formatPrice } from '@/utils/format';
 import { useRouter } from 'next/navigation';
 import { useSearchParams } from 'next/navigation';
@@ -170,11 +171,26 @@ export default function CheckoutPage() {
   const couponMessageType = useCartStore((s) => s.couponMessageType);
   const couponLoading = useCartStore((s) => s.isCouponLoading);
   const subtotal = getSubtotal();
+  const customerSettings = useSettingsStore(selectCustomerSettings);
+  const fetchSettings = useSettingsStore((state) => state.fetchSettings);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const authInitialized = useAuthStore((state) => state.initialized);
+  const fetchCurrentUser = useAuthStore((state) => state.fetchCurrentUser);
 
   useEffect(() => {
     setMounted(true);
     initializeCart().catch(() => undefined);
-  }, [initializeCart]);
+    void fetchSettings();
+    if (!authInitialized) {
+      fetchCurrentUser().catch(() => undefined);
+    }
+  }, [authInitialized, fetchCurrentUser, fetchSettings, initializeCart]);
+
+  useEffect(() => {
+    if (authInitialized && !isAuthenticated && !customerSettings.allow_guest_checkout) {
+      router.replace(`/login?redirect=${encodeURIComponent('/checkout')}`);
+    }
+  }, [authInitialized, customerSettings.allow_guest_checkout, isAuthenticated, router]);
 
   useEffect(() => {
     if (mounted && cartInitialized) {
@@ -305,7 +321,7 @@ export default function CheckoutPage() {
               : 'Your payment was not completed. Return to the shop to start a new checkout.'}
           </p>
           <div className="flex flex-col justify-center gap-3 sm:flex-row">
-            {paymentOrderNumber ? (
+            {paymentOrderNumber && isAuthenticated ? (
               <Link
                 href={`/account/orders/${encodeURIComponent(paymentOrderNumber)}`}
                 className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-semibold hover:opacity-90"

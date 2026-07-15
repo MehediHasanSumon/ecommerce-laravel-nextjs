@@ -15,9 +15,35 @@ type OrderListData = {
   statuses: OrderStatuses;
 };
 
+export type CreateOrderProduct = {
+  id: number;
+  name: string;
+  sku: string | null;
+  price: number;
+  stock: number;
+  variants: Array<{ id: number; label: string; sku: string | null; price: number; stock: number }>;
+};
+
+export type CreateOrderOptions = {
+  registered_customers: Array<{ id: number; name: string; email: string; phone: string | null }>;
+  guest_customers: Array<{ id: number; name: string; email: string | null; phone: string; billing_address: Record<string, string | null> | null; shipping_address: Record<string, string | null> | null }>;
+  products: CreateOrderProduct[];
+  shipping_methods: Array<{ id: number; name: string; rate: number }>;
+  payment_methods: Array<{ gateway: string; name: string }>;
+  statuses: { order: string[]; payment: string[] };
+};
+
 class OrderManagementService extends AdminApiService {
   list(query: Partial<QueryState> & Record<string, string | number | undefined>) {
     return this.unwrap<OrderListData>(this.client.get("/admin/orders", { params: cleanParams(query) }));
+  }
+
+  createOptions() {
+    return this.unwrap<CreateOrderOptions>(this.client.get("/admin/orders/create-options"));
+  }
+
+  create(payload: Record<string, unknown>) {
+    return this.unwrap<{ order: OrderDetail }>(this.client.post("/admin/orders", payload));
   }
 
   show(order: string, params: { timeline_page?: number; timeline_per_page?: number } = {}) {

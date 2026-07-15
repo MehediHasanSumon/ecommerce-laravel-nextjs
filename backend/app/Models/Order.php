@@ -31,6 +31,11 @@ class Order extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function guestCustomer(): BelongsTo
+    {
+        return $this->belongsTo(GuestCustomer::class);
+    }
+
     public function cart(): BelongsTo
     {
         return $this->belongsTo(Cart::class);

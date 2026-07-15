@@ -9,17 +9,27 @@ use App\Http\Requests\Auth\RegisterRequest;
 use App\Http\Requests\Auth\ResetPasswordRequest;
 use App\Http\Responses\ApiResponse;
 use App\Http\Responses\AuthCookie;
+use App\Services\Admin\Settings\StoreSettingsService;
 use App\Services\AuthService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
-
-    public function __construct(private readonly AuthService $authService) {}
+    public function __construct(
+        private readonly AuthService $authService,
+        private readonly StoreSettingsService $storeSettings,
+    ) {}
 
     public function register(RegisterRequest $request): JsonResponse
     {
+        if (! $this->storeSettings->get()->allow_customer_registration) {
+            throw ValidationException::withMessages([
+                'registration' => ['Customer registration is currently disabled.'],
+            ]);
+        }
+
         $data = $this->authService->register($request->validated());
 
         return ApiResponse::success(

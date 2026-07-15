@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, useWatch } from "react-hook-form";
@@ -13,11 +13,17 @@ import { routePaths } from "@/constants/routes";
 import { registerSchema, type RegisterFormValues } from "@/schemas/auth";
 import { useAuthStore } from "@/store/auth-store";
 import { applyValidationErrors, shouldToastFormError, validationSummary } from "@/lib/form-errors";
+import { selectCustomerSettings, useSettingsStore } from "@/store/settings-store";
 
 export function RegisterForm() {
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
   const { register: registerUser, isLoading, error, clearError } = useAuthStore();
+  const customerSettings = useSettingsStore(selectCustomerSettings);
+  const fetchSettings = useSettingsStore((state) => state.fetchSettings);
+  useEffect(() => {
+    void fetchSettings();
+  }, [fetchSettings]);
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: { name: "", email: "", password: "", password_confirmation: "" },
@@ -39,6 +45,9 @@ export function RegisterForm() {
 
   return (
     <form className="space-y-5" onSubmit={form.handleSubmit(onSubmit)} noValidate>
+      {!customerSettings.allow_registration ? (
+        <Alert type="info" message="Customer registration is currently disabled. Existing customers can still sign in." />
+      ) : null}
       {error ? <Alert type="error" message={error} /> : null}
 
       <Input label="Full name" autoComplete="name" disabled={isLoading} error={form.formState.errors.name?.message} leftIcon={<User className="h-4 w-4" />} placeholder="Enter name" {...form.register("name")} />
@@ -79,7 +88,7 @@ export function RegisterForm() {
 
       <Input label="Confirm password" type={showPassword ? "text" : "password"} autoComplete="new-password" disabled={isLoading} error={form.formState.errors.password_confirmation?.message} leftIcon={<Lock className="h-4 w-4" />} placeholder="Confirm password" {...form.register("password_confirmation")} />
 
-      <Button className="w-full" type="submit" isLoading={isLoading}>
+      <Button className="w-full" type="submit" isLoading={isLoading} disabled={!customerSettings.allow_registration}>
         <span>Create account</span>
         <ArrowRight className="h-4 w-4" />
       </Button>

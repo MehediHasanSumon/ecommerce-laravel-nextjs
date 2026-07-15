@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AccountController;
 use App\Http\Controllers\Api\Admin\BlogCommentManagementController;
 use App\Http\Controllers\Api\Admin\BlogManagementController;
 use App\Http\Controllers\Api\Admin\ContactMessageManagementController;
+use App\Http\Controllers\Api\Admin\CustomerManagementController;
 use App\Http\Controllers\Api\Admin\DashboardController;
 use App\Http\Controllers\Api\Admin\HeroSectionController;
 use App\Http\Controllers\Api\Admin\HomeFeatureCardController;
@@ -74,12 +75,12 @@ Route::middleware(['auth.cookie.optional:access', 'throttle:public-settings'])->
 
     Route::get('/payment/result', [OrderController::class, 'paymentResult']);
     Route::get('/payment/invoice', [OrderController::class, 'paymentInvoice']);
+    Route::get('/checkout/payment-methods', [CheckoutController::class, 'paymentMethods']);
+    Route::post('/checkout/place-order', [CheckoutController::class, 'place']);
 
 });
 
 Route::middleware(['auth.cookie:access', 'throttle:public-settings'])->group(function (): void {
-    Route::get('/checkout/payment-methods', [CheckoutController::class, 'paymentMethods']);
-    Route::post('/checkout/place-order', [CheckoutController::class, 'place']);
     Route::get('/wishlist', [WishlistController::class, 'show']);
     Route::post('/wishlist/toggle', [WishlistController::class, 'toggle']);
     Route::delete('/wishlist/items/{itemId}', [WishlistController::class, 'destroy']);
@@ -129,6 +130,9 @@ Route::prefix('admin')
 
         Route::delete('/users/bulk', [UserManagementController::class, 'bulkDestroy']);
         Route::apiResource('users', UserManagementController::class);
+        Route::get('/customers', [CustomerManagementController::class, 'index']);
+        Route::get('/customers/{customer}', [CustomerManagementController::class, 'show']);
+        Route::put('/guest-customers/{guestCustomer}', [CustomerManagementController::class, 'update']);
 
         Route::delete('/blogs/bulk', [BlogManagementController::class, 'bulkDestroy']);
         Route::apiResource('blogs', BlogManagementController::class);
@@ -148,6 +152,8 @@ Route::prefix('admin')
         Route::apiResource('permissions', PermissionManagementController::class);
 
         Route::get('/orders', [OrderManagementController::class, 'index']);
+        Route::get('/orders/create-options', [OrderManagementController::class, 'createOptions']);
+        Route::post('/orders', [OrderManagementController::class, 'store']);
         Route::put('/orders/bulk', [OrderManagementController::class, 'bulkUpdate']);
         Route::get('/orders/{order}', [OrderManagementController::class, 'show']);
         Route::put('/orders/{order}', [OrderManagementController::class, 'update']);

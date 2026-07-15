@@ -23,6 +23,7 @@ class RolePermissionSeeder extends Seeder
             'role',
             'permission',
             'order',
+            'customer',
             'product',
             'brand',
             'category',

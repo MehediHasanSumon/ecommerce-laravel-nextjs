@@ -776,18 +776,20 @@ export function Header() {
 
               <ThemeToggle />
 
-              <Link
-                href="/wishlist"
-                className="relative rounded-lg p-1.5 transition-colors hover:bg-muted sm:p-2"
-                aria-label="Wishlist"
-              >
-                <Heart size={20} />
-                {wishlistItemCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-destructive text-destructive-foreground text-xs rounded-full flex items-center justify-center font-bold">
-                    {wishlistItemCount > 9 ? '9+' : wishlistItemCount}
-                  </span>
-                )}
-              </Link>
+              {isAuthenticated ? (
+                <Link
+                  href="/wishlist"
+                  className="relative rounded-lg p-1.5 transition-colors hover:bg-muted sm:p-2"
+                  aria-label="Wishlist"
+                >
+                  <Heart size={20} />
+                  {wishlistItemCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-destructive text-destructive-foreground text-xs rounded-full flex items-center justify-center font-bold">
+                      {wishlistItemCount > 9 ? '9+' : wishlistItemCount}
+                    </span>
+                  )}
+                </Link>
+              ) : null}
 
               <Link
                 href="/cart"
@@ -969,29 +971,33 @@ export function Header() {
                 })}
               </nav>
               <div className="mt-4 pt-4 border-t border-border space-y-1">
-                <Link
-                  href={isAuthenticated ? "/account" : "/login"}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="flex items-center gap-3 rounded-xl px-4 py-3 transition-colors hover:bg-muted"
-                >
-                  <User size={18} /> My Account
-                </Link>
+                {isAuthenticated ? (
+                  <>
+                    <Link
+                      href="/account"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center gap-3 rounded-xl px-4 py-3 transition-colors hover:bg-muted"
+                    >
+                      <User size={18} /> My Account
+                    </Link>
+                    <Link
+                      href="/account/orders"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center gap-3 rounded-xl px-4 py-3 transition-colors hover:bg-muted"
+                    >
+                      <Package size={18} /> My Orders
+                    </Link>
+                  </>
+                ) : null}
                 {isAuthenticated ? (
                   <Link
-                    href="/account/orders"
+                    href="/wishlist"
                     onClick={() => setIsMobileMenuOpen(false)}
                     className="flex items-center gap-3 rounded-xl px-4 py-3 transition-colors hover:bg-muted"
                   >
-                    <Package size={18} /> My Orders
+                    <Heart size={18} /> Wishlist {wishlistItemCount > 0 && `(${wishlistItemCount})`}
                   </Link>
                 ) : null}
-                <Link
-                  href="/wishlist"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="flex items-center gap-3 rounded-xl px-4 py-3 transition-colors hover:bg-muted"
-                >
-                  <Heart size={18} /> Wishlist {wishlistItemCount > 0 && `(${wishlistItemCount})`}
-                </Link>
               </div>
             </div>
             <div className="p-4 border-t border-border">

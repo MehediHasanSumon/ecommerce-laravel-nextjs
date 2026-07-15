@@ -3,23 +3,26 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\CreateOrderRequest;
 use App\Http\Resources\OrderDetailResource;
 use App\Http\Resources\OrderResource;
 use App\Http\Responses\ApiResponse;
+use App\Services\Admin\AdminOrderCreationService;
 use App\Services\Orders\OrderService;
 use App\Services\Pdf\OrderPdfService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
-use Illuminate\Http\Response;
 
 class OrderManagementController extends Controller implements HasMiddleware
 {
     public static function middleware(): array
     {
         return [
-            new Middleware('permission:can_view_order', only: ['index', 'show', 'invoice', 'deliverySlip']),
+            new Middleware('permission:can_view_order', only: ['index', 'show', 'invoice', 'deliverySlip', 'createOptions']),
+            new Middleware('permission:can_create_order', only: ['store']),
             new Middleware('permission:can_edit_order', only: ['update', 'bulkUpdate', 'refund', 'shippingLog']),
         ];
     }
@@ -27,7 +30,20 @@ class OrderManagementController extends Controller implements HasMiddleware
     public function __construct(
         private readonly OrderService $orders,
         private readonly OrderPdfService $pdf,
+        private readonly AdminOrderCreationService $creation,
     ) {}
+
+    public function createOptions(): JsonResponse
+    {
+        return ApiResponse::success($this->creation->options());
+    }
+
+    public function store(CreateOrderRequest $request): JsonResponse
+    {
+        $order = $this->creation->create($request->validated(), (int) $request->user()->id);
+
+        return ApiResponse::success(['order' => OrderDetailResource::make($order)->resolve()], 'Order created successfully.', 201);
+    }
 
     public function index(Request $request): JsonResponse
     {

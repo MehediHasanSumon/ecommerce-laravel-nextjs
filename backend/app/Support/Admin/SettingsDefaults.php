@@ -41,6 +41,8 @@ class SettingsDefaults
             'enable_reviews' => true,
             'enable_wishlist' => true,
             'require_login_before_checkout' => false,
+            'allow_customer_registration' => true,
+            'allow_guest_checkout' => true,
             'product_card_style' => 'hover_review',
             'product_layout' => 'grid',
             'product_slider_loop' => true,

@@ -552,17 +552,20 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
               >
                 <ShoppingCart size={18} /> Add to Cart
               </button>
-              <button
-                onClick={handleWishlist}
-                className={cn(
-                  'rounded-xl border p-3.5 font-medium transition-colors',
-                  inWishlist
-                    ? 'border-rose-300 bg-rose-50 text-rose-500 dark:bg-rose-950'
-                    : 'border-border hover:border-primary/50'
-                )}
-              >
-                <Heart size={18} className={inWishlist ? 'fill-rose-500' : ''} />
-              </button>
+              {isAuthenticated ? (
+                <button
+                  onClick={handleWishlist}
+                  className={cn(
+                    'rounded-xl border p-3.5 font-medium transition-colors',
+                    inWishlist
+                      ? 'border-rose-300 bg-rose-50 text-rose-500 dark:bg-rose-950'
+                      : 'border-border hover:border-primary/50'
+                  )}
+                  aria-label={inWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
+                >
+                  <Heart size={18} className={inWishlist ? 'fill-rose-500' : ''} />
+                </button>
+              ) : null}
               <button
                 className="rounded-xl border border-border p-3.5 transition-colors hover:border-primary/50"
                 aria-label="Share product"

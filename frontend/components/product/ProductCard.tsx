@@ -43,7 +43,7 @@ export function ProductCard({ product, className, layout = 'grid' }: ProductCard
   const brandsEnabled = useSettingsStore(selectBrandsEnabled);
   const cardSettings = useSettingsStore(selectProductCardSettings);
   const runtimeSettings = useSettingsStore((state) => state.settings);
-  const wishlistEnabled = runtimeSettings?.module_settings.wishlist ?? true;
+  const wishlistEnabled = (runtimeSettings?.module_settings.wishlist ?? true) && isAuthenticated;
   const reviewsEnabled = runtimeSettings?.module_settings.reviews ?? true;
   const requireLoginBeforeCheckout = Boolean(
     runtimeSettings?.website_settings.require_login_before_checkout,

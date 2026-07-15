@@ -231,6 +231,8 @@ const moduleConfigs: Record<string, SingletonModule> = {
       enable_reviews: true,
       enable_wishlist: true,
       require_login_before_checkout: false,
+      allow_customer_registration: true,
+      allow_guest_checkout: true,
       product_card_style: "hover_review",
       product_layout: "grid",
       product_slider_loop: true,
@@ -253,8 +255,9 @@ const moduleConfigs: Record<string, SingletonModule> = {
         { name: "enable_reviews", label: "Enable Reviews", type: "toggle" },
         { name: "enable_wishlist", label: "Enable Wishlist", type: "toggle" },
       ] },
-      { title: "Checkout", description: "Customer authentication requirement at checkout.", icon: ShieldAlert, fields: [
-        { name: "require_login_before_checkout", label: "Require Login Before Checkout", type: "toggle" },
+      { title: "Authentication & Customer Settings", description: "Control customer registration and guest checkout access.", icon: ShieldAlert, fields: [
+        { name: "allow_customer_registration", label: "Allow Customer Registration", type: "toggle" },
+        { name: "allow_guest_checkout", label: "Allow Guest Checkout", type: "toggle" },
       ] },
       { title: "Product Card Settings", description: "Control the global product card style and storefront product layout.", icon: SlidersHorizontal, fields: [
         { name: "product_card_style", label: "Product Card Style", type: "select", required: true, options: [

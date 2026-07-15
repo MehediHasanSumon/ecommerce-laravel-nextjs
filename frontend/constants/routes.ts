@@ -2,7 +2,6 @@ export const protectedRoutes = [
   "/admin",
   "/account",
   "/wishlist",
-  "/checkout",
 ] as const;
 export const publicAuthRoutes = [
   "/login",
@@ -43,6 +42,8 @@ export const routePaths = {
   adminDiscounts: "/admin/discounts",
   adminReviews: "/admin/reviews",
   adminOrders: "/admin/orders",
+  adminOrderCreate: "/admin/orders/create",
+  adminCustomers: "/admin/customers",
   adminBlogs: "/admin/blogs",
   adminContactMessages: "/admin/contact-messages",
   adminReportsSales: "/admin/reports/sales",

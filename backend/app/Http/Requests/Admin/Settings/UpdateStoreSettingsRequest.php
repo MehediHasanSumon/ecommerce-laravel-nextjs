@@ -12,12 +12,23 @@ class UpdateStoreSettingsRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('allow_guest_checkout')) {
+            $this->merge([
+                'require_login_before_checkout' => ! $this->boolean('allow_guest_checkout'),
+            ]);
+        }
+    }
+
     public function rules(): array
     {
         return [
             'enable_reviews' => ['boolean'],
             'enable_wishlist' => ['boolean'],
             'require_login_before_checkout' => ['boolean'],
+            'allow_customer_registration' => ['boolean'],
+            'allow_guest_checkout' => ['boolean'],
             'product_card_style' => ['required', Rule::in(['simple', 'hover', 'hover_review'])],
             'product_layout' => ['required', Rule::in(['grid', 'swipe', 'list'])],
             'product_slider_loop' => ['boolean'],

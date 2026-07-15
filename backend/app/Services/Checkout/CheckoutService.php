@@ -5,13 +5,14 @@ namespace App\Services\Checkout;
 use App\Models\Cart;
 use App\Models\CheckoutSession;
 use App\Models\CustomerAddress;
-use App\Models\Order;
 use App\Models\PaymentTransaction;
 use App\Models\Settings\CompanySetting;
 use App\Models\Settings\ShippingMethod;
-use App\Models\Settings\StoreSetting;
+use App\Services\Admin\Settings\StoreSettingsService;
 use App\Services\Commerce\CartService;
 use App\Services\Commerce\CouponService;
+use App\Services\Customers\GuestCustomerService;
+use App\Services\Orders\OrderCreator;
 use App\Services\Orders\OrderService;
 use App\Services\Payments\PaymentGatewayManager;
 use App\Services\Shipping\ShippingZoneMatcher;
@@ -29,12 +30,15 @@ class CheckoutService
         private readonly OrderService $orders,
         private readonly ShippingZoneMatcher $shippingZones,
         private readonly CustomerAddressService $customerAddresses,
+        private readonly GuestCustomerService $guestCustomers,
+        private readonly OrderCreator $orderCreator,
+        private readonly StoreSettingsService $storeSettings,
     ) {}
 
     public function place(Request $request, array $payload): array
     {
-        $store = StoreSetting::query()->first();
-        if (($store?->require_login_before_checkout ?? false) && ! $request->user()) {
+        $store = $this->storeSettings->get();
+        if (! $request->user() && (! $store->allow_guest_checkout || $store->require_login_before_checkout)) {
             abort(401, 'Please sign in before checkout.');
         }
 
@@ -75,12 +79,16 @@ class CheckoutService
                 throw ValidationException::withMessages(['shipping_method_id' => ['The selected shipping method requires a higher order amount.']]);
             }
             $currency = $this->currency();
+            $guestCustomer = $request->user()
+                ? null
+                : $this->guestCustomers->resolve($billingAddress, $shippingAddress);
 
-            $order = Order::query()->create([
-                'order_number' => $this->nextOrderNumber(),
+            $order = $this->orderCreator->create([
                 'user_id' => $request->user()?->id,
+                'guest_customer_id' => $guestCustomer?->id,
                 'cart_id' => $cart->id,
                 'guest_token' => $cart->guest_token,
+                'source' => 'storefront',
                 'status' => 'pending',
                 'payment_status' => 'pending',
                 'payment_method' => $paymentSetting->gateway,
@@ -103,25 +111,20 @@ class CheckoutService
                 'client_ip' => $request->ip(),
                 'user_agent' => substr((string) $request->userAgent(), 0, 2000),
                 'placed_at' => now(),
-            ]);
-            $this->orders->record($order, 'order', 'pending', null, 'Order created', null, [], $request->user()?->id);
-
-            foreach ($cart->items as $item) {
-                $order->items()->create([
-                    'product_id' => $item->product_id,
-                    'product_variant_id' => $item->product_variant_id,
-                    'product_name' => $item->selection_snapshot['product_name'] ?? $item->product?->name ?? 'Product',
-                    'sku' => $item->selection_snapshot['selected_sku'] ?? $item->product?->sku,
-                    'quantity' => $item->quantity,
-                    'unit_price_cents' => $item->unit_price_cents,
-                    'discounted_price_cents' => $item->discounted_price_cents,
-                    'line_subtotal_cents' => $item->line_subtotal_cents,
-                    'line_discount_cents' => $item->line_discount_cents,
-                    'selection_snapshot' => $item->selection_snapshot,
-                    'pricing_snapshot' => $item->pricing_snapshot,
-                    'tax_snapshot' => $item->tax_snapshot,
-                ]);
-            }
+            ], $cart->items->map(fn ($item): array => [
+                'product_id' => $item->product_id,
+                'product_variant_id' => $item->product_variant_id,
+                'product_name' => $item->selection_snapshot['product_name'] ?? $item->product?->name ?? 'Product',
+                'sku' => $item->selection_snapshot['selected_sku'] ?? $item->product?->sku,
+                'quantity' => $item->quantity,
+                'unit_price_cents' => $item->unit_price_cents,
+                'discounted_price_cents' => $item->discounted_price_cents,
+                'line_subtotal_cents' => $item->line_subtotal_cents,
+                'line_discount_cents' => $item->line_discount_cents,
+                'selection_snapshot' => $item->selection_snapshot,
+                'pricing_snapshot' => $item->pricing_snapshot,
+                'tax_snapshot' => $item->tax_snapshot,
+            ])->all(), $request->user()?->id);
             $this->coupons->recordRedemption($cart);
 
             $session = CheckoutSession::query()->create([
@@ -153,8 +156,6 @@ class CheckoutService
                 $this->orders->syncPayment($order, $transaction->fresh(), 'pending', 'Offline payment pending.');
                 $this->completeCart($cart);
             }
-
-            DB::afterCommit(fn () => $this->orders->queueOrderPlacedNotifications($order->fresh()));
 
             return [$order->fresh('items'), $result];
         });
@@ -231,11 +232,6 @@ class CheckoutService
         $company = CompanySetting::query()->with('currency')->first();
 
         return $company?->currency?->currency ?: 'BDT';
-    }
-
-    private function nextOrderNumber(): string
-    {
-        return 'ORD-'.now()->format('Ymd').'-'.strtoupper(Str::random(8));
     }
 
     private function completeCart(Cart $cart): void

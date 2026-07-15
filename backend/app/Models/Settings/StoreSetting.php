@@ -16,6 +16,8 @@ class StoreSetting extends Model
             'enable_reviews' => 'boolean',
             'enable_wishlist' => 'boolean',
             'require_login_before_checkout' => 'boolean',
+            'allow_customer_registration' => 'boolean',
+            'allow_guest_checkout' => 'boolean',
             'product_slider_loop' => 'boolean',
             'product_slider_autoplay' => 'boolean',
             'product_slider_autoplay_delay' => 'integer',

@@ -7,6 +7,7 @@ use App\Http\Requests\PlaceOrderRequest;
 use App\Http\Resources\OrderResource;
 use App\Http\Resources\PaymentMethodResource;
 use App\Http\Responses\ApiResponse;
+use App\Services\Admin\Settings\StoreSettingsService;
 use App\Services\Checkout\CheckoutService;
 use App\Services\Payments\PaymentGatewayManager;
 use Illuminate\Http\JsonResponse;
@@ -17,10 +18,16 @@ class CheckoutController extends Controller
     public function __construct(
         private readonly CheckoutService $checkout,
         private readonly PaymentGatewayManager $payments,
+        private readonly StoreSettingsService $storeSettings,
     ) {}
 
     public function paymentMethods(Request $request): JsonResponse
     {
+        $store = $this->storeSettings->get();
+        if (! $request->user() && (! $store->allow_guest_checkout || $store->require_login_before_checkout)) {
+            abort(401, 'Please sign in before checkout.');
+        }
+
         return ApiResponse::success([
             'items' => PaymentMethodResource::collection($this->payments->enabledSettings())->resolve(),
         ]);

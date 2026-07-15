@@ -144,6 +144,12 @@ export type RuntimeProductCardSettings = {
   };
 };
 
+export type RuntimeCustomerSettings = {
+  allow_registration: boolean;
+  allow_guest_checkout: boolean;
+  require_login_before_checkout: boolean;
+};
+
 export type RuntimeSettings = {
   company_settings: Record<string, unknown>;
   website_settings: Record<string, unknown>;
@@ -194,4 +200,5 @@ export type RuntimeSettings = {
   payment_methods: RuntimePaymentMethod[];
   social_links: RuntimeSocialLink[];
   product_card_settings: RuntimeProductCardSettings;
+  customer_settings: RuntimeCustomerSettings;
 };

@@ -2,12 +2,18 @@
 
 namespace App\Http\Requests;
 
+use App\Services\Admin\Settings\StoreSettingsService;
 use Illuminate\Foundation\Http\FormRequest;
 
 class PlaceOrderRequest extends FormRequest
 {
     public function authorize(): bool
     {
+        $store = app(StoreSettingsService::class)->get();
+        if (! $this->user() && (! $store->allow_guest_checkout || $store->require_login_before_checkout)) {
+            abort(401, 'Please sign in before checkout.');
+        }
+
         return true;
     }
 

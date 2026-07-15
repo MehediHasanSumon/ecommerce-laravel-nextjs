@@ -91,6 +91,7 @@ const marketingManagementItems = [
 
 const orderManagementItems = [
   { href: routePaths.adminOrders, label: "Order Management", icon: PackageCheck },
+  { href: routePaths.adminCustomers, label: "Customer Management", icon: UsersRound },
 ];
 
 const contentManagementItems = [
@@ -127,6 +128,7 @@ const adminPermissionAliases: Record<string, string> = {
   "roles.view": "can_view_role",
   "permissions.view": "can_view_permission",
   "orders.view": "can_view_order",
+  "customers.view": "can_view_customer",
   "products.view": "can_view_product",
   "brands.view": "can_view_brand",
   "categories.view": "can_view_category",
@@ -165,6 +167,7 @@ const adminRoutePermissions: Record<string, string> = {
   [routePaths.dashboardRoles]: "can_view_role",
   [routePaths.dashboardPermissions]: "can_view_permission",
   [routePaths.adminOrders]: "can_view_order",
+  [routePaths.adminCustomers]: "can_view_customer",
   [routePaths.adminProducts]: "can_view_product",
   [routePaths.adminBrands]: "can_view_brand",
   [routePaths.adminCategories]: "can_view_category",

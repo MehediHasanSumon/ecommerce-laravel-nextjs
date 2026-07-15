@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ChevronLeft, ChevronRight, ChevronsUpDown, Download, Eye, Filter, Search, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsUpDown, Download, Eye, Filter, Plus, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -118,6 +118,7 @@ export function OrderManagementContent() {
           <h1 className="text-2xl font-extrabold tracking-tight">Order Management</h1>
           <p className="mt-1 text-sm text-muted-foreground">Track orders, payments, shipping status, and customer lifecycle events.</p>
         </div>
+        {hasPermission("can_create_order") ? <Link href="/admin/orders/create"><Button size="sm" icon={<Plus className="h-4 w-4" />}>Create Order</Button></Link> : null}
       </section>
 
       <section className="rounded-lg border border-border bg-card p-3">
