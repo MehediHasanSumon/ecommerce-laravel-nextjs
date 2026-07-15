@@ -14,6 +14,11 @@ class ProductCardResource extends JsonResource
         $brandsEnabled = app(BrandSettingsService::class)->enabled();
         $primaryImage = $this->images->firstWhere('is_primary', true) ?? $this->images->first();
         $imageUrl = $this->assetUrl($primaryImage?->url);
+        $activeVariantsCount = $this->active_variants_count;
+
+        if ($activeVariantsCount === null) {
+            $activeVariantsCount = $this->variants()->where('status', 'active')->count();
+        }
 
         return [
             'id' => (string) $this->id,
@@ -42,6 +47,7 @@ class ProductCardResource extends JsonResource
             'isFlashSale' => (bool) $this->is_flash_sale,
             'flashSaleEndsAt' => optional($this->flash_sale_ends_at)->toISOString(),
             'freeShipping' => (bool) $this->free_shipping,
+            'requiresVariantSelection' => (int) $activeVariantsCount > 0,
             'createdAt' => optional($this->created_at)->toISOString(),
         ];
     }

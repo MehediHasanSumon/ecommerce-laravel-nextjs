@@ -6,7 +6,7 @@ import { Search, ChevronRight, SlidersHorizontal } from 'lucide-react';
 import { AnnouncementBar } from '@/components/layout/AnnouncementBar';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
-import { ProductCard } from '@/components/product/ProductCard';
+import { ProductListing } from '@/components/product/ProductListing';
 import { ProductGridSkeleton } from '@/components/skeleton';
 import { fetchProducts } from '@/services/catalog-service';
 import type { Product } from '@/types';
@@ -100,11 +100,7 @@ function SearchResults() {
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-3 min-[380px]:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-5 xl:grid-cols-4 xl:gap-6">
-          {results.map((p) => (
-            <ProductCard key={p.id} product={p} />
-          ))}
-        </div>
+        <ProductListing products={results} />
       )}
     </main>
   );

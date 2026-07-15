@@ -18,6 +18,13 @@ return new class extends Migration
         ));
 
         if ($columns !== []) {
+            if (
+                in_array('store_email', $columns, true)
+                && Schema::hasIndex('store_settings', 'store_settings_store_email_index')
+            ) {
+                Schema::table('store_settings', fn (Blueprint $table) => $table->dropIndex('store_settings_store_email_index'));
+            }
+
             Schema::table('store_settings', fn (Blueprint $table) => $table->dropColumn($columns));
         }
     }

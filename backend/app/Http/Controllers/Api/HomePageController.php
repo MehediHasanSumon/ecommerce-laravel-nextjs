@@ -11,9 +11,9 @@ use App\Http\Responses\ApiResponse;
 use App\Models\Brand;
 use App\Models\Product;
 use App\Models\ProductReview;
+use App\Services\Admin\HeroSectionService;
 use App\Services\Admin\Settings\BrandSettingsService;
 use App\Services\Admin\Settings\HomePageSettingsService;
-use App\Services\Admin\HeroSectionService;
 use App\Services\BlogCatalogService;
 use App\Services\Collections\CollectionProductResolver;
 use Illuminate\Database\Eloquent\Builder;
@@ -93,6 +93,7 @@ class HomePageController extends Controller
         return Product::query()
             ->where('status', 'active')
             ->whereNotNull('published_at')
+            ->withCount(['variants as active_variants_count' => fn (Builder $query) => $query->where('status', 'active')])
             ->where(fn (Builder $query) => $query
                 ->where('track_inventory', false)
                 ->orWhere('stock_quantity', '>', 0))

@@ -1,5 +1,5 @@
 'use client';
-import { useState, use, useEffect, useMemo } from 'react';
+import { useState, use, useEffect, useMemo, useRef } from 'react';
 import type { FormEvent } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -19,14 +19,14 @@ import {
 import { AnnouncementBar } from '@/components/layout/AnnouncementBar';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
-import { ProductCard } from '@/components/product/ProductCard';
+import { ProductListing } from '@/components/product/ProductListing';
 import { useCartStore } from '@/store/cartStore';
 import { useWishlistStore } from '@/store/wishlistStore';
 import { selectBrandsEnabled, selectCurrencyFingerprint, useSettingsStore } from '@/store/settings-store';
 import { formatPrice } from '@/utils/format';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   fetchProductDetail,
   submitProductReview,
@@ -65,6 +65,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
   const { slug } = use(params);
   useSettingsStore(selectCurrencyFingerprint);
   const brandsEnabled = useSettingsStore(selectBrandsEnabled);
+  const runtimeSettings = useSettingsStore((state) => state.settings);
   const [mounted, setMounted] = useState(false);
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedColor, setSelectedColor] = useState<string | undefined>(undefined);
@@ -88,6 +89,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
   const authInitialized = useAuthStore((s) => s.initialized);
   const fetchCurrentUser = useAuthStore((s) => s.fetchCurrentUser);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const buyNowHandled = useRef(false);
 
   useEffect(() => {
     setMounted(true);
@@ -150,6 +153,56 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
       setQuantity(1);
     }
   }, [product]);
+
+  useEffect(() => {
+    buyNowHandled.current = false;
+  }, [slug]);
+
+  useEffect(() => {
+    if (
+      !product
+      || !searchParams.get('buyNow')
+      || buyNowHandled.current
+      || Boolean(product.variants?.length && !selectedVariant)
+    ) {
+      return;
+    }
+
+    buyNowHandled.current = true;
+    void addItem({
+      productId: Number(product.id),
+      productVariantId: selectedVariant ? Number(selectedVariant.id) : undefined,
+      quantity: 1,
+      selectedColor,
+      selectedSize,
+      selectedAttributes: Object.entries(selectedVariant?.options ?? {}).map(([name, option]) => ({
+        name,
+        value: option.value,
+        label: option.name,
+      })),
+      selectedOptions: selectedVariant?.options ?? {},
+    }).then(() => {
+      const checkoutPath = '/checkout';
+      router.push(
+        runtimeSettings?.website_settings.require_login_before_checkout && !isAuthenticated
+          ? `/login?redirect=${encodeURIComponent(checkoutPath)}`
+          : checkoutPath,
+      );
+    }).catch((error: unknown) => {
+      buyNowHandled.current = false;
+      toast.error(toAppError(error).message);
+    });
+  }, [
+    addItem,
+    isAuthenticated,
+    product,
+    router,
+    runtimeSettings?.website_settings.require_login_before_checkout,
+    searchParams,
+    selectedColor,
+    selectedSize,
+    selectedVariant,
+  ]);
 
   useEffect(() => {
     setSelectedImage(0);
@@ -729,11 +782,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
         {relatedProducts.length > 0 && (
           <section>
             <h2 className="text-2xl font-extrabold mb-6">Related Products</h2>
-            <div className="grid grid-cols-1 gap-4 min-[380px]:grid-cols-2 md:grid-cols-4 md:gap-6">
-              {relatedProducts.map((p) => (
-                <ProductCard key={p.id} product={p} />
-              ))}
-            </div>
+            <ProductListing products={relatedProducts} />
           </section>
         )}
       </main>

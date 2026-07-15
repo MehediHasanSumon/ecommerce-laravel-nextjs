@@ -30,6 +30,7 @@ export interface Product {
   isFlashSale?: boolean;
   flashSaleEndsAt?: string;
   freeShipping?: boolean;
+  requiresVariantSelection?: boolean;
   createdAt: string;
 }
 

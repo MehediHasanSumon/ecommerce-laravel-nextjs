@@ -7,7 +7,7 @@ import { ArrowRight, ChevronRight, Home, SearchX, ShoppingBag, Sparkles, Trendin
 import { AnnouncementBar } from '@/components/layout/AnnouncementBar';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
-import { ProductCard } from '@/components/product/ProductCard';
+import { ProductListing } from '@/components/product/ProductListing';
 import { ProductGridSkeleton } from '@/components/skeleton';
 import { fetchCollectionDetail, type CollectionDetailResponse } from '@/services/catalog-service';
 import { useCountdown } from '@/hooks/useCountdown';
@@ -188,11 +188,7 @@ export function CollectionPageContent({ slug }: { slug: string }) {
           {!mounted || loading ? (
             <ProductGridSkeleton count={8} />
           ) : data && data.products.length > 0 ? (
-            <div className="grid grid-cols-1 gap-3 min-[380px]:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-5 xl:grid-cols-4 xl:gap-6">
-              {data.products.map((p) => (
-                <ProductCard key={p.id} product={p} />
-              ))}
-            </div>
+            <ProductListing products={data.products} />
           ) : null}
 
           {!loading && data && data.pagination.last_page > 1 ? (

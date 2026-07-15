@@ -16,7 +16,7 @@ import { AnnouncementBar } from '@/components/layout/AnnouncementBar';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { CategoryIcon } from '@/components/category/CategoryIcon';
-import { ProductCard } from '@/components/product/ProductCard';
+import { ProductListing } from '@/components/product/ProductListing';
 import { ProductGridSkeleton } from '@/components/skeleton';
 import { useCountdown } from '@/hooks/useCountdown';
 import { fetchHomePageSections, type HomePageSections } from '@/services/catalog-service';
@@ -731,11 +731,7 @@ function HomeCollectionSection({
         {loading ? (
           <ProductGridSkeleton count={4} />
         ) : (
-          <div className="grid grid-cols-1 gap-3 min-[380px]:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-5 xl:grid-cols-4 xl:gap-6">
-            {products.map((p) => (
-              <ProductCard key={p.id} product={p} />
-            ))}
-          </div>
+          <ProductListing products={products} />
         )}
       </section>
     );
@@ -752,11 +748,7 @@ function HomeCollectionSection({
       {loading ? (
         <ProductGridSkeleton count={collection?.productLimit && collection.productLimit > 4 ? 8 : 4} />
       ) : products.length > 0 ? (
-        <div className="grid grid-cols-1 gap-3 min-[380px]:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-5 xl:grid-cols-4 xl:gap-6">
-          {products.map((p) => (
-            <ProductCard key={p.id} product={p} />
-          ))}
-        </div>
+        <ProductListing products={products} />
       ) : null}
     </section>
   );
@@ -979,11 +971,7 @@ export default function HomePage() {
             <ProductGridSkeleton count={8} />
           ) : homeProducts.length > 0 ? (
             <>
-              <div className="grid grid-cols-1 gap-3 min-[380px]:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-5 xl:grid-cols-4 xl:gap-6">
-                {homeProducts.map((p) => (
-                  <ProductCard key={p.id} product={p} />
-                ))}
-              </div>
+              <ProductListing products={homeProducts} />
               <div className="mt-6 flex justify-end">
                 <Link
                   href="/shop"

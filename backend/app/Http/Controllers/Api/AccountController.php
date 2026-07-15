@@ -35,6 +35,7 @@ class AccountController extends Controller
         $suggested = Product::query()
             ->where('status', 'active')
             ->with(['category:id,name,slug', 'brand:id,name,slug', 'images', 'tags'])
+            ->withCount(['variants as active_variants_count' => fn ($query) => $query->where('status', 'active')])
             ->withAvg(['reviews as rating_average' => fn ($query) => $query->where('status', 'approved')], 'rating')
             ->withCount(['reviews as review_count' => fn ($query) => $query->where('status', 'approved')])
             ->orderByDesc('is_best_seller')

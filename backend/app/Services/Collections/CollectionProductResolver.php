@@ -128,6 +128,7 @@ class CollectionProductResolver
         return Product::query()
             ->where('status', 'active')
             ->whereNotNull('published_at')
+            ->withCount(['variants as active_variants_count' => fn (Builder $query) => $query->where('status', 'active')])
             ->where(fn (Builder $query) => $query
                 ->where('track_inventory', false)
                 ->orWhere('stock_quantity', '>', 0))
@@ -145,6 +146,7 @@ class CollectionProductResolver
             return $collection->products()
                 ->where('products.status', 'active')
                 ->whereNotNull('products.published_at')
+                ->withCount(['variants as active_variants_count' => fn (Builder $query) => $query->where('status', 'active')])
                 ->where(fn (Builder $query) => $query
                     ->where('products.track_inventory', false)
                     ->orWhere('products.stock_quantity', '>', 0))

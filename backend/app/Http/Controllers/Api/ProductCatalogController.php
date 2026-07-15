@@ -56,6 +56,7 @@ class ProductCatalogController extends Controller
 
         $query = Product::query()
             ->where('status', 'active')
+            ->withCount(['variants as active_variants_count' => fn ($query) => $query->where('status', 'active')])
             ->with([
                 'brand:id,name,slug',
                 'category:id,parent_id,name,slug',

@@ -147,3 +147,38 @@ svg {
     animation: none !important;
   }
 }
+@layer utilities {
+  .product-slider {
+    gap: var(--product-slider-gap);
+    scrollbar-width: none;
+  }
+
+  .product-slider::-webkit-scrollbar {
+    display: none;
+  }
+
+  .product-slider-slide {
+    width: calc(
+      (100% - (var(--product-slider-mobile) - 1) * var(--product-slider-gap)) /
+        var(--product-slider-mobile)
+    );
+  }
+
+  @media (min-width: 768px) {
+    .product-slider-slide {
+      width: calc(
+        (100% - (var(--product-slider-tablet) - 1) * var(--product-slider-gap)) /
+          var(--product-slider-tablet)
+      );
+    }
+  }
+
+  @media (min-width: 1280px) {
+    .product-slider-slide {
+      width: calc(
+        (100% - (var(--product-slider-desktop) - 1) * var(--product-slider-gap)) /
+          var(--product-slider-desktop)
+      );
+    }
+  }
+}

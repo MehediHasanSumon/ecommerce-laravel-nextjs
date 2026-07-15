@@ -41,6 +41,22 @@ class SettingsDefaults
             'enable_reviews' => true,
             'enable_wishlist' => true,
             'require_login_before_checkout' => false,
+            'product_card_style' => 'hover_review',
+            'product_layout' => 'grid',
+            'product_slider_loop' => true,
+            'product_slider_autoplay' => false,
+            'product_slider_autoplay_delay' => 5000,
+            'product_slider_transition_speed' => 400,
+            'product_slider_pause_on_hover' => true,
+            'product_slider_mouse_drag' => true,
+            'product_slider_touch_swipe' => true,
+            'product_slider_navigation' => true,
+            'product_slider_pagination' => false,
+            'product_slider_desktop_slides' => 4,
+            'product_slider_tablet_slides' => 3,
+            'product_slider_mobile_slides' => 2,
+            'product_slider_space_between' => 24,
+            'product_slider_center_mode' => false,
         ];
     }
 

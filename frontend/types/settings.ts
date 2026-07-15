@@ -120,6 +120,30 @@ export type RuntimePaymentMethod = {
   sortOrder: number;
 };
 
+export type ProductCardStyle = "simple" | "hover" | "hover_review";
+export type ProductLayout = "grid" | "swipe" | "list";
+
+export type RuntimeProductCardSettings = {
+  style: ProductCardStyle;
+  layout: ProductLayout;
+  slider: {
+    loop: boolean;
+    autoplay: boolean;
+    autoplay_delay: number;
+    transition_speed: number;
+    pause_on_hover: boolean;
+    mouse_drag: boolean;
+    touch_swipe: boolean;
+    navigation: boolean;
+    pagination: boolean;
+    desktop_slides: number;
+    tablet_slides: number;
+    mobile_slides: number;
+    space_between: number;
+    center_mode: boolean;
+  };
+};
+
 export type RuntimeSettings = {
   company_settings: Record<string, unknown>;
   website_settings: Record<string, unknown>;
@@ -169,4 +193,5 @@ export type RuntimeSettings = {
   home_feature_cards: RuntimeHomeFeatureCard[];
   payment_methods: RuntimePaymentMethod[];
   social_links: RuntimeSocialLink[];
+  product_card_settings: RuntimeProductCardSettings;
 };

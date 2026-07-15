@@ -6,7 +6,7 @@ import { Tag, ChevronRight } from 'lucide-react';
 import { AnnouncementBar } from '@/components/layout/AnnouncementBar';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
-import { ProductCard } from '@/components/product/ProductCard';
+import { ProductListing } from '@/components/product/ProductListing';
 import { ProductGridSkeleton } from '@/components/skeleton';
 import { fetchProducts } from '@/services/catalog-service';
 import type { PaginationMeta } from '@/features/admin/shared/types';
@@ -117,11 +117,7 @@ export default function DealsPage() {
               <p className="text-sm text-muted-foreground">Check back soon for new offers.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-3 min-[380px]:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-5 xl:grid-cols-4 xl:gap-6">
-              {dealProducts.map((p) => (
-                <ProductCard key={p.id} product={p} />
-              ))}
-            </div>
+            <ProductListing products={dealProducts} />
           )}
 
           {!loading && !error && lastPage > 1 ? (

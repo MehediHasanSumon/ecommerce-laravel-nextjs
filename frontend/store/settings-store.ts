@@ -3,7 +3,7 @@
 import axios from "axios";
 import { create } from "zustand";
 import type { ApiEnvelope } from "@/features/admin/shared/types";
-import type { RuntimeCurrencySettings, RuntimeSettings } from "@/types/settings";
+import type { RuntimeCurrencySettings, RuntimeProductCardSettings, RuntimeSettings } from "@/types/settings";
 
 const emptyFrontendNavigation: RuntimeSettings["navigation"]["frontend"] = [];
 const emptyAdminNavigation: RuntimeSettings["navigation"]["admin_sidebar"] = [];
@@ -69,6 +69,26 @@ const pendingCategoryDisplaySettings: RuntimeSettings["category_display_settings
   home_category_variant: "hidden",
 };
 const fallbackCompanyName = "Site";
+export const defaultProductCardSettings: RuntimeProductCardSettings = {
+  style: "hover_review",
+  layout: "grid",
+  slider: {
+    loop: true,
+    autoplay: false,
+    autoplay_delay: 5000,
+    transition_speed: 400,
+    pause_on_hover: true,
+    mouse_drag: true,
+    touch_swipe: true,
+    navigation: true,
+    pagination: false,
+    desktop_slides: 4,
+    tablet_slides: 3,
+    mobile_slides: 2,
+    space_between: 24,
+    center_mode: false,
+  },
+};
 export const defaultCurrencySettings: RuntimeCurrencySettings = {
   currency: "BDT",
   currency_symbol: "৳",
@@ -212,6 +232,8 @@ export const selectHomePageSettings = (state: SettingsState) =>
   selectSettingsPending(state) ? defaultHomePageSettings : state.settings?.home_page_settings ?? defaultHomePageSettings;
 export const selectPaymentMethods = (state: SettingsState) =>
   selectSettingsPending(state) ? emptyPaymentMethods : state.settings?.payment_methods ?? emptyPaymentMethods;
+export const selectProductCardSettings = (state: SettingsState): RuntimeProductCardSettings =>
+  selectSettingsPending(state) ? defaultProductCardSettings : state.settings?.product_card_settings ?? defaultProductCardSettings;
 export const selectBlogSettings = (state: SettingsState) =>
   selectSettingsPending(state) ? defaultBlogSettings : state.settings?.blog_settings ?? defaultBlogSettings;
 export const selectBrandSettings = (state: SettingsState) =>

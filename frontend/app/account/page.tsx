@@ -8,7 +8,7 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { AccountSidebar } from "@/components/account/AccountSidebar";
 import { DashboardWidgetSkeleton, OrderCardSkeleton } from "@/components/skeleton";
-import { ProductCard } from "@/components/product/ProductCard";
+import { ProductListing } from "@/components/product/ProductListing";
 import { useCartStore } from "@/store/cartStore";
 import { useWishlistStore } from "@/store/wishlistStore";
 import { selectCurrencyFingerprint, useSettingsStore } from "@/store/settings-store";
@@ -145,9 +145,7 @@ export default function AccountDashboardPage() {
                 <h2 className="font-bold">Suggested for You</h2>
                 <Link href="/shop" className="text-sm font-semibold text-primary hover:underline">View all</Link>
               </div>
-              <div className="grid grid-cols-1 gap-4 min-[380px]:grid-cols-2 md:grid-cols-4">
-                {suggestedProducts.map((product) => <ProductCard key={product.id} product={product} />)}
-              </div>
+              <ProductListing products={suggestedProducts} />
             </div>
           </div>
         </div>

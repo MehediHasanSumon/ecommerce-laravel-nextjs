@@ -3,12 +3,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { ChevronRight, Grid3X3, List, Search, SlidersHorizontal, Star, X } from 'lucide-react';
+import { ChevronRight, Search, SlidersHorizontal, Star, X } from 'lucide-react';
 import axios from 'axios';
 import { AnnouncementBar } from '@/components/layout/AnnouncementBar';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
-import { ProductCard } from '@/components/product/ProductCard';
+import { ProductListing } from '@/components/product/ProductListing';
 import { ProductGridSkeleton } from '@/components/skeleton';
 import {
   fetchProducts,
@@ -61,7 +61,6 @@ type ShopQuery = {
   rating: string;
   sort: string;
   page: number;
-  view: 'grid' | 'list';
 };
 
 function csv(value: string | null) {
@@ -93,7 +92,6 @@ function parseQuery(searchParams: URLSearchParams): ShopQuery {
     'rating',
     'sort',
     'page',
-    'view',
   ]);
   const attributes: Record<string, string[]> = {};
 
@@ -109,7 +107,6 @@ function parseQuery(searchParams: URLSearchParams): ShopQuery {
   const page = Number(searchParams.get('page') ?? 1);
   const sort = searchParams.get('sort') ?? 'default';
   const availability = searchParams.get('availability') ?? '';
-  const view = searchParams.get('view') === 'list' ? 'list' : 'grid';
 
   return {
     search: (searchParams.get('search') ?? '').slice(0, 120),
@@ -121,7 +118,6 @@ function parseQuery(searchParams: URLSearchParams): ShopQuery {
     rating: parsePositiveNumber(searchParams.get('rating')),
     sort: validSorts.has(sort) ? sort : 'default',
     page: Number.isInteger(page) && page > 0 ? page : 1,
-    view,
   };
 }
 
@@ -139,8 +135,6 @@ function serializeQuery(query: ShopQuery) {
   if (query.rating) params.set('rating', query.rating);
   if (query.sort !== 'default') params.set('sort', query.sort);
   if (query.page > 1) params.set('page', String(query.page));
-  if (query.view !== 'grid') params.set('view', query.view);
-
   return params;
 }
 
@@ -513,32 +507,6 @@ export default function ShopPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex border border-border rounded-xl overflow-hidden">
-                <button
-                  onClick={() => patchQuery({ view: 'grid' })}
-                  aria-label="Grid view"
-                  className={cn(
-                    'p-2.5 transition-colors',
-                    query.view === 'grid'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'hover:bg-muted',
-                  )}
-                >
-                  <Grid3X3 size={16} />
-                </button>
-                <button
-                  onClick={() => patchQuery({ view: 'list' })}
-                  aria-label="List view"
-                  className={cn(
-                    'p-2.5 transition-colors',
-                    query.view === 'list'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'hover:bg-muted',
-                  )}
-                >
-                  <List size={16} />
-                </button>
-              </div>
             </div>
 
             {!mounted || loading ? (
@@ -571,18 +539,8 @@ export default function ShopPage() {
                   Clear Filters
                 </button>
               </div>
-            ) : query.view === 'grid' ? (
-              <div className="grid grid-cols-1 gap-3 min-[380px]:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-5">
-                {products.map((product) => (
-                  <ProductCard key={product.id} product={product} />
-                ))}
-              </div>
             ) : (
-              <div className="space-y-4">
-                {products.map((product) => (
-                  <ProductCard key={product.id} product={product} layout="list" />
-                ))}
-              </div>
+              <ProductListing products={products} />
             )}
 
             {!loading && !error && lastPage > 1 ? (

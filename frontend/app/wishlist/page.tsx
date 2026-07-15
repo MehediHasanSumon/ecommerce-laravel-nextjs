@@ -1,7 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { Heart, ShoppingCart, Trash2, ChevronRight, ShoppingBag } from 'lucide-react';
 import { AnnouncementBar } from '@/components/layout/AnnouncementBar';
 import { Header } from '@/components/layout/Header';
@@ -9,13 +8,12 @@ import { Footer } from '@/components/layout/Footer';
 import { useWishlistStore } from '@/store/wishlistStore';
 import { useCartStore } from '@/store/cartStore';
 import { useAuthStore } from '@/store/auth-store';
-import { selectBrandsEnabled, selectCurrencyFingerprint, useSettingsStore } from '@/store/settings-store';
-import { formatPrice } from '@/utils/format';
+import { selectCurrencyFingerprint, useSettingsStore } from '@/store/settings-store';
+import { ProductListing } from '@/components/product/ProductListing';
 import { toast } from 'sonner';
 
 export default function WishlistPage() {
   useSettingsStore(selectCurrencyFingerprint);
-  const brandsEnabled = useSettingsStore(selectBrandsEnabled);
   const [mounted, setMounted] = useState(false);
   const initialize = useWishlistStore((s) => s.initialize);
   const storeLoading = useWishlistStore((s) => s.isLoading);
@@ -39,19 +37,8 @@ export default function WishlistPage() {
   }, [authInitialized, fetchCurrentUser, initialize, mounted]);
 
   const items = useWishlistStore((s) => s.items);
-  const removeItem = useWishlistStore((s) => s.removeItem);
   const clearWishlist = useWishlistStore((s) => s.clearWishlist);
   const addToCart = useCartStore((s) => s.addItem);
-
-  const handleAddToCart = (item: (typeof items)[0]) => {
-    void addToCart(item.product, 1);
-    toast.success(`${item.product.name} added to cart!`);
-  };
-
-  const handleRemove = (itemId: string, name: string) => {
-    void removeItem(itemId);
-    toast(`${name} removed from wishlist`, { icon: '💔' });
-  };
 
   if (!mounted || !authInitialized || !wishlistInitialized || storeLoading) {
     return (
@@ -145,62 +132,15 @@ export default function WishlistPage() {
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-3 min-[380px]:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-5 xl:grid-cols-4 xl:gap-6">
-            {items.map((item) => (
-              <div
-                key={item.id}
-                className="group bg-card border border-border rounded-2xl overflow-hidden hover:shadow-md transition-shadow"
-              >
-                <Link
-                  href={`/products/${item.product.slug}`}
-                  className="relative block aspect-square overflow-hidden bg-muted"
-                >
-                  <Image
-                    src={item.product.thumbnail}
-                    alt={item.product.name}
-                    fill
-                    className="object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      handleRemove(item.id, item.product.name);
-                    }}
-                    className="absolute top-3 right-3 w-8 h-8 bg-background/90 backdrop-blur-sm rounded-full flex items-center justify-center text-rose-500 hover:bg-destructive hover:text-white transition-colors shadow-md"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </Link>
-                <div className="p-4">
-                  {brandsEnabled && item.product.brand ? <p className="text-xs text-muted-foreground mb-0.5">{item.product.brand}</p> : null}
-                  <Link
-                    href={`/products/${item.product.slug}`}
-                    className="font-semibold text-sm hover:text-primary transition-colors line-clamp-2 leading-snug"
-                  >
-                    {item.product.name}
-                  </Link>
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className="font-bold">{formatPrice(item.discountedPrice ?? item.product.price)}</span>
-                    {(item.discountedPrice || item.product.originalPrice) && (
-                      <span className="text-xs text-muted-foreground line-through">
-                        {formatPrice(item.product.originalPrice ?? item.product.price)}
-                      </span>
-                    )}
-                  </div>
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    {item.stockStatus === 'in_stock' ? 'In stock' : item.stockStatus === 'out_of_stock' ? 'Out of stock' : 'Unavailable'}
-                  </p>
-                  <button
-                    onClick={() => handleAddToCart(item)}
-                    disabled={item.stockStatus !== 'in_stock'}
-                    className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
-                  >
-                    <ShoppingCart size={14} /> Add to Cart
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+          <ProductListing
+            products={items.map((item) => ({
+              ...item.product,
+              price: item.discountedPrice ?? item.product.price,
+              originalPrice: item.discountedPrice
+                ? item.product.originalPrice ?? item.product.price
+                : item.product.originalPrice,
+            }))}
+          />
         )}
       </main>
       <Footer />

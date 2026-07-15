@@ -17,6 +17,7 @@ import {
   ShieldAlert,
   Store,
   Trash2,
+  SlidersHorizontal,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { toast } from "sonner";
@@ -64,6 +65,7 @@ type Field = {
   options?: Array<{ label: string; value: string }>;
   helper?: string;
   uploadPath?: string;
+  visibleWhen?: (values: Values) => boolean;
 };
 
 type PaymentGatewayRow = {
@@ -102,6 +104,7 @@ type Section = {
   description: string;
   icon: LucideIcon;
   fields: Field[];
+  visibleWhen?: (values: Values) => boolean;
 };
 
 type SingletonModule = {
@@ -228,6 +231,22 @@ const moduleConfigs: Record<string, SingletonModule> = {
       enable_reviews: true,
       enable_wishlist: true,
       require_login_before_checkout: false,
+      product_card_style: "hover_review",
+      product_layout: "grid",
+      product_slider_loop: true,
+      product_slider_autoplay: false,
+      product_slider_autoplay_delay: 5000,
+      product_slider_transition_speed: 400,
+      product_slider_pause_on_hover: true,
+      product_slider_mouse_drag: true,
+      product_slider_touch_swipe: true,
+      product_slider_navigation: true,
+      product_slider_pagination: false,
+      product_slider_desktop_slides: 4,
+      product_slider_tablet_slides: 3,
+      product_slider_mobile_slides: 2,
+      product_slider_space_between: 24,
+      product_slider_center_mode: false,
     },
     sections: [
       { title: "Storefront Features", description: "Customer-facing catalog capabilities.", icon: PackageCheck, fields: [
@@ -236,6 +255,34 @@ const moduleConfigs: Record<string, SingletonModule> = {
       ] },
       { title: "Checkout", description: "Customer authentication requirement at checkout.", icon: ShieldAlert, fields: [
         { name: "require_login_before_checkout", label: "Require Login Before Checkout", type: "toggle" },
+      ] },
+      { title: "Product Card Settings", description: "Control the global product card style and storefront product layout.", icon: SlidersHorizontal, fields: [
+        { name: "product_card_style", label: "Product Card Style", type: "select", required: true, options: [
+          { label: "Simple Mode", value: "simple" },
+          { label: "Hover Mode", value: "hover" },
+          { label: "Hover + Review Mode", value: "hover_review" },
+        ] },
+        { name: "product_layout", label: "Product Layout", type: "select", required: true, options: [
+          { label: "Grid Mode", value: "grid" },
+          { label: "Swipe Mode", value: "swipe" },
+          { label: "List Mode", value: "list" },
+        ] },
+      ] },
+      { title: "Swipe Layout", description: "Configure the responsive carousel used when Product Layout is set to Swipe Mode.", icon: SlidersHorizontal, visibleWhen: (values) => values.product_layout === "swipe", fields: [
+        { name: "product_slider_loop", label: "Infinite Loop", type: "toggle", visibleWhen: (values) => values.product_layout === "swipe" },
+        { name: "product_slider_autoplay", label: "Autoplay", type: "toggle", visibleWhen: (values) => values.product_layout === "swipe" },
+        { name: "product_slider_autoplay_delay", label: "Autoplay Delay (ms)", type: "number", visibleWhen: (values) => values.product_layout === "swipe" },
+        { name: "product_slider_transition_speed", label: "Transition Speed (ms)", type: "number", visibleWhen: (values) => values.product_layout === "swipe" },
+        { name: "product_slider_pause_on_hover", label: "Pause on Hover", type: "toggle", visibleWhen: (values) => values.product_layout === "swipe" },
+        { name: "product_slider_mouse_drag", label: "Mouse Drag", type: "toggle", visibleWhen: (values) => values.product_layout === "swipe" },
+        { name: "product_slider_touch_swipe", label: "Touch Swipe", type: "toggle", visibleWhen: (values) => values.product_layout === "swipe" },
+        { name: "product_slider_navigation", label: "Navigation Arrows", type: "toggle", visibleWhen: (values) => values.product_layout === "swipe" },
+        { name: "product_slider_pagination", label: "Pagination Dots", type: "toggle", visibleWhen: (values) => values.product_layout === "swipe" },
+        { name: "product_slider_desktop_slides", label: "Slides per View (Desktop)", type: "number", visibleWhen: (values) => values.product_layout === "swipe" },
+        { name: "product_slider_tablet_slides", label: "Slides per View (Tablet)", type: "number", visibleWhen: (values) => values.product_layout === "swipe" },
+        { name: "product_slider_mobile_slides", label: "Slides per View (Mobile)", type: "number", visibleWhen: (values) => values.product_layout === "swipe" },
+        { name: "product_slider_space_between", label: "Space Between Slides", type: "number", visibleWhen: (values) => values.product_layout === "swipe" },
+        { name: "product_slider_center_mode", label: "Center Mode", type: "toggle", visibleWhen: (values) => values.product_layout === "swipe" },
       ] },
     ],
   },
@@ -412,20 +459,24 @@ export function SettingsModuleContent({ module }: { module: keyof typeof moduleC
               </SettingsSection>
             ) : null}
             {!loading && sections.map((section) => (
+              section.visibleWhen && !section.visibleWhen(values) ? null : (
               <SettingsSection key={section.title} title={section.title} description={section.description} icon={section.icon}>
                 <FormGrid>
                   {section.fields.map((field) => (
-                    <FieldControl
-                      key={field.name}
-                      field={field}
-                      value={values[field.name]}
-                      error={errors[field.name]}
-                      onChange={(value) => update(field.name, value)}
-                      canEdit={canEdit}
-                    />
+                    field.visibleWhen && !field.visibleWhen(values) ? null : (
+                      <FieldControl
+                        key={field.name}
+                        field={field}
+                        value={values[field.name]}
+                        error={errors[field.name]}
+                        onChange={(value) => update(field.name, value)}
+                        canEdit={canEdit}
+                      />
+                    )
                   ))}
                 </FormGrid>
               </SettingsSection>
+              )
             ))}
           </div>
         </SettingsGrid>
@@ -766,7 +817,10 @@ function SettingsLoading() {
 
 function validateFields(sections: Section[], values: Values) {
   const errors: Record<string, string> = {};
-  sections.flatMap((section) => section.fields).forEach((field) => {
+  sections.forEach((section) => {
+    if (section.visibleWhen && !section.visibleWhen(values)) return;
+    section.fields.forEach((field) => {
+      if (field.visibleWhen && !field.visibleWhen(values)) return;
     const value = values[field.name];
     if (field.required && (value === null || value === undefined || String(value).trim() === "")) {
       errors[field.name] = `${field.label} is required.`;
@@ -782,6 +836,7 @@ function validateFields(sections: Section[], values: Values) {
         errors[field.name] = "Enter a valid URL.";
       }
     }
+    });
   });
   return errors;
 }

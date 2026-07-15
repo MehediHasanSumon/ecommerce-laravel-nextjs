@@ -78,6 +78,26 @@ class NavigationSettingsController extends Controller
         return [
             'company_settings' => $company->toArray(),
             'website_settings' => $store->toArray(),
+            'product_card_settings' => [
+                'style' => $store->product_card_style,
+                'layout' => $store->product_layout,
+                'slider' => [
+                    'loop' => (bool) $store->product_slider_loop,
+                    'autoplay' => (bool) $store->product_slider_autoplay,
+                    'autoplay_delay' => (int) $store->product_slider_autoplay_delay,
+                    'transition_speed' => (int) $store->product_slider_transition_speed,
+                    'pause_on_hover' => (bool) $store->product_slider_pause_on_hover,
+                    'mouse_drag' => (bool) $store->product_slider_mouse_drag,
+                    'touch_swipe' => (bool) $store->product_slider_touch_swipe,
+                    'navigation' => (bool) $store->product_slider_navigation,
+                    'pagination' => (bool) $store->product_slider_pagination,
+                    'desktop_slides' => (int) $store->product_slider_desktop_slides,
+                    'tablet_slides' => (int) $store->product_slider_tablet_slides,
+                    'mobile_slides' => (int) $store->product_slider_mobile_slides,
+                    'space_between' => (int) $store->product_slider_space_between,
+                    'center_mode' => (bool) $store->product_slider_center_mode,
+                ],
+            ],
             'appearance_settings' => [
                 'logo' => $this->assetUrl($company->logo),
                 'dark_logo' => $this->assetUrl($company->dark_logo),
