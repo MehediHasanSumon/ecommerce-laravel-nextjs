@@ -198,20 +198,17 @@ export default function ContactPage() {
 
 function buildContactInfo(settings: ReturnType<typeof selectRuntimeSettings>) {
   const company = settings?.company_settings ?? {};
-  const store = settings?.website_settings ?? {};
   const branding = settings?.branding ?? {};
   const phone = firstText(
     branding.support_phone,
     company.support_phone,
     branding.company_phone,
     company.company_phone,
-    store.store_phone,
   );
   const email = firstText(
     branding.support_email,
     company.support_email,
     company.company_email,
-    store.store_email,
   );
   const address = firstText(
     branding.address,

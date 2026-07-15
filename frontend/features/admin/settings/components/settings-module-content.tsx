@@ -222,22 +222,14 @@ const moduleConfigs: Record<string, SingletonModule> = {
     kind: "singleton",
     path: "store",
     title: "Store Settings",
-    description: "Configure storefront identity and active customer-facing features.",
+    description: "Configure active customer-facing features and checkout behavior.",
     icon: Store,
     defaults: {
-      store_name: "",
-      store_email: "",
-      store_phone: "",
       enable_reviews: true,
       enable_wishlist: true,
       require_login_before_checkout: false,
     },
     sections: [
-      { title: "Store Information", description: "Public storefront contact details.", icon: Store, fields: [
-        { name: "store_name", label: "Store Name", required: true },
-        { name: "store_email", label: "Store Email", type: "email" },
-        { name: "store_phone", label: "Store Phone" },
-      ] },
       { title: "Storefront Features", description: "Customer-facing catalog capabilities.", icon: PackageCheck, fields: [
         { name: "enable_reviews", label: "Enable Reviews", type: "toggle" },
         { name: "enable_wishlist", label: "Enable Wishlist", type: "toggle" },

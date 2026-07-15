@@ -38,9 +38,6 @@ class SettingsDefaults
     public static function store(): array
     {
         return [
-            'store_name' => 'LuxeCart',
-            'store_email' => 'store@luxecart.test',
-            'store_phone' => '+880 1700-000002',
             'enable_reviews' => true,
             'enable_wishlist' => true,
             'require_login_before_checkout' => false,

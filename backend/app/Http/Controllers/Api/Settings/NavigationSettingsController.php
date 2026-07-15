@@ -58,7 +58,7 @@ class NavigationSettingsController extends Controller
         $brandSettings = $this->brandSettings->runtime();
         $social = $this->socialMediaSettings->all();
         $payments = $this->paymentSettings->all();
-        $siteName = $company->company_name ?: $store->store_name;
+        $siteName = $company->company_name;
         $currency = $company->currency;
 
         $modules = [
@@ -111,8 +111,8 @@ class NavigationSettingsController extends Controller
                 'logo' => $this->assetUrl($company->logo),
                 'dark_logo' => $this->assetUrl($company->dark_logo),
                 'favicon' => $this->assetUrl($company->favicon),
-                'support_email' => $company->support_email ?: $store->store_email,
-                'support_phone' => $company->support_phone ?: $store->store_phone,
+                'support_email' => $company->support_email,
+                'support_phone' => $company->support_phone,
                 'company_phone' => $company->company_phone,
                 'address' => $company->full_address,
             ],
@@ -149,7 +149,7 @@ class NavigationSettingsController extends Controller
             ['label' => 'Brands', 'href' => '/brands', 'module' => 'brands', 'enabled' => $modules['brands']],
             ['label' => 'Offers', 'href' => '/deals', 'module' => 'offers', 'enabled' => $modules['offers']],
             ['label' => 'Blog', 'href' => '/blogs', 'module' => 'blog', 'enabled' => $modules['blog']],
-            ['label' => 'Contact', 'href' => '/contact', 'module' => 'contact', 'enabled' => (bool) ($company->support_email || $company->support_phone || $store->store_email || $store->store_phone)],
+            ['label' => 'Contact', 'href' => '/contact', 'module' => 'contact', 'enabled' => (bool) ($company->support_email || $company->support_phone)],
         ])->where('enabled', true)->values()->all();
     }
 
