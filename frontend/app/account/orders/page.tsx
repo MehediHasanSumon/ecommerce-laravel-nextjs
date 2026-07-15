@@ -89,7 +89,7 @@ export default function OrdersPage() {
           <span className="font-medium text-foreground">Orders</span>
         </nav>
 
-        <div className="flex gap-8">
+        <div className="flex flex-col gap-4 md:flex-row md:gap-8">
           <AccountSidebar active="orders" />
           <div className="min-w-0 flex-1">
             <h1 className="mb-6 text-2xl font-extrabold">My Orders</h1>

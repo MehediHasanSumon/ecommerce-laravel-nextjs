@@ -93,7 +93,7 @@ export default function AccountOrderDetailPage() {
           <Link href="/account/orders" className="hover:text-foreground">Orders</Link><ChevronRight size={14} />
           <span className="font-medium text-foreground">{params.order}</span>
         </nav>
-        <div className="flex gap-8">
+        <div className="flex flex-col gap-4 md:flex-row md:gap-8">
           <AccountSidebar active="orders" />
           <div className="min-w-0 flex-1">
             {!order ? <div className="h-72 animate-pulse rounded-2xl bg-muted" /> : (

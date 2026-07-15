@@ -284,7 +284,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
     <div className="min-h-screen bg-background">
       <AnnouncementBar />
       <Header />
-      <main className="max-w-7xl mx-auto px-4 py-8 pb-16">
+      <main className="mx-auto max-w-7xl px-3 py-6 pb-16 sm:px-4 sm:py-8 lg:px-6">
         {/* Breadcrumb */}
         <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-6 flex-wrap">
           <Link href="/" className="hover:text-foreground">
@@ -311,9 +311,9 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
         </nav>
 
         {/* Main product section */}
-        <div className="mb-16 grid gap-8 lg:grid-cols-2 lg:gap-16">
+        <div className="mb-12 grid min-w-0 gap-8 lg:mb-16 lg:grid-cols-2 lg:gap-16">
           {/* Gallery */}
-          <div className="space-y-4">
+          <div className="min-w-0 space-y-4">
             <div className="relative aspect-square overflow-hidden rounded-2xl bg-muted">
               <Image
                 src={displayImages[selectedImage] ?? product.thumbnail}
@@ -365,7 +365,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
               )}
             </div>
             {displayImages.length > 1 && (
-              <div className="grid grid-cols-4 gap-3">
+              <div className="grid grid-cols-4 gap-2 sm:gap-3">
                 {displayImages.map((img, i) => (
                   <button
                     key={i}
@@ -391,7 +391,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
           </div>
 
           {/* Product Info */}
-          <div className="space-y-5">
+          <div className="min-w-0 space-y-5">
             <div>
               <div className="flex items-center gap-2 mb-2">
                 {brandsEnabled && product.brand && product.brandSlug ? (
@@ -408,8 +408,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
                   </span>
                 )}
               </div>
-              <h1 className="text-2xl md:text-3xl font-extrabold leading-tight">{product.name}</h1>
-              <p className="text-sm text-muted-foreground mt-1">SKU: {displaySku}</p>
+              <h1 className="break-words text-2xl font-extrabold leading-tight md:text-3xl">{product.name}</h1>
+              <p className="mt-1 break-words text-sm text-muted-foreground [overflow-wrap:anywhere]">SKU: {displaySku}</p>
             </div>
 
             {/* Rating */}
@@ -434,8 +434,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
             </div>
 
             {/* Price */}
-            <div className="flex flex-wrap items-end gap-3">
-              <span className="text-3xl font-extrabold">{formatPrice(displayPrice)}</span>
+            <div className="flex min-w-0 flex-wrap items-end gap-x-3 gap-y-2">
+              <span className="max-w-full break-words text-2xl font-extrabold sm:text-3xl [overflow-wrap:anywhere]">{formatPrice(displayPrice)}</span>
               {displayOriginalPrice && (
                 <>
                   <span className="text-lg text-muted-foreground line-through mb-0.5">
@@ -520,7 +520,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
             )}
 
             {/* Quantity */}
-            <div className="flex flex-wrap items-center gap-4">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
               <span className="text-sm font-semibold">Quantity:</span>
               <div className="flex items-center border border-border rounded-xl overflow-hidden">
                 <button
@@ -633,9 +633,9 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
             <div className="max-w-2xl">
               <div className="border border-border rounded-2xl overflow-hidden">
                 {Object.entries(product.specifications).map(([key, value], i) => (
-              <div key={key} className={cn('grid sm:grid-cols-[10rem_1fr]', i % 2 === 0 && 'bg-muted/30')}>
-                    <div className="px-5 py-3.5 text-sm font-semibold">{key}</div>
-                    <div className="border-t border-border px-5 py-3.5 text-sm text-muted-foreground sm:border-l sm:border-t-0">
+                  <div key={key} className={cn('grid min-w-0 sm:grid-cols-[10rem_minmax(0,1fr)]', i % 2 === 0 && 'bg-muted/30')}>
+                    <div className="min-w-0 break-words px-4 py-3.5 text-sm font-semibold sm:px-5">{key}</div>
+                    <div className="min-w-0 break-words border-t border-border px-4 py-3.5 text-sm text-muted-foreground [overflow-wrap:anywhere] sm:border-l sm:border-t-0 sm:px-5">
                       {value}
                     </div>
                   </div>
@@ -780,7 +780,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
         {relatedProducts.length > 0 && (
           <section>
             <h2 className="text-2xl font-extrabold mb-6">Related Products</h2>
-            <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4 md:gap-6">
+            <div className="grid grid-cols-1 gap-4 min-[380px]:grid-cols-2 md:grid-cols-4 md:gap-6">
               {relatedProducts.map((p) => (
                 <ProductCard key={p.id} product={p} />
               ))}

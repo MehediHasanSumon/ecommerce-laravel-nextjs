@@ -133,10 +133,10 @@ export function ProfileCardSkeleton() {
 
 export function DashboardWidgetSkeleton() {
   return (
-    <div className="border border-border rounded-2xl p-5 space-y-3">
-      <Skeleton className="h-4 w-32" />
-      <Skeleton className="h-8 w-20" />
-      <Skeleton className="h-3 w-40" />
+    <div className="min-w-0 space-y-3 rounded-2xl border border-border p-4 sm:p-5">
+      <Skeleton className="h-4 w-32 max-w-full" />
+      <Skeleton className="h-8 w-20 max-w-full" />
+      <Skeleton className="h-3 w-40 max-w-full" />
     </div>
   );
 }

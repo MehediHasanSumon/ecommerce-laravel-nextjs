@@ -86,7 +86,7 @@ export default function NotificationsPage() {
           <span className="text-foreground font-medium">Notifications</span>
         </nav>
 
-        <div className="flex gap-8">
+        <div className="flex flex-col gap-4 md:flex-row md:gap-8">
           <AccountSidebar active="notifications" />
           <div className="flex-1 min-w-0 space-y-6">
             <div>

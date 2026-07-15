@@ -177,7 +177,7 @@ export default function AddressesPage() {
           <span className="text-foreground font-medium">Addresses</span>
         </nav>
 
-        <div className="flex gap-8">
+        <div className="flex flex-col gap-4 md:flex-row md:gap-8">
           <AccountSidebar active="addresses" />
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between mb-6">

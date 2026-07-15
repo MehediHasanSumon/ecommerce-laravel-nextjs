@@ -28,13 +28,13 @@ function StatCard({
   color: string;
 }) {
   return (
-    <div className="bg-card border border-border rounded-2xl p-5">
+    <div className="min-w-0 bg-card border border-border rounded-2xl p-4 sm:p-5">
       <div className="flex items-start justify-between mb-4">
         <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${color}`}>
           <Icon size={18} />
         </div>
       </div>
-      <p className="text-2xl font-extrabold">{value}</p>
+      <p className="break-words text-xl font-extrabold sm:text-2xl [overflow-wrap:anywhere]">{value}</p>
       <p className="text-xs text-muted-foreground font-medium mt-1">{label}</p>
     </div>
   );
@@ -65,20 +65,20 @@ export default function AccountDashboardPage() {
     <div className="min-h-screen bg-background">
       <AnnouncementBar />
       <Header />
-      <main className="max-w-7xl mx-auto px-4 py-8 pb-16">
+      <main className="mx-auto max-w-7xl px-3 py-6 pb-16 sm:px-4 sm:py-8 lg:px-6">
         <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
           <Link href="/" className="hover:text-foreground">Home</Link>
           <ChevronRight size={14} />
           <span className="text-foreground font-medium">My Account</span>
         </nav>
 
-        <div className="flex gap-8">
+        <div className="flex flex-col gap-4 md:flex-row md:gap-8">
           <AccountSidebar active="dashboard" />
 
           <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h1 className="text-2xl font-extrabold">Welcome back, {dashboard?.profile.name ?? "Customer"}</h1>
+            <div className="mb-6 flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <h1 className="break-words text-2xl font-extrabold">Welcome back, {dashboard?.profile.name ?? "Customer"}</h1>
                 <p className="text-muted-foreground text-sm mt-1">Here&apos;s what&apos;s happening with your account today.</p>
               </div>
               <Link href="/account/profile" className="hidden md:inline-flex items-center gap-2 px-4 py-2 border border-border rounded-xl text-sm font-medium hover:bg-muted transition-colors">
@@ -87,11 +87,11 @@ export default function AccountDashboardPage() {
             </div>
 
             {loading ? (
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+              <div className="mb-8 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
                 {Array.from({ length: 4 }).map((_, i) => <DashboardWidgetSkeleton key={i} />)}
               </div>
             ) : (
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+              <div className="mb-8 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
                 <StatCard icon={ShoppingBag} label="Total Orders" value={String(stats?.totalOrders ?? 0)} color="bg-blue-100 text-blue-600 dark:bg-blue-950" />
                 <StatCard icon={Heart} label="Wishlist" value={String(wishlistCount || stats?.wishlistCount || 0)} color="bg-rose-100 text-rose-600 dark:bg-rose-950" />
                 <StatCard icon={Package} label="Cart Items" value={String(cartCount || stats?.cartItems || 0)} color="bg-purple-100 text-purple-600 dark:bg-purple-950" />
@@ -114,7 +114,7 @@ export default function AccountDashboardPage() {
                     <Link
                       key={order.id}
                       href={`/account/orders/${order.orderNumber}`}
-                      className="flex items-center gap-4 px-5 py-4 hover:bg-muted/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className="flex items-start gap-3 px-4 py-4 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:items-center sm:gap-4 sm:px-5"
                     >
                       <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
                         <Package size={18} className="text-muted-foreground" />
@@ -123,13 +123,13 @@ export default function AccountDashboardPage() {
                         <p className="text-sm font-semibold truncate">{order.orderNumber}</p>
                         <p className="text-xs text-muted-foreground">{order.itemsCount ?? 0} items · {order.placedAt ? new Date(order.placedAt).toLocaleDateString() : "Not set"}</p>
                       </div>
-                      <div className="text-right shrink-0">
+                      <div className="shrink-0 text-right">
                         <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${ORDER_STATUS_COLORS[order.status] ?? "bg-muted text-muted-foreground"}`}>
                           {formatOrderStatus(order.status)}
                         </span>
                         <p className="text-sm font-bold mt-1">{formatPrice(order.summary.total)}</p>
                       </div>
-                      <span className="shrink-0 p-2">
+                      <span className="hidden shrink-0 p-2 sm:inline-flex">
                         <ChevronRight size={16} className="text-muted-foreground" />
                       </span>
                     </Link>
@@ -145,7 +145,7 @@ export default function AccountDashboardPage() {
                 <h2 className="font-bold">Suggested for You</h2>
                 <Link href="/shop" className="text-sm font-semibold text-primary hover:underline">View all</Link>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 gap-4 min-[380px]:grid-cols-2 md:grid-cols-4">
                 {suggestedProducts.map((product) => <ProductCard key={product.id} product={product} />)}
               </div>
             </div>

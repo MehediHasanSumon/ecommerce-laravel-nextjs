@@ -84,7 +84,7 @@ export default function SettingsPage() {
           <ChevronRight size={14} />
           <span className="text-foreground font-medium">Settings</span>
         </nav>
-        <div className="flex gap-8">
+        <div className="flex flex-col gap-4 md:flex-row md:gap-8">
           <AccountSidebar active="settings" />
           <div className="flex-1 min-w-0">
             <h1 className="text-2xl font-extrabold mb-6">Account Settings</h1>
