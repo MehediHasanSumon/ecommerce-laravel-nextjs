@@ -4,10 +4,9 @@ namespace App\Services\Commerce;
 
 use App\Models\Cart;
 use App\Models\Discount;
+use App\Models\Order;
 use App\Models\Settings\ShippingMethod;
 use Carbon\CarbonImmutable;
-use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class CouponService
@@ -25,13 +24,14 @@ class CouponService
         );
     }
 
-    public function apply(Cart $cart, string $code): array
+    public function apply(Cart $cart, string $code, ?int $shippingCents = null): array
     {
         $coupon = Discount::query()
             ->with([
                 'products:id',
                 'categories:id',
                 'brands:id',
+                'collections:id',
                 'excludedProducts:id',
                 'excludedCategories:id',
                 'usages:id,discount_id,user_id,usage_count,last_used_at',
@@ -40,14 +40,16 @@ class CouponService
             ->first();
 
         if (! $coupon) {
-            throw ValidationException::withMessages(['code' => 'Invalid coupon code.']);
+            throw ValidationException::withMessages(['code' => 'Coupon not found.']);
         }
 
         if ($cart->coupon_code && strcasecmp((string) $cart->coupon_code, (string) $coupon->code) === 0) {
-            throw ValidationException::withMessages(['code' => 'Coupon already applied.']);
+            $summary = $this->validateAndSummarize($cart, $coupon, $shippingCents);
+
+            return $this->persistCoupon($cart, $coupon, $summary);
         }
 
-        $summary = $this->validateAndSummarize($cart, $coupon);
+        $summary = $this->validateAndSummarize($cart, $coupon, $shippingCents);
 
         return $this->persistCoupon($cart, $coupon, $summary);
     }
@@ -68,7 +70,7 @@ class CouponService
         ];
     }
 
-    public function revalidate(Cart $cart): ?array
+    public function revalidate(Cart $cart, bool $removeInvalid = true): ?array
     {
         if (! $cart->coupon_code) {
             return null;
@@ -79,6 +81,7 @@ class CouponService
                 'products:id',
                 'categories:id',
                 'brands:id',
+                'collections:id',
                 'excludedProducts:id',
                 'excludedCategories:id',
                 'usages:id,discount_id,user_id,usage_count,last_used_at',
@@ -86,6 +89,10 @@ class CouponService
             ->find($cart->coupon_discount_id);
 
         if (! $coupon || ! $coupon->code) {
+            if (! $removeInvalid) {
+                throw ValidationException::withMessages(['code' => 'The applied coupon is no longer available.']);
+            }
+
             return $this->remove($cart, 'The applied coupon is no longer available.');
         }
 
@@ -95,6 +102,10 @@ class CouponService
 
             return $result['changed'] ? $result : null;
         } catch (ValidationException $exception) {
+            if (! $removeInvalid) {
+                throw $exception;
+            }
+
             return $this->remove($cart, collect($exception->errors())->flatten()->first() ?: 'The applied coupon is no longer valid.');
         }
     }
@@ -112,33 +123,59 @@ class CouponService
         ];
     }
 
-    public function incrementUsageForAppliedCoupon(Cart $cart): void
+    public function validateForCheckout(Cart $cart, int $shippingCents): array
+    {
+        if (! $cart->coupon_discount_id) {
+            return [
+                'coupon_discount_cents' => 0,
+                'shipping_discount_cents' => 0,
+                'free_shipping' => false,
+            ];
+        }
+
+        $coupon = Discount::query()
+            ->with([
+                'products:id',
+                'categories:id',
+                'brands:id',
+                'collections:id',
+                'excludedProducts:id',
+                'excludedCategories:id',
+                'usages:id,discount_id,user_id,usage_count,last_used_at',
+            ])
+            ->lockForUpdate()
+            ->find($cart->coupon_discount_id);
+
+        if (! $coupon) {
+            throw ValidationException::withMessages(['code' => 'The applied coupon is no longer available.']);
+        }
+
+        $summary = $this->validateAndSummarize($cart, $coupon, $shippingCents);
+        $this->persistCoupon($cart, $coupon, $summary);
+
+        return $summary;
+    }
+
+    public function recordRedemption(Cart $cart): void
     {
         if (! $cart->coupon_discount_id) {
             return;
         }
 
-        DB::transaction(function () use ($cart): void {
-            $coupon = Discount::query()->lockForUpdate()->find($cart->coupon_discount_id);
-            if (! $coupon) {
-                return;
-            }
+        $coupon = Discount::query()->lockForUpdate()->findOrFail($cart->coupon_discount_id);
+        $coupon->increment('total_used');
 
-            $coupon->increment('total_used');
-
-            if ($cart->user_id) {
-                $coupon->usages()->updateOrCreate(
-                    ['user_id' => $cart->user_id],
-                    [
-                        'usage_count' => DB::raw('usage_count + 1'),
-                        'last_used_at' => now(),
-                    ]
-                );
-            }
-        });
+        if ($cart->user_id) {
+            $usage = $coupon->usages()->firstOrCreate(
+                ['user_id' => $cart->user_id],
+                ['usage_count' => 0]
+            );
+            $usage->increment('usage_count');
+            $usage->update(['last_used_at' => now()]);
+        }
     }
 
-    private function validateAndSummarize(Cart $cart, Discount $coupon): array
+    private function validateAndSummarize(Cart $cart, Discount $coupon, ?int $shippingCents = null): array
     {
         $now = CarbonImmutable::now();
 
@@ -146,29 +183,28 @@ class CouponService
             throw ValidationException::withMessages(['code' => 'Coupon is inactive.']);
         }
         if (! $coupon->code) {
-            throw ValidationException::withMessages(['code' => 'Invalid coupon code.']);
+            throw ValidationException::withMessages(['code' => 'Coupon not found.']);
         }
         if ($coupon->starts_at && $now->lt(CarbonImmutable::instance($coupon->starts_at))) {
             throw ValidationException::withMessages(['code' => 'Coupon is not active yet.']);
         }
         if ($coupon->ends_at && $now->gt(CarbonImmutable::instance($coupon->ends_at))) {
-            throw ValidationException::withMessages(['code' => 'Coupon has expired.']);
+            throw ValidationException::withMessages(['code' => 'Coupon expired.']);
         }
         if ($coupon->usage_limit !== null && (int) $coupon->total_used >= (int) $coupon->usage_limit) {
-            throw ValidationException::withMessages(['code' => 'Coupon usage limit exceeded.']);
+            throw ValidationException::withMessages(['code' => 'Coupon usage limit reached.']);
         }
 
-        $cart->loadMissing(['items.product:id,brand_id,category_id,status', 'user']);
+        $cart->loadMissing(['items.product:id,brand_id,category_id,status', 'items.product.collections:id', 'user']);
 
         if ($cart->items->isEmpty()) {
             throw ValidationException::withMessages(['code' => 'Add products to the cart before applying a coupon.']);
         }
 
         if ($coupon->first_order_only && $cart->user_id) {
-            $hasPreviousCompletedFlow = Cart::query()
+            $hasPreviousCompletedFlow = Order::query()
                 ->where('user_id', $cart->user_id)
-                ->where('id', '!=', $cart->id)
-                ->where('status', '!=', 'active')
+                ->whereNotIn('status', ['cancelled', 'failed'])
                 ->exists();
 
             if ($hasPreviousCompletedFlow) {
@@ -188,7 +224,12 @@ class CouponService
         $netMerchandiseCents = max(0, $subtotalCents - $itemDiscountCents);
 
         if ($coupon->minimum_order_amount !== null && $netMerchandiseCents < (int) $coupon->minimum_order_amount) {
-            throw ValidationException::withMessages(['code' => 'Minimum order amount not reached.']);
+            throw ValidationException::withMessages([
+                'code' => sprintf(
+                    'Minimum order amount is ৳%s.',
+                    number_format(((int) $coupon->minimum_order_amount) / 100)
+                ),
+            ]);
         }
 
         $eligibleSubtotalCents = $this->eligibleSubtotalCents($cart, $coupon);
@@ -201,14 +242,14 @@ class CouponService
             throw ValidationException::withMessages(['code' => 'Coupon is not applicable to selected products.']);
         }
 
-        $shippingCents = $this->estimateShippingCents();
-        $shippingDiscountCents = $coupon->free_shipping ? $shippingCents : 0;
+        $resolvedShippingCents = $shippingCents ?? $this->estimateShippingCents();
+        $shippingDiscountCents = $coupon->free_shipping ? $resolvedShippingCents : 0;
 
         return [
             'subtotal_cents' => $subtotalCents,
             'item_discount_cents' => $itemDiscountCents,
             'coupon_discount_cents' => $couponDiscountCents,
-            'shipping_cents' => $shippingCents,
+            'shipping_cents' => $resolvedShippingCents,
             'shipping_discount_cents' => $shippingDiscountCents,
             'free_shipping' => (bool) $coupon->free_shipping,
         ];
@@ -219,10 +260,11 @@ class CouponService
         $productIds = $coupon->products->pluck('id')->map(fn ($id) => (int) $id)->all();
         $categoryIds = $coupon->categories->pluck('id')->map(fn ($id) => (int) $id)->all();
         $brandIds = $coupon->brands->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $collectionIds = $coupon->collections->pluck('id')->map(fn ($id) => (int) $id)->all();
         $excludedProductIds = $coupon->excludedProducts->pluck('id')->map(fn ($id) => (int) $id)->all();
         $excludedCategoryIds = $coupon->excludedCategories->pluck('id')->map(fn ($id) => (int) $id)->all();
 
-        return (int) $cart->items->sum(function ($item) use ($productIds, $categoryIds, $brandIds, $excludedProductIds, $excludedCategoryIds): int {
+        return (int) $cart->items->sum(function ($item) use ($productIds, $categoryIds, $brandIds, $collectionIds, $excludedProductIds, $excludedCategoryIds): int {
             $product = $item->product;
             if (! $product || $product->status !== 'active') {
                 return 0;
@@ -236,11 +278,12 @@ class CouponService
                 return 0;
             }
 
-            $matches = empty($productIds) && empty($categoryIds) && empty($brandIds);
+            $matches = empty($productIds) && empty($categoryIds) && empty($brandIds) && empty($collectionIds);
             $matches = $matches
                 || in_array((int) $product->id, $productIds, true)
                 || in_array((int) $product->category_id, $categoryIds, true)
-                || in_array((int) $product->brand_id, $brandIds, true);
+                || in_array((int) $product->brand_id, $brandIds, true)
+                || $product->collections->contains(fn ($collection) => in_array((int) $collection->id, $collectionIds, true));
 
             if (! $matches) {
                 return 0;
@@ -253,7 +296,7 @@ class CouponService
     private function calculateDiscountCents(Discount $coupon, int $eligibleSubtotalCents): int
     {
         $discount = $coupon->type === 'percentage'
-            ? (int) floor($eligibleSubtotalCents * (((int) $coupon->value) / 100))
+            ? intdiv($eligibleSubtotalCents * (int) $coupon->value, 100)
             : (int) $coupon->value;
 
         if ($coupon->maximum_discount !== null) {
@@ -288,7 +331,7 @@ class CouponService
         ]);
 
         return [
-            'message' => sprintf('%s coupon applied.', $coupon->code),
+            'message' => 'Coupon Applied Successfully',
             'type' => 'success',
             'changed' => $changed,
         ];

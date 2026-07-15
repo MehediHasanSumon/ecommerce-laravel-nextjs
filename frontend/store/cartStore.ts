@@ -9,7 +9,7 @@ import {
   type CartSessionMode,
 } from '@/services/cart-service';
 import { useAuthStore } from '@/store/auth-store';
-import { toAppError } from '@/lib/errors';
+import { firstValidationMessage, toAppError } from '@/lib/errors';
 
 const GUEST_TOKEN_KEY = 'luxecart-guest-token';
 const CART_STORAGE_PREFIXES = ['luxecart-cart', 'cart'];
@@ -162,7 +162,7 @@ interface CartStore {
   removeItem: (itemId: string) => Promise<void>;
   updateQuantity: (itemId: string, quantity: number) => Promise<void>;
   clearCart: () => Promise<void>;
-  applyCoupon: (code: string) => Promise<boolean>;
+  applyCoupon: (code: string, shippingMethodId?: number) => Promise<boolean>;
   removeCoupon: () => Promise<void>;
   getItemCount: () => number;
   getSubtotal: () => number;
@@ -468,7 +468,7 @@ export const useCartStore = create<CartStore>()((set, get) => ({
     }
   },
 
-  async applyCoupon(code) {
+  async applyCoupon(code, shippingMethodId) {
     const normalizedCode = code.trim();
     set({ couponCode: normalizedCode });
     const currentCode = normalizedCode || get().couponCode.trim();
@@ -483,14 +483,17 @@ export const useCartStore = create<CartStore>()((set, get) => ({
     try {
       const guestToken = ensureGuestToken(get().guestToken, set);
       const mode = activeCartMode();
-      const cart = await cartService.applyCoupon(guestToken, mode, finalCode);
+      const cart = await cartService.applyCoupon(guestToken, mode, finalCode, shippingMethodId);
       if (get().requestVersion === requestVersion && activeCartMode() === mode) {
         applyCartState(set, cart);
       }
       return true;
     } catch (error) {
       const appError = toAppError(error);
-      set({ couponMessage: appError.message, couponMessageType: 'error' });
+      set({
+        couponMessage: firstValidationMessage(appError.validationErrors) ?? appError.message,
+        couponMessageType: 'error',
+      });
       return false;
     } finally {
       if (get().requestVersion === requestVersion) {

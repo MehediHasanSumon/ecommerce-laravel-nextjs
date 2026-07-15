@@ -24,6 +24,7 @@ class ApplyCouponRequest extends FormRequest
     {
         return [
             'code' => ['required', 'string', 'max:100'],
+            'shipping_method_id' => ['nullable', 'integer', 'exists:shipping_methods,id'],
         ];
     }
 }

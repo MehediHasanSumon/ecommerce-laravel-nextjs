@@ -161,9 +161,10 @@ export const cartService = {
     return data.data.cart;
   },
 
-  async applyCoupon(guestToken: string, mode: CartSessionMode, code: string) {
+  async applyCoupon(guestToken: string, mode: CartSessionMode, code: string, shippingMethodId?: number) {
     const { data } = await client.post<ApiEnvelope<{ cart: CartApiResponse }>>("/cart/coupon", {
       code,
+      shipping_method_id: shippingMethodId,
     }, {
       headers: cartHeaders(guestToken, mode),
     });

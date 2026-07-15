@@ -284,6 +284,11 @@ export default function CheckoutPage() {
     }
   }, [cart.couponCode]);
 
+  useEffect(() => {
+    if (!cart.couponCode || !selectedShippingMethodId) return;
+    void applyCoupon(cart.couponCode, Number(selectedShippingMethodId));
+  }, [applyCoupon, cart.couponCode, selectedShippingMethodId]);
+
   if (!hasRenderedCheckoutContent) {
     return <CheckoutSkeleton />;
   }
@@ -519,11 +524,14 @@ export default function CheckoutPage() {
   const getFieldClass = (key: keyof CheckoutForm) =>
     validationErrors[key] ? `${fieldClass} border-destructive focus:border-destructive` : fieldClass;
   const selectedShippingMethod = shippingMethods.find((method) => method.id === selectedShippingMethodId) ?? null;
+  const itemDiscount = cart.summary?.itemDiscount ?? 0;
   const couponDiscount = cart.summary?.couponDiscount ?? cart.coupon?.discount ?? 0;
   const hasCoupon = Boolean(cart.couponCode);
-  const shippingAmount = cart.coupon?.freeShipping ? 0 : (selectedShippingMethod?.charge ?? 0);
+  const shippingOriginal = selectedShippingMethod?.charge ?? 0;
+  const shippingDiscount = Math.min(shippingOriginal, cart.coupon?.shippingDiscount ?? 0);
+  const shippingAmount = Math.max(0, shippingOriginal - shippingDiscount);
   const tax = getTax();
-  const total = Math.max(0, subtotal - couponDiscount + shippingAmount + tax);
+  const total = Math.max(0, subtotal - itemDiscount - couponDiscount + shippingAmount + tax);
   const couponActionLabel = couponInput.trim().length > 0 ? 'Apply' : 'Cancel';
   const showShippingSkeleton = shippingLoading && shippingMethods.length === 0;
   const showPaymentSkeleton = paymentLoading && paymentMethods.length === 0;
@@ -537,7 +545,10 @@ export default function CheckoutPage() {
       return;
     }
 
-    const applied = await applyCoupon(couponInput);
+    const applied = await applyCoupon(
+      couponInput,
+      selectedShippingMethodId ? Number(selectedShippingMethodId) : undefined,
+    );
     if (applied) {
       setCouponOpen(false);
     }
@@ -932,10 +943,27 @@ export default function CheckoutPage() {
                       Have a coupon?
                     </button>
                   ) : null}
-                  {hasCoupon && couponDiscount > 0 ? (
+                  {itemDiscount > 0 ? (
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Discount</span>
-                      <span className="text-emerald-600">-{formatPrice(couponDiscount)}</span>
+                      <span className="text-emerald-600">-{formatPrice(itemDiscount)}</span>
+                    </div>
+                  ) : null}
+                  {hasCoupon ? (
+                    <div className="flex items-start justify-between gap-4">
+                      <span className="text-muted-foreground">
+                        Coupon:
+                        <span className="block font-medium text-foreground">{cart.couponCode}</span>
+                      </span>
+                      <span className="text-emerald-600">
+                        {couponDiscount > 0 ? `-${formatPrice(couponDiscount)}` : formatPrice(0)}
+                      </span>
+                    </div>
+                  ) : null}
+                  {hasCoupon && shippingDiscount > 0 ? (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Shipping Discount</span>
+                      <span className="text-emerald-600">-{formatPrice(shippingDiscount)}</span>
                     </div>
                   ) : null}
                   {hasCoupon && couponMessage ? (

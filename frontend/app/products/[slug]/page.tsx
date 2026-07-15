@@ -15,8 +15,6 @@ import {
   Check,
   Minus,
   Plus,
-  ChevronLeft,
-  ChevronRight as ChevronRightIcon,
 } from 'lucide-react';
 import { AnnouncementBar } from '@/components/layout/AnnouncementBar';
 import { Header } from '@/components/layout/Header';
@@ -39,6 +37,7 @@ import {
 import { useAuthStore } from '@/store/auth-store';
 import { toAppError } from '@/lib/errors';
 import { hasPermission } from '@/lib/permissions';
+import { ProductGallery } from '@/components/product/ProductGallery';
 
 function findSelectedVariant(
   product: ProductDetail | null,
@@ -151,10 +150,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
   }, [product]);
 
   useEffect(() => {
-    if (displayImages.length && selectedImage >= displayImages.length) {
-      setSelectedImage(0);
-    }
-  }, [displayImages.length, selectedImage]);
+    setSelectedImage(0);
+  }, [selectedVariant?.id]);
 
   useEffect(() => {
     if (!product?.seo) return;
@@ -313,20 +310,16 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
         {/* Main product section */}
         <div className="mb-12 grid min-w-0 gap-8 lg:mb-16 lg:grid-cols-2 lg:gap-16">
           {/* Gallery */}
-          <div className="min-w-0 space-y-4">
-            <div className="relative aspect-square overflow-hidden rounded-2xl bg-muted">
-              <Image
-                src={displayImages[selectedImage] ?? product.thumbnail}
-                alt={product.name}
-                fill
-                unoptimized
-                className="object-cover"
-                priority
-              />
-              {product.badge && (
+          <ProductGallery
+            images={displayImages}
+            fallbackImage={product.thumbnail}
+            productName={product.name}
+            selectedIndex={selectedImage}
+            onSelectedIndexChange={setSelectedImage}
+            badge={product.badge ? (
                 <div
                   className={cn(
-                    'absolute top-4 left-4 px-3 py-1.5 rounded-xl text-xs font-bold uppercase z-10',
+                    'absolute top-4 left-4 z-10 rounded-xl px-3 py-1.5 text-xs font-bold uppercase',
                     product.badge === 'sale'
                       ? 'bg-rose-500 text-white'
                       : product.badge === 'new'
@@ -340,55 +333,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
                 >
                   {product.badge === 'sale' && discount ? `-${discount}%` : product.badge}
                 </div>
-              )}
-              {displayImages.length > 1 && (
-                <>
-                  <button
-                    onClick={() =>
-                      setSelectedImage(
-                        (i) => (i - 1 + displayImages.length) % displayImages.length
-                      )
-                    }
-                    className="absolute left-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-background/90 shadow-lg transition-colors hover:bg-background"
-                    aria-label="Previous image"
-                  >
-                    <ChevronLeft size={18} />
-                  </button>
-                  <button
-                    onClick={() => setSelectedImage((i) => (i + 1) % displayImages.length)}
-                    className="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-background/90 shadow-lg transition-colors hover:bg-background"
-                    aria-label="Next image"
-                  >
-                    <ChevronRightIcon size={18} />
-                  </button>
-                </>
-              )}
-            </div>
-            {displayImages.length > 1 && (
-              <div className="grid grid-cols-4 gap-2 sm:gap-3">
-                {displayImages.map((img, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setSelectedImage(i)}
-                    className={cn(
-                      'relative aspect-square overflow-hidden rounded-xl border-2 bg-muted transition-colors',
-                      selectedImage === i
-                        ? 'border-primary'
-                        : 'border-transparent hover:border-muted-foreground/30'
-                    )}
-                  >
-                    <Image
-                      src={img}
-                      alt={`${product.name} ${i + 1}`}
-                      fill
-                      unoptimized
-                      className="object-cover"
-                    />
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+              ) : undefined}
+          />
 
           {/* Product Info */}
           <div className="min-w-0 space-y-5">

@@ -14,7 +14,6 @@ use Illuminate\Http\Request;
 
 class CartController extends Controller
 {
-
     public function __construct(private readonly CartService $service) {}
 
     public function show(Request $request): JsonResponse
@@ -66,7 +65,11 @@ class CartController extends Controller
         $this->authorizeIfAuthenticated($request, 'can_apply_coupon');
 
         return ApiResponse::success([
-            'cart' => CartResource::make($this->service->applyCoupon($request, (string) $request->string('code')))->resolve(),
+            'cart' => CartResource::make($this->service->applyCoupon(
+                $request,
+                (string) $request->string('code'),
+                $request->integer('shipping_method_id') ?: null
+            ))->resolve(),
         ], 'Coupon applied successfully.');
     }
 

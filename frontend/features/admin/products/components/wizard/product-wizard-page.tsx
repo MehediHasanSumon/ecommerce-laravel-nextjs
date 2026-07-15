@@ -46,6 +46,7 @@ const emptyOptions: ProductOptions = {
   tags: [],
   warehouses: [],
   products: [],
+  collections: [],
 };
 
 function stripFileValues(values: ProductWizardValues): ProductWizardValues {

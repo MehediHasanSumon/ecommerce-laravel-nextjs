@@ -11,6 +11,7 @@ use App\Models\Settings\CompanySetting;
 use App\Models\Settings\ShippingMethod;
 use App\Models\Settings\StoreSetting;
 use App\Services\Commerce\CartService;
+use App\Services\Commerce\CouponService;
 use App\Services\Orders\OrderService;
 use App\Services\Payments\PaymentGatewayManager;
 use App\Services\Shipping\ShippingZoneMatcher;
@@ -23,6 +24,7 @@ class CheckoutService
 {
     public function __construct(
         private readonly CartService $cartService,
+        private readonly CouponService $coupons,
         private readonly PaymentGatewayManager $payments,
         private readonly OrderService $orders,
         private readonly ShippingZoneMatcher $shippingZones,
@@ -37,7 +39,7 @@ class CheckoutService
         }
 
         return DB::transaction(function () use ($request, $payload): array {
-            $cart = $this->cartService->get($request);
+            $cart = $this->cartService->get($request, strictCouponValidation: true);
             $cart->load(['items.product', 'items.variant', 'coupon']);
 
             if ($cart->items->isEmpty()) {
@@ -66,7 +68,8 @@ class CheckoutService
                 throw ValidationException::withMessages(['shipping_method_id' => ['The selected shipping method is not available for the shipping address.']]);
             }
 
-            $summary = $this->summary($cart, $shippingMethod);
+            $couponSummary = $this->coupons->validateForCheckout($cart, (int) $shippingMethod->rate_cents);
+            $summary = $this->summary($cart, $shippingMethod, $couponSummary);
             $minimumOrderAmount = (int) ($shippingMethod->minimum_order_amount_cents ?? 0);
             if ($minimumOrderAmount > 0 && $summary['subtotal_cents'] < $minimumOrderAmount) {
                 throw ValidationException::withMessages(['shipping_method_id' => ['The selected shipping method requires a higher order amount.']]);
@@ -119,6 +122,7 @@ class CheckoutService
                     'tax_snapshot' => $item->tax_snapshot,
                 ]);
             }
+            $this->coupons->recordRedemption($cart);
 
             $session = CheckoutSession::query()->create([
                 'session_key' => (string) Str::uuid(),
@@ -178,6 +182,7 @@ class CheckoutService
         $id = $payload[$type.'_address_id'] ?? null;
         if ($id) {
             $address = CustomerAddress::query()->where('user_id', $request->user()?->id)->findOrFail($id);
+
             return AddressData::snapshot(AddressData::normalize($address->toArray()));
         }
 
@@ -197,14 +202,17 @@ class CheckoutService
         return AddressData::snapshot($data);
     }
 
-    private function summary(Cart $cart, ShippingMethod $shippingMethod): array
+    private function summary(Cart $cart, ShippingMethod $shippingMethod, array $couponSummary): array
     {
         $subtotal = (int) $cart->items->sum('line_subtotal_cents');
         $itemDiscount = (int) $cart->items->sum('line_discount_cents');
-        $couponDiscount = (int) $cart->coupon_discount_cents;
+        $couponDiscount = (int) ($couponSummary['coupon_discount_cents'] ?? 0);
         $tax = (int) $cart->items->sum(fn ($item) => (int) (($item->tax_snapshot['estimated_tax_cents'] ?? 0)));
-        $couponSnapshot = (array) ($cart->coupon_snapshot ?? []);
-        $shipping = (bool) ($couponSnapshot['free_shipping'] ?? false) ? 0 : (int) $shippingMethod->rate_cents;
+        $shippingDiscount = min(
+            (int) $shippingMethod->rate_cents,
+            (int) ($couponSummary['shipping_discount_cents'] ?? 0)
+        );
+        $shipping = max(0, (int) $shippingMethod->rate_cents - $shippingDiscount);
         $total = max(0, $subtotal - $itemDiscount - $couponDiscount + $shipping + $tax);
 
         return [
@@ -212,6 +220,7 @@ class CheckoutService
             'item_discount_cents' => $itemDiscount,
             'coupon_discount_cents' => $couponDiscount,
             'shipping_cents' => $shipping,
+            'shipping_discount_cents' => $shippingDiscount,
             'tax_cents' => $tax,
             'total_cents' => $total,
         ];

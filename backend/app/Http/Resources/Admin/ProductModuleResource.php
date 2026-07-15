@@ -2,6 +2,17 @@
 
 namespace App\Http\Resources\Admin;
 
+use App\Models\Brand;
+use App\Models\Category;
+use App\Models\Currency;
+use App\Models\Discount;
+use App\Models\ProductAttribute;
+use App\Models\ProductAttributeValue;
+use App\Models\ProductCollection;
+use App\Models\ProductReview;
+use App\Models\Tag;
+use App\Models\Warehouse;
+use App\Services\Collections\CollectionProductResolver;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -16,7 +27,7 @@ class ProductModuleResource extends JsonResource
         ];
 
         return match ($this->resource::class) {
-            \App\Models\Brand::class => $base + [
+            Brand::class => $base + [
                 'name' => $this->name,
                 'slug' => $this->slug,
                 'description' => $this->description,
@@ -35,7 +46,7 @@ class ProductModuleResource extends JsonResource
                 'status' => $this->status,
                 'products_count' => $this->products_count ?? 0,
             ],
-            \App\Models\Category::class => $base + [
+            Category::class => $base + [
                 'parent_id' => $this->parent_id,
                 'name' => $this->name,
                 'slug' => $this->slug,
@@ -59,7 +70,7 @@ class ProductModuleResource extends JsonResource
                 'parent' => $this->whenLoaded('parent', fn () => $this->parent ? ['id' => $this->parent->id, 'name' => $this->parent->name] : null),
                 'products_count' => $this->products_count ?? 0,
             ],
-            \App\Models\ProductAttribute::class => $base + [
+            ProductAttribute::class => $base + [
                 'name' => $this->name,
                 'slug' => $this->slug,
                 'type' => $this->type,
@@ -68,7 +79,7 @@ class ProductModuleResource extends JsonResource
                 'sort_order' => $this->sort_order,
                 'values_count' => $this->values_count ?? 0,
             ],
-            \App\Models\ProductAttributeValue::class => $base + [
+            ProductAttributeValue::class => $base + [
                 'attribute_id' => $this->attribute_id,
                 'value' => $this->value,
                 'slug' => $this->slug,
@@ -77,12 +88,12 @@ class ProductModuleResource extends JsonResource
                 'sort_order' => $this->sort_order,
                 'attribute' => $this->whenLoaded('attribute', fn () => ['id' => $this->attribute->id, 'name' => $this->attribute->name, 'type' => $this->attribute->type]),
             ],
-            \App\Models\Tag::class => $base + [
+            Tag::class => $base + [
                 'name' => $this->name,
                 'slug' => $this->slug,
                 'products_count' => $this->products_count ?? 0,
             ],
-            \App\Models\Warehouse::class => $base + [
+            Warehouse::class => $base + [
                 'name' => $this->name,
                 'code' => $this->code,
                 'status' => $this->status,
@@ -92,7 +103,7 @@ class ProductModuleResource extends JsonResource
                 'country' => $this->country,
                 'postal_code' => $this->postal_code,
             ],
-            \App\Models\ProductCollection::class => $base + [
+            ProductCollection::class => $base + [
                 'name' => $this->name,
                 'slug' => $this->slug,
                 'description' => $this->description,
@@ -132,16 +143,16 @@ class ProductModuleResource extends JsonResource
                 'og_description' => $this->og_description,
                 'og_image_url' => $this->og_image_url,
                 'products' => ProductOptionResource::collection($this->whenLoaded('products')),
-                'products_count' => app(\App\Services\Collections\CollectionProductResolver::class)->resolvedProductCount($this->resource),
+                'products_count' => app(CollectionProductResolver::class)->resolvedProductCount($this->resource),
                 'assigned_products_count' => $this->products_count ?? 0,
             ],
-            \App\Models\Currency::class => $base + [
+            Currency::class => $base + [
                 'country' => $this->country,
                 'currency' => $this->currency,
                 'symbol' => $this->symbol,
                 'status' => $this->status,
             ],
-            \App\Models\Discount::class => $base + [
+            Discount::class => $base + [
                 'name' => $this->name,
                 'code' => $this->code,
                 'type' => $this->type,
@@ -161,10 +172,11 @@ class ProductModuleResource extends JsonResource
                 'products' => ProductOptionResource::collection($this->whenLoaded('products')),
                 'categories' => ProductOptionResource::collection($this->whenLoaded('categories')),
                 'brands' => ProductOptionResource::collection($this->whenLoaded('brands')),
+                'collections' => ProductOptionResource::collection($this->whenLoaded('collections')),
                 'excluded_products' => ProductOptionResource::collection($this->whenLoaded('excludedProducts')),
                 'excluded_categories' => ProductOptionResource::collection($this->whenLoaded('excludedCategories')),
             ],
-            \App\Models\ProductReview::class => $base + [
+            ProductReview::class => $base + [
                 'product_id' => $this->product_id,
                 'user_id' => $this->user_id,
                 'rating' => $this->rating,

@@ -197,6 +197,7 @@ class ProductModuleService
                 ->with(['brand:id,name', 'category:id,name'])
                 ->orderBy('name')
                 ->get(['id', 'name', 'brand_id', 'category_id']),
+            'collections' => ProductCollection::query()->orderBy('name')->get(['id', 'name']),
         ];
     }
 
@@ -231,9 +232,10 @@ class ProductModuleService
             $products = $data['products'] ?? [];
             $categories = $data['categories'] ?? [];
             $brands = $data['brands'] ?? [];
+            $collections = $data['collections'] ?? [];
             $excludedProducts = $data['excluded_products'] ?? [];
             $excludedCategories = $data['excluded_categories'] ?? [];
-            unset($data['products'], $data['categories'], $data['brands'], $data['excluded_products'], $data['excluded_categories']);
+            unset($data['products'], $data['categories'], $data['brands'], $data['collections'], $data['excluded_products'], $data['excluded_categories']);
             $data['value'] = ($data['type'] ?? 'fixed') === 'fixed'
                 ? (int) round(((float) ($data['value'] ?? 0)) * 100)
                 : (int) round((float) ($data['value'] ?? 0));
@@ -247,6 +249,7 @@ class ProductModuleService
             $model->products()->sync($products);
             $model->categories()->sync($categories);
             $model->brands()->sync($brands);
+            $model->collections()->sync($collections);
             $model->excludedProducts()->sync($excludedProducts);
             $model->excludedCategories()->sync($excludedCategories);
 
@@ -313,6 +316,7 @@ class ProductModuleService
             $file = $data[$input] ?? null;
             if (! $file instanceof UploadedFile || ! $file->isValid()) {
                 unset($data[$input]);
+
                 continue;
             }
 
@@ -386,11 +390,13 @@ class ProductModuleService
 
         if (! $source || ! $this->hasSlug($module)) {
             unset($data['slug']);
+
             return;
         }
 
         if ($model->exists && filled($model->getAttribute('slug'))) {
             $data['slug'] = $model->getAttribute('slug');
+
             return;
         }
 
@@ -406,6 +412,7 @@ class ProductModuleService
     {
         if ($model->exists && filled($model->getAttribute('sku'))) {
             $data['sku'] = $model->getAttribute('sku');
+
             return;
         }
 
@@ -531,7 +538,7 @@ class ProductModuleService
                 ? ['brand:id,name', 'category:id,name', 'tags:id,name', 'attributeValues:id,value,attribute_id,slug', 'images', 'features', 'specifications', 'seo', 'variants.attributeValues:id,value,attribute_id,slug']
                 : ['brand:id,name', 'category:id,name', 'tags:id,name']),
             'collections' => $query->with('products:id,name')->withCount('products'),
-            'discounts' => $query->with(['products:id,name', 'categories:id,name', 'brands:id,name', 'excludedProducts:id,name', 'excludedCategories:id,name']),
+            'discounts' => $query->with(['products:id,name', 'categories:id,name', 'brands:id,name', 'collections:id,name', 'excludedProducts:id,name', 'excludedCategories:id,name']),
             'reviews' => $query->with(['product:id,name', 'user:id,name', 'replies.user:id,name']),
             default => null,
         };
@@ -621,7 +628,7 @@ class ProductModuleService
     private function applyModuleFilters($query, string $module, array $filters): void
     {
         $query
-            ->when($filters['status'] ?? null, function ($query, string $status) use ($module) {
+            ->when($filters['status'] ?? null, function ($query, string $status) {
                 return $query->where('status', $status);
             })
             ->when($filters['type'] ?? null, fn ($query, string $type) => $query->where($module === 'collections' ? 'collection_type' : 'type', $type))

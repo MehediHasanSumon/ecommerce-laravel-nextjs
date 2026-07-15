@@ -3,7 +3,7 @@
 namespace App\Services\Commerce;
 
 use App\Models\Cart;
-use App\Models\Product;
+use App\Models\Settings\ShippingMethod;
 use App\Models\User;
 use App\Support\GuestToken;
 use Illuminate\Http\Request;
@@ -16,12 +16,12 @@ class CartService
         private readonly CouponService $couponService,
     ) {}
 
-    public function get(Request $request): Cart
+    public function get(Request $request, bool $strictCouponValidation = false): Cart
     {
         $cart = $this->resolveCart($request, create: true);
         $cart->load(['items.product.brand:id,name,slug', 'items.product.category:id,name,slug', 'items.product.images:id,product_id,url,is_primary,sort_order', 'items.product.tags:id,name', 'items.variant']);
         $this->refreshItems($cart);
-        $notice = $this->couponService->revalidate($cart);
+        $notice = $this->couponService->revalidate($cart, ! $strictCouponValidation);
         $fresh = $cart->fresh(['items.product.brand:id,name,slug', 'items.product.category:id,name,slug', 'items.product.images:id,product_id,url,is_primary,sort_order', 'items.product.tags:id,name', 'items.variant', 'coupon']);
         $this->attachCouponNotice($fresh, $notice);
 
@@ -129,6 +129,7 @@ class CartService
                         'line_discount_cents' => $existing->line_discount_cents + $item->line_discount_cents,
                     ]);
                     $item->delete();
+
                     continue;
                 }
 
@@ -150,13 +151,16 @@ class CartService
         return $this->get($request);
     }
 
-    public function applyCoupon(Request $request, string $code): Cart
+    public function applyCoupon(Request $request, string $code, ?int $shippingMethodId = null): Cart
     {
-        return DB::transaction(function () use ($request, $code): Cart {
+        return DB::transaction(function () use ($request, $code, $shippingMethodId): Cart {
             $cart = $this->resolveCart($request, create: true);
             $cart->load(['items.product', 'items.variant', 'coupon']);
             $this->refreshItems($cart);
-            $notice = $this->couponService->apply($cart, $code);
+            $shippingCents = $shippingMethodId
+                ? ShippingMethod::query()->where('status', true)->whereKey($shippingMethodId)->value('rate_cents')
+                : null;
+            $notice = $this->couponService->apply($cart, $code, $shippingCents !== null ? (int) $shippingCents : null);
             $cart = $this->get($request);
             $this->attachCouponNotice($cart, $notice);
 
@@ -200,6 +204,7 @@ class CartService
         foreach ($cart->items as $item) {
             if (! $item->product) {
                 $item->delete();
+
                 continue;
             }
 

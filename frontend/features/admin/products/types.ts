@@ -21,6 +21,7 @@ export type ProductOptions = {
   tags: Option[];
   warehouses: Option[];
   products: Option[];
+  collections: Option[];
 };
 
 export type ProductRecord = BaseRecord & Record<string, unknown> & {

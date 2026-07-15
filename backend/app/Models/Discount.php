@@ -39,6 +39,16 @@ class Discount extends Model
         return $this->belongsToMany(Brand::class, 'discount_brand')->withTimestamps();
     }
 
+    public function collections(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            ProductCollection::class,
+            'discount_collection',
+            'discount_id',
+            'product_collection_id'
+        )->withTimestamps();
+    }
+
     public function excludedProducts(): BelongsToMany
     {
         return $this->belongsToMany(Product::class, 'discount_excluded_product')->withTimestamps();

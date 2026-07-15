@@ -49,7 +49,6 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { BrandLogo } from "@/components/settings/BrandLogo";
 import { useTheme } from "@/components/theme/ThemeProvider";
@@ -735,14 +734,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
               <h1 className="truncate text-base font-extrabold sm:text-lg">{pageTitle}</h1>
             </div>
 
-            <div className="hidden max-w-xs flex-1 items-center gap-2 rounded-xl border border-border bg-muted/60 px-3 py-2 xl:flex">
-              <Search className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">Search...</span>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" aria-label="Notifications" icon={<Bell className="h-4 w-4" />} className="cursor-pointer" />
-              <Button variant="ghost" size="icon" aria-label="Wishlist" icon={<Heart className="h-4 w-4" />} className="cursor-pointer" />
+            <div className="ml-auto flex items-center">
               <UserMenu user={user} isLoading={isLoading} onLogout={handleLogout} />
             </div>
           </div>

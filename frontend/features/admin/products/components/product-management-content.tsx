@@ -106,6 +106,7 @@ const emptyOptions: ProductOptions = {
   tags: [],
   warehouses: [],
   products: [],
+  collections: [],
 };
 
 const commonStatus = ["active", "inactive"];
@@ -391,12 +392,13 @@ export const productModuleConfigs: Record<ProductModule, ModuleConfig> = {
       { tab: "Rules", name: "first_order_only", label: "First Order Only", type: "checkbox", optional: true },
       { tab: "Rules", name: "free_shipping", label: "Free Shipping", type: "checkbox", optional: true },
       { tab: "Rules", name: "stackable", label: "Stackable", type: "checkbox", optional: true },
-      { tab: "Rules", name: "applicable_scope", label: "Applicable Scope", type: "select", options: ["all", "products", "categories", "brands", "mixed"] },
+      { tab: "Rules", name: "applicable_scope", label: "Applicable Scope", type: "select", options: ["all", "products", "categories", "brands", "collections", "mixed"] },
       { tab: "Schedule", name: "starts_at", label: "Start Date", type: "date", optional: true },
       { tab: "Schedule", name: "ends_at", label: "End Date", type: "date", optional: true },
       { tab: "Products", name: "products", label: "Applicable Products", type: "multiselect", options: "products", optional: true, showWhen: (values) => values.applicable_scope === "products" || values.applicable_scope === "mixed" },
       { tab: "Products", name: "categories", label: "Applicable Categories", type: "multiselect", options: "categories", optional: true, showWhen: (values) => values.applicable_scope === "categories" || values.applicable_scope === "mixed" },
       { tab: "Products", name: "brands", label: "Applicable Brands", type: "multiselect", options: "brands", optional: true, showWhen: (values) => values.applicable_scope === "brands" || values.applicable_scope === "mixed" },
+      { tab: "Products", name: "collections", label: "Applicable Collections", type: "multiselect", options: "collections", optional: true, showWhen: (values) => values.applicable_scope === "collections" || values.applicable_scope === "mixed" },
       { tab: "Products", name: "excluded_products", label: "Excluded Products", type: "multiselect", options: "products", optional: true },
       { tab: "Products", name: "excluded_categories", label: "Excluded Categories", type: "multiselect", options: "categories", optional: true },
     ],

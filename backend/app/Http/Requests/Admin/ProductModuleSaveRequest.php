@@ -96,6 +96,7 @@ class ProductModuleSaveRequest extends FormRequest
                         ] as $field) {
                             if (! filled($variant[$field] ?? null)) {
                                 $variant[$field] = null;
+
                                 continue;
                             }
 
@@ -290,13 +291,15 @@ class ProductModuleSaveRequest extends FormRequest
                 'first_order_only' => ['boolean'],
                 'free_shipping' => ['boolean'],
                 'stackable' => ['boolean'],
-                'applicable_scope' => ['required', Rule::in(['all', 'products', 'categories', 'brands', 'mixed'])],
+                'applicable_scope' => ['required', Rule::in(['all', 'products', 'categories', 'brands', 'collections', 'mixed'])],
                 'products' => ['nullable', 'array'],
                 'products.*' => ['integer', 'exists:products,id'],
                 'categories' => ['nullable', 'array'],
                 'categories.*' => ['integer', 'exists:categories,id'],
                 'brands' => ['nullable', 'array'],
                 'brands.*' => ['integer', 'exists:brands,id'],
+                'collections' => ['nullable', 'array'],
+                'collections.*' => ['integer', 'exists:collections,id'],
                 'excluded_products' => ['nullable', 'array'],
                 'excluded_products.*' => ['integer', 'exists:products,id'],
                 'excluded_categories' => ['nullable', 'array'],
@@ -335,6 +338,7 @@ class ProductModuleSaveRequest extends FormRequest
 
                     if ($ids->isEmpty()) {
                         $validator->errors()->add("variants.{$index}.attribute_values", 'Each variant must have at least one attribute value.');
+
                         continue;
                     }
 
@@ -494,5 +498,4 @@ class ProductModuleSaveRequest extends FormRequest
 
         return $company?->currency?->currency ?: 'BDT';
     }
-
 }
