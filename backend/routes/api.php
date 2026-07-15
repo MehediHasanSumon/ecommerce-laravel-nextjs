@@ -14,14 +14,10 @@ use App\Http\Controllers\Api\Admin\ReportsController;
 use App\Http\Controllers\Api\Admin\RoleManagementController;
 use App\Http\Controllers\Api\Admin\Settings\BlogSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\CompanySettingsController;
-use App\Http\Controllers\Api\Admin\Settings\EmailSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\HomeFeatureCardSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\HomePageSettingsController;
-use App\Http\Controllers\Api\Admin\Settings\LocalizationSettingsController;
-use App\Http\Controllers\Api\Admin\Settings\MaintenanceModeSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\PaymentSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\SeoSettingsController;
-use App\Http\Controllers\Api\Admin\Settings\SmsProviderSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\SocialMediaSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\StoreSettingsController;
 use App\Http\Controllers\Api\Admin\ShippingMethodManagementController;
@@ -198,14 +194,6 @@ Route::prefix('admin')
         Route::get('/settings/store', [StoreSettingsController::class, 'show']);
         Route::put('/settings/store', [StoreSettingsController::class, 'update']);
 
-        Route::get('/settings/email', [EmailSettingsController::class, 'show']);
-        Route::put('/settings/email', [EmailSettingsController::class, 'update']);
-        Route::post('/settings/email/test', [EmailSettingsController::class, 'test']);
-
-        Route::get('/settings/sms', [SmsProviderSettingsController::class, 'show']);
-        Route::put('/settings/sms', [SmsProviderSettingsController::class, 'update']);
-        Route::post('/settings/sms/{provider}/test', [SmsProviderSettingsController::class, 'test']);
-
         Route::get('/settings/payment', [PaymentSettingsController::class, 'show']);
         Route::put('/settings/payment', [PaymentSettingsController::class, 'update']);
 
@@ -215,13 +203,6 @@ Route::prefix('admin')
 
         Route::get('/settings/social', [SocialMediaSettingsController::class, 'show']);
         Route::put('/settings/social', [SocialMediaSettingsController::class, 'update']);
-
-        Route::get('/settings/localization', [LocalizationSettingsController::class, 'show']);
-        Route::put('/settings/localization', [LocalizationSettingsController::class, 'update']);
-
-        Route::get('/settings/maintenance', [MaintenanceModeSettingsController::class, 'show']);
-        Route::put('/settings/maintenance', [MaintenanceModeSettingsController::class, 'update']);
-        Route::post('/settings/maintenance/upload', [MaintenanceModeSettingsController::class, 'upload']);
 
         Route::get('/product-options', [ProductModuleController::class, 'optionsOnly']);
         Route::delete('/product-management/{module}/bulk', [ProductModuleController::class, 'bulkDestroy']);

@@ -135,6 +135,13 @@ class ImportDemoAssets extends Command
         $categoryRoot = $source.DIRECTORY_SEPARATOR.'categories';
 
         if (! File::isDirectory($categoryRoot)) {
+            if ($this->flatProductDirectories($source)->isNotEmpty()) {
+                $this->warn('No categories folder found. Flat product folders will use the Imported Products category.');
+                $this->upsertFlatImportCategory();
+
+                return;
+            }
+
             $this->warn('No categories folder found. Categories will be inferred from products folder.');
             $this->importCategoriesFromProducts($source);
 
@@ -219,6 +226,12 @@ class ImportDemoAssets extends Command
         $productRoot = $source.DIRECTORY_SEPARATOR.'products';
 
         if (! File::isDirectory($productRoot)) {
+            if ($this->flatProductDirectories($source)->isNotEmpty()) {
+                $this->importFlatProducts($source);
+
+                return;
+            }
+
             $this->warn('No products folder found.');
 
             return;
@@ -247,6 +260,63 @@ class ImportDemoAssets extends Command
                 }
             }
         }
+    }
+
+    private function importFlatProducts(string $source): void
+    {
+        $this->info('Flat product folder structure detected.');
+
+        $category = $this->upsertFlatImportCategory();
+        $limit = $this->option('limit-products') ? max(1, (int) $this->option('limit-products')) : null;
+
+        foreach ($this->flatProductDirectories($source) as $productIndex => $directory) {
+            if ($limit && $this->createdProducts >= $limit) {
+                return;
+            }
+
+            $directory = $this->normalizeDirectory($directory);
+            $brand = $this->upsertBrandByName($this->brandNameForProduct($directory->getFilename(), $category));
+            $this->upsertProduct($directory, $category, $brand, $productIndex);
+        }
+    }
+
+    private function upsertFlatImportCategory(): Category
+    {
+        $slug = 'imported-products';
+
+        if (isset($this->categories[$slug])) {
+            return $this->categories[$slug];
+        }
+
+        /** @var Category $category */
+        $category = Category::withTrashed()->firstOrNew(['slug' => $slug]);
+        if ($category->exists && method_exists($category, 'trashed') && $category->trashed()) {
+            $category->restore();
+        }
+
+        $category->fill([
+            'parent_id' => null,
+            'name' => 'Imported Products',
+            'description' => 'Products imported from a flat demo asset folder.',
+            'is_featured' => true,
+            'show_on_home' => true,
+            'show_in_navbar' => true,
+            'home_display_order' => 1,
+            'navbar_display_order' => 1,
+            'sort_order' => 1,
+            'status' => 'active',
+            'meta_title' => 'Imported Products',
+            'meta_description' => 'Browse products imported from demo assets.',
+            'meta_keywords' => 'imported products, demo catalog',
+            'canonical_url' => url("/categories/{$slug}"),
+            'og_title' => 'Imported Products',
+            'og_description' => 'Browse products imported from demo assets.',
+        ])->save();
+
+        $this->categories[$slug] = $category;
+        $this->line('CATEGORY '.$category->slug);
+
+        return $category;
     }
 
     private function productDirectories(SplFileInfo $childDirectory): array
@@ -676,6 +746,16 @@ class ImportDemoAssets extends Command
         return collect(File::directories($path))
             ->map(fn (string $directory): SplFileInfo => new SplFileInfo($directory))
             ->sortBy(fn (SplFileInfo $directory): string => Str::lower($directory->getFilename()))
+            ->values();
+    }
+
+    private function flatProductDirectories(string $source)
+    {
+        return $this->directories($source)
+            ->filter(fn (SplFileInfo $directory): bool => $this->mediaFiles(
+                $directory->getPathname(),
+                self::IMAGE_EXTENSIONS
+            )->isNotEmpty())
             ->values();
     }
 

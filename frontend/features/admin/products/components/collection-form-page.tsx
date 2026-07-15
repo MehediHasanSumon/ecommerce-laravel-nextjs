@@ -23,7 +23,6 @@ const emptyOptions: ProductOptions = {
   attributes: [],
   attribute_values: [],
   tags: [],
-  warehouses: [],
   products: [],
   collections: [],
 };

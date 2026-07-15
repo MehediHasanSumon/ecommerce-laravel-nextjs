@@ -32,7 +32,6 @@ class CollectionResource extends JsonResource
             'discountEnabled' => (bool) $this->discount_enabled,
             'discountType' => $this->discount_type,
             'discountValue' => $this->discount_value,
-            'discountApplyTo' => $this->discount_apply_to ?: 'entire_collection',
             'startsAt' => optional($this->starts_at)->toISOString(),
             'endsAt' => optional($this->ends_at)->toISOString(),
             'bannerImage' => $this->assetUrl($this->banner_image_url),

@@ -122,10 +122,6 @@ class BlogManagementService
             $data['published_at'] = now();
         }
 
-        if (($data['status'] ?? null) === 'scheduled') {
-            $data['published_at'] = null;
-        }
-
         return $data;
     }
 }

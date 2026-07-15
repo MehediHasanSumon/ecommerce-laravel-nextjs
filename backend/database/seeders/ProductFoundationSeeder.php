@@ -7,7 +7,6 @@ use App\Models\Category;
 use App\Models\ProductAttribute;
 use App\Models\ProductAttributeValue;
 use App\Models\Tag;
-use App\Models\Warehouse;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
@@ -17,7 +16,6 @@ class ProductFoundationSeeder extends Seeder
     {
         $this->seedBrands();
         $this->seedCategoryTree();
-        $this->seedWarehouses();
         $this->seedAttributes();
         $this->seedTags();
     }
@@ -104,30 +102,6 @@ class ProductFoundationSeeder extends Seeder
             }
 
             $sort++;
-        }
-    }
-
-    private function seedWarehouses(): void
-    {
-        $warehouses = [
-            ['name' => 'East Coast Fulfillment Center', 'code' => 'ECFC', 'city' => 'Newark', 'state' => 'NJ'],
-            ['name' => 'West Coast Fulfillment Center', 'code' => 'WCFC', 'city' => 'Irvine', 'state' => 'CA'],
-            ['name' => 'Central Distribution Hub', 'code' => 'CDH', 'city' => 'Dallas', 'state' => 'TX'],
-            ['name' => 'Digital Goods Vault', 'code' => 'DGV', 'city' => 'Seattle', 'state' => 'WA'],
-            ['name' => 'Returns & Refurbishment Center', 'code' => 'RRC', 'city' => 'Columbus', 'state' => 'OH'],
-        ];
-
-        foreach ($warehouses as $warehouse) {
-            Warehouse::query()->updateOrCreate(
-                ['code' => $warehouse['code']],
-                [
-                    ...$warehouse,
-                    'status' => 'active',
-                    'address' => fake()->streetAddress(),
-                    'country' => 'United States',
-                    'postal_code' => fake()->postcode(),
-                ]
-            );
         }
     }
 

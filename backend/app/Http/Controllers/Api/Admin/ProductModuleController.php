@@ -127,7 +127,6 @@ class ProductModuleController extends Controller
             'attributes' => 'attribute',
             'attribute-values' => 'attribute_value',
             'tags' => 'tag',
-            'warehouses' => 'warehouse',
             'collections' => 'collection',
             'currencies' => 'currency',
             'discounts' => 'discount',

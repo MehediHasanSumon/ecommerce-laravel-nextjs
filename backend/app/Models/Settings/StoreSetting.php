@@ -15,12 +15,7 @@ class StoreSetting extends Model
         return [
             'enable_reviews' => 'boolean',
             'enable_wishlist' => 'boolean',
-            'enable_compare' => 'boolean',
-            'enable_stock_management' => 'boolean',
-            'enable_guest_checkout' => 'boolean',
             'require_login_before_checkout' => 'boolean',
-            'allow_backorders' => 'boolean',
-            'hide_out_of_stock_products' => 'boolean',
         ];
     }
 

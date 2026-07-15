@@ -94,17 +94,11 @@ class ProductVariantEngine
         return [
             'product_id' => $product->id,
             'sku' => $variant->sku ?: $this->generateSku($product, $combination),
-            'barcode' => $data['barcode'] ?? null,
             'price_cents' => $data['price_cents'] ?? null,
             'compare_at_price_cents' => $data['compare_at_price_cents'] ?? null,
             'cost_price_cents' => $data['cost_price_cents'] ?? null,
             'stock_quantity' => $data['stock_quantity'] ?? null,
             'track_inventory' => array_key_exists('track_inventory', $data) ? $data['track_inventory'] : null,
-            'low_stock_threshold' => $data['low_stock_threshold'] ?? null,
-            'weight_grams' => $data['weight_grams'] ?? null,
-            'length_cm' => $data['length_cm'] ?? null,
-            'width_cm' => $data['width_cm'] ?? null,
-            'height_cm' => $data['height_cm'] ?? null,
             'status' => $data['status'] ?? 'active',
         ];
     }
@@ -120,5 +114,4 @@ class ProductVariantEngine
 
         return SkuGenerator::generate(trim($product->name.' '.implode(' ', $labels)), [Product::class, ProductVariant::class]);
     }
-
 }

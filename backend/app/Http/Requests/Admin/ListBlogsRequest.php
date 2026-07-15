@@ -19,7 +19,7 @@ class ListBlogsRequest extends FormRequest
     {
         return [
             ...$this->sharedRules(['title', 'slug', 'status', 'published_at', 'views_count', 'created_at', 'updated_at']),
-            'status' => ['nullable', Rule::in(['draft', 'published', 'scheduled', 'archived'])],
+            'status' => ['nullable', Rule::in(['draft', 'published', 'archived'])],
             'featured' => ['nullable', Rule::in(['yes', 'no'])],
         ];
     }

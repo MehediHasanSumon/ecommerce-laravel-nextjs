@@ -22,7 +22,6 @@ import {
   PriceSection,
   PublishSection,
   SeoSection,
-  ShippingSection,
   VariantSection,
 } from "@/features/admin/products/components/wizard/product-wizard-sections";
 import {
@@ -44,7 +43,6 @@ const emptyOptions: ProductOptions = {
   attributes: [],
   attribute_values: [],
   tags: [],
-  warehouses: [],
   products: [],
   collections: [],
 };
@@ -245,7 +243,7 @@ export function ProductWizardPage({ mode, productId }: { mode: ProductWizardMode
   return (
     <ProductFormLayout
       title={title}
-      description="Build complete catalog records through focused steps with validation, media handling, variants, SEO, shipping, and publish controls."
+      description="Build complete catalog records through focused steps with validation, media handling, variants, SEO, and publish controls."
       activeStep={activeStep}
       isSubmitting={form.formState.isSubmitting}
       submitLabel={mode === "edit" ? "Update Product" : "Publish Product"}
@@ -263,7 +261,6 @@ export function ProductWizardPage({ mode, productId }: { mode: ProductWizardMode
         {currentStepId === "media" ? <MediaSection form={form} options={options} /> : null}
         {currentStepId === "variants" ? <VariantSection form={form} options={options} /> : null}
         {currentStepId === "seo" ? <SeoSection form={form} options={options} /> : null}
-        {currentStepId === "shipping" ? <ShippingSection form={form} options={options} /> : null}
         {currentStepId === "publish" ? <PublishSection form={form} options={options} /> : null}
       </div>
       {currentStepId === "publish" ? (

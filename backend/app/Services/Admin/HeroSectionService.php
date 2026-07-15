@@ -6,11 +6,11 @@ use App\Models\HeroSlide;
 use App\Models\HeroSlideElement;
 use App\Models\Settings\HeroSetting;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Http\UploadedFile;
 
 class HeroSectionService
 {
@@ -167,11 +167,8 @@ class HeroSectionService
             'slider_autoplay' => (bool) $settings->slider_autoplay,
             'autoplay_delay' => (int) $settings->autoplay_delay,
             'infinite_loop' => (bool) $settings->infinite_loop,
-            'transition_speed' => (int) $settings->transition_speed,
-            'transition_effect' => $settings->transition_effect,
             'show_navigation' => (bool) $settings->show_navigation,
             'show_pagination' => (bool) $settings->show_pagination,
-            'keyboard_navigation' => (bool) $settings->keyboard_navigation,
             'swipe_support' => (bool) $settings->swipe_support,
             'pause_on_hover' => (bool) $settings->pause_on_hover,
             'lazy_load_images' => (bool) $settings->lazy_load_images,
@@ -211,7 +208,6 @@ class HeroSectionService
                     'content' => $element->content ?: [],
                     'style' => $element->style ?: [],
                     'responsive' => $element->responsive ?: [],
-                    'animation' => $element->animation ?: [],
                     'z_index' => (int) $element->z_index,
                     'locked' => (bool) $element->locked,
                     'hidden' => (bool) $element->hidden,
@@ -238,6 +234,7 @@ class HeroSectionService
                 if ($model) {
                     $model->fill($payload)->save();
                     $kept[] = $model->id;
+
                     continue;
                 }
             }
@@ -257,11 +254,8 @@ class HeroSectionService
             'slider_autoplay' => true,
             'autoplay_delay' => 6000,
             'infinite_loop' => true,
-            'transition_speed' => 500,
-            'transition_effect' => 'slide',
             'show_navigation' => true,
             'show_pagination' => true,
-            'keyboard_navigation' => true,
             'swipe_support' => true,
             'pause_on_hover' => true,
             'lazy_load_images' => true,

@@ -21,18 +21,14 @@ it('updates hero settings and switches the active rendering mode', function () {
         'slider_autoplay' => true,
         'autoplay_delay' => 4500,
         'infinite_loop' => true,
-        'transition_speed' => 700,
-        'transition_effect' => 'fade',
         'show_navigation' => true,
         'show_pagination' => true,
-        'keyboard_navigation' => true,
         'swipe_support' => true,
         'pause_on_hover' => true,
         'lazy_load_images' => true,
     ])->assertOk()
         ->assertJsonPath('data.settings.mode', 'advanced')
-        ->assertJsonPath('data.settings.autoplay_delay', 4500)
-        ->assertJsonPath('data.settings.transition_effect', 'fade');
+        ->assertJsonPath('data.settings.autoplay_delay', 4500);
 
     $this->assertDatabaseHas('hero_settings', ['mode' => 'advanced', 'autoplay_delay' => 4500]);
 });
@@ -67,7 +63,6 @@ it('creates updates duplicates reorders and deletes hero slides with canvas elem
                     'tablet' => ['x' => 48, 'y' => 90, 'width' => 420, 'height' => 80],
                     'mobile' => ['x' => 24, 'y' => 80, 'width' => 300, 'height' => 70],
                 ],
-                'animation' => ['type' => 'fade-up', 'delay' => 100, 'duration' => 600],
                 'z_index' => 3,
                 'locked' => false,
                 'hidden' => false,
@@ -104,11 +99,8 @@ it('exposes enabled hero slides through the home page payload', function () {
         'slider_autoplay' => true,
         'autoplay_delay' => 6000,
         'infinite_loop' => true,
-        'transition_speed' => 500,
-        'transition_effect' => 'slide',
         'show_navigation' => true,
         'show_pagination' => true,
-        'keyboard_navigation' => true,
         'swipe_support' => true,
         'pause_on_hover' => true,
         'lazy_load_images' => true,
@@ -140,16 +132,13 @@ it('validates hero slider and canvas configuration', function () {
         'slider_autoplay' => true,
         'autoplay_delay' => 200,
         'infinite_loop' => true,
-        'transition_speed' => 25,
-        'transition_effect' => 'spin',
         'show_navigation' => true,
         'show_pagination' => true,
-        'keyboard_navigation' => true,
         'swipe_support' => true,
         'pause_on_hover' => true,
         'lazy_load_images' => true,
     ])->assertStatus(422)
-        ->assertJsonValidationErrors(['mode', 'autoplay_delay', 'transition_speed', 'transition_effect']);
+        ->assertJsonValidationErrors(['mode', 'autoplay_delay']);
 });
 
 function heroSlidePayload(array $overrides = []): array
@@ -190,7 +179,6 @@ function heroSlidePayload(array $overrides = []): array
                     'tablet' => ['x' => 48, 'y' => 90, 'width' => 420, 'height' => 80],
                     'mobile' => ['x' => 24, 'y' => 80, 'width' => 300, 'height' => 70],
                 ],
-                'animation' => ['type' => 'fade-in', 'delay' => 0, 'duration' => 500],
                 'z_index' => 1,
                 'locked' => false,
                 'hidden' => false,

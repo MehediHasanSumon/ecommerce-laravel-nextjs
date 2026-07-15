@@ -4,8 +4,8 @@ namespace App\Services\Collections;
 
 use App\Models\Product;
 use App\Models\ProductCollection;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Collection;
 
@@ -76,7 +76,6 @@ class CollectionProductResolver
     {
         return $this->activeCollectionQuery()
             ->where('discount_enabled', true)
-            ->where('discount_apply_to', 'entire_collection')
             ->whereNotNull('discount_type')
             ->where('discount_value', '>', 0)
             ->orderByDesc('priority')
@@ -118,7 +117,6 @@ class CollectionProductResolver
         return $this->activeCollectionQuery()
             ->whereNotNull('discount_type')
             ->where('discount_enabled', true)
-            ->where('discount_apply_to', 'entire_collection')
             ->where('discount_value', '>', 0)
             ->orderByDesc('priority')
             ->get()

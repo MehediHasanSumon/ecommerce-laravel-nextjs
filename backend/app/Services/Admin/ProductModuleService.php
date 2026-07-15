@@ -13,7 +13,6 @@ use App\Models\ProductCollection;
 use App\Models\ProductReview;
 use App\Models\ProductVariant;
 use App\Models\Tag;
-use App\Models\Warehouse;
 use App\Services\Admin\Concerns\BuildsManagementQueries;
 use App\Services\Admin\Settings\BrandSettingsService;
 use App\Services\Concerns\StoresPublicUploads;
@@ -192,7 +191,6 @@ class ProductModuleService
                 ->limit($attributeSearch !== '' ? 50 : 100)
                 ->get(['id', 'attribute_id', 'value', 'display_value', 'slug']),
             'tags' => Tag::query()->orderBy('name')->get(['id', 'name']),
-            'warehouses' => Warehouse::query()->orderBy('name')->get(['id', 'name']),
             'products' => Product::query()
                 ->with(['brand:id,name', 'category:id,name'])
                 ->orderBy('name')
@@ -217,7 +215,6 @@ class ProductModuleService
             if (! (bool) ($data['discount_enabled'] ?? false)) {
                 $data['discount_type'] = null;
                 $data['discount_value'] = null;
-                $data['discount_apply_to'] = 'entire_collection';
             }
             $this->assignSortOrderOnCreate($module, $model, $data);
             $model->fill($data)->save();
@@ -338,8 +335,8 @@ class ProductModuleService
         $images = $data['images'] ?? [];
         $featuredImageFile = $data['featured_image_file'] ?? null;
         $galleryImageFiles = $data['gallery_image_files'] ?? [];
-        $features = $data['features'] ?? [];
-        $specifications = $data['specifications'] ?? [];
+        $features = $data['features'] ?? null;
+        $specifications = $data['specifications'] ?? null;
         $seo = $data['seo'] ?? null;
         $variants = $data['variants'] ?? [];
         unset(
@@ -348,11 +345,6 @@ class ProductModuleService
             $data['images'],
             $data['featured_image_file'],
             $data['gallery_image_files'],
-            $data['tax_class'],
-            $data['stock_status'],
-            $data['backorders'],
-            $data['min_order_quantity'],
-            $data['max_order_quantity'],
             $data['features'],
             $data['specifications'],
             $data['seo'],
@@ -367,10 +359,14 @@ class ProductModuleService
         $images = $this->productImagesFromUploads($images, $featuredImageFile, $galleryImageFiles);
         $model->images()->delete();
         $model->images()->createMany($images);
-        $model->features()->delete();
-        $model->features()->createMany($features);
-        $model->specifications()->delete();
-        $model->specifications()->createMany($specifications);
+        if ($features !== null) {
+            $model->features()->delete();
+            $model->features()->createMany($features);
+        }
+        if ($specifications !== null) {
+            $model->specifications()->delete();
+            $model->specifications()->createMany($specifications);
+        }
 
         if ($seo) {
             $model->seo()->updateOrCreate(['product_id' => $model->id], $seo);
@@ -613,7 +609,6 @@ class ProductModuleService
             'products' => ['name', 'sku', 'short_description'],
             'currencies' => ['country', 'currency', 'symbol'],
             'attribute-values' => ['value', 'slug', 'display_value'],
-            'warehouses' => ['name', 'code', 'city', 'country'],
             'reviews' => ['comment'],
             default => ['name', 'slug'],
         };
@@ -654,7 +649,6 @@ class ProductModuleService
             'attributes' => ProductAttribute::class,
             'attribute-values' => ProductAttributeValue::class,
             'tags' => Tag::class,
-            'warehouses' => Warehouse::class,
             'products' => Product::class,
             'collections' => ProductCollection::class,
             'currencies' => Currency::class,

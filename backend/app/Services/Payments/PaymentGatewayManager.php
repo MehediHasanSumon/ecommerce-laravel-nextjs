@@ -18,10 +18,9 @@ class PaymentGatewayManager
         SslCommerzService $sslCommerz,
         BkashService $bkash,
         NagadService $nagad,
-        RocketService $rocket,
         AamarPayService $aamarPay,
     ) {
-        $this->gateways = collect([$cod, $stripe, $paypal, $sslCommerz, $bkash, $nagad, $rocket, $aamarPay])->keyBy->gateway()->all();
+        $this->gateways = collect([$cod, $stripe, $paypal, $sslCommerz, $bkash, $nagad, $aamarPay])->keyBy->gateway()->all();
     }
 
     public function enabledSettings()

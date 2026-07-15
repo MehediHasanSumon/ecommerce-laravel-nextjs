@@ -2,21 +2,20 @@
 
 namespace App\Http\Controllers\Api\Settings;
 
+use App\Http\Controllers\Controller;
+use App\Http\Resources\Admin\Settings\CategoryDisplaySettingResource;
+use App\Http\Resources\PaymentMethodResource;
+use App\Http\Responses\ApiResponse;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\Settings\ShippingMethod;
-use App\Http\Controllers\Controller;
-use App\Http\Resources\PaymentMethodResource;
-use App\Http\Responses\ApiResponse;
-use App\Http\Resources\Admin\Settings\CategoryDisplaySettingResource;
-use App\Services\Admin\Settings\CategoryDisplaySettingsService;
-use App\Services\Admin\Settings\CompanySettingsService;
 use App\Services\Admin\HomeFeatureCardService;
-use App\Services\Admin\Settings\HomeFeatureCardSettingsService;
-use App\Services\Admin\Settings\HomePageSettingsService;
 use App\Services\Admin\Settings\BlogSettingsService;
 use App\Services\Admin\Settings\BrandSettingsService;
-use App\Services\Admin\Settings\MaintenanceModeSettingsService;
+use App\Services\Admin\Settings\CategoryDisplaySettingsService;
+use App\Services\Admin\Settings\CompanySettingsService;
+use App\Services\Admin\Settings\HomeFeatureCardSettingsService;
+use App\Services\Admin\Settings\HomePageSettingsService;
 use App\Services\Admin\Settings\PaymentSettingsService;
 use App\Services\Admin\Settings\SocialMediaSettingsService;
 use App\Services\Admin\Settings\StoreSettingsService;
@@ -37,7 +36,6 @@ class NavigationSettingsController extends Controller
         private readonly StoreSettingsService $storeSettings,
         private readonly SocialMediaSettingsService $socialMediaSettings,
         private readonly PaymentSettingsService $paymentSettings,
-        private readonly MaintenanceModeSettingsService $maintenanceSettings,
     ) {}
 
     public function show(): JsonResponse
@@ -60,12 +58,11 @@ class NavigationSettingsController extends Controller
         $brandSettings = $this->brandSettings->runtime();
         $social = $this->socialMediaSettings->all();
         $payments = $this->paymentSettings->all();
-        $maintenance = $this->maintenanceSettings->get();
         $siteName = $company->company_name ?: $store->store_name;
         $currency = $company->currency;
 
         $modules = [
-            'storefront' => (bool) $company->company_active,
+            'storefront' => true,
             'catalog' => true,
             'products' => true,
             'categories' => true,
@@ -73,13 +70,9 @@ class NavigationSettingsController extends Controller
             'offers' => true,
             'blog' => (bool) $blogSettings['enabled'],
             'wishlist' => (bool) $store->enable_wishlist,
-            'compare' => (bool) $store->enable_compare,
             'reviews' => (bool) $store->enable_reviews,
-            'stock_management' => (bool) $store->enable_stock_management,
-            'guest_checkout' => (bool) $store->enable_guest_checkout,
             'shipping' => ShippingMethod::query()->where('status', true)->exists(),
             'payments' => $payments->contains('enabled', true),
-            'maintenance' => (bool) $maintenance->enabled,
         ];
 
         return [
@@ -289,15 +282,6 @@ class NavigationSettingsController extends Controller
                 ],
             ],
             [
-                'key' => 'inventory',
-                'label' => 'Inventory & Shipping',
-                'icon' => 'Warehouse',
-                'type' => 'group',
-                'items' => [
-                    ['label' => 'Warehouse Management', 'href' => '/admin/warehouses', 'icon' => 'Warehouse', 'permission' => 'can_view_warehouse', 'enabled' => $modules['stock_management']],
-                ],
-            ],
-            [
                 'key' => 'marketing',
                 'label' => 'Marketing & Pricing',
                 'icon' => 'Megaphone',
@@ -345,18 +329,14 @@ class NavigationSettingsController extends Controller
                     ['label' => 'Feature Cards', 'href' => '/admin/settings/home-feature-cards', 'icon' => 'BadgeCheck', 'permission' => 'can_view_home_feature_card_setting', 'enabled' => true],
                     ['label' => 'Blog Settings', 'href' => '/admin/settings/blog', 'icon' => 'Newspaper', 'permission' => 'can_view_blog_setting', 'enabled' => true],
                     ['label' => 'Store Settings', 'href' => '/admin/settings/store', 'icon' => 'Store', 'permission' => 'can_view_store_setting', 'enabled' => true],
-                    ['label' => 'Email (SMTP)', 'href' => '/admin/settings/email', 'icon' => 'Mail', 'permission' => 'can_view_email_setting', 'enabled' => true],
-                    ['label' => 'SMS Provider', 'href' => '/admin/settings/sms', 'icon' => 'MessageSquareText', 'permission' => 'can_view_sms_setting', 'enabled' => true],
                     ['label' => 'Payment Settings', 'href' => '/admin/settings/payment', 'icon' => 'CreditCard', 'permission' => 'can_view_payment_setting', 'enabled' => true],
                     ['label' => 'Shipping Zones', 'href' => '/admin/settings/shipping-zones', 'icon' => 'MapPin', 'permission' => 'can_view_shipping_zone', 'enabled' => true],
                     ['label' => 'Shipping Methods', 'href' => '/admin/settings/shipping-methods', 'icon' => 'PackageCheck', 'permission' => 'can_view_shipping_method', 'enabled' => true],
                     ['label' => 'SEO Settings', 'href' => '/admin/settings/seo', 'icon' => 'Search', 'permission' => 'can_view_seo_setting', 'enabled' => true],
                     ['label' => 'Social Media', 'href' => '/admin/settings/social', 'icon' => 'Megaphone', 'permission' => 'can_view_social_setting', 'enabled' => true],
-                    ['label' => 'Localization', 'href' => '/admin/settings/localization', 'icon' => 'Globe2', 'permission' => 'can_view_localization_setting', 'enabled' => true],
-                    ['label' => 'Maintenance Mode', 'href' => '/admin/settings/maintenance', 'icon' => 'ShieldAlert', 'permission' => 'can_view_maintenance_setting', 'enabled' => true],
                 ],
             ],
-            ];
+        ];
     }
 
     private function assetUrl(?string $path): ?string

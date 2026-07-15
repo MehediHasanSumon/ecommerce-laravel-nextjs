@@ -11,7 +11,7 @@ class ListPermissionsRequest extends FormRequest
 
     public function authorize(): bool
     {
-        return $this->user()?->can('permissions.view') || true;
+        return true;
     }
 
     public function rules(): array

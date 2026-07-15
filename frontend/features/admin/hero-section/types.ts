@@ -1,5 +1,4 @@
 export type HeroMode = "simple" | "advanced";
-export type HeroTransition = "slide" | "fade";
 export type HeroDevice = "desktop" | "tablet" | "mobile";
 export type HeroElementType = "heading" | "subheading" | "paragraph" | "button" | "image" | "shape";
 
@@ -9,11 +8,8 @@ export type HeroSettings = {
   slider_autoplay: boolean;
   autoplay_delay: number;
   infinite_loop: boolean;
-  transition_speed: number;
-  transition_effect: HeroTransition;
   show_navigation: boolean;
   show_pagination: boolean;
-  keyboard_navigation: boolean;
   swipe_support: boolean;
   pause_on_hover: boolean;
   lazy_load_images: boolean;
@@ -34,7 +30,6 @@ export type HeroSlideElement = {
   content: Record<string, string>;
   style: Record<string, string | number>;
   responsive: Record<HeroDevice, HeroElementBox>;
-  animation: Record<string, string | number>;
   z_index: number;
   locked: boolean;
   hidden: boolean;
@@ -76,11 +71,8 @@ export const defaultHeroSettings: HeroSettings = {
   slider_autoplay: true,
   autoplay_delay: 6000,
   infinite_loop: true,
-  transition_speed: 500,
-  transition_effect: "slide",
   show_navigation: true,
   show_pagination: true,
-  keyboard_navigation: true,
   swipe_support: true,
   pause_on_hover: true,
   lazy_load_images: true,
@@ -149,7 +141,6 @@ export function createElement(type: HeroElementType, index: number): HeroSlideEl
       tablet: { ...baseBox, x: 56, y: 88, width: Math.min(baseBox.width, 420) },
       mobile: { ...baseBox, x: 24, y: 80, width: 300 },
     },
-    animation: { type: "fade-in", delay: 0, duration: 500, easing: "ease-out" },
     z_index: index + 1,
     locked: false,
     hidden: false,

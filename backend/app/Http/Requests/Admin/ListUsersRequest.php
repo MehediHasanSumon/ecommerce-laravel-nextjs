@@ -12,7 +12,7 @@ class ListUsersRequest extends FormRequest
 
     public function authorize(): bool
     {
-        return $this->user()?->can('users.view') || true;
+        return true;
     }
 
     public function rules(): array

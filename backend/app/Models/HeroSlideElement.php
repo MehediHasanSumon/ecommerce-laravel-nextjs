@@ -18,7 +18,6 @@ class HeroSlideElement extends Model
             'content' => 'array',
             'style' => 'array',
             'responsive' => 'array',
-            'animation' => 'array',
             'z_index' => 'integer',
             'locked' => 'boolean',
             'hidden' => 'boolean',

@@ -15,7 +15,6 @@ class SeoSetting extends Model
         return [
             'robots_index' => 'boolean',
             'robots_follow' => 'boolean',
-            'robots_archive' => 'boolean',
             'enable_sitemap' => 'boolean',
         ];
     }

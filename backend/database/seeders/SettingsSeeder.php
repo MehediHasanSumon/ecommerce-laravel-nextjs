@@ -2,16 +2,12 @@
 
 namespace Database\Seeders;
 
-use Database\Seeders\Settings\CompanySettingsSeeder;
 use Database\Seeders\Settings\BlogSettingsSeeder;
 use Database\Seeders\Settings\CategoryDisplaySettingsSeeder;
-use Database\Seeders\Settings\EmailSettingsSeeder;
+use Database\Seeders\Settings\CompanySettingsSeeder;
 use Database\Seeders\Settings\HomeFeatureCardSettingsSeeder;
-use Database\Seeders\Settings\LocalizationSettingsSeeder;
-use Database\Seeders\Settings\MaintenanceModeSettingsSeeder;
 use Database\Seeders\Settings\PaymentSettingsSeeder;
 use Database\Seeders\Settings\SeoSettingsSeeder;
-use Database\Seeders\Settings\SmsProviderSettingsSeeder;
 use Database\Seeders\Settings\SocialMediaSettingsSeeder;
 use Database\Seeders\Settings\StoreSettingsSeeder;
 use Illuminate\Database\Seeder;
@@ -26,13 +22,9 @@ class SettingsSeeder extends Seeder
             CategoryDisplaySettingsSeeder::class,
             HomeFeatureCardSettingsSeeder::class,
             StoreSettingsSeeder::class,
-            EmailSettingsSeeder::class,
-            SmsProviderSettingsSeeder::class,
             PaymentSettingsSeeder::class,
             SeoSettingsSeeder::class,
             SocialMediaSettingsSeeder::class,
-            LocalizationSettingsSeeder::class,
-            MaintenanceModeSettingsSeeder::class,
         ]);
     }
 }

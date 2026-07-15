@@ -18,7 +18,6 @@ class Blog extends Model
     {
         return [
             'published_at' => 'datetime',
-            'scheduled_publish_at' => 'datetime',
             'featured' => 'boolean',
             'allow_comments_override' => 'boolean',
             'views_count' => 'integer',

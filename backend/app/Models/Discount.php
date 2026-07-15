@@ -20,7 +20,6 @@ class Discount extends Model
             'ends_at' => 'datetime',
             'first_order_only' => 'boolean',
             'free_shipping' => 'boolean',
-            'stackable' => 'boolean',
         ];
     }
 

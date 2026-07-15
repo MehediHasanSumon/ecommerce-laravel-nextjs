@@ -29,7 +29,6 @@ class BlogResource extends JsonResource
             ]),
             'status' => $this->status,
             'published_at' => optional($this->published_at)->toISOString(),
-            'scheduled_publish_at' => optional($this->scheduled_publish_at)->toISOString(),
             'featured' => (bool) $this->featured,
             'allow_comments_override' => $this->allow_comments_override,
             'views_count' => (int) $this->views_count,

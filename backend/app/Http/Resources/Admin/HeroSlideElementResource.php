@@ -16,7 +16,6 @@ class HeroSlideElementResource extends JsonResource
             'content' => $this->content ?: [],
             'style' => $this->style ?: [],
             'responsive' => $this->responsive ?: [],
-            'animation' => $this->animation ?: [],
             'z_index' => (int) $this->z_index,
             'locked' => (bool) $this->locked,
             'hidden' => (bool) $this->hidden,

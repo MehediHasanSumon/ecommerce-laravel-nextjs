@@ -22,8 +22,6 @@ class SettingsDefaults
             'city' => 'Dhaka',
             'postal_code' => '1205',
             'full_address' => 'House 12, Road 8, Dhanmondi, Dhaka, Bangladesh',
-            'tax_number' => null,
-            'trade_license' => null,
             'currency_id' => null,
             'currency_position' => 'left',
             'decimal_places' => 2,
@@ -34,8 +32,6 @@ class SettingsDefaults
             'time_format' => '12h',
             'invoice_prefix' => 'INV',
             'invoice_footer' => 'Thank you for shopping with LuxeCart.',
-            'invoice_terms' => 'All prices include applicable taxes unless noted otherwise.',
-            'company_active' => true,
         ];
     }
 
@@ -43,23 +39,11 @@ class SettingsDefaults
     {
         return [
             'store_name' => 'LuxeCart',
-            'store_url' => config('app.url'),
             'store_email' => 'store@luxecart.test',
             'store_phone' => '+880 1700-000002',
-            'products_per_page' => 24,
-            'default_product_sorting' => 'latest',
-            'default_product_view' => 'grid',
             'enable_reviews' => true,
             'enable_wishlist' => true,
-            'enable_compare' => false,
-            'enable_stock_management' => true,
-            'enable_guest_checkout' => true,
             'require_login_before_checkout' => false,
-            'minimum_order_amount_cents' => 0,
-            'maximum_order_amount_cents' => null,
-            'low_stock_threshold' => 5,
-            'allow_backorders' => false,
-            'hide_out_of_stock_products' => false,
         ];
     }
 
@@ -131,23 +115,6 @@ class SettingsDefaults
         ];
     }
 
-    public static function email(): array
-    {
-        return [
-            'mail_driver' => 'smtp',
-            'mail_host' => 'smtp.mailtrap.io',
-            'mail_port' => 587,
-            'encryption' => 'tls',
-            'username' => null,
-            'password' => null,
-            'from_name' => 'LuxeCart',
-            'from_email' => 'no-reply@luxecart.test',
-            'reply_to_email' => 'support@luxecart.test',
-            'queue_emails' => true,
-            'enabled' => true,
-        ];
-    }
-
     public static function seo(): array
     {
         $appName = config('app.name', 'Ecommerce');
@@ -160,7 +127,6 @@ class SettingsDefaults
             'canonical_url' => config('app.url'),
             'robots_index' => true,
             'robots_follow' => true,
-            'robots_archive' => true,
             'enable_sitemap' => true,
             'sitemap_url' => rtrim((string) config('app.url'), '/').'/sitemap.xml',
             'og_title' => $appName,
@@ -170,54 +136,12 @@ class SettingsDefaults
             'twitter_title' => $appName,
             'twitter_description' => 'Discover quality products and reliable delivery from '.$appName.'.',
             'twitter_image' => null,
-            'google_analytics_id' => null,
-            'google_tag_manager_id' => null,
-            'facebook_pixel_id' => null,
-        ];
-    }
-
-    public static function localization(): array
-    {
-        return [
-            'default_language' => 'en',
-            'default_currency' => 'BDT',
-            'timezone' => 'Asia/Dhaka',
-            'date_format' => 'd M Y',
-            'time_format' => '12h',
-            'first_day_of_week' => 0,
-            'rtl_mode' => false,
-            'decimal_separator' => '.',
-            'thousand_separator' => ',',
-        ];
-    }
-
-    public static function maintenance(): array
-    {
-        return [
-            'enabled' => false,
-            'title' => 'Maintenance in progress',
-            'message' => 'We are upgrading the store. Please check back shortly.',
-            'estimated_return_time' => null,
-            'allow_admin_access' => true,
-            'allowed_ip_addresses' => [],
-            'retry_after' => 3600,
-            'maintenance_image' => null,
-        ];
-    }
-
-    public static function smsProviders(): array
-    {
-        return [
-            ['provider' => 'twilio', 'api_key' => null, 'api_secret' => null, 'sender_id' => 'LuxeCart', 'base_url' => null, 'is_default' => false, 'status' => false],
-            ['provider' => 'vonage', 'api_key' => null, 'api_secret' => null, 'sender_id' => 'LuxeCart', 'base_url' => null, 'is_default' => false, 'status' => false],
-            ['provider' => 'ssl_wireless', 'api_key' => null, 'api_secret' => null, 'sender_id' => 'LuxeCart', 'base_url' => 'https://smsplus.sslwireless.com', 'is_default' => true, 'status' => true],
-            ['provider' => 'custom', 'api_key' => null, 'api_secret' => null, 'sender_id' => 'LuxeCart', 'base_url' => null, 'is_default' => false, 'status' => false],
         ];
     }
 
     public static function paymentGateways(): array
     {
-        return collect(['stripe', 'sslcommerz', 'bkash', 'nagad', 'rocket', 'paypal', 'aamarpay', 'cash_on_delivery'])
+        return collect(['stripe', 'sslcommerz', 'bkash', 'nagad', 'paypal', 'aamarpay', 'cash_on_delivery'])
             ->map(fn (string $gateway, int $index) => [
                 'gateway' => $gateway,
                 'enabled' => $gateway === 'cash_on_delivery',
@@ -246,5 +170,4 @@ class SettingsDefaults
             ])
             ->all();
     }
-
 }

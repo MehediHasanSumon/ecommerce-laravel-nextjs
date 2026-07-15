@@ -42,7 +42,6 @@ class SaveHeroSlideRequest extends FormRequest
             'elements.*.content' => ['nullable', 'array'],
             'elements.*.style' => ['nullable', 'array'],
             'elements.*.responsive' => ['nullable', 'array'],
-            'elements.*.animation' => ['nullable', 'array'],
             'elements.*.z_index' => ['required_with:elements', 'integer', 'min:0', 'max:999'],
             'elements.*.locked' => ['required_with:elements', 'boolean'],
             'elements.*.hidden' => ['required_with:elements', 'boolean'],

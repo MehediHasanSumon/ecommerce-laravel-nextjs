@@ -26,9 +26,8 @@ class SaveBlogRequest extends FormRequest
             'canonical_url' => ['nullable', 'url', 'max:2048'],
             'open_graph_image' => ['nullable', 'string', 'max:2048'],
             'author_id' => ['nullable', 'integer', 'exists:users,id'],
-            'status' => ['required', Rule::in(['draft', 'published', 'scheduled', 'archived'])],
+            'status' => ['required', Rule::in(['draft', 'published', 'archived'])],
             'published_at' => ['nullable', 'date'],
-            'scheduled_publish_at' => ['nullable', 'date', 'after:now'],
             'featured' => ['required', 'boolean'],
             'allow_comments_override' => ['nullable', 'boolean'],
         ];

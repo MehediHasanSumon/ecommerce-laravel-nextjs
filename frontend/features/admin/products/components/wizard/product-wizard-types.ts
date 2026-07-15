@@ -43,15 +43,10 @@ export type ProductWizardValues = {
   base_price_cents: number | "";
   compare_at_price_cents: number | "";
   cost_price_cents: number | "";
-  tax_class: string;
   currency: string;
   track_inventory: boolean;
   stock_quantity: number | "";
-  stock_status: "in_stock" | "out_of_stock" | "preorder";
   low_stock_threshold: number | "";
-  backorders: "deny" | "allow" | "notify";
-  min_order_quantity: number | "";
-  max_order_quantity: number | "";
   featured_image: ProductMediaItem | null;
   gallery_images: ProductMediaItem[];
   attribute_values: number[];
@@ -60,17 +55,8 @@ export type ProductWizardValues = {
     custom_enabled: boolean;
     meta_title: string;
     meta_description: string;
-    meta_keywords: string;
     canonical_url: string;
     og_image_url: string;
-  };
-  shipping: {
-    weight_grams: number | "";
-    length_cm: number | "";
-    width_cm: number | "";
-    height_cm: number | "";
-    shipping_class: string;
-    package_info: string;
   };
   status: "draft" | "active" | "archived";
   published_at: string;
@@ -88,7 +74,6 @@ export const productWizardSteps = [
   { id: "media", title: "Images & Media" },
   { id: "variants", title: "Attributes & Variants" },
   { id: "seo", title: "SEO" },
-  { id: "shipping", title: "Shipping" },
   { id: "publish", title: "Publish" },
 ] as const;
 
@@ -113,15 +98,10 @@ export const productWizardSchema = z.object({
   base_price_cents: z.coerce.number({ error: "Regular price is required." }).min(0, "Regular price cannot be negative."),
   compare_at_price_cents: z.union([z.coerce.number().min(0), z.literal("")]).optional(),
   cost_price_cents: z.union([z.coerce.number().min(0), z.literal("")]).optional(),
-  tax_class: z.string().optional(),
   currency: z.string().trim().optional(),
   track_inventory: z.boolean(),
   stock_quantity: integerInput(0),
-  stock_status: z.enum(["in_stock", "out_of_stock", "preorder"]),
   low_stock_threshold: integerInput(0),
-  backorders: z.enum(["deny", "allow", "notify"]),
-  min_order_quantity: integerInput(1),
-  max_order_quantity: integerInput(1),
   featured_image: z.any().nullable(),
   gallery_images: z.array(z.any()).max(10, "Upload up to 10 gallery images."),
   attribute_values: z.array(z.number()),
@@ -130,17 +110,8 @@ export const productWizardSchema = z.object({
     custom_enabled: z.boolean(),
     meta_title: z.string().max(255, "Meta title must be 255 characters or fewer.").optional(),
     meta_description: z.string().optional(),
-    meta_keywords: z.string().optional(),
     canonical_url: optionalUrl,
     og_image_url: z.string().optional(),
-  }),
-  shipping: z.object({
-    weight_grams: integerInput(0),
-    length_cm: z.union([z.coerce.number().min(0), z.literal("")]).optional(),
-    width_cm: z.union([z.coerce.number().min(0), z.literal("")]).optional(),
-    height_cm: z.union([z.coerce.number().min(0), z.literal("")]).optional(),
-    shipping_class: z.string().optional(),
-    package_info: z.string().optional(),
   }),
   status: z.enum(["draft", "active", "archived"]),
   published_at: z.string().optional(),
@@ -156,19 +127,15 @@ export const productWizardSchema = z.object({
   if (values.compare_at_price_cents !== "" && Number(values.compare_at_price_cents) < Number(values.base_price_cents)) {
     ctx.addIssue({ code: "custom", path: ["compare_at_price_cents"], message: "Sale price should be greater than or equal to regular price." });
   }
-  if (values.min_order_quantity !== "" && values.max_order_quantity !== "" && Number(values.max_order_quantity) < Number(values.min_order_quantity)) {
-    ctx.addIssue({ code: "custom", path: ["max_order_quantity"], message: "Maximum order quantity must be greater than minimum." });
-  }
 });
 
 export const stepFields: Record<ProductWizardStepId, Array<keyof ProductWizardValues | string>> = {
   basic: ["name", "brand_id", "category_id", "subcategory_id", "short_description"],
-  pricing: ["base_price_cents", "compare_at_price_cents", "cost_price_cents", "tax_class"],
-  inventory: ["stock_quantity", "stock_status", "low_stock_threshold", "track_inventory", "backorders", "min_order_quantity", "max_order_quantity"],
+  pricing: ["base_price_cents", "compare_at_price_cents", "cost_price_cents"],
+  inventory: ["stock_quantity", "low_stock_threshold", "track_inventory"],
   media: ["featured_image", "gallery_images"],
   variants: ["attribute_values", "variants"],
-  seo: ["seo.custom_enabled", "seo.meta_title", "seo.meta_description", "seo.meta_keywords", "seo.canonical_url", "seo.og_image_url"],
-  shipping: ["shipping.weight_grams", "shipping.length_cm", "shipping.width_cm", "shipping.height_cm", "shipping.shipping_class", "shipping.package_info"],
+  seo: ["seo.custom_enabled", "seo.meta_title", "seo.meta_description", "seo.canonical_url", "seo.og_image_url"],
   publish: ["status", "published_at"],
 };
 
@@ -185,15 +152,10 @@ export function emptyProductWizardValues(): ProductWizardValues {
     base_price_cents: "",
     compare_at_price_cents: "",
     cost_price_cents: "",
-    tax_class: "standard",
     currency: selectCurrencySettings(useSettingsStore.getState()).currency,
     track_inventory: true,
     stock_quantity: 0,
-    stock_status: "in_stock",
     low_stock_threshold: 5,
-    backorders: "deny",
-    min_order_quantity: 1,
-    max_order_quantity: "",
     featured_image: null,
     gallery_images: [],
     attribute_values: [],
@@ -202,17 +164,8 @@ export function emptyProductWizardValues(): ProductWizardValues {
       custom_enabled: false,
       meta_title: "",
       meta_description: "",
-      meta_keywords: "",
       canonical_url: "",
       og_image_url: "",
-    },
-    shipping: {
-      weight_grams: "",
-      length_cm: "",
-      width_cm: "",
-      height_cm: "",
-      shipping_class: "standard",
-      package_info: "",
     },
     status: "draft",
     published_at: "",
@@ -278,7 +231,6 @@ export function valuesFromProduct(record?: ProductRecord | null, options?: Produ
     currency: String(record.currency ?? selectCurrencySettings(useSettingsStore.getState()).currency),
     track_inventory: Boolean(record.track_inventory ?? true),
     stock_quantity: quantityInput(record.stock_quantity),
-    stock_status: Number(record.stock_quantity ?? 0) > 0 ? "in_stock" : "out_of_stock",
     low_stock_threshold: quantityInput(record.low_stock_threshold),
     featured_image: media.featured,
     gallery_images: media.gallery,
@@ -307,7 +259,6 @@ export function valuesFromProduct(record?: ProductRecord | null, options?: Produ
       ),
       meta_title: String((record.seo as Record<string, unknown> | null)?.meta_title ?? ""),
       meta_description: String((record.seo as Record<string, unknown> | null)?.meta_description ?? ""),
-      meta_keywords: "",
       canonical_url: String((record.seo as Record<string, unknown> | null)?.canonical_url ?? ""),
       og_image_url: String((record.seo as Record<string, unknown> | null)?.og_image_url ?? ""),
     },
@@ -403,18 +354,9 @@ export function productPayloadFromValues(values: ProductWizardValues, publish: b
     seo: values.seo.custom_enabled ? {
       meta_title: values.seo.meta_title || null,
       meta_description: values.seo.meta_description || null,
-      meta_keywords: values.seo.meta_keywords || null,
       canonical_url: values.seo.canonical_url || null,
       og_image_url: values.seo.og_image_url || null,
     } : null,
-    specifications: [
-      values.shipping.weight_grams !== "" ? { group_name: "Shipping", name: "Weight", value: `${values.shipping.weight_grams} g`, sort_order: 0 } : null,
-      values.shipping.length_cm !== "" || values.shipping.width_cm !== "" || values.shipping.height_cm !== ""
-        ? { group_name: "Shipping", name: "Dimensions", value: `${values.shipping.length_cm || 0} x ${values.shipping.width_cm || 0} x ${values.shipping.height_cm || 0} cm`, sort_order: 1 }
-        : null,
-      values.shipping.shipping_class ? { group_name: "Shipping", name: "Shipping Class", value: values.shipping.shipping_class, sort_order: 2 } : null,
-      values.shipping.package_info ? { group_name: "Shipping", name: "Package Information", value: values.shipping.package_info, sort_order: 3 } : null,
-    ].filter(Boolean),
     variants,
   };
 

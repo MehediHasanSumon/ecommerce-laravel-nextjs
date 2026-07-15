@@ -14,7 +14,6 @@ class CompanySetting extends Model
     protected function casts(): array
     {
         return [
-            'company_active' => 'boolean',
             'decimal_places' => 'integer',
         ];
     }

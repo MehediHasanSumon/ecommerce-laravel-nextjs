@@ -64,7 +64,6 @@ class BlogSeeder extends Seeder
                         'open_graph_image' => $post['image'],
                         'status' => 'published',
                         'published_at' => now()->subDays($index + 1),
-                        'scheduled_publish_at' => null,
                         'featured' => $index < 2,
                         'allow_comments_override' => null,
                         'views_count' => 240 - ($index * 17),
@@ -136,10 +135,10 @@ class BlogSeeder extends Seeder
     {
         return implode("\n\n", [
             "{$title} starts with understanding how the product will be used every day. The best {$theme} choices are not always the flashiest ones. They are the items that solve small problems consistently, feel comfortable in repeated use, and fit naturally into the way you already shop, work, travel, or relax.",
-            "Begin with material quality and practical details. Look at stitching, weight, battery life, surface finish, warranty coverage, care requirements, and how easily the item can be cleaned or stored. These details often decide whether a product feels useful after the first week.",
-            "Next, compare features against your actual routine. A compact option may be better for commuting, while a larger or more durable option may work better for travel. If you share the item with family members or use it across multiple settings, choose flexible designs and neutral colors.",
-            "Finally, think about long-term value. A slightly higher upfront cost can make sense when the product lasts longer, performs better, and needs fewer replacements. Read specifications carefully, check dimensions, and avoid buying based only on discount size.",
-            "The easiest way to shop well is to keep a short checklist: purpose, comfort, durability, maintenance, and return policy. If a product passes those five checks, it is much more likely to earn a permanent place in your routine.",
+            'Begin with material quality and practical details. Look at stitching, weight, battery life, surface finish, warranty coverage, care requirements, and how easily the item can be cleaned or stored. These details often decide whether a product feels useful after the first week.',
+            'Next, compare features against your actual routine. A compact option may be better for commuting, while a larger or more durable option may work better for travel. If you share the item with family members or use it across multiple settings, choose flexible designs and neutral colors.',
+            'Finally, think about long-term value. A slightly higher upfront cost can make sense when the product lasts longer, performs better, and needs fewer replacements. Read specifications carefully, check dimensions, and avoid buying based only on discount size.',
+            'The easiest way to shop well is to keep a short checklist: purpose, comfort, durability, maintenance, and return policy. If a product passes those five checks, it is much more likely to earn a permanent place in your routine.',
         ]);
     }
 

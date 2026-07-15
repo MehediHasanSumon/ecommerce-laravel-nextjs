@@ -11,7 +11,6 @@ use App\Models\ProductAttributeValue;
 use App\Models\ProductCollection;
 use App\Models\ProductReview;
 use App\Models\Tag;
-use App\Models\Warehouse;
 use App\Services\Collections\CollectionProductResolver;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -93,16 +92,6 @@ class ProductModuleResource extends JsonResource
                 'slug' => $this->slug,
                 'products_count' => $this->products_count ?? 0,
             ],
-            Warehouse::class => $base + [
-                'name' => $this->name,
-                'code' => $this->code,
-                'status' => $this->status,
-                'address' => $this->address,
-                'city' => $this->city,
-                'state' => $this->state,
-                'country' => $this->country,
-                'postal_code' => $this->postal_code,
-            ],
             ProductCollection::class => $base + [
                 'name' => $this->name,
                 'slug' => $this->slug,
@@ -123,7 +112,6 @@ class ProductModuleResource extends JsonResource
                 'discount_enabled' => (bool) $this->discount_enabled,
                 'discount_type' => $this->discount_type,
                 'discount_value' => $this->discount_value,
-                'discount_apply_to' => $this->discount_apply_to,
                 'starts_at' => optional($this->starts_at)->toISOString(),
                 'ends_at' => optional($this->ends_at)->toISOString(),
                 'banner_image_url' => $this->banner_image_url,
@@ -167,8 +155,6 @@ class ProductModuleResource extends JsonResource
                 'total_used' => $this->total_used,
                 'first_order_only' => (bool) $this->first_order_only,
                 'free_shipping' => (bool) $this->free_shipping,
-                'stackable' => (bool) $this->stackable,
-                'applicable_scope' => $this->applicable_scope ?: 'all',
                 'products' => ProductOptionResource::collection($this->whenLoaded('products')),
                 'categories' => ProductOptionResource::collection($this->whenLoaded('categories')),
                 'brands' => ProductOptionResource::collection($this->whenLoaded('brands')),

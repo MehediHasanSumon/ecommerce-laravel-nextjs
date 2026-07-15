@@ -182,8 +182,6 @@ class ProductMerchandisingSeeder extends Seeder
                 'usage_per_customer' => 3,
                 'first_order_only' => false,
                 'free_shipping' => false,
-                'stackable' => false,
-                'applicable_scope' => 'all',
             ],
             [
                 'name' => 'First Order Credit',
@@ -195,8 +193,6 @@ class ProductMerchandisingSeeder extends Seeder
                 'usage_per_customer' => 1,
                 'first_order_only' => true,
                 'free_shipping' => true,
-                'stackable' => false,
-                'applicable_scope' => 'all',
             ],
             [
                 'name' => 'Audio Week',
@@ -208,8 +204,6 @@ class ProductMerchandisingSeeder extends Seeder
                 'usage_per_customer' => 2,
                 'first_order_only' => false,
                 'free_shipping' => false,
-                'stackable' => false,
-                'applicable_scope' => 'categories',
                 'categories' => ['Electronics Audio'],
                 'brands' => ['Auralux Audio'],
             ],
@@ -223,8 +217,6 @@ class ProductMerchandisingSeeder extends Seeder
                 'usage_per_customer' => 2,
                 'first_order_only' => false,
                 'free_shipping' => false,
-                'stackable' => false,
-                'applicable_scope' => 'categories',
                 'categories' => ['Home & Living Furniture', 'Home & Living Kitchen', 'Home & Living Decoration'],
             ],
             [
@@ -237,8 +229,6 @@ class ProductMerchandisingSeeder extends Seeder
                 'usage_per_customer' => null,
                 'first_order_only' => false,
                 'free_shipping' => false,
-                'stackable' => true,
-                'applicable_scope' => 'products',
             ],
             [
                 'name' => 'Creator Bundle',
@@ -250,8 +240,6 @@ class ProductMerchandisingSeeder extends Seeder
                 'usage_per_customer' => 2,
                 'first_order_only' => false,
                 'free_shipping' => true,
-                'stackable' => false,
-                'applicable_scope' => 'brands',
                 'brands' => ['StudioBloom', 'NexaTech', 'PixelForge'],
                 'excluded_categories' => ['Books & Media Stationery'],
             ],
@@ -278,7 +266,7 @@ class ProductMerchandisingSeeder extends Seeder
                 ]
             );
 
-            $discount->products()->sync($data['applicable_scope'] === 'products' ? $products : []);
+            $discount->products()->sync($products);
             $discount->categories()->sync($categoryIds);
             $discount->brands()->sync($brandIds);
             $discount->excludedProducts()->sync($excludedProductIds);

@@ -92,7 +92,6 @@ const modulePermissionResources: Record<ProductModule, string> = {
   attributes: "attribute",
   "attribute-values": "attribute_value",
   tags: "tag",
-  warehouses: "warehouse",
   collections: "collection",
   currencies: "currency",
   discounts: "discount",
@@ -104,7 +103,6 @@ const emptyOptions: ProductOptions = {
   attributes: [],
   attribute_values: [],
   tags: [],
-  warehouses: [],
   products: [],
   collections: [],
 };
@@ -251,31 +249,6 @@ export const productModuleConfigs: Record<ProductModule, ModuleConfig> = {
       { key: "created_at", label: "Created At", sortable: true, render: (item) => formatDate(item.created_at) },
     ],
   },
-  warehouses: {
-    module: "warehouses",
-    title: "Warehouse Management",
-    description: "Manage warehouse locations used by inventory and stock movements.",
-    createLabel: "Create Warehouse",
-    defaultSort: "created_at",
-    statuses: commonStatus,
-    fields: [
-      { name: "name", label: "Name", type: "text" },
-      { name: "code", label: "Code", type: "text" },
-      { name: "status", label: "Status", type: "select", options: commonStatus },
-      { name: "address", label: "Address", type: "textarea", optional: true },
-      { name: "city", label: "City", type: "text", optional: true },
-      { name: "state", label: "State", type: "text", optional: true },
-      { name: "country", label: "Country", type: "text", optional: true },
-      { name: "postal_code", label: "Postal Code", type: "text", optional: true },
-    ],
-    columns: [
-      { key: "name", label: "Name", sortable: true, render: (item) => <span className="font-semibold">{String(item.name ?? "")}</span> },
-      { key: "code", label: "Code" },
-      { key: "status", label: "Status", sortable: true, render: (item) => <StatusBadge value={String(item.status ?? "active")} /> },
-      { key: "city", label: "City" },
-      { key: "country", label: "Country" },
-    ],
-  },
   products: {
     module: "products",
     title: "Product Management",
@@ -320,7 +293,6 @@ export const productModuleConfigs: Record<ProductModule, ModuleConfig> = {
       { tab: "Discount", name: "discount_enabled", label: "Discount Enabled", type: "checkbox", optional: true },
       { tab: "Discount", name: "discount_type", label: "Discount Type", type: "select", options: ["percentage", "fixed"], optional: true, showWhen: (values) => Boolean(values.discount_enabled) },
       { tab: "Discount", name: "discount_value", label: "Discount Value", type: "number", optional: true, showWhen: (values) => Boolean(values.discount_enabled) },
-      { tab: "Discount", name: "discount_apply_to", label: "Apply Discount To", type: "select", options: ["entire_collection", "selected_products"], showWhen: (values) => Boolean(values.discount_enabled) },
       { tab: "Products", name: "products", label: "Products", type: "multiselect", options: "products", optional: true },
       { tab: "Media", name: "banner_image_file", label: "Desktop Banner", type: "file", optional: true, existingImageField: "banner_image_url", maxSizeMb: 5 },
       { tab: "Media", name: "mobile_banner_image_file", label: "Mobile Banner", type: "file", optional: true, existingImageField: "mobile_banner_image_url", maxSizeMb: 5 },
@@ -391,14 +363,12 @@ export const productModuleConfigs: Record<ProductModule, ModuleConfig> = {
       { tab: "Rules", name: "usage_per_customer", label: "Usage Per Customer", type: "number", optional: true },
       { tab: "Rules", name: "first_order_only", label: "First Order Only", type: "checkbox", optional: true },
       { tab: "Rules", name: "free_shipping", label: "Free Shipping", type: "checkbox", optional: true },
-      { tab: "Rules", name: "stackable", label: "Stackable", type: "checkbox", optional: true },
-      { tab: "Rules", name: "applicable_scope", label: "Applicable Scope", type: "select", options: ["all", "products", "categories", "brands", "collections", "mixed"] },
       { tab: "Schedule", name: "starts_at", label: "Start Date", type: "date", optional: true },
       { tab: "Schedule", name: "ends_at", label: "End Date", type: "date", optional: true },
-      { tab: "Products", name: "products", label: "Applicable Products", type: "multiselect", options: "products", optional: true, showWhen: (values) => values.applicable_scope === "products" || values.applicable_scope === "mixed" },
-      { tab: "Products", name: "categories", label: "Applicable Categories", type: "multiselect", options: "categories", optional: true, showWhen: (values) => values.applicable_scope === "categories" || values.applicable_scope === "mixed" },
-      { tab: "Products", name: "brands", label: "Applicable Brands", type: "multiselect", options: "brands", optional: true, showWhen: (values) => values.applicable_scope === "brands" || values.applicable_scope === "mixed" },
-      { tab: "Products", name: "collections", label: "Applicable Collections", type: "multiselect", options: "collections", optional: true, showWhen: (values) => values.applicable_scope === "collections" || values.applicable_scope === "mixed" },
+      { tab: "Products", name: "products", label: "Applicable Products", type: "multiselect", options: "products", optional: true },
+      { tab: "Products", name: "categories", label: "Applicable Categories", type: "multiselect", options: "categories", optional: true },
+      { tab: "Products", name: "brands", label: "Applicable Brands", type: "multiselect", options: "brands", optional: true },
+      { tab: "Products", name: "collections", label: "Applicable Collections", type: "multiselect", options: "collections", optional: true },
       { tab: "Products", name: "excluded_products", label: "Excluded Products", type: "multiselect", options: "products", optional: true },
       { tab: "Products", name: "excluded_categories", label: "Excluded Categories", type: "multiselect", options: "categories", optional: true },
     ],
@@ -539,7 +509,6 @@ function defaultValues(config: ModuleConfig, item?: ProductRecord | null): Produ
     else if (field.name === "collection_type") values[field.name] = "manual";
     else if (field.name === "display_position_anchor") values[field.name] = "products";
     else if (field.name === "display_position_placement") values[field.name] = "before";
-    else if (field.name === "discount_apply_to") values[field.name] = "entire_collection";
     else values[field.name] = "";
   });
   if (hasSeoFields) {

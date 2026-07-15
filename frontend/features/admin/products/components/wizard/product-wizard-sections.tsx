@@ -72,18 +72,11 @@ export function PriceSection({ form }: SectionProps) {
   const errors = form.formState.errors;
   return (
     <div className="space-y-5">
-      <SectionHeader title="Pricing" description="Set customer-facing pricing, margin inputs, and tax behavior." />
+      <SectionHeader title="Pricing" description="Set customer-facing pricing and margin inputs." />
       <FieldGrid>
         <Input label="Regular Price" type="number" min={0} step="0.01" {...form.register("base_price_cents")} error={errors.base_price_cents?.message} />
         <Input label="Sale Price" type="number" min={0} step="0.01" {...form.register("compare_at_price_cents")} error={errors.compare_at_price_cents?.message} />
         <Input label="Cost Price" type="number" min={0} step="0.01" {...form.register("cost_price_cents")} error={errors.cost_price_cents?.message} />
-        <SelectField
-          label="Tax Class"
-          value={useFieldValue(form, "tax_class")}
-          placeholder="Select tax class"
-          options={[{ id: "standard", name: "Standard" }, { id: "reduced", name: "Reduced" }, { id: "zero", name: "Zero rated" }]}
-          onChange={(value) => form.setValue("tax_class", value, { shouldDirty: true })}
-        />
       </FieldGrid>
       <ToggleField label="Free Shipping" description="Mark this product as eligible for free shipping promotions." checked={useFieldValue(form, "free_shipping")} onChange={(checked) => form.setValue("free_shipping", checked, { shouldDirty: true })} />
     </div>
@@ -94,29 +87,11 @@ export function InventorySection({ form }: SectionProps) {
   const errors = form.formState.errors;
   return (
     <div className="space-y-5">
-      <SectionHeader title="Inventory" description="Control stock tracking, low-stock alerts, backorders, and order quantity rules." />
-      <div className="grid gap-3 sm:grid-cols-2">
-        <ToggleField label="Track Inventory" description="Deduct stock when orders are placed." checked={useFieldValue(form, "track_inventory")} onChange={(checked) => form.setValue("track_inventory", checked, { shouldDirty: true, shouldValidate: true })} />
-        <SelectField
-          label="Stock Status"
-          value={useFieldValue(form, "stock_status")}
-          placeholder="Select status"
-          options={[{ id: "in_stock", name: "In stock" }, { id: "out_of_stock", name: "Out of stock" }, { id: "preorder", name: "Preorder" }]}
-          onChange={(value) => form.setValue("stock_status", value as ProductWizardValues["stock_status"], { shouldDirty: true })}
-        />
-      </div>
+      <SectionHeader title="Inventory" description="Control stock tracking and low-stock alerts." />
+      <ToggleField label="Track Inventory" description="Deduct stock when orders are placed." checked={useFieldValue(form, "track_inventory")} onChange={(checked) => form.setValue("track_inventory", checked, { shouldDirty: true, shouldValidate: true })} />
       <FieldGrid>
         <Input label="Stock Quantity" type="number" min={0} {...form.register("stock_quantity")} error={errors.stock_quantity?.message} />
         <Input label="Low Stock Alert" type="number" min={0} {...form.register("low_stock_threshold")} error={errors.low_stock_threshold?.message} />
-        <SelectField
-          label="Backorders"
-          value={useFieldValue(form, "backorders")}
-          placeholder="Select policy"
-          options={[{ id: "deny", name: "Do not allow" }, { id: "allow", name: "Allow" }, { id: "notify", name: "Allow and notify customer" }]}
-          onChange={(value) => form.setValue("backorders", value as ProductWizardValues["backorders"], { shouldDirty: true })}
-        />
-        <Input label="Minimum Order Quantity" type="number" min={1} {...form.register("min_order_quantity")} error={errors.min_order_quantity?.message} />
-        <Input label="Maximum Order Quantity" type="number" min={1} {...form.register("max_order_quantity")} error={errors.max_order_quantity?.message} />
       </FieldGrid>
     </div>
   );
@@ -330,7 +305,7 @@ export function SeoSection({ form }: SectionProps) {
       <SectionHeader title="SEO" description="Search metadata is generated automatically unless custom SEO is enabled." />
       <ToggleField
         label="Enable Custom SEO"
-        description="Override the automatic title, description, canonical URL, keywords, or social image."
+        description="Override the automatic title, description, canonical URL, or social image."
         checked={customSeo}
         onChange={(checked) => form.setValue("seo.custom_enabled", checked, { shouldDirty: true })}
       />
@@ -339,35 +314,11 @@ export function SeoSection({ form }: SectionProps) {
           <FieldGrid>
             <Input label="Meta Title" {...form.register("seo.meta_title")} error={errors?.meta_title?.message} />
             <Input label="Canonical URL" {...form.register("seo.canonical_url")} error={errors?.canonical_url?.message} />
-            <Input label="Meta Keywords" {...form.register("seo.meta_keywords")} />
             <Input label="Open Graph Image" {...form.register("seo.og_image_url")} />
           </FieldGrid>
           <TextAreaField label="Meta Description" rows={4} {...form.register("seo.meta_description")} error={errors?.meta_description?.message} />
         </>
       ) : null}
-    </div>
-  );
-}
-
-export function ShippingSection({ form }: SectionProps) {
-  const errors = form.formState.errors.shipping;
-  return (
-    <div className="space-y-5">
-      <SectionHeader title="Shipping" description="Capture package weight, dimensions, shipping class, and fulfillment notes." />
-      <FieldGrid>
-        <Input label="Weight (grams)" type="number" min={0} {...form.register("shipping.weight_grams")} error={errors?.weight_grams?.message} />
-        <Input label="Length (cm)" type="number" min={0} {...form.register("shipping.length_cm")} error={errors?.length_cm?.message} />
-        <Input label="Width (cm)" type="number" min={0} {...form.register("shipping.width_cm")} error={errors?.width_cm?.message} />
-        <Input label="Height (cm)" type="number" min={0} {...form.register("shipping.height_cm")} error={errors?.height_cm?.message} />
-        <SelectField
-          label="Shipping Class"
-          value={useFieldValue(form, "shipping").shipping_class}
-          placeholder="Select class"
-          options={[{ id: "standard", name: "Standard" }, { id: "fragile", name: "Fragile" }, { id: "oversized", name: "Oversized" }, { id: "digital", name: "Digital delivery" }]}
-          onChange={(value) => form.setValue("shipping.shipping_class", value, { shouldDirty: true })}
-        />
-      </FieldGrid>
-      <TextAreaField label="Package Information" rows={4} {...form.register("shipping.package_info")} error={errors?.package_info?.message} />
     </div>
   );
 }

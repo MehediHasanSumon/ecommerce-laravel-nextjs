@@ -1,6 +1,6 @@
 import type { BaseRecord, Option } from "@/features/admin/shared/types";
 
-export type BlogStatus = "draft" | "published" | "scheduled" | "archived";
+export type BlogStatus = "draft" | "published" | "archived";
 
 export type ManagedBlog = BaseRecord & {
   title: string;
@@ -17,7 +17,6 @@ export type ManagedBlog = BaseRecord & {
   author?: Option & { email?: string };
   status: BlogStatus;
   published_at: string | null;
-  scheduled_publish_at: string | null;
   featured: boolean;
   allow_comments_override: boolean | null;
   views_count: number;
@@ -39,7 +38,6 @@ export type BlogPayload = {
   author_id?: number | null;
   status: BlogStatus;
   published_at?: string | null;
-  scheduled_publish_at?: string | null;
   featured: boolean;
   allow_comments_override?: boolean | null;
 };

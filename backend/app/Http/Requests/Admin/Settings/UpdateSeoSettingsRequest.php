@@ -7,7 +7,11 @@ use Illuminate\Validation\Rule;
 
 class UpdateSeoSettingsRequest extends FormRequest
 {
-    public function authorize(): bool { return true; }
+    public function authorize(): bool
+    {
+        return true;
+    }
+
     public function rules(): array
     {
         return [
@@ -18,7 +22,6 @@ class UpdateSeoSettingsRequest extends FormRequest
             'canonical_url' => ['nullable', 'url', 'max:255'],
             'robots_index' => ['boolean'],
             'robots_follow' => ['boolean'],
-            'robots_archive' => ['boolean'],
             'enable_sitemap' => ['boolean'],
             'sitemap_url' => ['nullable', 'url', 'max:255'],
             'og_title' => ['nullable', 'string', 'max:255'],
@@ -28,9 +31,6 @@ class UpdateSeoSettingsRequest extends FormRequest
             'twitter_title' => ['nullable', 'string', 'max:255'],
             'twitter_description' => ['nullable', 'string'],
             'twitter_image' => ['nullable', 'string', 'max:500'],
-            'google_analytics_id' => ['nullable', 'string', 'max:100'],
-            'google_tag_manager_id' => ['nullable', 'string', 'max:100'],
-            'facebook_pixel_id' => ['nullable', 'string', 'max:100'],
         ];
     }
 }

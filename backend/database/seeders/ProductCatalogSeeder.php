@@ -4,7 +4,6 @@ namespace Database\Seeders;
 
 use App\Models\Brand;
 use App\Models\Category;
-use App\Models\Inventory;
 use App\Models\Product;
 use App\Models\ProductAttribute;
 use App\Models\ProductAttributeValue;
@@ -13,10 +12,7 @@ use App\Models\ProductImage;
 use App\Models\ProductSeo;
 use App\Models\ProductSpecification;
 use App\Models\ProductVariant;
-use App\Models\StockMovement;
 use App\Models\Tag;
-use App\Models\User;
-use App\Models\Warehouse;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -27,10 +23,13 @@ class ProductCatalogSeeder extends Seeder
     private const TARGET_PRODUCTS = 240;
 
     private Collection $brands;
+
     private Collection $categories;
+
     private Collection $tags;
-    private Collection $warehouses;
+
     private Collection $attributeValues;
+
     private array $attributeIdsByName = [];
 
     public function run(): void
@@ -45,7 +44,6 @@ class ProductCatalogSeeder extends Seeder
         $this->brands = Brand::query()->where('status', 'active')->get();
         $this->categories = Category::query()->whereNotNull('parent_id')->where('status', 'active')->get();
         $this->tags = Tag::query()->get();
-        $this->warehouses = Warehouse::query()->where('status', 'active')->get();
         $this->attributeValues = ProductAttributeValue::query()->with('attribute')->get();
         $this->attributeIdsByName = ProductAttribute::query()->pluck('id', 'name')->all();
     }
@@ -288,7 +286,6 @@ class ProductCatalogSeeder extends Seeder
         );
 
         $this->syncAttributesAndVariants($product, $config);
-        $this->syncInventory($product);
     }
 
     private function syncAttributesAndVariants(Product $product, array $config): void
@@ -305,6 +302,7 @@ class ProductCatalogSeeder extends Seeder
                     ['created_at' => now(), 'updated_at' => now()]
                 );
             }
+
             return;
         }
 
@@ -344,48 +342,6 @@ class ProductCatalogSeeder extends Seeder
         }
     }
 
-    private function syncInventory(Product $product): void
-    {
-        Inventory::query()->where('product_id', $product->id)->delete();
-        StockMovement::query()->where('product_id', $product->id)->delete();
-
-        $userId = User::query()->value('id');
-        $variants = ProductVariant::query()->where('product_id', $product->id)->get();
-        $targets = $variants->isNotEmpty() ? $variants : collect([null]);
-
-        foreach ($targets as $target) {
-            foreach ($this->warehouses as $warehouse) {
-                $quantity = $target ? fake()->numberBetween(5, 120) : (int) ($product->stock_quantity ?? fake()->numberBetween(5, 120));
-                $reserved = fake()->numberBetween(0, min(8, $quantity));
-                Inventory::query()->create([
-                    'product_id' => $product->id,
-                    'product_variant_id' => $target?->id,
-                    'warehouse_id' => $warehouse->id,
-                    'quantity_on_hand' => $quantity,
-                    'quantity_reserved' => $reserved,
-                    'quantity_available' => $quantity - $reserved,
-                    'reorder_level' => $target?->low_stock_threshold ?? $product->low_stock_threshold ?? 5,
-                ]);
-
-                foreach (['initial', 'adjustment'] as $movementIndex => $type) {
-                    StockMovement::query()->create([
-                        'product_id' => $product->id,
-                        'product_variant_id' => $target?->id,
-                        'warehouse_id' => $warehouse->id,
-                        'created_by' => $userId,
-                        'type' => $type,
-                        'quantity' => $movementIndex === 0 ? $quantity : fake()->numberBetween(-3, 8),
-                        'reference_type' => 'seed',
-                        'reference_id' => $product->id,
-                        'note' => $movementIndex === 0 ? 'Opening inventory balance.' : 'Seeded stock reconciliation adjustment.',
-                        'created_at' => now()->subDays(fake()->numberBetween(1, 90)),
-                        'updated_at' => now(),
-                    ]);
-                }
-            }
-        }
-    }
-
     private function findAttributeValue(string $attributeName, string $valueName): ?ProductAttributeValue
     {
         return $this->attributeValues
@@ -405,6 +361,7 @@ class ProductCatalogSeeder extends Seeder
             }
             $result = $append;
         }
+
         return $result;
     }
 

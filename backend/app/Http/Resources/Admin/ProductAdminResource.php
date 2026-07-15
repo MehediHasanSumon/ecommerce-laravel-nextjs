@@ -70,29 +70,21 @@ class ProductAdminResource extends JsonResource
             'variants' => $this->whenLoaded('variants', fn () => $this->variants->map(fn ($variant) => [
                 'id' => $variant->id,
                 'sku' => $variant->sku,
-                'barcode' => $variant->barcode,
                 'price_cents' => $variant->price_cents,
                 'compare_at_price_cents' => $variant->compare_at_price_cents,
                 'cost_price_cents' => $variant->cost_price_cents,
                 'stock_quantity' => $variant->stock_quantity,
                 'track_inventory' => $variant->track_inventory,
-                'low_stock_threshold' => $variant->low_stock_threshold,
-                'weight_grams' => $variant->weight_grams,
-                'length_cm' => $variant->length_cm,
-                'width_cm' => $variant->width_cm,
-                'height_cm' => $variant->height_cm,
                 'status' => $variant->status,
                 'attribute_values' => ProductOptionResource::collection($variant->relationLoaded('attributeValues') ? $variant->attributeValues : collect()),
             ])),
             'seo' => $this->whenLoaded('seo', fn () => $this->seo ? [
                 'meta_title' => $this->seo->meta_title,
                 'meta_description' => $this->seo->meta_description,
-                'meta_keywords' => $this->seo->meta_keywords,
                 'canonical_url' => $this->seo->canonical_url,
                 'og_image_url' => $this->seo->og_image_url,
                 'schema_json' => $this->seo->schema_json,
             ] : null),
         ];
     }
-
 }

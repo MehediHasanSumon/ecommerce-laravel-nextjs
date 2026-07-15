@@ -7,12 +7,9 @@ import {
   Building2,
   CreditCard,
   GripVertical,
-  Globe2,
   ImageIcon,
   Link2,
-  Mail,
   MapPin,
-  MessageSquareText,
   PackageCheck,
   Plus,
   Search,
@@ -69,16 +66,6 @@ type Field = {
   uploadPath?: string;
 };
 
-type SmsProviderRow = {
-  provider: string;
-  api_key: string;
-  api_secret: string;
-  sender_id: string;
-  base_url: string;
-  is_default: boolean;
-  status: boolean;
-};
-
 type PaymentGatewayRow = {
   gateway: string;
   enabled: boolean;
@@ -129,21 +116,7 @@ type SingletonModule = {
   testLabel?: string;
 };
 
-const currencyOptions = [
-  { label: "BDT", value: "BDT" },
-  { label: "USD", value: "USD" },
-  { label: "EUR", value: "EUR" },
-];
-
-const timezoneOptions = [
-  { label: "Asia/Dhaka", value: "Asia/Dhaka" },
-  { label: "UTC", value: "UTC" },
-  { label: "America/New_York", value: "America/New_York" },
-  { label: "Europe/London", value: "Europe/London" },
-];
-
-const smsProviderLabels: Record<string, string> = { twilio: "Twilio", vonage: "Vonage", ssl_wireless: "SSL Wireless", custom: "Custom Provider" };
-const paymentGatewayLabels: Record<string, string> = { stripe: "Stripe", sslcommerz: "SSLCommerz", bkash: "bKash", nagad: "Nagad", rocket: "Rocket", paypal: "PayPal", aamarpay: "aamarPay", cash_on_delivery: "Cash On Delivery" };
+const paymentGatewayLabels: Record<string, string> = { stripe: "Stripe", sslcommerz: "SSLCommerz", bkash: "bKash", nagad: "Nagad", paypal: "PayPal", aamarpay: "aamarPay", cash_on_delivery: "Cash On Delivery" };
 const offlinePaymentGateways = new Set(["cash_on_delivery"]);
 const paymentBooleanOptions = [
   { label: "Enabled", value: "true" },
@@ -157,6 +130,13 @@ const paymentModeOptions = [
 const yesNo = [
   { label: "Left", value: "left" },
   { label: "Right", value: "right" },
+];
+
+const timezoneOptions = [
+  { label: "Asia/Dhaka", value: "Asia/Dhaka" },
+  { label: "UTC", value: "UTC" },
+  { label: "America/New_York", value: "America/New_York" },
+  { label: "Europe/London", value: "Europe/London" },
 ];
 
 const moduleConfigs: Record<string, SingletonModule> = {
@@ -182,8 +162,6 @@ const moduleConfigs: Record<string, SingletonModule> = {
       city: "",
       postal_code: "",
       full_address: "",
-      tax_number: "",
-      trade_license: "",
       currency_id: "",
       currency_position: "left",
       timezone: "Asia/Dhaka",
@@ -191,8 +169,6 @@ const moduleConfigs: Record<string, SingletonModule> = {
       time_format: "12h",
       invoice_prefix: "INV",
       invoice_footer: "",
-      invoice_terms: "",
-      company_active: true,
     },
     sections: [
       { title: "Basic Information", description: "Business identity and primary contact details.", icon: Store, fields: [
@@ -216,9 +192,7 @@ const moduleConfigs: Record<string, SingletonModule> = {
         { name: "postal_code", label: "Postal Code" },
         { name: "full_address", label: "Full Address", type: "textarea" },
       ] },
-      { title: "Business & Invoice", description: "Currency, timezone, registration, and invoice terms.", icon: PackageCheck, fields: [
-        { name: "tax_number", label: "Tax Number" },
-        { name: "trade_license", label: "Trade License" },
+      { title: "Business & Invoice", description: "Currency, timezone, and invoice presentation.", icon: PackageCheck, fields: [
         { name: "currency_id", label: "Default Currency", type: "select", required: true, options: [] },
         { name: "currency_position", label: "Currency Position", type: "select", required: true, options: yesNo },
         { name: "timezone", label: "Timezone", type: "select", required: true, options: timezoneOptions },
@@ -226,8 +200,6 @@ const moduleConfigs: Record<string, SingletonModule> = {
         { name: "time_format", label: "Time Format", type: "select", required: true, options: [{ label: "12 hour", value: "12h" }, { label: "24 hour", value: "24h" }] },
         { name: "invoice_prefix", label: "Invoice Prefix", required: true },
         { name: "invoice_footer", label: "Invoice Footer", type: "textarea" },
-        { name: "invoice_terms", label: "Invoice Terms", type: "textarea" },
-        { name: "company_active", label: "Company Active", type: "toggle" },
       ] },
     ],
   },
@@ -250,93 +222,28 @@ const moduleConfigs: Record<string, SingletonModule> = {
     kind: "singleton",
     path: "store",
     title: "Store Settings",
-    description: "Configure storefront identity, catalog behavior, checkout rules, and inventory policies.",
+    description: "Configure storefront identity and active customer-facing features.",
     icon: Store,
     defaults: {
       store_name: "",
-      store_url: "",
       store_email: "",
       store_phone: "",
-      products_per_page: 24,
-      default_product_sorting: "latest",
-      default_product_view: "grid",
       enable_reviews: true,
       enable_wishlist: true,
-      enable_compare: false,
-      enable_stock_management: true,
-      enable_guest_checkout: true,
       require_login_before_checkout: false,
-      minimum_order_amount_cents: 0,
-      maximum_order_amount_cents: "",
-      low_stock_threshold: 5,
-      allow_backorders: false,
-      hide_out_of_stock_products: false,
     },
     sections: [
-      { title: "Store Information", description: "Public storefront contact and URL details.", icon: Store, fields: [
+      { title: "Store Information", description: "Public storefront contact details.", icon: Store, fields: [
         { name: "store_name", label: "Store Name", required: true },
-        { name: "store_url", label: "Store URL", type: "url" },
         { name: "store_email", label: "Store Email", type: "email" },
         { name: "store_phone", label: "Store Phone" },
       ] },
-      { title: "Catalog", description: "Product browsing defaults and merchandising features.", icon: PackageCheck, fields: [
-        { name: "products_per_page", label: "Products Per Page", type: "number", required: true },
-        { name: "default_product_sorting", label: "Default Product Sorting", type: "select", options: [
-          { label: "Latest", value: "latest" }, { label: "Oldest", value: "oldest" }, { label: "Price Low", value: "price_low" }, { label: "Price High", value: "price_high" }, { label: "Name A-Z", value: "name_asc" }, { label: "Name Z-A", value: "name_desc" },
-        ] },
-        { name: "default_product_view", label: "Default Product View", type: "select", options: [{ label: "Grid", value: "grid" }, { label: "List", value: "list" }] },
+      { title: "Storefront Features", description: "Customer-facing catalog capabilities.", icon: PackageCheck, fields: [
         { name: "enable_reviews", label: "Enable Reviews", type: "toggle" },
         { name: "enable_wishlist", label: "Enable Wishlist", type: "toggle" },
-        { name: "enable_compare", label: "Enable Compare", type: "toggle" },
-        { name: "enable_stock_management", label: "Enable Stock Management", type: "toggle" },
       ] },
-      { title: "Checkout & Inventory", description: "Order limits and inventory handling rules.", icon: ShieldAlert, fields: [
-        { name: "enable_guest_checkout", label: "Enable Guest Checkout", type: "toggle" },
+      { title: "Checkout", description: "Customer authentication requirement at checkout.", icon: ShieldAlert, fields: [
         { name: "require_login_before_checkout", label: "Require Login Before Checkout", type: "toggle" },
-        { name: "minimum_order_amount_cents", label: "Minimum Order Amount (cents)", type: "number", required: true },
-        { name: "maximum_order_amount_cents", label: "Maximum Order Amount (cents)", type: "number" },
-        { name: "low_stock_threshold", label: "Low Stock Threshold", type: "number", required: true },
-        { name: "allow_backorders", label: "Allow Backorders", type: "toggle" },
-        { name: "hide_out_of_stock_products", label: "Hide Out-of-Stock Products", type: "toggle" },
-      ] },
-    ],
-  },
-  email: {
-    kind: "singleton",
-    path: "email",
-    title: "Email (SMTP)",
-    description: "Configure outbound email transport, sender identity, queueing, and test delivery.",
-    icon: Mail,
-    testPath: "email",
-    testLabel: "Send Test Email",
-    defaults: {
-      mail_driver: "smtp",
-      mail_host: "",
-      mail_port: 587,
-      encryption: "tls",
-      username: "",
-      password: "",
-      from_name: "",
-      from_email: "",
-      reply_to_email: "",
-      queue_emails: true,
-      enabled: true,
-    },
-    sections: [
-      { title: "Configuration", description: "Driver, server, credentials, and transport encryption.", icon: Mail, fields: [
-        { name: "enabled", label: "Enable Email Delivery", type: "toggle" },
-        { name: "mail_driver", label: "Mail Driver", type: "select", required: true, options: [{ label: "SMTP", value: "smtp" }, { label: "Sendmail", value: "sendmail" }, { label: "Log", value: "log" }] },
-        { name: "mail_host", label: "Mail Host" },
-        { name: "mail_port", label: "SMTP Port", type: "number", required: true },
-        { name: "encryption", label: "Encryption", type: "select", required: true, options: [{ label: "TLS", value: "tls" }, { label: "SSL", value: "ssl" }, { label: "None", value: "none" }] },
-        { name: "username", label: "Username" },
-        { name: "password", label: "Password", type: "password" },
-        { name: "queue_emails", label: "Queue Emails", type: "toggle" },
-      ] },
-      { title: "Sender Identity", description: "Default sender and reply-to details.", icon: Send, fields: [
-        { name: "from_name", label: "From Name", required: true },
-        { name: "from_email", label: "From Email", type: "email", required: true },
-        { name: "reply_to_email", label: "Reply-To Email", type: "email" },
       ] },
     ],
   },
@@ -354,7 +261,6 @@ const moduleConfigs: Record<string, SingletonModule> = {
       canonical_url: "",
       robots_index: true,
       robots_follow: true,
-      robots_archive: true,
       enable_sitemap: true,
       sitemap_url: "",
       og_title: "",
@@ -364,9 +270,6 @@ const moduleConfigs: Record<string, SingletonModule> = {
       twitter_title: "",
       twitter_description: "",
       twitter_image: "",
-      google_analytics_id: "",
-      google_tag_manager_id: "",
-      facebook_pixel_id: "",
     },
     sections: [
       { title: "Global SEO", description: "Default search metadata and canonical URL.", icon: Search, fields: [
@@ -379,11 +282,10 @@ const moduleConfigs: Record<string, SingletonModule> = {
       { title: "Robots & Sitemap", description: "Search crawling and sitemap publication controls.", icon: ShieldAlert, fields: [
         { name: "robots_index", label: "Allow Indexing", type: "toggle" },
         { name: "robots_follow", label: "Allow Follow", type: "toggle" },
-        { name: "robots_archive", label: "Allow Archive", type: "toggle" },
         { name: "enable_sitemap", label: "Enable Sitemap", type: "toggle" },
         { name: "sitemap_url", label: "Sitemap URL", type: "url" },
       ] },
-      { title: "Social Preview & Analytics", description: "Open Graph, Twitter Card, and analytics identifiers.", icon: Link2, fields: [
+      { title: "Social Preview", description: "Open Graph and Twitter Card metadata.", icon: Link2, fields: [
         { name: "og_title", label: "OG Title" },
         { name: "og_description", label: "OG Description", type: "textarea" },
         { name: "og_image", label: "OG Image", type: "image", uploadPath: "seo" },
@@ -391,71 +293,6 @@ const moduleConfigs: Record<string, SingletonModule> = {
         { name: "twitter_title", label: "Twitter Title" },
         { name: "twitter_description", label: "Twitter Description", type: "textarea" },
         { name: "twitter_image", label: "Twitter Image", type: "image", uploadPath: "seo" },
-        { name: "google_analytics_id", label: "Google Analytics ID" },
-        { name: "google_tag_manager_id", label: "Google Tag Manager ID" },
-        { name: "facebook_pixel_id", label: "Facebook Pixel ID" },
-      ] },
-    ],
-  },
-  localization: {
-    kind: "singleton",
-    path: "localization",
-    title: "Localization",
-    description: "Set language, currency, timezone, number formatting, and RTL behavior.",
-    icon: Globe2,
-    defaults: {
-      default_language: "en",
-      default_currency: "BDT",
-      timezone: "Asia/Dhaka",
-      date_format: "d M Y",
-      time_format: "12h",
-      first_day_of_week: 0,
-      rtl_mode: false,
-      decimal_separator: ".",
-      thousand_separator: ",",
-    },
-    sections: [
-      { title: "Regional Defaults", description: "Language, currency, calendar, and clock preferences.", icon: Globe2, fields: [
-        { name: "default_language", label: "Default Language", type: "select", options: [{ label: "English", value: "en" }, { label: "Bangla", value: "bn" }, { label: "Arabic", value: "ar" }] },
-        { name: "default_currency", label: "Default Currency", type: "select", options: currencyOptions },
-        { name: "timezone", label: "Timezone", type: "select", options: timezoneOptions },
-        { name: "date_format", label: "Date Format" },
-        { name: "time_format", label: "Time Format", type: "select", options: [{ label: "12 hour", value: "12h" }, { label: "24 hour", value: "24h" }] },
-        { name: "first_day_of_week", label: "First Day of Week", type: "select", options: [
-          { label: "Sunday", value: "0" }, { label: "Monday", value: "1" }, { label: "Tuesday", value: "2" }, { label: "Wednesday", value: "3" }, { label: "Thursday", value: "4" }, { label: "Friday", value: "5" }, { label: "Saturday", value: "6" },
-        ] },
-        { name: "rtl_mode", label: "RTL Mode", type: "toggle" },
-        { name: "decimal_separator", label: "Decimal Separator" },
-        { name: "thousand_separator", label: "Thousand Separator" },
-      ] },
-    ],
-  },
-  maintenance: {
-    kind: "singleton",
-    path: "maintenance",
-    title: "Maintenance Mode",
-    description: "Control storefront downtime messaging, admin access, retry hints, and allowed IPs.",
-    icon: ShieldAlert,
-    defaults: {
-      enabled: false,
-      title: "Maintenance in progress",
-      message: "",
-      estimated_return_time: "",
-      allow_admin_access: true,
-      allowed_ip_addresses_text: "",
-      retry_after: 3600,
-      maintenance_image: "",
-    },
-    sections: [
-      { title: "Downtime Controls", description: "Maintenance status, public message, and estimated return time.", icon: ShieldAlert, fields: [
-        { name: "enabled", label: "Enable Maintenance Mode", type: "toggle" },
-        { name: "allow_admin_access", label: "Allow Admin Access", type: "toggle" },
-        { name: "title", label: "Maintenance Title", required: true },
-        { name: "estimated_return_time", label: "Estimated Return Time", type: "date" },
-        { name: "retry_after", label: "Retry After (seconds)", type: "number", required: true },
-        { name: "allowed_ip_addresses_text", label: "Allowed IP Addresses", type: "textarea", helper: "One IP address per line." },
-        { name: "message", label: "Maintenance Message", type: "textarea" },
-        { name: "maintenance_image", label: "Maintenance Image", type: "image", uploadPath: "maintenance" },
       ] },
     ],
   },
@@ -464,10 +301,7 @@ const moduleConfigs: Record<string, SingletonModule> = {
 const settingEditPermissions: Record<string, string> = {
   company: "can_edit_company_setting",
   store: "can_edit_store_setting",
-  email: "can_edit_email_setting",
   seo: "can_edit_seo_setting",
-  localization: "can_edit_localization_setting",
-  maintenance: "can_edit_maintenance_setting",
 };
 
 export function SettingsModuleContent({ module }: { module: keyof typeof moduleConfigs }) {
@@ -641,105 +475,6 @@ function FieldControl({ field, value, error, onChange, canEdit }: { field: Field
   );
 }
 
-export function SmsSettingsContent() {
-  const pathname = usePathname();
-  const defaults = React.useMemo<SmsProviderRow[]>(() => Object.keys(smsProviderLabels).map((provider, index) => ({
-    provider,
-    api_key: "",
-    api_secret: "",
-    sender_id: provider === "custom" ? "" : "LuxeCart",
-    base_url: "",
-    is_default: index === 0,
-    status: index === 0,
-  })), []);
-  const [providers, setProviders] = React.useState(defaults);
-  const [initial, setInitial] = React.useState(defaults);
-  const [loading, setLoading] = React.useState(true);
-  const [saving, setSaving] = React.useState(false);
-  const [testing, setTesting] = React.useState("");
-  const [resetOpen, setResetOpen] = React.useState(false);
-  useAuthStore((state) => state.user?.permissions);
-  const canEdit = hasPermission("can_edit_sms_setting");
-  const isDirty = JSON.stringify(providers) !== JSON.stringify(initial);
-  useUnsavedChanges(isDirty);
-
-  React.useEffect(() => {
-    settingsApi.get<{ providers: SmsProviderRow[] }>("sms")
-      .then((response) => {
-        const rows = response.data.providers.length ? response.data.providers : defaults;
-        setProviders(rows);
-        setInitial(rows);
-      })
-      .catch(() => toast.error("Could not load SMS settings."))
-      .finally(() => setLoading(false));
-  }, [defaults]);
-
-  function patch(index: number, key: string, value: SettingValue) {
-    setProviders((rows) => rows.map((row, rowIndex) => rowIndex === index ? { ...row, [key]: value } : row));
-  }
-
-  function makeDefault(index: number) {
-    setProviders((rows) => rows.map((row, rowIndex) => ({ ...row, is_default: rowIndex === index })));
-  }
-
-  async function submit(event: React.FormEvent) {
-    event.preventDefault();
-    if (!canEdit) return;
-    try {
-      setSaving(true);
-      const response = await settingsApi.update<{ providers: SmsProviderRow[] }, { providers: SmsProviderRow[] }>("sms", { providers });
-      setProviders(response.data.providers);
-      setInitial(response.data.providers);
-      toast.success(response.message || "SMS settings saved.");
-    } catch (error: unknown) {
-      toast.error(getApiError(error).message || "Unable to save SMS settings.");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <form onSubmit={submit}>
-      <SettingsPageShell title="SMS Provider" description="Manage independent SMS providers, encrypted credentials, default routing, and test delivery." icon={MessageSquareText} actions={canEdit ? <FormActions isSaving={saving} isDirty={isDirty} onReset={() => setResetOpen(true)} /> : null}>
-        <SettingsGrid>
-          <SettingsSubnav items={settingsNavItems} pathname={pathname} />
-          <div className="space-y-4">
-            {loading ? <SettingsLoading /> : providers.map((provider, index) => (
-              <SettingsSection key={provider.provider} title={smsProviderLabels[String(provider.provider)] ?? String(provider.provider)} description="Provider credentials, sender identity, endpoint, and activation status." icon={MessageSquareText}>
-                <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-                  <StatusPill ok={provider.is_default} label={provider.is_default ? "Default Provider" : "Standby"} />
-                  {canEdit ? <div className="flex gap-2">
-                    <Button type="button" size="sm" variant="secondary" onClick={() => makeDefault(index)}>Set Default</Button>
-                    <Button type="button" size="sm" variant="secondary" isLoading={testing === provider.provider} icon={<Send className="h-4 w-4" />} onClick={async () => {
-                      setTesting(provider.provider);
-                      try {
-                        const response = await settingsApi.test(`sms/${provider.provider}`);
-                        toast.success(response.message || "Test SMS queued.");
-                      } catch {
-                        toast.error("Unable to queue test SMS.");
-                      } finally {
-                        setTesting("");
-                      }
-                    }}>Test SMS</Button>
-                  </div> : null}
-                </div>
-                <FormGrid>
-                  <ToggleSwitch label="Enabled" checked={Boolean(provider.status)} onChange={(checked) => patch(index, "status", checked)} />
-                  <TextInput label="Sender ID" value={provider.sender_id ?? ""} onChange={(event) => patch(index, "sender_id", event.target.value)} />
-                  <TextInput label="API Key" value={provider.api_key ?? ""} onChange={(event) => patch(index, "api_key", event.target.value)} />
-                  <TextInput label="API Secret" type="password" value={provider.api_secret ?? ""} onChange={(event) => patch(index, "api_secret", event.target.value)} />
-                  <TextInput label="Base URL" value={provider.base_url ?? ""} onChange={(event) => patch(index, "base_url", event.target.value)} />
-                </FormGrid>
-              </SettingsSection>
-            ))}
-          </div>
-        </SettingsGrid>
-      </SettingsPageShell>
-      <ResetConfirmation open={resetOpen} onClose={() => setResetOpen(false)} onConfirm={() => { setProviders(initial); setResetOpen(false); }} />
-    </form>
-  );
-}
-
 export function PaymentSettingsContent() {
   const pathname = usePathname();
   const defaults = React.useMemo<PaymentGatewayRow[]>(() => Object.keys(paymentGatewayLabels).map((gateway, index) => ({ gateway, enabled: gateway === "cash_on_delivery", sandbox_mode: true, public_key: "", secret_key: "", api_key: "", merchant_id: "", webhook_secret: "", additional_configuration: {}, display_order: index })), []);
@@ -887,10 +622,6 @@ export function PaymentSettingsContent() {
                             <>
                               <TextInput label="Store ID" value={gateway.merchant_id ?? ""} onChange={(event) => patch(index, "merchant_id", event.target.value)} />
                               <TextInput label="Store Password" type="password" value={gateway.secret_key ?? ""} onChange={(event) => patch(index, "secret_key", event.target.value)} />
-                              <TextInput label="Success URL" value={gatewayConfigValue(gateway, "success_url")} onChange={(event) => patchGatewayConfig(index, "success_url", event.target.value)} />
-                              <TextInput label="Fail URL" value={gatewayConfigValue(gateway, "fail_url")} onChange={(event) => patchGatewayConfig(index, "fail_url", event.target.value)} />
-                              <TextInput label="Cancel URL" value={gatewayConfigValue(gateway, "cancel_url")} onChange={(event) => patchGatewayConfig(index, "cancel_url", event.target.value)} />
-                              <TextInput label="IPN/Webhook URL" value={gatewayConfigValue(gateway, "ipn_url")} onChange={(event) => patchGatewayConfig(index, "ipn_url", event.target.value)} />
                               <TextInput label="Validation Base URL" value={gatewayConfigValue(gateway, "validation_base_url")} onChange={(event) => patchGatewayConfig(index, "validation_base_url", event.target.value)} />
                             </>
                           ) : gateway.gateway === "stripe" ? (

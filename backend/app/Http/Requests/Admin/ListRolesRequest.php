@@ -11,7 +11,7 @@ class ListRolesRequest extends FormRequest
 
     public function authorize(): bool
     {
-        return $this->user()?->can('roles.view') || true;
+        return true;
     }
 
     public function rules(): array

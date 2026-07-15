@@ -456,7 +456,6 @@ function HeroGeneralSettings({ settings, onChange }: { settings: HeroSettings; o
         <ToggleSwitch label="Infinite Loop" checked={settings.infinite_loop} onChange={(infinite_loop) => onChange({ ...settings, infinite_loop })} />
         <ToggleSwitch label="Show Navigation" checked={settings.show_navigation} onChange={(show_navigation) => onChange({ ...settings, show_navigation })} />
         <ToggleSwitch label="Show Pagination" checked={settings.show_pagination} onChange={(show_pagination) => onChange({ ...settings, show_pagination })} />
-        <ToggleSwitch label="Keyboard Navigation" checked={settings.keyboard_navigation} onChange={(keyboard_navigation) => onChange({ ...settings, keyboard_navigation })} />
         <ToggleSwitch label="Swipe Support" checked={settings.swipe_support} onChange={(swipe_support) => onChange({ ...settings, swipe_support })} />
         <ToggleSwitch label="Pause on Hover" checked={settings.pause_on_hover} onChange={(pause_on_hover) => onChange({ ...settings, pause_on_hover })} />
         <ToggleSwitch label="Lazy Load Images" checked={settings.lazy_load_images} onChange={(lazy_load_images) => onChange({ ...settings, lazy_load_images })} />
@@ -472,18 +471,7 @@ function HeroGeneralSettings({ settings, onChange }: { settings: HeroSettings; o
             </SelectContent>
           </Select>
         </label>
-        <label className="mt-3 space-y-2">
-          <span className="text-sm font-semibold">Transition Effect</span>
-          <Select value={settings.transition_effect} onValueChange={(transition_effect) => onChange({ ...settings, transition_effect: transition_effect as HeroSettings["transition_effect"] })}>
-            <SelectTrigger className="h-11 rounded-lg"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="slide">Slide</SelectItem>
-              <SelectItem value="fade">Fade</SelectItem>
-            </SelectContent>
-          </Select>
-        </label>
         <TextInput label="Autoplay Delay" type="number" min={1000} max={30000} value={settings.autoplay_delay} onChange={(event) => onChange({ ...settings, autoplay_delay: Number(event.target.value || 0) })} />
-        <TextInput label="Transition Speed" type="number" min={100} max={5000} value={settings.transition_speed} onChange={(event) => onChange({ ...settings, transition_speed: Number(event.target.value || 0) })} />
       </FormGrid>
     </SettingsSection>
   );

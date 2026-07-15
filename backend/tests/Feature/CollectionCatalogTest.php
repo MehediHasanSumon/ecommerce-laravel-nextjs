@@ -41,7 +41,6 @@ it('serves active manual collections with promotional pricing', function (): voi
         'discount_enabled' => true,
         'discount_type' => 'percentage',
         'discount_value' => 20,
-        'discount_apply_to' => 'entire_collection',
         'starts_at' => now()->subDay(),
         'ends_at' => now()->addDay(),
     ]);

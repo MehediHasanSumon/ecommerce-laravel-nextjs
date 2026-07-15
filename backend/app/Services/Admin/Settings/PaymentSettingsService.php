@@ -8,7 +8,8 @@ use Illuminate\Support\Facades\Cache;
 
 class PaymentSettingsService
 {
-    public const GATEWAYS = ['stripe', 'sslcommerz', 'bkash', 'nagad', 'rocket', 'paypal', 'aamarpay', 'cash_on_delivery'];
+    public const GATEWAYS = ['stripe', 'sslcommerz', 'bkash', 'nagad', 'paypal', 'aamarpay', 'cash_on_delivery'];
+
     private const OFFLINE_GATEWAYS = ['cash_on_delivery'];
 
     public function all()
@@ -56,6 +57,7 @@ class PaymentSettingsService
         }
         Cache::forget('settings.navigation.runtime');
         Cache::forget('checkout.payment-methods.enabled');
+
         return $this->all();
     }
 

@@ -6,7 +6,6 @@ export type ProductModule =
   | "attributes"
   | "attribute-values"
   | "tags"
-  | "warehouses"
   | "products"
   | "collections"
   | "currencies"
@@ -19,7 +18,6 @@ export type ProductOptions = {
   attributes: Array<Option & { type?: string | null }>;
   attribute_values: Array<Option & { attribute_id?: number | null; type?: string | null; slug?: string | null }>;
   tags: Option[];
-  warehouses: Option[];
   products: Option[];
   collections: Option[];
 };

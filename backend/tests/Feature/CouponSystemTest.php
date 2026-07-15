@@ -34,7 +34,6 @@ function couponRecord(array $overrides = []): Discount
         'type' => 'percentage',
         'value' => 10,
         'status' => 'active',
-        'applicable_scope' => 'all',
         'total_used' => 0,
     ], $overrides));
 }
@@ -119,10 +118,10 @@ it('enforces product, category, and collection coupon restrictions', function ()
     $eligible = couponProduct(['category_id' => $category->id]);
     $other = couponProduct();
 
-    $productCoupon = couponRecord(['code' => 'PRODUCTONLY', 'applicable_scope' => 'products']);
+    $productCoupon = couponRecord(['code' => 'PRODUCTONLY']);
     $productCoupon->products()->sync([$eligible->id]);
 
-    $categoryCoupon = couponRecord(['code' => 'CATEGORYONLY', 'applicable_scope' => 'categories']);
+    $categoryCoupon = couponRecord(['code' => 'CATEGORYONLY']);
     $categoryCoupon->categories()->sync([$category->id]);
 
     $collection = ProductCollection::query()->create([
@@ -133,7 +132,7 @@ it('enforces product, category, and collection coupon restrictions', function ()
         'collection_type' => 'manual',
     ]);
     $collection->products()->sync([$eligible->id => ['sort_order' => 0]]);
-    $collectionCoupon = couponRecord(['code' => 'COLLECTIONONLY', 'applicable_scope' => 'collections']);
+    $collectionCoupon = couponRecord(['code' => 'COLLECTIONONLY']);
     $collectionCoupon->collections()->sync([$collection->id]);
 
     foreach ([$productCoupon, $categoryCoupon, $collectionCoupon] as $coupon) {

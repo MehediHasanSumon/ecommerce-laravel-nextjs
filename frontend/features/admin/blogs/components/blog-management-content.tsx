@@ -18,7 +18,7 @@ import { hasPermission } from "@/lib/permissions";
 import { useAuthStore } from "@/store/auth-store";
 import { cn } from "@/utils/cn";
 
-const statuses: BlogStatus[] = ["draft", "published", "scheduled", "archived"];
+const statuses: BlogStatus[] = ["draft", "published", "archived"];
 const pageSizes = [10, 20, 50, 100];
 
 function normalizeBlogStatus(value: unknown, publishedAt?: string | null): BlogStatus {
@@ -52,7 +52,6 @@ const emptyForm: BlogPayload = {
   author_id: null,
   status: "draft",
   published_at: "",
-  scheduled_publish_at: "",
   featured: false,
   allow_comments_override: null,
 };
@@ -117,7 +116,6 @@ export function BlogManagementContent() {
       const payload = {
         ...values,
         author_id: values.author_id || undefined,
-        scheduled_publish_at: values.scheduled_publish_at || null,
         meta_title: values.meta_title || null,
         meta_description: values.meta_description || null,
         meta_keywords: values.meta_keywords || null,
@@ -324,7 +322,6 @@ function BlogDrawer({ open, mode, blog, authors, onClose, onSubmit }: { open: bo
       author_id: blog.author_id,
       status,
       published_at: blog.published_at?.slice(0, 10) ?? "",
-      scheduled_publish_at: blog.scheduled_publish_at?.slice(0, 10) ?? "",
       featured: blog.featured,
       allow_comments_override: blog.allow_comments_override,
     } : emptyForm);
@@ -376,16 +373,13 @@ function BlogDrawer({ open, mode, blog, authors, onClose, onSubmit }: { open: bo
               <SelectContent>{authors.map((author) => <SelectItem key={author.id} value={String(author.id)}>{author.name}</SelectItem>)}</SelectContent>
             </Select>
           </label>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="block space-y-1.5 text-sm font-semibold">
-              <span>Status</span>
-              <Select value={form.status || "draft"} onValueChange={(value) => setForm((current) => ({ ...current, status: value as BlogStatus }))}>
-                <SelectTrigger className="h-10 rounded-lg px-3 text-sm font-normal"><SelectValue>{statusLabel(form.status || "draft")}</SelectValue></SelectTrigger>
-                <SelectContent>{statuses.map((status) => <SelectItem key={status} value={status}>{statusLabel(status)}</SelectItem>)}</SelectContent>
-              </Select>
-            </label>
-            <DatePicker label="Scheduled Publish Date" value={form.scheduled_publish_at || null} onChange={(value) => setForm((current) => ({ ...current, scheduled_publish_at: value }))} />
-          </div>
+          <label className="block space-y-1.5 text-sm font-semibold">
+            <span>Status</span>
+            <Select value={form.status || "draft"} onValueChange={(value) => setForm((current) => ({ ...current, status: value as BlogStatus }))}>
+              <SelectTrigger className="h-10 rounded-lg px-3 text-sm font-normal"><SelectValue>{statusLabel(form.status || "draft")}</SelectValue></SelectTrigger>
+              <SelectContent>{statuses.map((status) => <SelectItem key={status} value={status}>{statusLabel(status)}</SelectItem>)}</SelectContent>
+            </Select>
+          </label>
           <label className="space-y-1.5 text-sm font-semibold">
             <span>Short Description / Excerpt</span>
             <textarea required value={form.excerpt} onChange={(event) => setForm((current) => ({ ...current, excerpt: event.target.value }))} className="min-h-24 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-normal" />
