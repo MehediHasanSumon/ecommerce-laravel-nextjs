@@ -1,20 +1,17 @@
 <?php
 
-use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\AccountController;
-use App\Http\Controllers\Api\Admin\HomeFeatureCardController;
-use App\Http\Controllers\Api\Admin\HeroSectionController;
 use App\Http\Controllers\Api\Admin\BlogCommentManagementController;
 use App\Http\Controllers\Api\Admin\BlogManagementController;
 use App\Http\Controllers\Api\Admin\ContactMessageManagementController;
 use App\Http\Controllers\Api\Admin\DashboardController;
-use App\Http\Controllers\Api\Admin\PermissionManagementController;
+use App\Http\Controllers\Api\Admin\HeroSectionController;
+use App\Http\Controllers\Api\Admin\HomeFeatureCardController;
 use App\Http\Controllers\Api\Admin\OrderManagementController;
+use App\Http\Controllers\Api\Admin\PermissionManagementController;
 use App\Http\Controllers\Api\Admin\ProductModuleController;
 use App\Http\Controllers\Api\Admin\ReportsController;
 use App\Http\Controllers\Api\Admin\RoleManagementController;
-use App\Http\Controllers\Api\Admin\ShippingMethodManagementController;
-use App\Http\Controllers\Api\Admin\ShippingZoneController;
 use App\Http\Controllers\Api\Admin\Settings\BlogSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\CompanySettingsController;
 use App\Http\Controllers\Api\Admin\Settings\EmailSettingsController;
@@ -27,24 +24,27 @@ use App\Http\Controllers\Api\Admin\Settings\SeoSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\SmsProviderSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\SocialMediaSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\StoreSettingsController;
+use App\Http\Controllers\Api\Admin\ShippingMethodManagementController;
+use App\Http\Controllers\Api\Admin\ShippingZoneController;
 use App\Http\Controllers\Api\Admin\UserManagementController;
-use App\Http\Controllers\Api\BrandCatalogController;
+use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BlogCatalogController;
+use App\Http\Controllers\Api\BrandCatalogController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\CheckoutController;
 use App\Http\Controllers\Api\CollectionCatalogController;
-use App\Http\Controllers\Api\ContentPageController;
 use App\Http\Controllers\Api\ContactMessageController;
+use App\Http\Controllers\Api\ContentPageController;
 use App\Http\Controllers\Api\CustomerAddressController;
 use App\Http\Controllers\Api\HomePageController;
+use App\Http\Controllers\Api\NewsletterSubscriptionController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\PaymentCallbackController;
 use App\Http\Controllers\Api\ProductCatalogController;
-use App\Http\Controllers\Api\NewsletterSubscriptionController;
-use App\Http\Controllers\Api\ShippingMethodController;
 use App\Http\Controllers\Api\SeoMetadataController;
-use App\Http\Controllers\Api\WishlistController;
 use App\Http\Controllers\Api\Settings\NavigationSettingsController;
+use App\Http\Controllers\Api\ShippingMethodController;
+use App\Http\Controllers\Api\WishlistController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/settings/navigation', [NavigationSettingsController::class, 'show'])->middleware('throttle:public-settings');
@@ -76,21 +76,20 @@ Route::middleware(['auth.cookie.optional:access', 'throttle:public-settings'])->
     Route::post('/cart/coupon', [CartController::class, 'applyCoupon']);
     Route::delete('/cart/coupon', [CartController::class, 'removeCoupon']);
 
-    Route::get('/checkout/payment-methods', [CheckoutController::class, 'paymentMethods']);
-    Route::post('/checkout/place-order', [CheckoutController::class, 'place']);
     Route::get('/payment/result', [OrderController::class, 'paymentResult']);
     Route::get('/payment/invoice', [OrderController::class, 'paymentInvoice']);
 
+});
+
+Route::middleware(['auth.cookie:access', 'throttle:public-settings'])->group(function (): void {
+    Route::get('/checkout/payment-methods', [CheckoutController::class, 'paymentMethods']);
+    Route::post('/checkout/place-order', [CheckoutController::class, 'place']);
     Route::get('/wishlist', [WishlistController::class, 'show']);
     Route::post('/wishlist/toggle', [WishlistController::class, 'toggle']);
     Route::delete('/wishlist/items/{itemId}', [WishlistController::class, 'destroy']);
     Route::delete('/wishlist/items', [WishlistController::class, 'clear']);
     Route::post('/wishlist/merge', [WishlistController::class, 'merge']);
-
     Route::post('/blogs/{blog:slug}/comments', [BlogCatalogController::class, 'storeComment']);
-});
-
-Route::middleware(['auth.cookie:access', 'throttle:public-settings'])->group(function (): void {
     Route::apiResource('addresses', CustomerAddressController::class)->only(['index', 'store', 'update', 'destroy']);
     Route::post('/products/{product:slug}/reviews', [ProductCatalogController::class, 'storeReview']);
     Route::get('/orders', [OrderController::class, 'index']);

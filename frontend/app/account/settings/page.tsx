@@ -9,7 +9,6 @@ import { Footer } from '@/components/layout/Footer';
 import { AccountSidebar } from '@/components/account/AccountSidebar';
 import { toast } from 'sonner';
 import { accountService, type AccountSettings } from '@/services/account-service';
-import { hasPermission } from '@/lib/permissions';
 
 const defaultSettings: AccountSettings = {
   email_notifications: true,
@@ -32,7 +31,6 @@ export default function SettingsPage() {
     password: '',
     password_confirmation: '',
   });
-  const canEditSettings = hasPermission('can_edit_account_settings');
 
   useEffect(() => {
     accountService
@@ -43,7 +41,6 @@ export default function SettingsPage() {
   }, []);
 
   const saveSettings = async (key: keyof AccountSettings, next: AccountSettings) => {
-    if (!canEditSettings) return;
     setSettings(next);
     setSettingsSavingKey(key);
     try {
@@ -59,7 +56,6 @@ export default function SettingsPage() {
 
   const changePassword = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!canEditSettings) return;
     setPasswordSaving(true);
     try {
       await accountService.changePassword(passwordForm);
@@ -155,7 +151,7 @@ export default function SettingsPage() {
                     </div>
                     <button
                       type="button"
-                      disabled={!canEditSettings || Boolean(settingsSavingKey)}
+                      disabled={Boolean(settingsSavingKey)}
                       onClick={() => void saveSettings(settingKey, { ...settings, [settingKey]: !checked })}
                       className={`relative h-6 w-11 rounded-full transition-colors disabled:opacity-60 ${checked ? 'bg-primary' : 'bg-muted'}`}
                       aria-pressed={checked}
@@ -170,7 +166,7 @@ export default function SettingsPage() {
                   })()
                 ))}
 
-                {canEditSettings ? <form onSubmit={changePassword} className="bg-card border border-border rounded-2xl p-5">
+                <form onSubmit={changePassword} className="bg-card border border-border rounded-2xl p-5">
                   <h2 className="font-semibold text-sm">Security</h2>
                   <p className="text-xs text-muted-foreground mt-0.5 mb-4">Change your account password securely.</p>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -200,7 +196,7 @@ export default function SettingsPage() {
                       {passwordSaving ? 'Saving...' : 'Update Password'}
                     </button>
                   </div>
-                </form> : null}
+                </form>
               </div>
             )}
           </div>

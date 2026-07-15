@@ -53,7 +53,7 @@ function normalizeUser(user: User): User {
     ...user,
     avatar: user.avatar ?? null,
     roles: Array.isArray(user.roles) ? user.roles : [],
-    permissions: Array.isArray(user.permissions) ? user.permissions : [],
+    permissions: Array.isArray(user.permissions) ? user.permissions : undefined,
   };
 }
 

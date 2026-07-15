@@ -9,7 +9,6 @@ use App\Models\Settings\PaymentGatewaySetting;
 use App\Models\Settings\ShippingMethod;
 use App\Models\Settings\ShippingZone;
 use App\Models\User;
-use Spatie\Permission\Models\Permission;
 
 function couponProduct(array $overrides = []): Product
 {
@@ -184,9 +183,7 @@ it('supports free shipping and recalculates against the selected method', functi
 });
 
 it('enforces authenticated per-customer usage limits', function (): void {
-    Permission::query()->firstOrCreate(['name' => 'can_apply_coupon', 'guard_name' => 'web']);
     $user = User::factory()->create();
-    $user->givePermissionTo('can_apply_coupon');
     $token = $user->createToken('coupon-test', ['access'])->plainTextToken;
     $coupon = couponRecord(['code' => 'ONCEONLY', 'usage_per_customer' => 1]);
     DiscountUserUsage::query()->create([
@@ -207,11 +204,7 @@ it('enforces authenticated per-customer usage limits', function (): void {
 });
 
 it('revalidates and records coupon redemption during order creation', function (): void {
-    foreach (['can_apply_coupon', 'can_create_checkout', 'can_view_checkout'] as $permission) {
-        Permission::query()->firstOrCreate(['name' => $permission, 'guard_name' => 'web']);
-    }
     $user = User::factory()->create();
-    $user->givePermissionTo(['can_apply_coupon', 'can_create_checkout', 'can_view_checkout']);
     $token = $user->createToken('coupon-checkout', ['access'])->plainTextToken;
 
     $zone = ShippingZone::query()->create([
@@ -272,11 +265,7 @@ it('revalidates and records coupon redemption during order creation', function (
 });
 
 it('rejects checkout when an applied coupon becomes invalid before order creation', function (): void {
-    foreach (['can_apply_coupon', 'can_create_checkout', 'can_view_checkout'] as $permission) {
-        Permission::query()->firstOrCreate(['name' => $permission, 'guard_name' => 'web']);
-    }
     $user = User::factory()->create();
-    $user->givePermissionTo(['can_apply_coupon', 'can_create_checkout', 'can_view_checkout']);
     $token = $user->createToken('coupon-strict-checkout', ['access'])->plainTextToken;
     $zone = ShippingZone::query()->create([
         'name' => 'Strict Coupon Zone',

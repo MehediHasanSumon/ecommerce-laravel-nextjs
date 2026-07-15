@@ -45,7 +45,6 @@ import type { RuntimeCategory } from '@/types/settings';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { RealtimeNotifications } from '@/components/notifications/RealtimeNotifications';
-import { hasPermission } from '@/lib/permissions';
 
 function timeAgo(value?: string | null) {
   if (!value) return '';
@@ -68,7 +67,6 @@ function NavbarNotificationBell({ onOpen }: { onOpen?: () => void }) {
   const fetchNotifications = useNotificationStore((state) => state.fetchNotifications);
   const markRead = useNotificationStore((state) => state.markRead);
   const markAllRead = useNotificationStore((state) => state.markAllRead);
-  const canEditNotification = hasPermission('can_edit_notification');
 
   useEffect(() => {
     if (!isOpen) return;
@@ -122,7 +120,7 @@ function NavbarNotificationBell({ onOpen }: { onOpen?: () => void }) {
         <div className="overflow-hidden rounded-xl border border-border bg-background shadow-xl">
           <div className="flex items-center justify-between border-b border-border bg-muted/50 p-3">
             <p className="text-sm font-semibold">Notifications</p>
-            {canEditNotification && unreadCount > 0 ? (
+            {unreadCount > 0 ? (
               <button type="button" onClick={() => void markAllRead()} className="text-xs font-medium text-primary hover:underline">
                 Mark all read
               </button>
@@ -138,9 +136,7 @@ function NavbarNotificationBell({ onOpen }: { onOpen?: () => void }) {
                 key={item.id}
                 href={item.actionUrl || '/account/notifications'}
                 onClick={() => {
-                  if (canEditNotification) {
-                    void markRead(item.id);
-                  }
+                  void markRead(item.id);
                   setIsOpen(false);
                 }}
                 className={cn('flex gap-3 rounded-lg p-3 transition-colors hover:bg-muted', !item.read && 'bg-primary/5')}
@@ -549,7 +545,6 @@ export function Header() {
   );
   const supportPhone = branding?.support_phone || branding?.company_phone;
   const supportAddress = branding?.address;
-  const canViewNotification = hasPermission('can_view_notification');
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 10);
@@ -641,7 +636,7 @@ export function Header() {
 
   return (
     <>
-      {isAuthenticated && canViewNotification ? <RealtimeNotifications /> : null}
+      {isAuthenticated ? <RealtimeNotifications /> : null}
       {isSearchOpen && <SearchOverlay onClose={() => setIsSearchOpen(false)} />}
 
       <header
@@ -807,7 +802,7 @@ export function Header() {
                 )}
               </Link>
 
-              {isAuthenticated && user && canViewNotification ? (
+              {isAuthenticated && user ? (
                 <NavbarNotificationBell onOpen={() => setIsAccountMenuOpen(false)} />
               ) : null}
 
@@ -858,7 +853,7 @@ export function Header() {
                         {[
                           { icon: LayoutDashboard, label: 'Dashboard', href: '/account' },
                           { icon: Package, label: 'My Orders', href: '/account/orders' },
-                          ...(canViewNotification ? [{ icon: Bell, label: 'Notifications', href: '/account/notifications' }] : []),
+                          { icon: Bell, label: 'Notifications', href: '/account/notifications' },
                           { icon: Settings, label: 'Settings', href: '/account/settings' },
                         ].map(({ icon: Icon, label, href }) => (
                           <Link

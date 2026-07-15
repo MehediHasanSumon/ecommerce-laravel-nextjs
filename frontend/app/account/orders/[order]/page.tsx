@@ -14,7 +14,6 @@ import { AccountSidebar } from "@/components/account/AccountSidebar";
 import { cancelOrder, downloadOrderInvoice, fetchOrder, type OrderDetail } from "@/services/order-service";
 import { useCartStore } from "@/store/cartStore";
 import { formatPrice } from "@/utils/format";
-import { hasPermission } from "@/lib/permissions";
 
 export default function AccountOrderDetailPage() {
   const params = useParams<{ order: string }>();
@@ -23,14 +22,12 @@ export default function AccountOrderDetailPage() {
   const [reordering, setReordering] = useState(false);
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const addItem = useCartStore((state) => state.addItem);
-  const canEditOrder = hasPermission("can_edit_order");
 
   useEffect(() => {
     fetchOrder(decodeURIComponent(params.order)).then(setOrder).catch(() => setOrder(null));
   }, [params.order]);
 
   const canCancel = order
-    && canEditOrder
     ? ["pending", "confirmed"].includes(order.status)
       && (order.shippingStatus ?? "pending") === "pending"
       && order.paymentStatus !== "paid"

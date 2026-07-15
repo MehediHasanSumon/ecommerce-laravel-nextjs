@@ -80,12 +80,10 @@ export const useWishlistStore = create<WishlistStore>()((set, get) => ({
 
     set({ isLoading: true });
     try {
-      const guestToken = ensureGuestToken(get().guestToken, set);
       if (useAuthStore.getState().isAuthenticated) {
         await get().syncAfterAuth();
       } else {
-        const wishlist = await wishlistService.getWishlist(guestToken);
-        applyWishlistState(set, wishlist);
+        set({ items: [] });
       }
       set({ initialized: true, isLoading: false });
     } catch {
@@ -94,6 +92,11 @@ export const useWishlistStore = create<WishlistStore>()((set, get) => ({
   },
 
   async refresh() {
+    if (!useAuthStore.getState().isAuthenticated) {
+      set({ items: [], initialized: true });
+      return;
+    }
+
     const guestToken = ensureGuestToken(get().guestToken, set);
     const wishlist = await wishlistService.getWishlist(guestToken);
     applyWishlistState(set, wishlist);
@@ -111,6 +114,10 @@ export const useWishlistStore = create<WishlistStore>()((set, get) => ({
   },
 
   async addItem(product) {
+    if (!useAuthStore.getState().isAuthenticated) {
+      return;
+    }
+
     set({ isLoading: true });
     try {
       const guestToken = ensureGuestToken(get().guestToken, set);
@@ -122,6 +129,10 @@ export const useWishlistStore = create<WishlistStore>()((set, get) => ({
   },
 
   async removeItem(itemId) {
+    if (!useAuthStore.getState().isAuthenticated) {
+      return;
+    }
+
     set({ isLoading: true });
     try {
       const guestToken = ensureGuestToken(get().guestToken, set);
@@ -135,6 +146,10 @@ export const useWishlistStore = create<WishlistStore>()((set, get) => ({
   isInWishlist: (productId) => get().items.some((item) => item.productId === productId),
 
   async toggleItem(product) {
+    if (!useAuthStore.getState().isAuthenticated) {
+      return;
+    }
+
     set({ isLoading: true });
     try {
       const guestToken = ensureGuestToken(get().guestToken, set);
@@ -146,6 +161,10 @@ export const useWishlistStore = create<WishlistStore>()((set, get) => ({
   },
 
   async clearWishlist() {
+    if (!useAuthStore.getState().isAuthenticated) {
+      return;
+    }
+
     set({ isLoading: true });
     try {
       const guestToken = ensureGuestToken(get().guestToken, set);

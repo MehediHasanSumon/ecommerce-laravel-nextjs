@@ -175,18 +175,22 @@ class AuthService
             $user->loadMissing('roles:id,name');
         }
 
-        return [
+        $roles = $user instanceof User
+            ? $user->roles->pluck('name')->values()->all()
+            : [];
+        $payload = [
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
             'avatar' => $user instanceof User ? $this->avatarUrl($user->avatar) : null,
-            'roles' => $user instanceof User
-                ? $user->roles->pluck('name')->values()->all()
-                : [],
-            'permissions' => $user instanceof User
-                ? $user->getAllPermissions()->pluck('name')->values()->all()
-                : [],
+            'roles' => $roles,
         ];
+
+        if ($user instanceof User && collect($roles)->contains(fn (string $role): bool => $role !== 'user')) {
+            $payload['permissions'] = $user->getAllPermissions()->pluck('name')->values()->all();
+        }
+
+        return $payload;
     }
 
     private function ensureCustomerRole(User $user): void

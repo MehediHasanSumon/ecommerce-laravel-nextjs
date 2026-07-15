@@ -26,15 +26,6 @@ type MePayload = {
 };
 
 const permissionRouteRequirements: Array<{ route: string; permission: string }> = [
-  { route: routePaths.accountProfile, permission: "can_view_account_profile" },
-  { route: routePaths.accountSettings, permission: "can_view_account_settings" },
-  { route: routePaths.accountAddresses, permission: "can_view_address" },
-  { route: routePaths.accountOrders, permission: "can_view_order" },
-  { route: routePaths.accountReviews, permission: "can_view_review" },
-  { route: routePaths.accountNotifications, permission: "can_view_notification" },
-  { route: routePaths.wishlist, permission: "can_view_wishlist" },
-  { route: routePaths.checkout, permission: "can_view_checkout" },
-  { route: routePaths.accountDashboard, permission: "can_view_account_dashboard" },
   { route: routePaths.dashboard, permission: "can_view_dashboard" },
   { route: routePaths.adminUsers, permission: "can_view_user" },
   { route: routePaths.adminRoles, permission: "can_view_role" },
@@ -245,7 +236,9 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  const requiredPermission = requiredPermissionForPath(pathname);
+  const requiredPermission = pathname.startsWith("/admin")
+    ? requiredPermissionForPath(pathname)
+    : null;
 
   if (protectedRoute && requiredPermission && !await userHasPermission(request, requiredPermission)) {
     const homeUrl = request.nextUrl.clone();

@@ -14,7 +14,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { accountService, type AccountProfile } from "@/services/account-service";
 import { useAuthStore } from "@/store/auth-store";
 import { getInitials } from "@/utils/sanitize";
-import { hasPermission } from "@/lib/permissions";
 
 const genderOptions = [
   { value: "male", label: "Male" },
@@ -35,7 +34,6 @@ export default function ProfilePage() {
   const [passwordForm, setPasswordForm] = useState({ current: "", password: "", confirmation: "" });
   const authUser = useAuthStore((state) => state.user);
   const setAuthUser = useAuthStore((state) => state.setUser);
-  const canEditProfile = hasPermission("can_edit_account_profile");
 
   useEffect(() => {
     accountService.profile()
@@ -48,7 +46,7 @@ export default function ProfilePage() {
           email: next.email,
           avatar: next.avatar ?? null,
           roles: currentAuthUser?.roles ?? [],
-          permissions: currentAuthUser?.permissions ?? [],
+          permissions: currentAuthUser?.permissions,
         });
         setForm({
           name: next.name ?? "",
@@ -63,7 +61,6 @@ export default function ProfilePage() {
 
   async function handleSave(event: React.FormEvent) {
     event.preventDefault();
-    if (!canEditProfile) return;
     setSaving(true);
     try {
       const next = await accountService.updateProfile({
@@ -80,7 +77,7 @@ export default function ProfilePage() {
         email: next.email,
         avatar: next.avatar ?? authUser?.avatar ?? null,
         roles: authUser?.roles ?? [],
-        permissions: authUser?.permissions ?? [],
+        permissions: authUser?.permissions,
       });
       toast.success("Profile updated successfully.");
     } catch {
@@ -91,7 +88,6 @@ export default function ProfilePage() {
   }
 
   async function handleAvatarChange(event: React.ChangeEvent<HTMLInputElement>) {
-    if (!canEditProfile) return;
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
@@ -116,7 +112,7 @@ export default function ProfilePage() {
         email: next.email,
         avatar: next.avatar ?? null,
         roles: authUser?.roles ?? [],
-        permissions: authUser?.permissions ?? [],
+        permissions: authUser?.permissions,
       });
       toast.success("Profile picture updated.");
     } catch {
@@ -128,7 +124,6 @@ export default function ProfilePage() {
 
   async function handlePassword(event: React.FormEvent) {
     event.preventDefault();
-    if (!canEditProfile) return;
     try {
       await accountService.changePassword({
         current_password: passwordForm.current,
@@ -189,18 +184,16 @@ export default function ProfilePage() {
                       <span className="text-xl font-extrabold text-primary">{getInitials(profile?.name ?? "User")}</span>
                     )}
                   </div>
-                  {canEditProfile ? (
-                    <label className="absolute bottom-0 right-0 w-7 h-7 cursor-pointer bg-primary text-primary-foreground rounded-full flex items-center justify-center hover:opacity-90 shadow-md">
-                      <Camera size={12} />
-                      <input
-                        type="file"
-                        accept="image/png,image/jpeg,image/webp"
-                        className="sr-only"
-                        disabled={uploadingAvatar}
-                        onChange={handleAvatarChange}
-                      />
-                    </label>
-                  ) : null}
+                  <label className="absolute bottom-0 right-0 w-7 h-7 cursor-pointer bg-primary text-primary-foreground rounded-full flex items-center justify-center hover:opacity-90 shadow-md">
+                    <Camera size={12} />
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      className="sr-only"
+                      disabled={uploadingAvatar}
+                      onChange={handleAvatarChange}
+                    />
+                  </label>
                 </div>
                 <div>
                   <p className="font-bold">{profile?.name}</p>
@@ -226,7 +219,6 @@ export default function ProfilePage() {
                         value={form[key as keyof typeof form]}
                         onChange={(event) => setForm((current) => ({ ...current, [key]: event.target.value }))}
                         placeholder={placeholder}
-                        disabled={!canEditProfile}
                         className={profileFieldClass}
                       />
                     </div>
@@ -236,7 +228,6 @@ export default function ProfilePage() {
                     <Select
                       value={form.gender || "prefer_not_to_say"}
                       onValueChange={(value) => setForm((current) => ({ ...current, gender: value }))}
-                      disabled={!canEditProfile}
                     >
                       <SelectTrigger className="h-[46px] rounded-xl border-border bg-background px-4 text-sm shadow-sm focus:border-primary focus:ring-2 focus:ring-ring/15 disabled:bg-muted/50 disabled:text-muted-foreground disabled:opacity-100">
                         <SelectValue placeholder="Select gender" />
@@ -250,19 +241,17 @@ export default function ProfilePage() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <DatePicker label="Date of Birth" value={form.birthDate} onChange={(value) => setForm((current) => ({ ...current, birthDate: value }))} disabled={!canEditProfile} />
+                  <DatePicker label="Date of Birth" value={form.birthDate} onChange={(value) => setForm((current) => ({ ...current, birthDate: value }))} />
                 </div>
-                {canEditProfile ? (
-                  <div className="flex gap-3 pt-2">
-                    <button type="submit" disabled={saving} className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-60">
-                      <Save size={15} /> Save Changes
-                    </button>
-                  </div>
-                ) : null}
+                <div className="flex gap-3 pt-2">
+                  <button type="submit" disabled={saving} className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-60">
+                    <Save size={15} /> Save Changes
+                  </button>
+                </div>
               </form>
             </div>
 
-            {canEditProfile ? <div className="bg-card border border-border rounded-2xl p-6 mt-4">
+            <div className="bg-card border border-border rounded-2xl p-6 mt-4">
               <h2 className="font-bold mb-5">Change Password</h2>
               <form onSubmit={handlePassword} className="space-y-4">
                 {[
@@ -285,7 +274,7 @@ export default function ProfilePage() {
                   Update Password
                 </button>
               </form>
-            </div> : null}
+            </div>
           </div>
         </div>
       </main>

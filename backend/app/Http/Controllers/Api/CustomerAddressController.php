@@ -10,21 +10,9 @@ use App\Models\CustomerAddress;
 use App\Services\Checkout\CustomerAddressService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Routing\Controllers\HasMiddleware;
-use Illuminate\Routing\Controllers\Middleware;
 
-class CustomerAddressController extends Controller implements HasMiddleware
+class CustomerAddressController extends Controller
 {
-    public static function middleware(): array
-    {
-        return [
-            new Middleware('permission:can_view_address', only: ['index']),
-            new Middleware('permission:can_create_address', only: ['store']),
-            new Middleware('permission:can_edit_address', only: ['update']),
-            new Middleware('permission:can_delete_address', only: ['destroy']),
-        ];
-    }
-
     public function __construct(private readonly CustomerAddressService $addresses) {}
 
     public function index(Request $request): JsonResponse

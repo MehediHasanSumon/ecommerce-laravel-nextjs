@@ -8,25 +8,9 @@ use App\Models\Settings\PaymentGatewaySetting;
 use App\Models\Settings\ShippingMethod;
 use App\Models\Settings\ShippingZone;
 use App\Models\User;
-use Spatie\Permission\Models\Permission;
 
 function checkoutUserToken(User $user): string
 {
-    $permissions = [
-        'can_view_address',
-        'can_create_address',
-        'can_edit_address',
-        'can_delete_address',
-        'can_view_checkout',
-        'can_create_checkout',
-    ];
-
-    foreach ($permissions as $permission) {
-        Permission::query()->firstOrCreate(['name' => $permission, 'guard_name' => 'web']);
-    }
-
-    $user->givePermissionTo($permissions);
-
     return $user->createToken('access-token', ['access'], now()->addMinutes(15))->plainTextToken;
 }
 

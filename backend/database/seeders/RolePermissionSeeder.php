@@ -3,9 +3,9 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use Spatie\Permission\PermissionRegistrar;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 
 class RolePermissionSeeder extends Seeder
 {
@@ -100,31 +100,7 @@ class RolePermissionSeeder extends Seeder
             'guard_name' => $guard,
         ]);
 
-        $user->syncPermissions([
-            'can_view_account_dashboard',
-            'can_view_account_profile',
-            'can_edit_account_profile',
-            'can_view_account_settings',
-            'can_edit_account_settings',
-            'can_view_address',
-            'can_create_address',
-            'can_edit_address',
-            'can_delete_address',
-            'can_view_order',
-            'can_edit_order',
-            'can_view_review',
-            'can_create_review',
-            'can_edit_review',
-            'can_delete_review',
-            'can_view_notification',
-            'can_edit_notification',
-            'can_delete_notification',
-            'can_view_wishlist',
-            'can_edit_wishlist',
-            'can_view_checkout',
-            'can_create_checkout',
-            'can_apply_coupon',
-        ]);
+        $user->syncPermissions([]);
         $admin->syncPermissions($permissions);
         $superAdmin->syncPermissions($permissions);
 

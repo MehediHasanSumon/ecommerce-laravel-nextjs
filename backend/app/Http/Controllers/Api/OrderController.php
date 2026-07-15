@@ -12,20 +12,10 @@ use App\Services\Pdf\OrderPdfService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\Routing\Controllers\HasMiddleware;
-use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Validation\ValidationException;
 
-class OrderController extends Controller implements HasMiddleware
+class OrderController extends Controller
 {
-    public static function middleware(): array
-    {
-        return [
-            new Middleware('permission:can_view_order', only: ['index', 'show', 'invoice']),
-            new Middleware('permission:can_edit_order', only: ['cancel']),
-        ];
-    }
-
     public function __construct(
         private readonly OrderService $orders,
         private readonly OrderPdfService $pdf,

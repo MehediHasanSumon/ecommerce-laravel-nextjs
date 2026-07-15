@@ -4,6 +4,7 @@ use App\Models\Blog;
 use App\Models\Settings\BlogSetting;
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
+use Spatie\Permission\Models\Permission;
 
 beforeEach(function () {
     Cache::flush();
@@ -11,10 +12,26 @@ beforeEach(function () {
 
 function blogAdminAccessToken(): string
 {
-    return User::factory()
-        ->create()
-        ->createToken('access-token', ['access'], now()->addMinutes(15))
-        ->plainTextToken;
+    $permissions = [
+        'can_view_blog',
+        'can_create_blog',
+        'can_edit_blog',
+        'can_delete_blog',
+        'can_view_blog_setting',
+        'can_edit_blog_setting',
+    ];
+
+    foreach ($permissions as $permission) {
+        Permission::query()->firstOrCreate([
+            'name' => $permission,
+            'guard_name' => 'web',
+        ]);
+    }
+
+    $user = User::factory()->create();
+    $user->givePermissionTo($permissions);
+
+    return $user->createToken('access-token', ['access'], now()->addMinutes(15))->plainTextToken;
 }
 
 it('hides public blog APIs and runtime navigation when disabled', function () {
@@ -112,6 +129,8 @@ it('creates edits searches paginates and deletes blogs through admin and public 
 it('accepts comments only when comments are enabled and keeps them pending moderation', function () {
     BlogSetting::query()->create(['enabled' => true, 'allow_comments' => true]);
     $author = User::factory()->create();
+    $customer = User::factory()->create();
+    $token = $customer->createToken('comment-access', ['access'], now()->addMinutes(15))->plainTextToken;
     $blog = Blog::query()->create([
         'author_id' => $author->id,
         'title' => 'Commentable Blog',
@@ -124,7 +143,7 @@ it('accepts comments only when comments are enabled and keeps them pending moder
         'reading_time_minutes' => 1,
     ]);
 
-    $this->postJson('/api/blogs/commentable-blog/comments', [
+    $this->withToken($token)->postJson('/api/blogs/commentable-blog/comments', [
         'author_name' => 'Reader',
         'author_email' => 'reader@example.com',
         'content' => 'Useful article.',

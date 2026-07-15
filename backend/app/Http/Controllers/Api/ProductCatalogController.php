@@ -16,21 +16,12 @@ use App\Models\ProductReview;
 use App\Services\Admin\Settings\BrandSettingsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Routing\Controllers\HasMiddleware;
-use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
-class ProductCatalogController extends Controller implements HasMiddleware
+class ProductCatalogController extends Controller
 {
-    public static function middleware(): array
-    {
-        return [
-            new Middleware('permission:can_create_review', only: ['storeReview']),
-        ];
-    }
-
     public function __construct(private readonly BrandSettingsService $brandSettings) {}
 
     public function index(Request $request): JsonResponse
@@ -88,6 +79,7 @@ class ProductCatalogController extends Controller implements HasMiddleware
 
                 if (! $category) {
                     $query->whereRaw('1 = 0');
+
                     return;
                 }
 

@@ -10,6 +10,7 @@ import { formatPrice } from '@/utils/format';
 import type { Product } from '@/types';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { useAuthStore } from '@/store/auth-store';
 
 interface ProductCardProps {
   product: Product;
@@ -30,6 +31,7 @@ export function ProductCard({ product, className, layout = 'grid' }: ProductCard
   const addItem = useCartStore((s) => s.addItem);
   const toggleItem = useWishlistStore((s) => s.toggleItem);
   const isInWishlist = useWishlistStore((s) => s.isInWishlist(product.id));
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const brandsEnabled = useSettingsStore(selectBrandsEnabled);
   useSettingsStore(selectCurrencyFingerprint);
 
@@ -44,6 +46,11 @@ export function ProductCard({ product, className, layout = 'grid' }: ProductCard
 
   const handleToggleWishlist = (e: React.MouseEvent) => {
     e.preventDefault();
+    if (!isAuthenticated) {
+      router.push(`/login?redirect=${encodeURIComponent(`/products/${product.slug}`)}`);
+      return;
+    }
+
     void toggleItem(product);
     toast(isInWishlist ? 'Removed from wishlist' : `Added to wishlist`, {
       icon: isInWishlist ? '💔' : '❤️',

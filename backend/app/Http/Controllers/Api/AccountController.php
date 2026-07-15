@@ -15,32 +15,13 @@ use App\Models\Wishlist;
 use App\Services\Notifications\NotificationPayloadFormatter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Routing\Controllers\HasMiddleware;
-use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 
-class AccountController extends Controller implements HasMiddleware
+class AccountController extends Controller
 {
-    public static function middleware(): array
-    {
-        return [
-            new Middleware('permission:can_view_account_dashboard', only: ['dashboard']),
-            new Middleware('permission:can_view_account_profile', only: ['profile']),
-            new Middleware('permission:can_edit_account_profile', only: ['updateProfile', 'uploadAvatar', 'changePassword']),
-            new Middleware('permission:can_view_account_settings', only: ['settings']),
-            new Middleware('permission:can_edit_account_settings', only: ['updateSettings']),
-            new Middleware('permission:can_view_notification', only: ['notifications', 'unreadNotificationCount']),
-            new Middleware('permission:can_edit_notification', only: ['markNotificationRead', 'markNotificationsRead']),
-            new Middleware('permission:can_delete_notification', only: ['deleteNotification', 'bulkDeleteNotifications']),
-            new Middleware('permission:can_view_review', only: ['reviews']),
-            new Middleware('permission:can_edit_review', only: ['updateReview']),
-            new Middleware('permission:can_delete_review', only: ['deleteReview']),
-        ];
-    }
-
     public function __construct(private readonly NotificationPayloadFormatter $notificationFormatter) {}
 
     public function dashboard(Request $request): JsonResponse
@@ -198,6 +179,7 @@ class AccountController extends Controller implements HasMiddleware
     public function markNotificationsRead(Request $request): JsonResponse
     {
         CustomerNotification::query()->where('user_id', $request->user()->id)->whereNull('read_at')->update(['read_at' => now()]);
+
         return ApiResponse::success([], 'Notifications marked as read.');
     }
 

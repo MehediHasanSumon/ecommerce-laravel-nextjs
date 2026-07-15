@@ -4,7 +4,7 @@ export type User = {
   email: string;
   avatar?: string | null;
   roles: string[];
-  permissions: string[];
+  permissions?: string[];
 };
 
 export type ApiEnvelope<T> = {
