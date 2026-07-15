@@ -97,8 +97,6 @@ Route::middleware(['auth.cookie:access', 'throttle:public-settings'])->group(fun
     Route::put('/account/profile', [AccountController::class, 'updateProfile']);
     Route::post('/account/profile/avatar', [AccountController::class, 'uploadAvatar']);
     Route::put('/account/password', [AccountController::class, 'changePassword']);
-    Route::get('/account/settings', [AccountController::class, 'settings']);
-    Route::put('/account/settings', [AccountController::class, 'updateSettings']);
     Route::get('/account/notifications', [AccountController::class, 'notifications']);
     Route::get('/account/notifications/unread-count', [AccountController::class, 'unreadNotificationCount']);
     Route::post('/account/notifications/mark-read', [AccountController::class, 'markNotificationsRead']);

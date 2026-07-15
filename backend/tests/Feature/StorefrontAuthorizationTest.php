@@ -37,7 +37,6 @@ it('allows a customer with no Spatie permissions to use authenticated storefront
     foreach ([
         '/api/account/dashboard',
         '/api/account/profile',
-        '/api/account/settings',
         '/api/account/notifications',
         '/api/account/reviews',
         '/api/orders',
@@ -86,7 +85,6 @@ it('requires authentication only for protected storefront features', function ()
     foreach ([
         ['get', '/api/account/dashboard'],
         ['get', '/api/account/profile'],
-        ['get', '/api/account/settings'],
         ['get', '/api/account/notifications'],
         ['get', '/api/account/reviews'],
         ['get', '/api/orders'],

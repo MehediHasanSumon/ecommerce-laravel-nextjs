@@ -62,17 +62,6 @@ export type AccountReview = {
   product: Product | null;
 };
 
-export type AccountSettings = {
-  email_notifications: boolean;
-  order_updates: boolean;
-  promotional_notifications: boolean;
-  account_notifications: boolean;
-  review_requests: boolean;
-  newsletter: boolean;
-  sms_notifications: boolean;
-  product_recommendations: boolean;
-};
-
 export const accountService = {
   async dashboard() {
     const response = await client.get<ApiEnvelope<AccountDashboard>>("/account/dashboard");
@@ -100,16 +89,6 @@ export const accountService = {
 
   async changePassword(payload: { current_password: string; password: string; password_confirmation: string }) {
     await client.put<ApiEnvelope<Record<string, never>>>("/account/password", payload);
-  },
-
-  async settings() {
-    const response = await client.get<ApiEnvelope<{ settings: AccountSettings }>>("/account/settings");
-    return response.data.data.settings;
-  },
-
-  async updateSettings(payload: AccountSettings) {
-    const response = await client.put<ApiEnvelope<{ settings: AccountSettings }>>("/account/settings", payload);
-    return response.data.data.settings;
   },
 
   async notifications(params?: { page?: number; per_page?: number; search?: string; status?: "all" | "read" | "unread"; type?: string }) {

@@ -31,7 +31,6 @@ export default function ProfilePage() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [profile, setProfile] = useState<AccountProfile | null>(null);
   const [form, setForm] = useState({ name: "", email: "", phone: "", birthDate: "", gender: "" });
-  const [passwordForm, setPasswordForm] = useState({ current: "", password: "", confirmation: "" });
   const authUser = useAuthStore((state) => state.user);
   const setAuthUser = useAuthStore((state) => state.setUser);
 
@@ -119,21 +118,6 @@ export default function ProfilePage() {
       toast.error("Unable to upload profile picture.");
     } finally {
       setUploadingAvatar(false);
-    }
-  }
-
-  async function handlePassword(event: React.FormEvent) {
-    event.preventDefault();
-    try {
-      await accountService.changePassword({
-        current_password: passwordForm.current,
-        password: passwordForm.password,
-        password_confirmation: passwordForm.confirmation,
-      });
-      setPasswordForm({ current: "", password: "", confirmation: "" });
-      toast.success("Password changed.");
-    } catch {
-      toast.error("Unable to change password.");
     }
   }
 
@@ -248,31 +232,6 @@ export default function ProfilePage() {
                     <Save size={15} /> Save Changes
                   </button>
                 </div>
-              </form>
-            </div>
-
-            <div className="bg-card border border-border rounded-2xl p-6 mt-4">
-              <h2 className="font-bold mb-5">Change Password</h2>
-              <form onSubmit={handlePassword} className="space-y-4">
-                {[
-                  { label: "Current Password", key: "current", placeholder: "Enter current password" },
-                  { label: "New Password", key: "password", placeholder: "Enter password" },
-                  { label: "Confirm New Password", key: "confirmation", placeholder: "Confirm password" },
-                ].map(({ label, key, placeholder }) => (
-                  <div key={label}>
-                    <label className="block text-sm font-semibold mb-2">{label}</label>
-                    <input
-                      type="password"
-                      value={passwordForm[key as keyof typeof passwordForm]}
-                      onChange={(event) => setPasswordForm((current) => ({ ...current, [key]: event.target.value }))}
-                      placeholder={placeholder}
-                      className={profileFieldClass}
-                    />
-                  </div>
-                ))}
-                <button type="submit" className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-semibold text-sm hover:opacity-90 transition-opacity">
-                  Update Password
-                </button>
               </form>
             </div>
           </div>

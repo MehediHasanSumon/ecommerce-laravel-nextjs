@@ -105,29 +105,6 @@ class AccountController extends Controller
         return ApiResponse::success([], 'Password changed successfully.');
     }
 
-    public function settings(Request $request): JsonResponse
-    {
-        return ApiResponse::success(['settings' => $this->settingsPayload($request->user())]);
-    }
-
-    public function updateSettings(Request $request): JsonResponse
-    {
-        $data = $request->validate([
-            'email_notifications' => ['required', 'boolean'],
-            'order_updates' => ['required', 'boolean'],
-            'promotional_notifications' => ['required', 'boolean'],
-            'account_notifications' => ['required', 'boolean'],
-            'review_requests' => ['required', 'boolean'],
-            'newsletter' => ['required', 'boolean'],
-            'sms_notifications' => ['required', 'boolean'],
-            'product_recommendations' => ['required', 'boolean'],
-        ]);
-
-        $request->user()->update(['account_preferences' => $data]);
-
-        return ApiResponse::success(['settings' => $this->settingsPayload($request->user()->fresh())], 'Account settings saved.');
-    }
-
     public function notifications(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -322,22 +299,6 @@ class AccountController extends Controller
         }
 
         return url(Storage::disk('public')->url($avatar));
-    }
-
-    private function settingsPayload($user): array
-    {
-        $defaults = [
-            'email_notifications' => true,
-            'order_updates' => true,
-            'promotional_notifications' => false,
-            'account_notifications' => true,
-            'review_requests' => true,
-            'newsletter' => false,
-            'sms_notifications' => false,
-            'product_recommendations' => true,
-        ];
-
-        return array_merge($defaults, $user->account_preferences ?? []);
     }
 
     private function paginationMeta($paginator): array
