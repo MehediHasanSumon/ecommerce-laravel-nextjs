@@ -117,7 +117,7 @@ export default function DealsPage() {
               <p className="text-sm text-muted-foreground">Check back soon for new offers.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+            <div className="grid grid-cols-1 gap-3 min-[380px]:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-5 xl:grid-cols-4 xl:gap-6">
               {dealProducts.map((p) => (
                 <ProductCard key={p.id} product={p} />
               ))}

@@ -179,7 +179,7 @@ function ThemeToggle() {
   return (
     <button
       onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-      className="rounded-lg p-2 transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+      className="rounded-lg p-1.5 transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring sm:p-2"
       aria-label="Toggle theme"
     >
       {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
@@ -458,7 +458,7 @@ function HeaderSkeleton({ isScrolled }: { isScrolled: boolean }) {
             <span className="h-8 w-8 animate-pulse rounded-lg bg-muted" />
             <span className="h-5 w-24 animate-pulse rounded bg-muted" />
           </div>
-          <div className="ml-4 hidden items-center gap-1 lg:flex">
+          <div className="ml-4 hidden items-center gap-1 xl:flex">
             <span className="h-9 w-16 animate-pulse rounded-lg bg-muted" />
             <span className="h-9 w-20 animate-pulse rounded-lg bg-muted" />
             <span className="h-9 w-24 animate-pulse rounded-lg bg-muted" />
@@ -472,7 +472,7 @@ function HeaderSkeleton({ isScrolled }: { isScrolled: boolean }) {
             <span className="h-9 w-9 animate-pulse rounded-lg bg-muted" />
             <span className="h-9 w-9 animate-pulse rounded-lg bg-muted" />
             <span className="hidden h-9 w-9 animate-pulse rounded-lg bg-muted md:block" />
-            <span className="h-9 w-9 animate-pulse rounded-lg bg-muted lg:hidden" />
+            <span className="h-9 w-9 animate-pulse rounded-lg bg-muted xl:hidden" />
           </div>
         </div>
       </div>
@@ -682,17 +682,19 @@ export function Header() {
         </div>
 
         {/* Main header */}
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex items-center h-16 gap-4">
+        <div className="mx-auto max-w-7xl px-3 sm:px-4 lg:px-6">
+          <div className="flex h-16 min-w-0 items-center gap-1 sm:gap-3 md:gap-4">
             {/* Logo */}
-            <BrandLogo
-              href="/"
-              className="w-32 shrink-0 sm:w-40 md:w-48"
-              textClassName="text-lg tracking-tight sm:text-xl"
-            />
+            <div className="min-w-0 flex-1 sm:w-40 sm:flex-none md:w-48">
+              <BrandLogo
+                href="/"
+                className="max-w-full"
+                textClassName="text-base tracking-tight sm:text-xl"
+              />
+            </div>
 
             {/* Desktop nav */}
-            <nav className="hidden lg:flex items-center gap-1 ml-4">
+            <nav className="ml-4 hidden items-center gap-1 xl:flex">
               {isSettingsLoading ? (
                 <>
                   <span className="h-9 w-16 animate-pulse rounded-lg bg-muted" />
@@ -768,10 +770,10 @@ export function Header() {
             </div>
 
             {/* Actions */}
-            <div className="flex items-center gap-1 ml-auto lg:ml-0">
+            <div className="ml-auto flex shrink-0 items-center gap-0 sm:gap-1 xl:ml-0">
               <button
                 onClick={() => setIsSearchOpen(true)}
-                className="rounded-lg p-2 transition-colors hover:bg-muted md:hidden"
+                className="rounded-lg p-1.5 transition-colors hover:bg-muted sm:p-2 md:hidden"
                 aria-label="Search"
               >
                 <Search size={20} />
@@ -781,7 +783,7 @@ export function Header() {
 
               <Link
                 href="/wishlist"
-                className="relative rounded-lg p-2 transition-colors hover:bg-muted"
+                className="relative rounded-lg p-1.5 transition-colors hover:bg-muted sm:p-2"
                 aria-label="Wishlist"
               >
                 <Heart size={20} />
@@ -794,7 +796,7 @@ export function Header() {
 
               <Link
                 href="/cart"
-                className="relative rounded-lg p-2 transition-colors hover:bg-muted"
+                className="relative rounded-lg p-1.5 transition-colors hover:bg-muted sm:p-2"
                 aria-label="Cart"
               >
                 <ShoppingCart size={20} />
@@ -897,7 +899,7 @@ export function Header() {
 
               <button
                 onClick={() => setIsMobileMenuOpen(true)}
-                className="rounded-lg p-2 transition-colors hover:bg-muted lg:hidden"
+                className="rounded-lg p-1.5 transition-colors hover:bg-muted sm:p-2 xl:hidden"
                 aria-label="Menu"
               >
                 <Menu size={20} />
@@ -909,7 +911,7 @@ export function Header() {
 
       {/* Mobile Menu */}
       {isMobileMenuOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
+        <div className="fixed inset-0 z-50 xl:hidden">
           <div
             className="absolute inset-0 bg-black/60"
             onClick={() => setIsMobileMenuOpen(false)}

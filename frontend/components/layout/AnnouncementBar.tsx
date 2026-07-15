@@ -29,14 +29,14 @@ export function AnnouncementBar() {
   const linkUrl = announcement.link_url.trim();
 
   return (
-    <div className="bg-primary text-primary-foreground py-2 px-4 relative">
-      <div className="max-w-7xl mx-auto flex items-center justify-center gap-2 text-sm font-medium">
+    <div className="relative bg-primary px-4 py-2 pr-9 text-primary-foreground">
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-x-2 gap-y-1 text-center text-xs font-medium sm:text-sm">
         <Megaphone size={14} className="shrink-0" />
-        <span>{announcement.text}</span>
+        <span className="min-w-0">{announcement.text}</span>
         {linkText && linkUrl ? (
           <a
             href={linkUrl}
-            className="underline underline-offset-2 hover:no-underline ml-1 font-semibold"
+            className="whitespace-nowrap font-semibold underline underline-offset-2 hover:no-underline sm:ml-1"
           >
             {linkText} →
           </a>

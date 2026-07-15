@@ -67,7 +67,7 @@ function HeroSlider({
   }, [activeSlides.length]);
 
   if (loading) {
-    return <div className="h-[480px] animate-pulse rounded-2xl bg-muted md:h-[560px] lg:h-[620px]" />;
+    return <div className="h-[440px] animate-pulse rounded-2xl bg-muted sm:h-[480px] md:h-[560px] lg:h-[620px]" />;
   }
 
   if (activeSlides.length === 0) {
@@ -120,11 +120,11 @@ function HeroSlider({
     const image = slide.mobile_image || slide.background_image;
     const alignClass = slide.text_alignment === 'center' ? 'mx-auto text-center' : slide.text_alignment === 'right' ? 'ml-auto text-right' : '';
     return (
-      <div {...interactionProps} className="relative h-[480px] md:h-[560px] lg:h-[620px] rounded-2xl overflow-hidden">
+      <div {...interactionProps} className="relative h-[440px] overflow-hidden rounded-2xl sm:h-[480px] md:h-[560px] lg:h-[620px]">
         {image ? <Image src={image} alt={slide.title || slide.name || 'Hero slide'} fill unoptimized className="object-cover" priority={!settings?.lazy_load_images} loading={settings?.lazy_load_images ? 'lazy' : undefined} /> : null}
         {slide.overlay ? <div className="absolute inset-0 bg-gradient-to-r from-slate-950 to-slate-800" style={{ opacity: slide.overlay_opacity / 100 }} /> : null}
         <div className="absolute inset-0 flex items-center">
-          <div className="max-w-7xl mx-auto px-8 md:px-12 w-full">
+          <div className="mx-auto w-full max-w-7xl px-5 sm:px-8 md:px-12">
             <div className={`max-w-xl ${alignClass}`}>
               {slide.subtitle ? (
                 <span className="text-sm font-bold uppercase tracking-widest mb-4 block text-primary">
@@ -132,11 +132,11 @@ function HeroSlider({
                 </span>
               ) : null}
               {slide.title ? (
-                <h1 suppressHydrationWarning className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-white leading-tight mb-5 whitespace-pre-line">
+                <h1 suppressHydrationWarning className="mb-4 whitespace-pre-line text-3xl font-extrabold leading-tight text-white sm:text-4xl md:mb-5 md:text-5xl lg:text-6xl">
                   {slide.title}
                 </h1>
               ) : null}
-              {slide.description ? <p className="text-base md:text-lg text-white/80 mb-8 max-w-sm leading-relaxed">{slide.description}</p> : null}
+              {slide.description ? <p className="mb-6 max-w-sm text-sm leading-relaxed text-white/80 sm:text-base md:mb-8 md:text-lg">{slide.description}</p> : null}
               <div className={`flex flex-wrap gap-3 ${slide.text_alignment === 'center' ? 'justify-center' : slide.text_alignment === 'right' ? 'justify-end' : ''}`}>
                 {slide.primary_button_text ? (
                   <Link href={slide.primary_button_url || '/shop'} className="inline-flex items-center gap-2 px-6 py-3 bg-white text-slate-900 rounded-xl font-bold text-sm hover:bg-white/90 transition-colors shadow-lg">
@@ -205,10 +205,10 @@ function HeroControls({
     <>
       {showNavigation ? (
         <>
-          <button onClick={onPrevious} className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-white/40 transition-colors" aria-label="Previous hero slide">
+          <button onClick={onPrevious} className="absolute left-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-sm transition-colors hover:bg-white/40 sm:left-4 sm:h-10 sm:w-10" aria-label="Previous hero slide">
             <ChevronLeft size={20} />
           </button>
-          <button onClick={onNext} className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-white/40 transition-colors" aria-label="Next hero slide">
+          <button onClick={onNext} className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-sm transition-colors hover:bg-white/40 sm:right-4 sm:h-10 sm:w-10" aria-label="Next hero slide">
             <ChevronRight size={20} />
           </button>
         </>
@@ -244,8 +244,12 @@ function AdvancedHeroSlider({
   const slide = slides[current] ?? slides[0];
   const device = useHeroDevice();
   const size = slide.canvas_size?.[device] ?? slide.canvas_size?.desktop ?? { width: 1280, height: 620 };
+  const desktopSize = slide.canvas_size?.desktop ?? size;
   const { ref, width } = useElementWidth<HTMLDivElement>();
   const scale = width > 0 ? width / size.width : 1;
+  const visualScale = device === 'desktop'
+    ? 1
+    : Math.min(1, Math.max(device === 'mobile' ? 0.58 : 0.78, Math.sqrt(size.width / desktopSize.width)));
 
   return (
     <div
@@ -253,7 +257,15 @@ function AdvancedHeroSlider({
       className="relative overflow-hidden rounded-2xl"
       style={{ aspectRatio: `${size.width} / ${size.height}`, height: width > 0 ? size.height * scale : undefined }}
     >
-      <AdvancedSlide slide={slide} device={device} size={size} scale={scale} lazyLoad={settings?.lazy_load_images ?? true} />
+      <AdvancedSlide
+        slide={slide}
+        device={device}
+        size={size}
+        desktopSize={desktopSize}
+        scale={scale}
+        visualScale={visualScale}
+        lazyLoad={settings?.lazy_load_images ?? true}
+      />
       <HeroControls
         count={slides.length}
         current={current}
@@ -311,7 +323,23 @@ function useHeroDevice(): HeroDevice {
   return device;
 }
 
-function AdvancedSlide({ slide, device, size, scale, lazyLoad }: { slide: HeroSlide; device: HeroDevice; size: { width: number; height: number }; scale: number; lazyLoad: boolean }) {
+function AdvancedSlide({
+  slide,
+  device,
+  size,
+  desktopSize,
+  scale,
+  visualScale,
+  lazyLoad,
+}: {
+  slide: HeroSlide;
+  device: HeroDevice;
+  size: { width: number; height: number };
+  desktopSize: { width: number; height: number };
+  scale: number;
+  visualScale: number;
+  lazyLoad: boolean;
+}) {
   return (
     <div
       className="absolute left-0 top-0 origin-top-left overflow-hidden"
@@ -329,15 +357,42 @@ function AdvancedSlide({ slide, device, size, scale, lazyLoad }: { slide: HeroSl
       {slide.elements
         .filter((element) => !element.hidden)
         .sort((a, b) => a.z_index - b.z_index)
-        .map((element) => <AdvancedElement key={`${element.id}-${element.z_index}`} element={element} device={device} lazyLoad={lazyLoad} />)}
+        .map((element) => (
+          <AdvancedElement
+            key={`${element.id}-${element.z_index}`}
+            element={element}
+            device={device}
+            canvasSize={size}
+            desktopSize={desktopSize}
+            visualScale={visualScale}
+            lazyLoad={lazyLoad}
+          />
+        ))}
     </div>
   );
 }
 
-function AdvancedElement({ element, device, lazyLoad }: { element: HeroSlideElement; device: HeroDevice; lazyLoad: boolean }) {
-  const box = element.responsive?.[device] ?? element.responsive?.desktop;
+function AdvancedElement({
+  element,
+  device,
+  canvasSize,
+  desktopSize,
+  visualScale,
+  lazyLoad,
+}: {
+  element: HeroSlideElement;
+  device: HeroDevice;
+  canvasSize: { width: number; height: number };
+  desktopSize: { width: number; height: number };
+  visualScale: number;
+  lazyLoad: boolean;
+}) {
+  const box = resolveHeroElementBox(element, device, canvasSize, desktopSize);
   if (!box) return null;
   const style = element.style ?? {};
+  const baseFontSize = Number(style.fontSize ?? 16);
+  const minimumFontSize = element.type === 'heading' ? 24 : element.type === 'subheading' ? 16 : 12;
+  const fontSize = device === 'desktop' ? baseFontSize : Math.max(minimumFontSize, baseFontSize * visualScale);
   const frame = {
     left: box.x,
     top: box.y,
@@ -373,7 +428,7 @@ function AdvancedElement({ element, device, lazyLoad }: { element: HeroSlideElem
       borderRadius: style.borderRadius as number,
       padding: String(style.padding ?? '12px 22px'),
       boxShadow: String(style.boxShadow ?? ''),
-      fontSize: Number(style.fontSize ?? 16),
+      fontSize: Math.max(12, fontSize),
     } as React.CSSProperties;
 
     return (
@@ -404,12 +459,12 @@ function AdvancedElement({ element, device, lazyLoad }: { element: HeroSlideElem
 
   return wrap(
     <div
-      className="absolute overflow-hidden"
+      className="absolute overflow-hidden [overflow-wrap:anywhere]"
       style={{
         ...frame,
         color: String(style.color ?? '#fff'),
         fontFamily: String(style.fontFamily ?? 'Inter, sans-serif'),
-        fontSize: Number(style.fontSize ?? 16),
+        fontSize,
         fontWeight: Number(style.fontWeight ?? 600),
         lineHeight: Number(style.lineHeight ?? 1.2),
         letterSpacing: Number(style.letterSpacing ?? 0),
@@ -420,6 +475,32 @@ function AdvancedElement({ element, device, lazyLoad }: { element: HeroSlideElem
       {element.content.text}
     </div>
   );
+}
+
+function resolveHeroElementBox(
+  element: HeroSlideElement,
+  device: HeroDevice,
+  canvasSize: { width: number; height: number },
+  desktopSize: { width: number; height: number },
+) {
+  const directBox = element.responsive?.[device];
+  const desktopBox = element.responsive?.desktop;
+  if (!directBox && !desktopBox) return null;
+
+  const source = directBox ?? {
+    ...desktopBox,
+    x: desktopBox.x * (canvasSize.width / desktopSize.width),
+    y: desktopBox.y * (canvasSize.height / desktopSize.height),
+    width: desktopBox.width * (canvasSize.width / desktopSize.width),
+    height: desktopBox.height * (canvasSize.height / desktopSize.height),
+  };
+  const edge = device === 'mobile' ? 16 : device === 'tablet' ? 24 : 0;
+  const width = Math.max(1, Math.min(source.width, canvasSize.width - edge * 2));
+  const height = Math.max(1, Math.min(source.height, canvasSize.height - edge * 2));
+  const x = Math.max(edge, Math.min(source.x, canvasSize.width - edge - width));
+  const y = Math.max(edge, Math.min(source.y, canvasSize.height - edge - height));
+
+  return { ...source, x, y, width, height };
 }
 
 function wrapHeroElement(node: React.ReactNode, href?: string, target?: string) {
@@ -488,7 +569,7 @@ function FlashSaleTimer({ endsAt }: { endsAt: string }) {
   ];
 
   return (
-    <div className="flex flex-wrap items-center justify-end gap-1.5">
+    <div className="flex flex-wrap items-center gap-1.5 sm:justify-end">
       {units.map(({ v, l, wide }) => (
         <div key={l} className="flex items-center gap-1">
           <span className={cn(
@@ -518,8 +599,8 @@ function SectionHeader({
   icon?: React.ElementType;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4 mb-8">
-      <div>
+    <div className="mb-6 flex items-start justify-between gap-3 sm:mb-8 sm:gap-4">
+      <div className="min-w-0">
         {Icon && (
           <div className="flex items-center gap-2 mb-1">
             <Icon size={16} className="text-primary" />
@@ -528,12 +609,12 @@ function SectionHeader({
             </span>
           </div>
         )}
-        <h2 className="text-2xl font-extrabold">{title}</h2>
+        <h2 className="text-xl font-extrabold sm:text-2xl">{title}</h2>
         {subtitle && <p className="text-muted-foreground text-sm mt-1">{subtitle}</p>}
       </div>
       <Link
         href={href}
-        className="shrink-0 inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline mt-1 whitespace-nowrap"
+        className="mt-1 inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-xs font-semibold text-primary hover:underline sm:text-sm"
       >
         {linkLabel} <ArrowRight size={14} />
       </Link>
@@ -616,20 +697,20 @@ function HomeCollectionSection({
   if (isFlashSale) {
     return (
       <section className="py-10">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
-          <div className="flex items-center gap-3">
+        <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="flex min-w-0 items-center gap-3">
             <div className="p-2 bg-rose-500 rounded-xl">
               <Zap size={18} className="text-white fill-white" />
             </div>
-            <div>
-              <h2 className="text-2xl font-extrabold">{collection?.title ?? 'Flash Sale'}</h2>
+            <div className="min-w-0">
+              <h2 className="text-xl font-extrabold sm:text-2xl">{collection?.title ?? 'Flash Sale'}</h2>
               <p className="text-xs text-muted-foreground">
                 {collection?.subtitle ?? 'Limited-time deals — grab them before they&apos;re gone'}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-muted-foreground">Ends in:</span>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <span className="shrink-0 text-sm text-muted-foreground">Ends in:</span>
             {mounted && collection?.endsAt ? (
               <FlashSaleTimer endsAt={collection.endsAt} />
             ) : (
@@ -650,7 +731,7 @@ function HomeCollectionSection({
         {loading ? (
           <ProductGridSkeleton count={4} />
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+          <div className="grid grid-cols-1 gap-3 min-[380px]:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-5 xl:grid-cols-4 xl:gap-6">
             {products.map((p) => (
               <ProductCard key={p.id} product={p} />
             ))}
@@ -671,7 +752,7 @@ function HomeCollectionSection({
       {loading ? (
         <ProductGridSkeleton count={collection?.productLimit && collection.productLimit > 4 ? 8 : 4} />
       ) : products.length > 0 ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+        <div className="grid grid-cols-1 gap-3 min-[380px]:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-5 xl:grid-cols-4 xl:gap-6">
           {products.map((p) => (
             <ProductCard key={p.id} product={p} />
           ))}
@@ -755,7 +836,7 @@ export default function HomePage() {
     <div className="min-h-screen bg-background">
       <AnnouncementBar />
       <Header />
-      <main className="max-w-7xl mx-auto px-4 pb-16">
+      <main className="mx-auto w-full max-w-7xl px-3 pb-16 sm:px-4 lg:px-6">
         {/* Hero */}
         <section className="py-6">
           <HeroSlider hero={homeData?.hero} loading={homeLoading} />
@@ -898,7 +979,7 @@ export default function HomePage() {
             <ProductGridSkeleton count={8} />
           ) : homeProducts.length > 0 ? (
             <>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+              <div className="grid grid-cols-1 gap-3 min-[380px]:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-5 xl:grid-cols-4 xl:gap-6">
                 {homeProducts.map((p) => (
                   <ProductCard key={p.id} product={p} />
                 ))}

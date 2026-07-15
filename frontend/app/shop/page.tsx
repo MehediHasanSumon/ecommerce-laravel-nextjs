@@ -446,7 +446,7 @@ export default function ShopPage() {
     <div className="min-h-screen bg-background">
       <AnnouncementBar />
       <Header />
-      <main className="max-w-7xl mx-auto px-4 py-8 pb-16">
+      <main className="mx-auto w-full max-w-7xl px-3 py-6 pb-16 sm:px-4 sm:py-8 lg:px-6">
         <nav className="mb-6 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
           <Link href="/" className="hover:text-foreground">
             Home
@@ -488,7 +488,7 @@ export default function ShopPage() {
               >
                 <SlidersHorizontal size={15} /> Filters
               </button>
-              <div className="relative min-w-[260px] flex-1 lg:max-w-2xl">
+              <div className="relative min-w-0 basis-full sm:min-w-[260px] sm:flex-1 lg:max-w-2xl">
                 <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <input
                   id="shop-search"
@@ -501,7 +501,7 @@ export default function ShopPage() {
               </div>
               <div className="sm:ml-auto">
                 <Select value={query.sort} onValueChange={(sort) => patchQuery({ sort, page: 1 })}>
-                  <SelectTrigger className="h-10 w-[180px] rounded-xl bg-card text-sm font-medium">
+                  <SelectTrigger className="h-10 w-[150px] rounded-xl bg-card text-sm font-medium sm:w-[180px]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -572,7 +572,7 @@ export default function ShopPage() {
                 </button>
               </div>
             ) : query.view === 'grid' ? (
-              <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 md:gap-5">
+              <div className="grid grid-cols-1 gap-3 min-[380px]:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-5">
                 {products.map((product) => (
                   <ProductCard key={product.id} product={product} />
                 ))}

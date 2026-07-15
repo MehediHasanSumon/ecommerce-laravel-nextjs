@@ -63,7 +63,7 @@ export default function WishlistPage() {
         <Header />
         <main className="max-w-7xl mx-auto px-4 py-10">
           <div className="h-8 w-32 bg-muted rounded-lg animate-pulse mb-8" />
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+          <div className="grid grid-cols-1 gap-3 min-[380px]:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-5 xl:grid-cols-4">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="rounded-2xl border border-border overflow-hidden">
                 <div className="aspect-square bg-muted animate-pulse" />
@@ -150,7 +150,7 @@ export default function WishlistPage() {
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+          <div className="grid grid-cols-1 gap-3 min-[380px]:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-5 xl:grid-cols-4 xl:gap-6">
             {items.map((item) => (
               <div
                 key={item.id}

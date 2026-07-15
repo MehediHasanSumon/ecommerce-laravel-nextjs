@@ -144,10 +144,10 @@ export function Footer() {
   return (
     <footer className="bg-background border-t border-border">
       {/* Main Footer */}
-      <div className="max-w-7xl mx-auto px-4 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-8">
+      <div className="mx-auto max-w-7xl px-4 py-10 sm:py-12 lg:px-6">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-8 md:grid-cols-2 lg:grid-cols-6 lg:gap-8">
           {/* Brand */}
-          <div className="lg:col-span-2">
+          <div className="col-span-2 lg:col-span-2">
             <BrandLogo href="/" className="mb-4 max-w-xs" textClassName="text-xl" />
             {branding?.legal_company_name ? (
               <p className="text-sm text-muted-foreground leading-relaxed mb-6 max-w-xs">
@@ -157,9 +157,9 @@ export function Footer() {
             {contactRows.length ? (
               <div className="space-y-2 text-sm text-muted-foreground">
                 {contactRows.map(({ icon: Icon, value }) => (
-                  <div key={String(value)} className="flex items-center gap-2">
+                  <div key={String(value)} className="flex min-w-0 items-start gap-2">
                     <Icon size={14} className="shrink-0" />
-                    <span>{value}</span>
+                    <span className="min-w-0 break-words">{value}</span>
                   </div>
                 ))}
               </div>
@@ -202,7 +202,7 @@ export function Footer() {
           ))}
 
           {/* Newsletter */}
-          <div className="lg:col-span-2">
+          <div className="col-span-2 lg:col-span-2">
             <div className="mb-4 flex items-center gap-2">
               <Mail size={18} className="text-muted-foreground" />
               <h3 className="font-semibold text-sm">Stay in the Loop</h3>
