@@ -94,7 +94,7 @@ export default function BrandDetailPage({ params }: { params: Promise<{ slug: st
         <main>
           <div className="h-48 md:h-60 bg-muted animate-pulse" />
           <div className="max-w-7xl mx-auto px-4 py-10 pb-16">
-            <div className="h-4 w-80 bg-muted rounded animate-pulse mb-8" />
+            <div className="mb-8 h-4 w-full max-w-80 animate-pulse rounded bg-muted" />
             <ProductGridSkeleton count={8} />
           </div>
         </main>

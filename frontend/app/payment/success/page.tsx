@@ -136,7 +136,7 @@ function PaymentResultSkeleton() {
       <main className="mx-auto max-w-3xl px-4 py-16">
         <div className="mx-auto mb-6 h-24 w-24 animate-pulse rounded-full bg-muted" />
         <div className="mx-auto mb-3 h-8 w-64 animate-pulse rounded bg-muted" />
-        <div className="mx-auto mb-8 h-5 w-80 animate-pulse rounded bg-muted" />
+        <div className="mx-auto mb-8 h-5 w-full max-w-80 animate-pulse rounded bg-muted" />
         <div className="grid gap-4 md:grid-cols-3">{[1, 2, 3].map((item) => <div key={item} className="h-24 animate-pulse rounded-2xl bg-muted" />)}</div>
       </main>
       <Footer />

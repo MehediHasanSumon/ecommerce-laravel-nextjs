@@ -452,11 +452,11 @@ function HeaderSkeleton({ isScrolled }: { isScrolled: boolean }) {
           </div>
         </div>
       </div>
-      <div className="max-w-7xl mx-auto px-4">
-        <div className="flex items-center h-16 gap-4">
-          <div className="flex w-32 shrink-0 items-center gap-2 sm:w-40 md:w-48">
+      <div className="mx-auto max-w-7xl px-3 sm:px-4 lg:px-6">
+        <div className="flex h-16 min-w-0 items-center gap-1 sm:gap-3 md:gap-4">
+          <div className="flex min-w-0 flex-1 items-center gap-2 sm:w-40 sm:flex-none md:w-48">
             <span className="h-8 w-8 animate-pulse rounded-lg bg-muted" />
-            <span className="h-5 w-24 animate-pulse rounded bg-muted" />
+            <span className="h-5 w-16 max-w-full animate-pulse rounded bg-muted sm:w-24" />
           </div>
           <div className="ml-4 hidden items-center gap-1 xl:flex">
             <span className="h-9 w-16 animate-pulse rounded-lg bg-muted" />
@@ -466,13 +466,13 @@ function HeaderSkeleton({ isScrolled }: { isScrolled: boolean }) {
           <div className="mx-4 hidden max-w-lg flex-1 md:block">
             <span className="block h-11 w-full animate-pulse rounded-xl bg-muted" />
           </div>
-          <div className="ml-auto flex items-center gap-1 lg:ml-0">
-            <span className="h-9 w-9 animate-pulse rounded-lg bg-muted md:hidden" />
-            <span className="h-9 w-9 animate-pulse rounded-lg bg-muted" />
-            <span className="h-9 w-9 animate-pulse rounded-lg bg-muted" />
-            <span className="h-9 w-9 animate-pulse rounded-lg bg-muted" />
+          <div className="ml-auto flex shrink-0 items-center gap-0 sm:gap-1 lg:ml-0">
+            <span className="h-8 w-8 animate-pulse rounded-lg bg-muted sm:h-9 sm:w-9 md:hidden" />
+            <span className="h-8 w-8 animate-pulse rounded-lg bg-muted sm:h-9 sm:w-9" />
+            <span className="h-8 w-8 animate-pulse rounded-lg bg-muted sm:h-9 sm:w-9" />
+            <span className="h-8 w-8 animate-pulse rounded-lg bg-muted sm:h-9 sm:w-9" />
             <span className="hidden h-9 w-9 animate-pulse rounded-lg bg-muted md:block" />
-            <span className="h-9 w-9 animate-pulse rounded-lg bg-muted xl:hidden" />
+            <span className="h-8 w-8 animate-pulse rounded-lg bg-muted sm:h-9 sm:w-9 xl:hidden" />
           </div>
         </div>
       </div>
