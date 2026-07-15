@@ -31,6 +31,7 @@ export interface Product {
   flashSaleEndsAt?: string;
   freeShipping?: boolean;
   requiresVariantSelection?: boolean;
+  defaultVariantId?: number | null;
   createdAt: string;
 }
 

@@ -20,6 +20,15 @@ class ProductCardResource extends JsonResource
             $activeVariantsCount = $this->variants()->where('status', 'active')->count();
         }
 
+        $defaultVariantId = $this->default_variant_id;
+        if ((int) $activeVariantsCount > 0 && $defaultVariantId === null) {
+            $defaultVariantId = $this->variants()
+                ->where('status', 'active')
+                ->where(fn ($query) => $query->whereNull('stock_quantity')->orWhere('stock_quantity', '>', 0))
+                ->orderBy('id')
+                ->value('id');
+        }
+
         return [
             'id' => (string) $this->id,
             'slug' => $this->slug,
@@ -48,6 +57,7 @@ class ProductCardResource extends JsonResource
             'flashSaleEndsAt' => optional($this->flash_sale_ends_at)->toISOString(),
             'freeShipping' => (bool) $this->free_shipping,
             'requiresVariantSelection' => (int) $activeVariantsCount > 0,
+            'defaultVariantId' => $defaultVariantId ? (int) $defaultVariantId : null,
             'createdAt' => optional($this->created_at)->toISOString(),
         ];
     }

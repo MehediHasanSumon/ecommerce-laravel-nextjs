@@ -58,7 +58,7 @@ export function ProductCard({ product, className, layout = 'grid' }: ProductCard
     event.preventDefault();
     event.stopPropagation();
 
-    if (product.requiresVariantSelection) {
+    if (product.requiresVariantSelection && !product.defaultVariantId) {
       toast.info('Select product options before adding this item.');
       router.push(`/products/${product.slug}`);
       return;
@@ -66,7 +66,12 @@ export function ProductCard({ product, className, layout = 'grid' }: ProductCard
 
     try {
       setPendingAction('cart');
-      await addItem(product, 1);
+      await addItem(
+        product.defaultVariantId
+          ? { productId: Number(product.id), productVariantId: product.defaultVariantId, quantity: 1 }
+          : product,
+        1,
+      );
       toast.success(`${product.name} added to cart!`, {
         description: formatPrice(product.price),
         action: { label: 'View Cart', onClick: () => router.push('/cart') },
@@ -82,7 +87,7 @@ export function ProductCard({ product, className, layout = 'grid' }: ProductCard
     event.preventDefault();
     event.stopPropagation();
 
-    if (product.requiresVariantSelection) {
+    if (product.requiresVariantSelection && !product.defaultVariantId) {
       toast.info('Select product options to continue to checkout.');
       router.push(`/products/${product.slug}?buyNow=1`);
       return;
@@ -90,7 +95,12 @@ export function ProductCard({ product, className, layout = 'grid' }: ProductCard
 
     try {
       setPendingAction('buy');
-      await addItem(product, 1);
+      await addItem(
+        product.defaultVariantId
+          ? { productId: Number(product.id), productVariantId: product.defaultVariantId, quantity: 1 }
+          : product,
+        1,
+      );
       const checkoutPath = '/checkout';
       router.push(
         requireLoginBeforeCheckout && !isAuthenticated
