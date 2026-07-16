@@ -71,6 +71,19 @@ export type PlaceOrderPayload = {
   same_as_billing: boolean;
   shipping_method_id: number;
   payment_method: string;
+  otp_verification_id?: string;
+};
+
+export type CheckoutOtpRequirements = {
+  required: boolean;
+  enabled: boolean;
+  otp_length: number;
+  expiration_minutes: number;
+  resend_cooldown_seconds: number;
+  verified?: boolean;
+  challenge_id?: string | null;
+  expires_at?: string;
+  resend_available_at?: string;
 };
 
 export type PlaceOrderResponse = {
@@ -108,6 +121,30 @@ export async function fetchPaymentMethods(): Promise<PaymentMethod[]> {
   });
 
   return response.data.data.items;
+}
+
+export async function fetchCheckoutOtpRequirements(): Promise<CheckoutOtpRequirements> {
+  const response = await client.get<ApiEnvelope<CheckoutOtpRequirements>>("/checkout/mobile-verification", {
+    headers: checkoutHeaders(),
+  });
+
+  return response.data.data;
+}
+
+export async function sendCheckoutOtp(mobile: string): Promise<CheckoutOtpRequirements> {
+  const response = await client.post<ApiEnvelope<CheckoutOtpRequirements>>("/checkout/mobile-verification/send", { mobile }, {
+    headers: checkoutHeaders(),
+  });
+
+  return response.data.data;
+}
+
+export async function verifyCheckoutOtp(payload: { challenge_id: string; mobile: string; code: string }) {
+  const response = await client.post<ApiEnvelope<{ verified: boolean; challenge_id: string }>>("/checkout/mobile-verification/verify", payload, {
+    headers: checkoutHeaders(),
+  });
+
+  return response.data.data;
 }
 
 export async function createAddress(payload: CheckoutAddressPayload & { isDefaultBilling?: boolean; isDefaultShipping?: boolean }) {

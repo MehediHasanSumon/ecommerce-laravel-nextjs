@@ -18,6 +18,7 @@ use App\Services\Admin\Settings\HomeFeatureCardSettingsService;
 use App\Services\Admin\Settings\HomePageSettingsService;
 use App\Services\Admin\Settings\PaymentSettingsService;
 use App\Services\Admin\Settings\SocialMediaSettingsService;
+use App\Services\Admin\Settings\SmsSettingsService;
 use App\Services\Admin\Settings\StoreSettingsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
@@ -36,6 +37,7 @@ class NavigationSettingsController extends Controller
         private readonly StoreSettingsService $storeSettings,
         private readonly SocialMediaSettingsService $socialMediaSettings,
         private readonly PaymentSettingsService $paymentSettings,
+        private readonly SmsSettingsService $smsSettings,
     ) {}
 
     public function show(): JsonResponse
@@ -103,6 +105,7 @@ class NavigationSettingsController extends Controller
                 'allow_guest_checkout' => (bool) $store->allow_guest_checkout,
                 'require_login_before_checkout' => ! (bool) $store->allow_guest_checkout,
             ],
+            'sms_settings' => $this->smsSettings->runtime(),
             'appearance_settings' => [
                 'logo' => $this->assetUrl($company->logo),
                 'dark_logo' => $this->assetUrl($company->dark_logo),
@@ -367,6 +370,8 @@ class NavigationSettingsController extends Controller
                     ['label' => 'Shipping Methods', 'href' => '/admin/settings/shipping-methods', 'icon' => 'PackageCheck', 'permission' => 'can_view_shipping_method', 'enabled' => true],
                     ['label' => 'SEO Settings', 'href' => '/admin/settings/seo', 'icon' => 'Search', 'permission' => 'can_view_seo_setting', 'enabled' => true],
                     ['label' => 'Social Media', 'href' => '/admin/settings/social', 'icon' => 'Megaphone', 'permission' => 'can_view_social_setting', 'enabled' => true],
+                    ['label' => 'SMS Settings', 'href' => '/admin/settings/sms', 'icon' => 'MessageSquareText', 'permission' => 'can_view_sms_setting', 'enabled' => true],
+                    ['label' => 'SMS Logs', 'href' => '/admin/settings/sms/logs', 'icon' => 'ListChecks', 'permission' => 'can_view_sms_log', 'enabled' => true],
                 ],
             ],
         ];

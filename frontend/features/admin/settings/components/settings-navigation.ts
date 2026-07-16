@@ -10,6 +10,8 @@ import {
   Search,
   Settings2,
   Store,
+  MessageSquareText,
+  ListChecks,
 } from "lucide-react";
 import { routePaths } from "@/constants/routes";
 import type { SettingNavItem } from "@/features/admin/settings/components/settings-primitives";
@@ -26,6 +28,8 @@ export const settingsNavItems: SettingNavItem[] = [
   { href: routePaths.adminSettingsShippingMethods, label: "Shipping Methods", description: "Zone-based delivery methods and charges", icon: PackageCheck },
   { href: routePaths.adminSettingsSeo, label: "SEO Settings", description: "Meta defaults and indexing", icon: Search },
   { href: routePaths.adminSettingsSocial, label: "Social Media", description: "Social links and sharing", icon: Megaphone },
+  { href: routePaths.adminSettingsSms, label: "SMS Settings", description: "Providers, OTP, events, templates", icon: MessageSquareText },
+  { href: routePaths.adminSettingsSmsLogs, label: "SMS Logs", description: "Delivery activity and provider responses", icon: ListChecks },
 ];
 
 export const settingsSidebarItem = { href: routePaths.adminSettingsCompany, label: "Settings", icon: Settings2 };

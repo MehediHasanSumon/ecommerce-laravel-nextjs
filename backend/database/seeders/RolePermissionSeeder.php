@@ -47,6 +47,8 @@ class RolePermissionSeeder extends Seeder
             'payment_setting',
             'seo_setting',
             'social_setting',
+            'sms_setting',
+            'sms_log',
             'dashboard',
             'sales_report',
             'revenue_report',

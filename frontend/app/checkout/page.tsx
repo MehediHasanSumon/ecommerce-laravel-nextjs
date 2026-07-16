@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ChevronRight, CreditCard, MapPin, Check, Lock, ShoppingBag, Truck } from 'lucide-react';
+import { ChevronRight, CreditCard, MapPin, Check, Lock, ShoppingBag, Truck, Smartphone, RefreshCw } from 'lucide-react';
 import { AnnouncementBar } from '@/components/layout/AnnouncementBar';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
@@ -16,14 +16,16 @@ import { fetchShippingMethods, type ShippingMethod } from '@/services/catalog-se
 import {
   fetchAddresses,
   fetchPaymentMethods,
+  fetchCheckoutOtpRequirements,
   placeOrder,
+  sendCheckoutOtp,
+  verifyCheckoutOtp,
+  type CheckoutOtpRequirements,
   type CustomerAddress,
   type PaymentMethod,
 } from '@/services/checkout-service';
 import { toAppError } from '@/lib/errors';
 import { toast } from 'sonner';
-
-const STEPS = ['Cart', 'Shipping', 'Payment'];
 
 const emptyCheckoutForm = {
   fullName: '',
@@ -76,10 +78,10 @@ function addressToCheckoutForm(address: CustomerAddress) {
   };
 }
 
-function StepIndicator({ current }: { current: number }) {
+function StepIndicator({ current, steps }: { current: number; steps: string[] }) {
   return (
     <div className="flex items-center justify-center mb-8">
-      {STEPS.map((step, i) => (
+      {steps.map((step, i) => (
         <div key={step} className="flex items-center">
           <div
             className={`flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold transition-colors ${i < current ? 'bg-emerald-500 text-white' : i === current ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}
@@ -91,7 +93,7 @@ function StepIndicator({ current }: { current: number }) {
           >
             {step}
           </span>
-          {i < STEPS.length - 1 && (
+          {i < steps.length - 1 && (
             <div
               className={`w-8 md:w-16 h-0.5 mx-1 ${i < current ? 'bg-emerald-500' : 'bg-muted'}`}
             />
@@ -149,6 +151,14 @@ export default function CheckoutPage() {
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [paymentLoading, setPaymentLoading] = useState(true);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
+  const [otpRequirements, setOtpRequirements] = useState<CheckoutOtpRequirements | null>(null);
+  const [otpChallengeId, setOtpChallengeId] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [verifiedMobile, setVerifiedMobile] = useState('');
+  const [otpSending, setOtpSending] = useState(false);
+  const [otpVerifying, setOtpVerifying] = useState(false);
+  const [resendSeconds, setResendSeconds] = useState(0);
   const [form, setForm] = useState(emptyCheckoutForm);
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -176,6 +186,9 @@ export default function CheckoutPage() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const authInitialized = useAuthStore((state) => state.initialized);
   const fetchCurrentUser = useAuthStore((state) => state.fetchCurrentUser);
+  const otpRequired = otpRequirements?.required === true;
+  const checkoutSteps = otpRequired ? ['Cart', 'Shipping', 'Verification', 'Payment'] : ['Cart', 'Shipping', 'Payment'];
+  const paymentStep = otpRequired ? 3 : 2;
 
   useEffect(() => {
     setMounted(true);
@@ -199,7 +212,28 @@ export default function CheckoutPage() {
   }, [cartInitialized, mounted]);
 
   useEffect(() => {
+    if (!authInitialized) return;
     let active = true;
+    fetchCheckoutOtpRequirements()
+      .then((requirements) => active && setOtpRequirements(requirements))
+      .catch(() => active && setOtpRequirements({
+        required: false,
+        enabled: false,
+        otp_length: 6,
+        expiration_minutes: 5,
+        resend_cooldown_seconds: 60,
+      }));
+    return () => { active = false; };
+  }, [authInitialized, isAuthenticated]);
+
+  useEffect(() => {
+    let active = true;
+    if (!otpRequirements || (otpRequired && !otpVerified)) {
+      setPaymentMethods([]);
+      setSelectedPaymentMethod('');
+      setPaymentLoading(false);
+      return () => { active = false; };
+    }
     setPaymentLoading(true);
 
     fetchPaymentMethods()
@@ -224,7 +258,23 @@ export default function CheckoutPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [otpRequired, otpRequirements, otpVerified]);
+
+  useEffect(() => {
+    if (resendSeconds <= 0) return;
+    const timer = window.setInterval(() => setResendSeconds((current) => Math.max(0, current - 1)), 1000);
+    return () => window.clearInterval(timer);
+  }, [resendSeconds]);
+
+  useEffect(() => {
+    if (otpVerified && verifiedMobile !== form.phone.trim()) {
+      setOtpVerified(false);
+      setOtpChallengeId('');
+      setOtpCode('');
+      setVerifiedMobile('');
+      setStep(1);
+    }
+  }, [form.phone, otpVerified, verifiedMobile]);
 
   const selectedBillingAddress = addresses.find((address) => address.id === selectedBillingAddressId) ?? null;
   const selectedShippingCountry = selectedBillingAddress?.country || form.country || 'Bangladesh';
@@ -478,7 +528,53 @@ export default function CheckoutPage() {
       return;
     }
 
-    setStep(2);
+    setStep(otpRequired ? 2 : paymentStep);
+  };
+
+  const handleSendOtp = async () => {
+    if (!bangladeshPhonePattern.test(form.phone.trim())) {
+      toast.error('Enter a valid Bangladeshi mobile number.');
+      return;
+    }
+    setOtpSending(true);
+    try {
+      const response = await sendCheckoutOtp(form.phone.trim());
+      if (response.verified) {
+        setOtpVerified(true);
+        setVerifiedMobile(form.phone.trim());
+        setStep(paymentStep);
+        return;
+      }
+      setOtpChallengeId(response.challenge_id ?? '');
+      setOtpCode('');
+      setResendSeconds(response.resend_cooldown_seconds);
+      toast.success('Verification code sent.');
+    } catch (error) {
+      toast.error(toAppError(error).message);
+    } finally {
+      setOtpSending(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!otpChallengeId) {
+      toast.error('Send a verification code first.');
+      return;
+    }
+    setOtpVerifying(true);
+    try {
+      const response = await verifyCheckoutOtp({ challenge_id: otpChallengeId, mobile: form.phone.trim(), code: otpCode });
+      if (response.verified) {
+        setOtpVerified(true);
+        setVerifiedMobile(form.phone.trim());
+        toast.success('Mobile number verified.');
+        setStep(paymentStep);
+      }
+    } catch (error) {
+      toast.error(toAppError(error).message);
+    } finally {
+      setOtpVerifying(false);
+    }
   };
 
   const handlePlaceOrder = async () => {
@@ -494,6 +590,11 @@ export default function CheckoutPage() {
       toast.error('Please select shipping and payment methods.');
       return;
     }
+    if (otpRequired && (!otpVerified || verifiedMobile !== form.phone.trim())) {
+      toast.error('Verify the checkout mobile number before payment.');
+      setStep(2);
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -503,6 +604,7 @@ export default function CheckoutPage() {
         same_as_billing: sameAsBilling,
         shipping_method_id: Number(selectedShippingMethodId),
         payment_method: selectedPaymentMethod,
+        otp_verification_id: otpRequired ? otpChallengeId : undefined,
       });
 
       if (response.payment.redirectUrl) {
@@ -587,7 +689,7 @@ export default function CheckoutPage() {
           <span className="text-foreground font-medium">Checkout</span>
         </nav>
 
-        <StepIndicator current={step} />
+        <StepIndicator current={step} steps={checkoutSteps} />
 
         {isPaymentRecovery ? (
           <div className="mb-6 rounded-2xl border border-destructive/20 bg-destructive/5 p-4">
@@ -732,12 +834,63 @@ export default function CheckoutPage() {
                   disabled={isSubmitting}
                   className="mt-6 w-full flex items-center justify-center gap-2 py-3.5 bg-primary text-primary-foreground rounded-xl font-bold hover:opacity-90 transition-opacity"
                 >
-                  {isSubmitting ? 'Saving address...' : <>Continue to Payment <ChevronRight size={16} /></>}
+                  {isSubmitting ? 'Saving address...' : <>Continue to {otpRequired ? 'Verification' : 'Payment'} <ChevronRight size={16} /></>}
                 </button>
               </div>
             )}
 
-            {step === 2 && (
+            {otpRequired && step === 2 && (
+              <div className="bg-card border border-border rounded-2xl p-6">
+                <div className="mb-6 flex items-center gap-2">
+                  <Smartphone size={18} className="text-primary" />
+                  <h2 className="font-bold">Mobile Verification</h2>
+                  {otpVerified ? <span className="ml-auto inline-flex items-center gap-1 text-xs font-semibold text-emerald-600"><Check size={14} /> Verified</span> : null}
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold uppercase text-muted-foreground">Mobile Number</label>
+                    <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                      <input value={form.phone} readOnly className={`${fieldClass} bg-muted/60`} />
+                      <button
+                        type="button"
+                        disabled={otpSending || resendSeconds > 0}
+                        onClick={() => void handleSendOtp()}
+                        className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-border px-4 text-sm font-semibold transition-colors hover:bg-muted disabled:opacity-50"
+                      >
+                        {otpSending ? 'Sending...' : otpChallengeId ? <><RefreshCw size={15} /> {resendSeconds > 0 ? `Resend in ${resendSeconds}s` : 'Resend OTP'}</> : 'Send OTP'}
+                      </button>
+                    </div>
+                  </div>
+                  {otpChallengeId ? (
+                    <div>
+                      <label className="mb-1.5 block text-xs font-semibold uppercase text-muted-foreground">Verification Code</label>
+                      <input
+                        value={otpCode}
+                        onChange={(event) => setOtpCode(event.target.value.replace(/\D/g, '').slice(0, otpRequirements?.otp_length ?? 6))}
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        placeholder={`${otpRequirements?.otp_length ?? 6}-digit code`}
+                        className={fieldClass}
+                      />
+                      <p className="mt-1.5 text-xs text-muted-foreground">The code expires in {otpRequirements?.expiration_minutes ?? 5} minutes.</p>
+                    </div>
+                  ) : null}
+                </div>
+                <div className="mt-6 flex gap-3">
+                  <button type="button" onClick={() => setStep(1)} className="flex-1 rounded-xl border border-border py-3.5 text-sm font-semibold transition-colors hover:bg-muted">Back</button>
+                  <button
+                    type="button"
+                    disabled={otpVerifying || otpCode.length !== (otpRequirements?.otp_length ?? 6)}
+                    onClick={() => void handleVerifyOtp()}
+                    className="flex-1 rounded-xl bg-primary py-3.5 text-sm font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+                  >
+                    {otpVerifying ? 'Verifying...' : 'Verify OTP'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {step === paymentStep && (
               <div className="bg-card border border-border rounded-2xl p-6">
                 <div className="flex items-center gap-2 mb-6">
                   <CreditCard size={18} className="text-primary" />
@@ -786,7 +939,7 @@ export default function CheckoutPage() {
                 </div>
                 <div className="mt-6 flex gap-3">
                   <button
-                    onClick={() => setStep(1)}
+                    onClick={() => setStep(otpRequired ? 2 : 1)}
                     className="flex-1 py-3.5 border border-border rounded-xl font-semibold hover:bg-muted transition-colors text-sm"
                   >
                     Back

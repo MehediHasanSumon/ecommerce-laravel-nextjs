@@ -16,6 +16,7 @@ use App\Services\Orders\OrderCreator;
 use App\Services\Orders\OrderService;
 use App\Services\Payments\PaymentGatewayManager;
 use App\Services\Shipping\ShippingZoneMatcher;
+use App\Services\Sms\CheckoutOtpService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -33,6 +34,7 @@ class CheckoutService
         private readonly GuestCustomerService $guestCustomers,
         private readonly OrderCreator $orderCreator,
         private readonly StoreSettingsService $storeSettings,
+        private readonly CheckoutOtpService $checkoutOtp,
     ) {}
 
     public function place(Request $request, array $payload): array
@@ -55,6 +57,11 @@ class CheckoutService
             $gateway->assertConfigured($paymentSetting);
 
             $billingAddress = $this->resolveAddress($request, $payload, 'billing');
+            $otpChallenge = $this->checkoutOtp->assertForCheckout(
+                $request,
+                $payload['otp_verification_id'] ?? null,
+                (string) ($billingAddress['phone'] ?? ''),
+            );
             $shippingAddress = (bool) ($payload['same_as_billing'] ?? true)
                 ? $billingAddress
                 : $this->resolveAddress($request, $payload, 'shipping');
@@ -126,6 +133,7 @@ class CheckoutService
                 'tax_snapshot' => $item->tax_snapshot,
             ])->all(), $request->user()?->id);
             $this->coupons->recordRedemption($cart);
+            $this->checkoutOtp->consume($otpChallenge);
 
             $session = CheckoutSession::query()->create([
                 'session_key' => (string) Str::uuid(),

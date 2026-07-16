@@ -65,6 +65,8 @@ export const routePaths = {
   adminSettingsShippingMethods: "/admin/settings/shipping-methods",
   adminSettingsSeo: "/admin/settings/seo",
   adminSettingsSocial: "/admin/settings/social",
+  adminSettingsSms: "/admin/settings/sms",
+  adminSettingsSmsLogs: "/admin/settings/sms/logs",
   adminUsers: "/admin/users",
   adminRoles: "/admin/roles",
   adminPermissions: "/admin/permissions",

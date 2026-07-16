@@ -26,6 +26,7 @@ import {
   Megaphone,
   Menu,
   MessageSquareText,
+  ListChecks,
   Moon,
   Newspaper,
   Package,
@@ -120,6 +121,8 @@ const settingsItems = [
   { href: routePaths.adminSettingsShippingMethods, label: "Shipping Methods", icon: PackageCheck },
   { href: routePaths.adminSettingsSeo, label: "SEO Settings", icon: Search },
   { href: routePaths.adminSettingsSocial, label: "Social Media", icon: Star },
+  { href: routePaths.adminSettingsSms, label: "SMS Settings", icon: MessageSquareText },
+  { href: routePaths.adminSettingsSmsLogs, label: "SMS Logs", icon: ListChecks },
 ];
 
 const adminPermissionAliases: Record<string, string> = {
@@ -189,6 +192,8 @@ const adminRoutePermissions: Record<string, string> = {
   [routePaths.adminSettingsPayment]: "can_view_payment_setting",
   [routePaths.adminSettingsSeo]: "can_view_seo_setting",
   [routePaths.adminSettingsSocial]: "can_view_social_setting",
+  [routePaths.adminSettingsSms]: "can_view_sms_setting",
+  [routePaths.adminSettingsSmsLogs]: "can_view_sms_log",
   [routePaths.adminReportsSales]: "can_view_sales_report",
   [routePaths.adminReportsRevenue]: "can_view_revenue_report",
   [routePaths.adminReportsProductPerformance]: "can_view_product_performance_report",
@@ -221,6 +226,7 @@ const iconMap = {
   MapPin,
   Megaphone,
   MessageSquareText,
+  ListChecks,
   Newspaper,
   Package,
   PackageCheck,
@@ -262,6 +268,7 @@ function renderIcon(name: string | undefined, className: string) {
     case "MapPin": return <MapPin className={className} />;
     case "Megaphone": return <Megaphone className={className} />;
     case "MessageSquareText": return <MessageSquareText className={className} />;
+    case "ListChecks": return <ListChecks className={className} />;
     case "Newspaper": return <Newspaper className={className} />;
     case "Package": return <Package className={className} />;
     case "PackageCheck": return <PackageCheck className={className} />;

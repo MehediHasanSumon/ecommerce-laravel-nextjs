@@ -20,7 +20,9 @@ use App\Http\Controllers\Api\Admin\Settings\HomePageSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\PaymentSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\SeoSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\SocialMediaSettingsController;
+use App\Http\Controllers\Api\Admin\Settings\SmsSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\StoreSettingsController;
+use App\Http\Controllers\Api\Admin\SmsLogController;
 use App\Http\Controllers\Api\Admin\ShippingMethodManagementController;
 use App\Http\Controllers\Api\Admin\ShippingZoneController;
 use App\Http\Controllers\Api\Admin\UserManagementController;
@@ -29,6 +31,7 @@ use App\Http\Controllers\Api\BlogCatalogController;
 use App\Http\Controllers\Api\BrandCatalogController;
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\CheckoutController;
+use App\Http\Controllers\Api\CheckoutOtpController;
 use App\Http\Controllers\Api\CollectionCatalogController;
 use App\Http\Controllers\Api\ContactMessageController;
 use App\Http\Controllers\Api\ContentPageController;
@@ -79,6 +82,9 @@ Route::middleware(['auth.cookie.optional:access', 'throttle:public-settings'])->
     Route::get('/payment/invoice', [OrderController::class, 'paymentInvoice']);
     Route::get('/checkout/payment-methods', [CheckoutController::class, 'paymentMethods']);
     Route::post('/checkout/place-order', [CheckoutController::class, 'place']);
+    Route::get('/checkout/mobile-verification', [CheckoutOtpController::class, 'requirements']);
+    Route::post('/checkout/mobile-verification/send', [CheckoutOtpController::class, 'send'])->middleware('throttle:checkout-otp');
+    Route::post('/checkout/mobile-verification/verify', [CheckoutOtpController::class, 'verify'])->middleware('throttle:checkout-otp-verify');
 
 });
 
@@ -212,6 +218,12 @@ Route::prefix('admin')
 
         Route::get('/settings/social', [SocialMediaSettingsController::class, 'show']);
         Route::put('/settings/social', [SocialMediaSettingsController::class, 'update']);
+
+        Route::get('/settings/sms', [SmsSettingsController::class, 'show']);
+        Route::put('/settings/sms', [SmsSettingsController::class, 'update']);
+        Route::post('/settings/sms/test', [SmsSettingsController::class, 'test']);
+        Route::get('/sms-logs', [SmsLogController::class, 'index']);
+        Route::get('/sms-logs/{smsLog:public_id}', [SmsLogController::class, 'show']);
 
         Route::get('/product-options', [ProductModuleController::class, 'optionsOnly']);
         Route::delete('/product-management/{module}/bulk', [ProductModuleController::class, 'bulkDestroy']);

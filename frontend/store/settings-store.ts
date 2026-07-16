@@ -3,7 +3,7 @@
 import axios from "axios";
 import { create } from "zustand";
 import type { ApiEnvelope } from "@/features/admin/shared/types";
-import type { RuntimeCurrencySettings, RuntimeCustomerSettings, RuntimeProductCardSettings, RuntimeSettings } from "@/types/settings";
+import type { RuntimeCurrencySettings, RuntimeCustomerSettings, RuntimeProductCardSettings, RuntimeSettings, RuntimeSmsSettings } from "@/types/settings";
 
 const emptyFrontendNavigation: RuntimeSettings["navigation"]["frontend"] = [];
 const emptyAdminNavigation: RuntimeSettings["navigation"]["admin_sidebar"] = [];
@@ -93,6 +93,14 @@ export const defaultCustomerSettings: RuntimeCustomerSettings = {
   allow_registration: true,
   allow_guest_checkout: true,
   require_login_before_checkout: false,
+};
+export const defaultSmsSettings: RuntimeSmsSettings = {
+  enabled: false,
+  require_guest_checkout_otp: false,
+  require_registered_checkout_otp: false,
+  otp_length: 6,
+  otp_expiration_minutes: 5,
+  otp_resend_cooldown_seconds: 60,
 };
 export const defaultCurrencySettings: RuntimeCurrencySettings = {
   currency: "BDT",
@@ -241,6 +249,8 @@ export const selectProductCardSettings = (state: SettingsState): RuntimeProductC
   selectSettingsPending(state) ? defaultProductCardSettings : state.settings?.product_card_settings ?? defaultProductCardSettings;
 export const selectCustomerSettings = (state: SettingsState): RuntimeCustomerSettings =>
   selectSettingsPending(state) ? defaultCustomerSettings : state.settings?.customer_settings ?? defaultCustomerSettings;
+export const selectSmsSettings = (state: SettingsState): RuntimeSmsSettings =>
+  selectSettingsPending(state) ? defaultSmsSettings : state.settings?.sms_settings ?? defaultSmsSettings;
 export const selectBlogSettings = (state: SettingsState) =>
   selectSettingsPending(state) ? defaultBlogSettings : state.settings?.blog_settings ?? defaultBlogSettings;
 export const selectBrandSettings = (state: SettingsState) =>

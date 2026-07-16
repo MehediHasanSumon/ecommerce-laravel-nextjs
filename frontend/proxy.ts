@@ -53,6 +53,8 @@ const permissionRouteRequirements: Array<{ route: string; permission: string }> 
   { route: routePaths.adminSettingsPayment, permission: "can_view_payment_setting" },
   { route: routePaths.adminSettingsSeo, permission: "can_view_seo_setting" },
   { route: routePaths.adminSettingsSocial, permission: "can_view_social_setting" },
+  { route: routePaths.adminSettingsSmsLogs, permission: "can_view_sms_log" },
+  { route: routePaths.adminSettingsSms, permission: "can_view_sms_setting" },
   { route: routePaths.adminReportsSales, permission: "can_view_sales_report" },
   { route: routePaths.adminReportsRevenue, permission: "can_view_revenue_report" },
   { route: routePaths.adminReportsProductPerformance, permission: "can_view_product_performance_report" },

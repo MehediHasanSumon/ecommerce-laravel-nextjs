@@ -52,5 +52,15 @@ class AppServiceProvider extends ServiceProvider
             Limit::perMinute(10)->by(hash('sha256', mb_strtoupper((string) $request->input('order_id')).'|'.$request->ip())),
             Limit::perMinute(30)->by($request->ip()),
         ]);
+
+        RateLimiter::for('checkout-otp', fn (Request $request) => [
+            Limit::perMinute(5)->by(hash('sha256', (string) $request->input('mobile').'|'.$request->ip())),
+            Limit::perHour(30)->by($request->ip()),
+        ]);
+
+        RateLimiter::for('checkout-otp-verify', fn (Request $request) => [
+            Limit::perMinute(10)->by(hash('sha256', (string) $request->input('challenge_id').'|'.$request->ip())),
+            Limit::perHour(100)->by($request->ip()),
+        ]);
     }
 }

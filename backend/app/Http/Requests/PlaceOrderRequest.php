@@ -42,6 +42,7 @@ class PlaceOrderRequest extends FormRequest
             'same_as_billing' => ['sometimes', 'boolean'],
             'shipping_method_id' => ['required', 'integer', 'exists:shipping_methods,id'],
             'payment_method' => ['required', 'string', 'max:80'],
+            'otp_verification_id' => ['nullable', 'uuid'],
         ];
     }
 

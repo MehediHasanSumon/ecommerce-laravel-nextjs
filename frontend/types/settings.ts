@@ -150,6 +150,15 @@ export type RuntimeCustomerSettings = {
   require_login_before_checkout: boolean;
 };
 
+export type RuntimeSmsSettings = {
+  enabled: boolean;
+  require_guest_checkout_otp: boolean;
+  require_registered_checkout_otp: boolean;
+  otp_length: number;
+  otp_expiration_minutes: number;
+  otp_resend_cooldown_seconds: number;
+};
+
 export type RuntimeSettings = {
   company_settings: Record<string, unknown>;
   website_settings: Record<string, unknown>;
@@ -201,4 +210,5 @@ export type RuntimeSettings = {
   social_links: RuntimeSocialLink[];
   product_card_settings: RuntimeProductCardSettings;
   customer_settings: RuntimeCustomerSettings;
+  sms_settings: RuntimeSmsSettings;
 };

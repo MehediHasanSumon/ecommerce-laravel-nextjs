@@ -8,6 +8,7 @@ use App\Models\OrderStatusHistory;
 use App\Models\PaymentTransaction;
 use App\Models\ShippingLog;
 use App\Services\Notifications\RealtimeNotificationService;
+use App\Services\Sms\SmsService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -16,13 +17,16 @@ use Illuminate\Validation\ValidationException;
 
 class OrderService
 {
-    public const ORDER_STATUSES = ['pending', 'confirmed', 'processing', 'packed', 'ready_for_shipment', 'shipped', 'out_for_delivery', 'delivered', 'cancelled', 'refunded'];
+    public const ORDER_STATUSES = ['pending', 'confirmed', 'processing', 'packed', 'ready_for_shipment', 'shipped', 'out_for_delivery', 'delivered', 'cancelled', 'returned', 'refunded'];
 
     public const PAYMENT_STATUSES = ['pending', 'paid', 'failed', 'cancelled', 'refunded', 'partially_refunded'];
 
     public const SHIPPING_STATUSES = ['pending', 'processing', 'shipped', 'delivered', 'returned'];
 
-    public function __construct(private readonly RealtimeNotificationService $notifications) {}
+    public function __construct(
+        private readonly RealtimeNotificationService $notifications,
+        private readonly SmsService $sms,
+    ) {}
 
     public function paginate(array $filters, ?int $userId = null, ?string $guestToken = null): LengthAwarePaginator
     {
@@ -241,6 +245,8 @@ class OrderService
             'related' => $order,
             'metadata' => ['order_number' => $order->order_number, 'total_cents' => $order->total_cents],
         ]);
+
+        $this->sms->queueOrderEvent('order_confirmation', $order);
     }
 
     public function logShipment(Order $order, array $data, ?int $userId = null): Order
@@ -329,5 +335,11 @@ class OrderService
                 'to' => $status,
             ],
         ]);
+
+        if ($field === 'status') {
+            $this->sms->queueOrderEvent('order_status_'.$status, $order, ['status' => $status]);
+        } elseif ($field === 'shipping_status') {
+            $this->sms->queueOrderEvent('shipping_status_'.$status, $order, ['status' => $status]);
+        }
     }
 }
