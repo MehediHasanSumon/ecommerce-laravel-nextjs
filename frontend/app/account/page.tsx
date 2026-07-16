@@ -46,7 +46,7 @@ export default function AccountDashboardPage() {
   const [loading, setLoading] = useState(true);
   const initializeCart = useCartStore((s) => s.initialize);
   const initializeWishlist = useWishlistStore((s) => s.initialize);
-  const cartCount = useCartStore((s) => s.getItemCount());
+  const cartCount = useCartStore((s) => s.items.reduce((sum, item) => sum + item.quantity, 0));
   const wishlistCount = useWishlistStore((s) => s.items.length);
 
   useEffect(() => {

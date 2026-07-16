@@ -11,7 +11,9 @@ class CategoryDisplaySettingsService
     use ManagesSingletonSettings;
 
     public const MODE_LANDING_PAGE = 'landing_page';
+
     public const MODE_HOME_GRID_NAVBAR_DROPDOWN = 'home_grid_navbar_dropdown';
+
     public const MODE_NAVBAR_DROPDOWN_ONLY = 'navbar_dropdown_only';
 
     public const MODES = [

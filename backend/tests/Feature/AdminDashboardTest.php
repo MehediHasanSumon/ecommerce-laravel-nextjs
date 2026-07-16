@@ -7,10 +7,7 @@ use App\Models\User;
 
 function dashboardAdminToken(): string
 {
-    return User::factory()
-        ->create()
-        ->createToken('dashboard-access-token', ['access'], now()->addMinutes(15))
-        ->plainTextToken;
+    return accessTokenWithPermissions(['can_view_dashboard']);
 }
 
 it('serves live admin dashboard analytics from persisted data', function () {

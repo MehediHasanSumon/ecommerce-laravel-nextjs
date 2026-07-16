@@ -13,15 +13,9 @@ type SessionPayload = {
   data?: {
     authenticated?: boolean;
     has_access_token?: boolean;
-  };
-};
-
-type MePayload = {
-  success?: boolean;
-  data?: {
     user?: {
       permissions?: string[];
-    };
+    } | null;
   };
 };
 
@@ -208,35 +202,13 @@ async function customerSettings(request: NextRequest) {
   }
 }
 
-async function userHasPermission(request: NextRequest, permission: string) {
-  try {
-    const response = await fetch(`${apiBaseUrl}/me`, {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-        Cookie: request.headers.get("cookie") ?? "",
-        "X-Requested-With": "XMLHttpRequest",
-      },
-      cache: "no-store",
-    });
-
-    if (!response.ok) {
-      return false;
-    }
-
-    const payload = await response.json() as MePayload;
-    return Boolean(payload.data?.user?.permissions?.includes(permission));
-  } catch {
-    return false;
-  }
-}
-
 async function authenticate(request: NextRequest) {
   const result = await getSession(request);
   const session = result?.session ?? null;
 
   return {
     authenticated: Boolean(session?.authenticated && session.has_access_token),
+    session,
     sessionResponse: result?.response ?? null,
   };
 }
@@ -260,7 +232,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const { authenticated, sessionResponse } = await authenticate(request);
+  const { authenticated, session, sessionResponse } = await authenticate(request);
 
   if (checkoutRoute && !authenticated) {
     const settings = await customerSettings(request);
@@ -283,7 +255,7 @@ export async function proxy(request: NextRequest) {
     ? requiredPermissionForPath(pathname)
     : null;
 
-  if (protectedRoute && requiredPermission && !await userHasPermission(request, requiredPermission)) {
+  if (protectedRoute && requiredPermission && !session?.user?.permissions?.includes(requiredPermission)) {
     const homeUrl = request.nextUrl.clone();
     homeUrl.pathname = routePaths.home;
     homeUrl.search = "";

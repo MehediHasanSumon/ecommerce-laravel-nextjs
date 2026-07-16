@@ -13,8 +13,23 @@ class ProductReviewReply extends Model
 
     protected $guarded = ['id'];
 
-    public function review(): BelongsTo { return $this->belongsTo(ProductReview::class, 'product_review_id'); }
-    public function user(): BelongsTo { return $this->belongsTo(User::class); }
-    public function parent(): BelongsTo { return $this->belongsTo(self::class, 'parent_id'); }
-    public function replies(): HasMany { return $this->hasMany(self::class, 'parent_id'); }
+    public function review(): BelongsTo
+    {
+        return $this->belongsTo(ProductReview::class, 'product_review_id');
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'parent_id');
+    }
+
+    public function replies(): HasMany
+    {
+        return $this->hasMany(self::class, 'parent_id');
+    }
 }

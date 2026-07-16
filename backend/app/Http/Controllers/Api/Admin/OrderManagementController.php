@@ -174,7 +174,7 @@ class OrderManagementController extends Controller implements HasMiddleware
             $request->user()?->id,
         );
 
-        return ApiResponse::success(['order' => OrderDetailResource::make($updated)->resolve()], 'Refund recorded successfully.');
+        return ApiResponse::success(['order' => OrderDetailResource::make($updated)->resolve()], 'Refund request created successfully.');
     }
 
     public function shippingLog(Request $request, string $order): JsonResponse

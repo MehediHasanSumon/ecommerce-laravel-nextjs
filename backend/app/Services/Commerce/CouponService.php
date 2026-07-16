@@ -175,6 +175,31 @@ class CouponService
         }
     }
 
+    public function reverseRedemption(Cart $cart): void
+    {
+        if (! $cart->coupon_discount_id) {
+            return;
+        }
+
+        $coupon = Discount::query()->lockForUpdate()->find($cart->coupon_discount_id);
+        if (! $coupon) {
+            return;
+        }
+
+        if ($coupon->total_used > 0) {
+            $coupon->decrement('total_used');
+        }
+
+        if (! $cart->user_id) {
+            return;
+        }
+
+        $usage = $coupon->usages()->where('user_id', $cart->user_id)->lockForUpdate()->first();
+        if ($usage && $usage->usage_count > 0) {
+            $usage->decrement('usage_count');
+        }
+    }
+
     private function validateAndSummarize(Cart $cart, Discount $coupon, ?int $shippingCents = null): array
     {
         $now = CarbonImmutable::now();

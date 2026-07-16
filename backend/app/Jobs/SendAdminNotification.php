@@ -20,6 +20,10 @@ class SendAdminNotification implements ShouldQueue
 
     public int $backoff = 10;
 
+    public int $timeout = 60;
+
+    public bool $failOnTimeout = true;
+
     public function __construct(public array $payload)
     {
         $this->onQueue('notifications');

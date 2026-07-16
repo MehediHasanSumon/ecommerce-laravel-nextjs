@@ -8,9 +8,12 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class CollectionProductResolver
 {
+    private ?Collection $activeDiscountCollections = null;
+
     public function activeCollectionQuery(): Builder
     {
         return ProductCollection::query()
@@ -74,19 +77,15 @@ class CollectionProductResolver
 
     public function activeCollectionForProduct(Product $product): ?ProductCollection
     {
-        return $this->activeCollectionQuery()
-            ->where('discount_enabled', true)
-            ->whereNotNull('discount_type')
-            ->where('discount_value', '>', 0)
-            ->orderByDesc('priority')
-            ->get()
-            ->first(fn (ProductCollection $collection): bool => $this->productBelongsToCollection($product, $collection));
+        return $this->pricingCollectionsByProduct(collect([$product]))->get($product->id);
     }
 
     public function applyCollectionPricing(Collection $products, ProductCollection $collection): Collection
     {
-        return $products->map(function (Product $product) use ($collection): Product {
-            $pricingCollection = $this->activeDiscountCollectionForProduct($product) ?: $collection;
+        $pricingCollections = $this->pricingCollectionsByProduct($products);
+
+        return $products->map(function (Product $product) use ($collection, $pricingCollections): Product {
+            $pricingCollection = $pricingCollections->get($product->id) ?: $collection;
 
             if (! $pricingCollection->discount_enabled || ! $pricingCollection->discount_type || ! $pricingCollection->discount_value) {
                 return $product;
@@ -114,15 +113,56 @@ class CollectionProductResolver
         });
     }
 
-    private function activeDiscountCollectionForProduct(Product $product): ?ProductCollection
+    private function pricingCollectionsByProduct(Collection $products): Collection
     {
-        return $this->activeCollectionQuery()
+        $productIds = $products->pluck('id')->map(fn ($id): int => (int) $id)->filter()->values();
+        if ($productIds->isEmpty()) {
+            return collect();
+        }
+
+        $matches = collect();
+        foreach ($this->activeDiscountCollections() as $collection) {
+            $matchingIds = $this->matchingProductIds($collection, $productIds);
+            foreach ($matchingIds as $productId) {
+                $matches->put((int) $productId, $collection);
+            }
+        }
+
+        return $matches;
+    }
+
+    private function activeDiscountCollections(): Collection
+    {
+        return $this->activeDiscountCollections ??= $this->activeCollectionQuery()
             ->whereNotNull('discount_type')
             ->where('discount_enabled', true)
             ->where('discount_value', '>', 0)
-            ->orderByDesc('priority')
-            ->get()
-            ->first(fn (ProductCollection $collection): bool => $this->productBelongsToCollection($product, $collection));
+            ->orderBy('priority')
+            ->get();
+    }
+
+    private function matchingProductIds(ProductCollection $collection, Collection $productIds): Collection
+    {
+        $assignedIds = DB::table('product_collection_product')
+            ->where('product_collection_id', $collection->id)
+            ->whereIn('product_id', $productIds)
+            ->pluck('product_id');
+
+        if ($collection->collection_type === 'manual' || $collection->type === 'manual') {
+            return $assignedIds;
+        }
+
+        $smartQuery = Product::query()
+            ->whereIn('products.id', $productIds)
+            ->where('status', 'active')
+            ->whereNotNull('published_at');
+        $this->applySmartRule($smartQuery, $collection);
+
+        return $smartQuery->reorder()
+            ->pluck('products.id')
+            ->merge($assignedIds)
+            ->unique()
+            ->values();
     }
 
     private function baseProductQuery(): Builder
@@ -159,33 +199,22 @@ class CollectionProductResolver
                 ->orderByDesc('products.created_at');
         }
 
-        $productIds = $this->smartProductIds($collection)
-            ->merge($this->assignedProductIds($collection))
-            ->unique()
-            ->values();
+        $smartIds = Product::query()
+            ->select('products.id')
+            ->where('products.status', 'active')
+            ->whereNotNull('products.published_at');
+        $this->applySmartRule($smartIds, $collection);
+        $smartIds->reorder();
+        $assignedIds = DB::table('product_collection_product')
+            ->select('product_id')
+            ->where('product_collection_id', $collection->id);
 
         return $this->baseProductQuery()
-            ->whereIn('products.id', $productIds->isNotEmpty() ? $productIds : [-1])
+            ->where(fn (Builder $query) => $query
+                ->whereIn('products.id', $smartIds)
+                ->orWhereIn('products.id', $assignedIds))
             ->orderByDesc('products.published_at')
             ->orderByDesc('products.created_at');
-    }
-
-    private function smartProductIds(ProductCollection $collection): Collection
-    {
-        $query = $this->baseProductQuery()->select('products.id');
-        $this->applySmartRule($query, $collection);
-
-        return $query->pluck('products.id');
-    }
-
-    private function assignedProductIds(ProductCollection $collection): Collection
-    {
-        return $collection->products()
-            ->where('products.status', 'active')
-            ->whereNotNull('products.published_at')
-            ->whereSellableAvailable()
-            ->orderBy('product_collection_product.sort_order')
-            ->pluck('products.id');
     }
 
     private function applySmartRule(Builder $query, ProductCollection $collection): void
@@ -238,10 +267,5 @@ class CollectionProductResolver
         }
 
         $query->latest('published_at')->latest('created_at');
-    }
-
-    private function productBelongsToCollection(Product $product, ProductCollection $collection): bool
-    {
-        return $this->productQuery($collection)->where('products.id', $product->id)->exists();
     }
 }

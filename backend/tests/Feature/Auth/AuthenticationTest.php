@@ -95,7 +95,8 @@ it('reports non-sensitive auth session state', function () {
         ->assertOk()
         ->assertJsonPath('data.authenticated', true)
         ->assertJsonPath('data.has_access_token', true)
-        ->assertCookie(config('auth_api.access_cookie_name'))
+        ->assertJsonPath('data.user.email', $user->email)
+        ->assertCookieMissing(config('auth_api.access_cookie_name'))
         ->assertJsonMissingPath('data.access_token');
 });
 
@@ -109,12 +110,27 @@ it('extends access token expiration when a valid session is used', function () {
     $this->withToken($access)
         ->getJson('/api/auth/session')
         ->assertOk()
-        ->assertCookie(config('auth_api.access_cookie_name'));
+        ->assertCookieMissing(config('auth_api.access_cookie_name'));
 
     $issued->accessToken->refresh();
 
     expect($issued->accessToken->expires_at->timestamp)
         ->toBeGreaterThanOrEqual(now()->addMinutes(config('auth_api.access_token_expiration_minutes'))->subSeconds(2)->timestamp);
+
+    $lastUsedAt = $issued->accessToken->last_used_at;
+    $expiresAt = $issued->accessToken->expires_at;
+
+    $this->travel(1)->minutes();
+
+    $this->withToken($access)
+        ->getJson('/api/auth/session')
+        ->assertOk()
+        ->assertCookieMissing(config('auth_api.access_cookie_name'));
+
+    $issued->accessToken->refresh();
+
+    expect($issued->accessToken->last_used_at->equalTo($lastUsedAt))->toBeTrue()
+        ->and($issued->accessToken->expires_at->equalTo($expiresAt))->toBeTrue();
 });
 
 it('logs out by revoking the current token', function () {

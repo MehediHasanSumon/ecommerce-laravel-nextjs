@@ -115,6 +115,7 @@ class SslCommerzService implements PaymentGatewayInterface
 
         if ($request->route('result') !== 'success') {
             $transaction->update(['status' => 'failed', 'failed_at' => now(), 'failure_message' => 'SSLCommerz '.$request->route('result')]);
+
             return new PaymentResult('failed', null, $request->all());
         }
 

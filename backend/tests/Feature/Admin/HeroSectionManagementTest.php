@@ -2,14 +2,16 @@
 
 use App\Models\HeroSlide;
 use App\Models\Settings\HeroSetting;
-use App\Models\User;
+use Illuminate\Http\UploadedFile;
 
 function heroAdminAccessToken(): string
 {
-    return User::factory()
-        ->create()
-        ->createToken('access-token', ['access'], now()->addMinutes(15))
-        ->plainTextToken;
+    return accessTokenWithPermissions([
+        'can_view_hero_section',
+        'can_create_hero_section',
+        'can_edit_hero_section',
+        'can_delete_hero_section',
+    ]);
 }
 
 it('updates hero settings and switches the active rendering mode', function () {
@@ -139,6 +141,18 @@ it('validates hero slider and canvas configuration', function () {
         'lazy_load_images' => true,
     ])->assertStatus(422)
         ->assertJsonValidationErrors(['mode', 'autoplay_delay']);
+});
+
+it('rejects svg files from public settings image uploads', function () {
+    $svg = UploadedFile::fake()->createWithContent(
+        'hero.svg',
+        '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>',
+    );
+
+    $this->withToken(heroAdminAccessToken())
+        ->post('/api/admin/settings/hero-section/upload', ['file' => $svg])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['file']);
 });
 
 function heroSlidePayload(array $overrides = []): array

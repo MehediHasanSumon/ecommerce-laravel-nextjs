@@ -32,8 +32,11 @@ class PaymentSettingsController extends Controller implements HasMiddleware
     {
         $gateways = collect($request->validated('gateways'))->map(function (array $gateway): array {
             foreach (['secret_key', 'api_key', 'webhook_secret'] as $key) {
-                if (($gateway[$key] ?? '') === '********') unset($gateway[$key]);
+                if (($gateway[$key] ?? '') === '********') {
+                    unset($gateway[$key]);
+                }
             }
+
             return $gateway;
         })->all();
 

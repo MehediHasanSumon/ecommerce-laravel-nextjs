@@ -23,7 +23,7 @@ class BlogCatalogService
         $settings = $this->settings();
 
         if (! $settings['enabled']) {
-            throw new NotFoundHttpException();
+            throw new NotFoundHttpException;
         }
 
         return $settings;
@@ -83,7 +83,7 @@ class BlogCatalogService
         $settings = $this->settings();
 
         if (! $settings['enabled'] || ! $settings['show_on_home']) {
-            return new Collection();
+            return new Collection;
         }
 
         return Blog::query()
@@ -100,7 +100,7 @@ class BlogCatalogService
         $allowComments = $blog->allow_comments_override ?? $settings['allow_comments'];
 
         if (! $allowComments) {
-            throw new NotFoundHttpException();
+            throw new NotFoundHttpException;
         }
 
         return $blog->comments()->create([

@@ -2,7 +2,6 @@
 
 use App\Models\Product;
 use App\Models\Settings\HomePageSetting;
-use App\Models\User;
 use Illuminate\Support\Facades\Cache;
 
 beforeEach(function (): void {
@@ -11,10 +10,7 @@ beforeEach(function (): void {
 
 function homePageSettingsAdminToken(): string
 {
-    return User::factory()
-        ->create()
-        ->createToken('home-page-settings-access-token', ['access'], now()->addMinutes(15))
-        ->plainTextToken;
+    return accessTokenWithPermissions(['can_edit_home_page_setting']);
 }
 
 function homePageSettingsProduct(int $index): Product

@@ -7,6 +7,7 @@ use App\Models\GuestCustomer;
 use App\Models\User;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class CustomerManagementService
 {
@@ -22,27 +23,42 @@ class CustomerManagementService
         $perPage = min(max((int) ($filters['per_page'] ?? 20), 1), 100);
         $page = max((int) ($filters['page'] ?? 1), 1);
 
-        $rows = collect();
+        $queries = [];
         if ($type !== 'guest') {
-            $rows = $rows->merge($this->registered($search, $status));
+            $queries[] = $this->registeredQuery($search, $status);
         }
         if ($type !== 'registered') {
-            $rows = $rows->merge($this->guests($search, $status));
+            $queries[] = $this->guestQuery($search, $status);
         }
 
-        $rows = $rows->sortBy(
-            fn (array $row) => $row[$sort] ?? null,
-            SORT_REGULAR,
-            $direction === 'desc',
-        )->values();
+        $union = array_shift($queries);
+        foreach ($queries as $query) {
+            $union->unionAll($query);
+        }
 
-        return new LengthAwarePaginator(
-            $rows->forPage($page, $perPage)->values(),
-            $rows->count(),
-            $perPage,
-            $page,
-            ['path' => request()->url(), 'query' => request()->query()],
-        );
+        $sortColumn = $sort === 'total_spending' ? 'total_spending_cents' : $sort;
+        $paginator = DB::query()
+            ->fromSub($union, 'customers')
+            ->orderBy($sortColumn, $direction)
+            ->orderBy('record_id', $direction)
+            ->paginate($perPage, ['*'], 'page', $page)
+            ->withQueryString();
+
+        $paginator->setCollection($paginator->getCollection()->map(fn ($row): array => [
+            'id' => "{$row->type}-{$row->record_id}",
+            'record_id' => (int) $row->record_id,
+            'name' => $row->name,
+            'email' => $row->email,
+            'phone' => $row->phone,
+            'type' => $row->type,
+            'total_orders' => (int) $row->total_orders,
+            'total_spending' => round(((int) $row->total_spending_cents) / 100, 2),
+            'last_order_at' => $row->last_order_at,
+            'status' => $row->status,
+            'created_at' => $row->created_at,
+        ]));
+
+        return $paginator;
     }
 
     public function find(string $customer): array
@@ -62,58 +78,50 @@ class CustomerManagementService
         return $this->guestDetail($guest->id);
     }
 
-    private function registered(string $search, string $status): Collection
+    private function registeredQuery(string $search, string $status)
     {
-        return User::query()
-            ->whereHas('roles', fn ($query) => $query->where('name', 'user'))
+        return DB::table('users')
+            ->leftJoin('orders', fn ($join) => $join
+                ->on('orders.user_id', '=', 'users.id')
+                ->whereNull('orders.deleted_at'))
+            ->whereNull('users.deleted_at')
+            ->whereExists(fn ($query) => $query
+                ->selectRaw('1')
+                ->from('model_has_roles')
+                ->join('roles', 'roles.id', '=', 'model_has_roles.role_id')
+                ->whereColumn('model_has_roles.model_id', 'users.id')
+                ->where('model_has_roles.model_type', User::class)
+                ->where('roles.name', 'user'))
             ->when($search !== '', fn ($query) => $query->where(fn ($query) => $query
-                ->where('name', 'like', "%{$search}%")
-                ->orWhere('email', 'like', "%{$search}%")
-                ->orWhere('phone', 'like', "%{$search}%")))
-            ->when($status !== '', fn ($query) => $query->where('status', $status))
-            ->withCount('orders')
-            ->withSum(['orders as orders_total_cents' => fn ($query) => $query->whereNotIn('status', ['cancelled', 'refunded'])], 'total_cents')
-            ->withMax('orders as last_order_at', 'placed_at')
-            ->get()
-            ->map(fn (User $user): array => [
-                'id' => "registered-{$user->id}",
-                'record_id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'phone' => $user->phone,
-                'type' => 'registered',
-                'total_orders' => (int) $user->orders_count,
-                'total_spending' => round(((int) $user->orders_total_cents) / 100, 2),
-                'last_order_at' => $user->last_order_at,
-                'status' => $user->status ?? 'active',
-                'created_at' => optional($user->created_at)->toISOString(),
-            ]);
+                ->where('users.name', 'like', "%{$search}%")
+                ->orWhere('users.email', 'like', "%{$search}%")
+                ->orWhere('users.phone', 'like', "%{$search}%")))
+            ->when($status !== '', fn ($query) => $query->where('users.status', $status))
+            ->groupBy('users.id', 'users.name', 'users.email', 'users.phone', 'users.status', 'users.created_at')
+            ->selectRaw("users.id as record_id, users.name, users.email, users.phone, 'registered' as type")
+            ->selectRaw('COUNT(orders.id) as total_orders')
+            ->selectRaw("COALESCE(SUM(CASE WHEN orders.status NOT IN ('cancelled', 'refunded') THEN orders.total_cents ELSE 0 END), 0) as total_spending_cents")
+            ->selectRaw('MAX(orders.placed_at) as last_order_at')
+            ->selectRaw("COALESCE(users.status, 'active') as status, users.created_at");
     }
 
-    private function guests(string $search, string $status): Collection
+    private function guestQuery(string $search, string $status)
     {
-        return GuestCustomer::query()
+        return DB::table('guest_customers')
+            ->leftJoin('orders', fn ($join) => $join
+                ->on('orders.guest_customer_id', '=', 'guest_customers.id')
+                ->whereNull('orders.deleted_at'))
             ->when($search !== '', fn ($query) => $query->where(fn ($query) => $query
-                ->where('name', 'like', "%{$search}%")
-                ->orWhere('email', 'like', "%{$search}%")
-                ->orWhere('phone', 'like', "%{$search}%")))
-            ->when($status !== '', fn ($query) => $query->where('status', $status))
-            ->withCount('orders')
-            ->withSum(['orders as orders_total_cents' => fn ($query) => $query->whereNotIn('status', ['cancelled', 'refunded'])], 'total_cents')
-            ->get()
-            ->map(fn (GuestCustomer $guest): array => [
-                'id' => "guest-{$guest->id}",
-                'record_id' => $guest->id,
-                'name' => $guest->name,
-                'email' => $guest->email,
-                'phone' => $guest->phone,
-                'type' => 'guest',
-                'total_orders' => (int) $guest->orders_count,
-                'total_spending' => round(((int) $guest->orders_total_cents) / 100, 2),
-                'last_order_at' => optional($guest->last_order_at)->toISOString(),
-                'status' => $guest->status,
-                'created_at' => optional($guest->created_at)->toISOString(),
-            ]);
+                ->where('guest_customers.name', 'like', "%{$search}%")
+                ->orWhere('guest_customers.email', 'like', "%{$search}%")
+                ->orWhere('guest_customers.phone', 'like', "%{$search}%")))
+            ->when($status !== '', fn ($query) => $query->where('guest_customers.status', $status))
+            ->groupBy('guest_customers.id', 'guest_customers.name', 'guest_customers.email', 'guest_customers.phone', 'guest_customers.status', 'guest_customers.created_at')
+            ->selectRaw("guest_customers.id as record_id, guest_customers.name, guest_customers.email, guest_customers.phone, 'guest' as type")
+            ->selectRaw('COUNT(orders.id) as total_orders')
+            ->selectRaw("COALESCE(SUM(CASE WHEN orders.status NOT IN ('cancelled', 'refunded') THEN orders.total_cents ELSE 0 END), 0) as total_spending_cents")
+            ->selectRaw('MAX(orders.placed_at) as last_order_at')
+            ->selectRaw('guest_customers.status, guest_customers.created_at');
     }
 
     private function registeredDetail(int $id): array

@@ -2,7 +2,6 @@
 
 use App\Models\Category;
 use App\Models\Settings\CategoryDisplaySetting;
-use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
@@ -14,21 +13,15 @@ beforeEach(function (): void {
 
 function categoryManagementAdminToken(): string
 {
-    return User::factory()
-        ->create()
-        ->createToken('category-management-access-token', ['access'], now()->addMinutes(15))
-        ->plainTextToken;
+    return accessTokenWithPermissions(['can_create_category']);
 }
 
-function categorySvgUpload(): UploadedFile
+function categoryImageUpload(): UploadedFile
 {
-    return UploadedFile::fake()->createWithContent(
-        'bags.svg',
-        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 8h16v12H4z"/></svg>'
-    );
+    return UploadedFile::fake()->image('bags.png', 64, 64);
 }
 
-it('creates categories with an svg icon in home grid and navbar dropdown mode', function (): void {
+it('creates categories with a raster icon in home grid and navbar dropdown mode', function (): void {
     CategoryDisplaySetting::query()->create([
         'enable_home_category_section' => true,
         'category_display_mode' => 'home_grid_navbar_dropdown',
@@ -38,7 +31,7 @@ it('creates categories with an svg icon in home grid and navbar dropdown mode', 
         ->post('/api/admin/product-management/categories', [
             'name' => 'SVG Bags',
             'description' => 'Category using an uploaded SVG icon.',
-            'icon_file' => categorySvgUpload(),
+            'icon_file' => categoryImageUpload(),
             'show_on_home' => 'true',
             'show_in_navbar' => 'true',
             'is_featured' => 'true',
@@ -82,7 +75,7 @@ it('requires a category image in landing page mode', function (): void {
         ->assertJsonValidationErrors(['image_file']);
 });
 
-it('creates landing page categories with an svg category image', function (): void {
+it('creates landing page categories with a raster category image', function (): void {
     CategoryDisplaySetting::query()->create([
         'enable_home_category_section' => true,
         'category_display_mode' => 'landing_page',
@@ -91,7 +84,7 @@ it('creates landing page categories with an svg category image', function (): vo
     $this->withToken(categoryManagementAdminToken())
         ->post('/api/admin/product-management/categories', [
             'name' => 'SVG Landing',
-            'image_file' => categorySvgUpload(),
+            'image_file' => categoryImageUpload(),
             'status' => 'active',
         ])
         ->assertCreated()

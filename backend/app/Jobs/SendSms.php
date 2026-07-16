@@ -19,6 +19,10 @@ class SendSms implements ShouldQueue
 
     public array $backoff = [15, 60, 180];
 
+    public int $timeout = 30;
+
+    public bool $failOnTimeout = true;
+
     public function __construct(public int $smsLogId)
     {
         $this->onQueue('sms');

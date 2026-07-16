@@ -14,6 +14,13 @@ class OrderRefund extends Model
         return ['payload' => 'array', 'processed_at' => 'datetime'];
     }
 
-    public function order(): BelongsTo { return $this->belongsTo(Order::class); }
-    public function user(): BelongsTo { return $this->belongsTo(User::class); }
+    public function order(): BelongsTo
+    {
+        return $this->belongsTo(Order::class);
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
 }

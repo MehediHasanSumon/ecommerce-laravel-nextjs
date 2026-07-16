@@ -195,7 +195,13 @@ export const useAuthStore = create<AuthState>((set) => ({
         return null;
       }
 
-      const user = normalizeUser(await authService.me());
+      if (!session.user) {
+        writeCachedUser(null);
+        set({ user: null, isAuthenticated: false, isLoading: false, initialized: true });
+        return null;
+      }
+
+      const user = normalizeUser(session.user);
       writeCachedUser(user);
       set({ user, isAuthenticated: true });
       await Promise.all([

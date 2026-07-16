@@ -116,6 +116,7 @@ class AamarPayService implements PaymentGatewayInterface
 
         if ($request->route('result') !== 'success') {
             $transaction->update(['status' => 'failed', 'failed_at' => now(), 'failure_message' => 'aamarPay '.$request->route('result')]);
+
             return new PaymentResult('failed', null, $request->all());
         }
 

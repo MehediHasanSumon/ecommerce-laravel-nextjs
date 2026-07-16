@@ -1,6 +1,8 @@
 <?php
 
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
 /*
@@ -47,4 +49,22 @@ expect()->extend('toBeOne', function () {
 function something()
 {
     // ..
+}
+
+function accessTokenWithPermissions(array $permissions): string
+{
+    $user = User::factory()->create();
+
+    foreach ($permissions as $permission) {
+        Permission::query()->firstOrCreate([
+            'name' => $permission,
+            'guard_name' => 'web',
+        ]);
+    }
+
+    if ($permissions !== []) {
+        $user->givePermissionTo($permissions);
+    }
+
+    return $user->createToken('test-access-token', ['access'], now()->addMinutes(15))->plainTextToken;
 }

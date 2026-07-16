@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
+import { cache } from "react";
 
 const apiBaseUrl = (
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/auth"
 ).replace(/\/auth\/?$/, "");
 
-const appUrl = (process.env.NEXT_PUBLIC_CREATE_APP_URL ?? "http://localhost:4000").replace(/\/$/, "");
+const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
 const appName = process.env.NEXT_PUBLIC_APP_NAME ?? process.env.APP_NAME ?? "Ecommerce";
 
 export type SeoMetadataPayload = {
@@ -122,27 +123,31 @@ async function metadataFromPayload(payload: SeoMetadataPayload): Promise<Metadat
   return toMetadata(mergeDefaults(payload, defaults));
 }
 
-async function fetchDefaults(): Promise<SeoMetadataPayload | null> {
+const fetchDefaults = cache(async (): Promise<SeoMetadataPayload | null> => {
   try {
-    const response = await fetch(`${apiBaseUrl}/seo/defaults`, { cache: "no-store" });
+    const response = await fetch(`${apiBaseUrl}/seo/defaults`, {
+      next: { revalidate: 600, tags: ["seo-defaults"] },
+    });
     if (!response.ok) return null;
     const json = (await response.json()) as ApiEnvelope<{ metadata: SeoMetadataPayload }>;
     return json.data.metadata;
   } catch {
     return null;
   }
-}
+});
 
-async function fetchEntity(type: string, slug: string): Promise<SeoMetadataPayload | null> {
+const fetchEntity = cache(async (type: string, slug: string): Promise<SeoMetadataPayload | null> => {
   try {
-    const response = await fetch(`${apiBaseUrl}/seo/${type}/${encodeURIComponent(slug)}`, { cache: "no-store" });
+    const response = await fetch(`${apiBaseUrl}/seo/${type}/${encodeURIComponent(slug)}`, {
+      next: { revalidate: 600, tags: [`seo-${type}-${slug}`] },
+    });
     if (!response.ok) return null;
     const json = (await response.json()) as ApiEnvelope<{ metadata: SeoMetadataPayload }>;
     return json.data.metadata;
   } catch {
     return null;
   }
-}
+});
 
 function fallbackPayload(title: string, description: string, path: string, robots = "index,follow"): SeoMetadataPayload {
   return {

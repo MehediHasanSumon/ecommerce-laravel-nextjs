@@ -7,6 +7,7 @@ use App\Services\Admin\Settings\Concerns\HandlesSettingAssets;
 use App\Services\Admin\Settings\Concerns\ManagesSingletonSettings;
 use App\Services\Seo\SeoMetadataService;
 use App\Support\Admin\SettingsDefaults;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 
 class SeoSettingsService
@@ -14,8 +15,16 @@ class SeoSettingsService
     use HandlesSettingAssets;
     use ManagesSingletonSettings;
 
-    protected function modelClass(): string { return SeoSetting::class; }
-    protected function cacheKey(): string { return 'settings.seo'; }
+    protected function modelClass(): string
+    {
+        return SeoSetting::class;
+    }
+
+    protected function cacheKey(): string
+    {
+        return 'settings.seo';
+    }
+
     protected function defaults(): array
     {
         return SettingsDefaults::seo();
@@ -29,7 +38,7 @@ class SeoSettingsService
         return $url;
     }
 
-    public function update(array $data, ?int $userId = null): \Illuminate\Database\Eloquent\Model
+    public function update(array $data, ?int $userId = null): Model
     {
         $settings = $this->get();
         $settings->fill([...$data, 'updated_by' => $userId])->save();

@@ -19,10 +19,15 @@ class CartService
     public function get(Request $request, bool $strictCouponValidation = false): Cart
     {
         $cart = $this->resolveCart($request, create: true);
-        $cart->load(['items.product.brand:id,name,slug', 'items.product.category:id,name,slug', 'items.product.images:id,product_id,url,is_primary,sort_order', 'items.product.tags:id,name', 'items.variant']);
-        $this->refreshItems($cart);
+        $relations = ['items.product.brand:id,name,slug', 'items.product.category:id,name,slug', 'items.product.images:id,product_id,url,is_primary,sort_order', 'items.product.tags:id,name', 'items.variant', 'coupon'];
+        $cart->load($relations);
+        if ($strictCouponValidation) {
+            $this->refreshItems($cart);
+        }
         $notice = $this->couponService->revalidate($cart, ! $strictCouponValidation);
-        $fresh = $cart->fresh(['items.product.brand:id,name,slug', 'items.product.category:id,name,slug', 'items.product.images:id,product_id,url,is_primary,sort_order', 'items.product.tags:id,name', 'items.variant', 'coupon']);
+        $fresh = $strictCouponValidation || $notice
+            ? $cart->fresh($relations)
+            : $cart;
         $this->attachCouponNotice($fresh, $notice);
 
         return $fresh;

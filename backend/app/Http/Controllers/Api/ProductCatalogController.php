@@ -17,6 +17,7 @@ use App\Models\ProductVariant;
 use App\Services\Admin\Settings\BrandSettingsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -126,7 +127,11 @@ class ProductCatalogController extends Controller
 
         return ApiResponse::success([
             'items' => ProductCardResource::collection($products->getCollection())->resolve(),
-            'filters' => $this->filters($brandsEnabled),
+            'filters' => Cache::remember(
+                'catalog.filters.v1.'.($brandsEnabled ? 'brands' : 'no-brands'),
+                now()->addMinutes(10),
+                fn (): array => $this->filters($brandsEnabled),
+            ),
         ], meta: [
             'pagination' => [
                 'current_page' => $products->currentPage(),
@@ -181,10 +186,14 @@ class ProductCatalogController extends Controller
             ->where('status', 'approved')
             ->with([
                 'user:id,name,email,avatar',
-                'product.brand:id,name,slug',
-                'product.category:id,parent_id,name,slug',
-                'product.images:id,product_id,url,is_primary,sort_order',
-                'product.tags:id,name',
+                'product' => fn ($query) => $query
+                    ->withSellableVariantMetrics()
+                    ->with([
+                        'brand:id,name,slug',
+                        'category:id,parent_id,name,slug',
+                        'images:id,product_id,url,is_primary,sort_order',
+                        'tags:id,name',
+                    ]),
             ])
             ->whereHas('product', fn ($query) => $query->where('status', 'active'))
             ->latest()

@@ -7,6 +7,7 @@ use App\Models\ProductImage;
 use App\Models\Settings\CompanySetting;
 use App\Models\Settings\SeoSetting;
 use App\Models\Tag;
+use App\Services\Admin\ProductModuleService;
 use Illuminate\Support\Facades\Cache;
 
 beforeEach(function (): void {
@@ -132,7 +133,7 @@ it('invalidates generated product metadata after product updates', function (): 
         ->assertOk()
         ->assertJsonPath('data.metadata.title', 'Old Product Name | Sumon Store');
 
-    app(\App\Services\Admin\ProductModuleService::class)->update('products', $product->id, [
+    app(ProductModuleService::class)->update('products', $product->id, [
         'name' => 'Updated Product Name',
         'short_description' => 'Updated generated description.',
         'description' => 'Updated generated description.',

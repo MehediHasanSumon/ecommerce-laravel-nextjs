@@ -23,6 +23,7 @@ class SocialMediaSettingsService
             );
         }
         Cache::forget('settings.navigation.runtime');
+
         return $this->all();
     }
 }

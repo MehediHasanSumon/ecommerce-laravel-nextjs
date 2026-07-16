@@ -53,7 +53,7 @@ it('limits long generated slugs', function (): void {
 
 it('rejects empty slug source values', function (): void {
     SlugGenerator::generate('    ', 'identifier_records');
-})->throws(\InvalidArgumentException::class);
+})->throws(InvalidArgumentException::class);
 
 it('generates uppercase SKUs from source text', function (): void {
     expect(SkuGenerator::generate('Apple iPhone 16 Pro', 'identifier_records'))
@@ -79,4 +79,4 @@ it('limits long generated SKUs', function (): void {
 
 it('rejects empty SKU source values', function (): void {
     SkuGenerator::generate('', 'identifier_records');
-})->throws(\InvalidArgumentException::class);
+})->throws(InvalidArgumentException::class);

@@ -24,6 +24,7 @@ export type ApiErrorPayload = {
 export type AuthSession = {
   authenticated: boolean;
   has_access_token: boolean;
+  user: User | null;
 };
 
 export type LoginPayload = {

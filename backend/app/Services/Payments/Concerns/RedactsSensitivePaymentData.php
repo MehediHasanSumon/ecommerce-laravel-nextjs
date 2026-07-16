@@ -11,6 +11,7 @@ trait RedactsSensitivePaymentData
         foreach ($payload as $key => $value) {
             if (in_array(strtolower((string) $key), $sensitive, true)) {
                 $payload[$key] = '********';
+
                 continue;
             }
 

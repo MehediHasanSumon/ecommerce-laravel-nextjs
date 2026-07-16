@@ -10,6 +10,7 @@ type NotificationState = {
   unreadCount: number;
   isLoading: boolean;
   isLoaded: boolean;
+  loadedKey: string | null;
   error: string | null;
   fetchNotifications: (params?: { page?: number; per_page?: number; search?: string; status?: NotificationStatus; type?: string; force?: boolean }) => Promise<void>;
   fetchUnreadCount: () => Promise<void>;
@@ -26,15 +27,18 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
   unreadCount: 0,
   isLoading: false,
   isLoaded: false,
+  loadedKey: null,
   error: null,
 
   async fetchNotifications(params) {
-    if (get().isLoaded && !params?.force) return;
+    const { force, ...query } = params ?? {};
+    const loadedKey = JSON.stringify(query);
+    if (get().isLoaded && get().loadedKey === loadedKey && !force) return;
 
     set({ isLoading: true, error: null });
     try {
       const data = await accountService.notifications(params);
-      set({ items: data.items, unreadCount: data.unreadCount, isLoading: false, isLoaded: true });
+      set({ items: data.items, unreadCount: data.unreadCount, isLoading: false, isLoaded: true, loadedKey });
     } catch (error) {
       set({ isLoading: false, error: error instanceof Error ? error.message : "Could not load notifications." });
     }
@@ -121,6 +125,6 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
   },
 
   reset() {
-    set({ items: [], unreadCount: 0, isLoading: false, isLoaded: false, error: null });
+    set({ items: [], unreadCount: 0, isLoading: false, isLoaded: false, loadedKey: null, error: null });
   },
 }));

@@ -487,7 +487,7 @@ export function Header() {
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
   const accountMenuRef = useRef<HTMLDivElement>(null);
 
-  const cartItemCount = useCartStore((s) => s.getItemCount());
+  const cartItemCount = useCartStore((s) => s.items.reduce((sum, item) => sum + item.quantity, 0));
   const cartInitialized = useCartStore((s) => s.initialized);
   const wishlistItemCount = useWishlistStore((s) => s.items.length);
   const wishlistInitialized = useWishlistStore((s) => s.initialized);

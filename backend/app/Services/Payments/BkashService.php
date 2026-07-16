@@ -87,6 +87,7 @@ class BkashService implements PaymentGatewayInterface
         $transaction = PaymentTransaction::query()->where('gateway_payment_id', $request->input('paymentID'))->firstOrFail();
         if ($request->input('status') === 'cancel' || $request->input('status') === 'failure') {
             $transaction->update(['status' => 'failed', 'failed_at' => now(), 'failure_message' => 'bKash '.$request->input('status')]);
+
             return new PaymentResult('failed', null, $request->all());
         }
 

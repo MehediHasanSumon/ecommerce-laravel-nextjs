@@ -543,9 +543,9 @@ export function AdminOrderDetailContent({ orderNumber }: { orderNumber: string }
                 await orderManagementService.refund(order.orderNumber, { amount: Number(refund.amount), reason: refund.reason, note: refund.note });
                 await load(1);
                 setRefund({ amount: "", reason: "", note: "" });
-                toast.success("Refund recorded.");
+                toast.success("Refund request created.");
               } catch (error) { toast.error(toAppError(error).message); }
-            }}>Record Refund</Button>
+            }}>Request Refund</Button>
           </div>
           <div className="mt-4 space-y-2">{order.refunds?.map((item) => <p key={item.id} className="text-sm text-muted-foreground">{formatPrice(item.amount)} • {label(item.status)} • {item.reason}</p>)}</div>
         </Panel>

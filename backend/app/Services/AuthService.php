@@ -86,12 +86,13 @@ class AuthService
             return null;
         }
 
-        $this->ensureCustomerRole($tokenable);
-
-        $token->forceFill([
-            'last_used_at' => now(),
-            'expires_at' => now()->addMinutes(config('auth_api.access_token_expiration_minutes')),
-        ])->save();
+        $touchInterval = max(1, (int) config('auth_api.token_touch_interval_minutes', 10));
+        if (! $token->last_used_at || $token->last_used_at->lte(now()->subMinutes($touchInterval))) {
+            $token->forceFill([
+                'last_used_at' => now(),
+                'expires_at' => now()->addMinutes(config('auth_api.access_token_expiration_minutes')),
+            ])->save();
+        }
 
         return $tokenable;
     }

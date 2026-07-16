@@ -3,14 +3,13 @@
 use App\Models\Brand;
 use App\Models\Product;
 use App\Models\Settings\BrandSetting;
-use App\Models\User;
 
 function brandSettingsAdminToken(): string
 {
-    return User::factory()
-        ->create()
-        ->createToken('brand-settings-access-token', ['access'], now()->addMinutes(15))
-        ->plainTextToken;
+    return accessTokenWithPermissions([
+        'can_edit_home_page_setting',
+        'can_create_product',
+    ]);
 }
 
 it('updates brand settings and exposes them in runtime navigation', function () {
@@ -21,6 +20,7 @@ it('updates brand settings and exposes them in runtime navigation', function () 
             'enable_product_section' => true,
             'products_per_section' => 20,
             'enable_testimonial_section' => true,
+            'announcement_enabled' => false,
         ],
         'categories' => [
             'enable_home_category_section' => true,

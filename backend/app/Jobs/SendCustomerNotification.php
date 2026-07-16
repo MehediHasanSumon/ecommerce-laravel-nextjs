@@ -20,6 +20,10 @@ class SendCustomerNotification implements ShouldQueue
 
     public int $backoff = 10;
 
+    public int $timeout = 30;
+
+    public bool $failOnTimeout = true;
+
     public function __construct(
         public int $userId,
         public array $payload,

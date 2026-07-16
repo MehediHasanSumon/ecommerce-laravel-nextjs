@@ -14,6 +14,13 @@ class ShippingLog extends Model
         return ['shipped_at' => 'datetime', 'delivered_at' => 'datetime'];
     }
 
-    public function order(): BelongsTo { return $this->belongsTo(Order::class); }
-    public function user(): BelongsTo { return $this->belongsTo(User::class); }
+    public function order(): BelongsTo
+    {
+        return $this->belongsTo(Order::class);
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
 }

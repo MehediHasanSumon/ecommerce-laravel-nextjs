@@ -20,7 +20,10 @@ class PaypalService implements PaymentGatewayInterface
         'THB', 'USD',
     ];
 
-    public function gateway(): string { return 'paypal'; }
+    public function gateway(): string
+    {
+        return 'paypal';
+    }
 
     public function assertConfigured(PaymentGatewaySetting $setting): void
     {
@@ -52,6 +55,7 @@ class PaypalService implements PaymentGatewayInterface
         $approve = collect($response['links'] ?? [])->firstWhere('rel', 'approve')['href'] ?? null;
         $transaction->update(['gateway_payment_id' => $response['id'] ?? null, 'response_payload' => $response]);
         abort_unless($approve, 502, 'PayPal order could not be initialized.');
+
         return new PaymentResult('redirect', $approve, $response);
     }
 
@@ -70,6 +74,7 @@ class PaypalService implements PaymentGatewayInterface
             'failed_at' => $paid ? null : now(),
             'failure_message' => $paid ? null : 'PayPal capture failed.',
         ]);
+
         return new PaymentResult($paid ? 'paid' : 'failed', null, $response);
     }
 
@@ -78,9 +83,11 @@ class PaypalService implements PaymentGatewayInterface
         if ($request->route('result') === 'cancel') {
             $transaction = PaymentTransaction::query()->where('transaction_key', $request->input('transaction'))->firstOrFail();
             $transaction->update(['status' => 'failed', 'failed_at' => now(), 'failure_message' => 'PayPal payment cancelled.']);
+
             return new PaymentResult('failed', null, $request->all());
         }
         $transaction = PaymentTransaction::query()->where('gateway_payment_id', $request->input('token'))->firstOrFail();
+
         return $this->verify($transaction, $setting, $request->all());
     }
 
@@ -89,6 +96,7 @@ class PaypalService implements PaymentGatewayInterface
         $response = $this->http()->asForm()->withBasicAuth((string) $setting->public_key, (string) $setting->secret_key)->post($this->baseUrl($setting).'/v1/oauth2/token', ['grant_type' => 'client_credentials']);
         $body = $response->json() ?? [];
         abort_unless($response->successful() && ! empty($body['access_token']), 502, $body['error_description'] ?? 'PayPal token generation failed.');
+
         return $body['access_token'];
     }
 

@@ -165,6 +165,7 @@ class ProductDetailResource extends JsonResource
                     $query->orWhere('brand_id', $this->brand_id);
                 }
             })
+            ->withSellableVariantMetrics()
             ->with(['brand:id,name,slug', 'category:id,name,slug', 'images:id,product_id,url,is_primary,sort_order', 'tags:id,name'])
             ->orderByDesc('is_featured')
             ->latest('published_at')

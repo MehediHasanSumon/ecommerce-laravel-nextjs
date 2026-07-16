@@ -2,7 +2,6 @@
 
 namespace App\Http\Middleware;
 
-use App\Http\Responses\AuthCookie;
 use App\Services\AuthService;
 use Closure;
 use Illuminate\Http\Request;
@@ -24,10 +23,6 @@ class ResolveAuthCookie
             Auth::setUser($user);
         }
 
-        $response = $next($request);
-
-        return $user && $plainTextToken
-            ? $response->withCookie(AuthCookie::access($plainTextToken))
-            : $response;
+        return $next($request);
     }
 }

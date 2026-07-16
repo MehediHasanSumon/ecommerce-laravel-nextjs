@@ -201,27 +201,51 @@ class OrderService
 
     public function refund(Order $order, int $amountCents, string $reason, ?string $note = null, ?int $userId = null): Order
     {
-        $refunded = (int) $order->refunds()->whereIn('status', ['pending', 'processed'])->sum('amount_cents');
-        if ($amountCents <= 0 || $amountCents > max(0, $order->total_cents - $refunded)) {
-            throw ValidationException::withMessages(['amount' => ['Invalid refund amount.']]);
-        }
+        return DB::transaction(function () use ($order, $amountCents, $reason, $note, $userId): Order {
+            $lockedOrder = Order::query()->lockForUpdate()->findOrFail($order->id);
+            if (! in_array($lockedOrder->payment_status, ['paid', 'partially_refunded'], true)) {
+                throw ValidationException::withMessages(['order' => ['Only paid orders can be refunded.']]);
+            }
 
-        OrderRefund::query()->create([
-            'order_id' => $order->id,
-            'user_id' => $userId,
-            'amount_cents' => $amountCents,
-            'status' => 'processed',
-            'reason' => $reason,
-            'note' => $note,
-            'processed_at' => now(),
-        ]);
+            $reserved = (int) $lockedOrder->refunds()
+                ->whereIn('status', ['pending', 'processed'])
+                ->sum('amount_cents');
+            if ($amountCents <= 0 || $amountCents > max(0, $lockedOrder->total_cents - $reserved)) {
+                throw ValidationException::withMessages(['amount' => ['Invalid refund amount.']]);
+            }
 
-        $newStatus = ($refunded + $amountCents) >= $order->total_cents ? 'refunded' : 'partially_refunded';
-        $order->update(['payment_status' => $newStatus, 'status' => $newStatus === 'refunded' ? 'refunded' : $order->status]);
-        $this->record($order->fresh(), 'refund', $newStatus, null, 'Refund processed', $note, ['amount_cents' => $amountCents, 'reason' => $reason], $userId);
-        $this->queueOrderStatusNotification($order->fresh(), 'payment_status', $newStatus, null);
+            $transaction = $lockedOrder->transactions()
+                ->where('status', 'paid')
+                ->latest('paid_at')
+                ->first();
 
-        return $this->findAdmin($order->id);
+            OrderRefund::query()->create([
+                'order_id' => $lockedOrder->id,
+                'user_id' => $userId,
+                'amount_cents' => $amountCents,
+                'status' => 'pending',
+                'reason' => $reason,
+                'note' => $note,
+                'payload' => [
+                    'gateway' => $transaction?->gateway,
+                    'payment_transaction_id' => $transaction?->id,
+                    'requires_provider_processing' => true,
+                ],
+            ]);
+
+            $this->record(
+                $lockedOrder,
+                'refund',
+                'pending',
+                null,
+                'Refund requested',
+                $note,
+                ['amount_cents' => $amountCents, 'reason' => $reason, 'gateway' => $transaction?->gateway],
+                $userId,
+            );
+
+            return $this->findAdmin($lockedOrder->id);
+        });
     }
 
     public function queueOrderPlacedNotifications(Order $order): void

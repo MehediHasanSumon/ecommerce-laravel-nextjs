@@ -2,14 +2,15 @@
 
 use App\Models\HomeFeatureCard;
 use App\Models\Settings\HomeFeatureCardSetting;
-use App\Models\User;
 
 function adminAccessToken(): string
 {
-    return User::factory()
-        ->create()
-        ->createToken('access-token', ['access'], now()->addMinutes(15))
-        ->plainTextToken;
+    return accessTokenWithPermissions([
+        'can_view_home_feature_card_setting',
+        'can_create_home_feature_card_setting',
+        'can_edit_home_feature_card_setting',
+        'can_delete_home_feature_card_setting',
+    ]);
 }
 
 it('manages feature cards through the admin api', function () {

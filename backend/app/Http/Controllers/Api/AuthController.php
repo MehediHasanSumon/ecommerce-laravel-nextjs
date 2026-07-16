@@ -57,11 +57,10 @@ class AuthController extends Controller
         $response = ApiResponse::success([
             'authenticated' => (bool) $user,
             'has_access_token' => (bool) $user,
+            'user' => $user ? $this->authService->serializeUser($user) : null,
         ]);
 
-        return $user && $plainTextToken
-            ? $response->withCookie(AuthCookie::access($plainTextToken))
-            : $response;
+        return $response;
     }
 
     public function forgotPassword(ForgotPasswordRequest $request): JsonResponse

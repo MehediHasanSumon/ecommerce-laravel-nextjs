@@ -90,11 +90,12 @@ it('requires authentication only for protected storefront features', function ()
         ['get', '/api/orders'],
         ['get', '/api/addresses'],
         ['get', '/api/wishlist'],
-        ['get', '/api/checkout/payment-methods'],
         ['post', '/api/blogs/'.$blog->slug.'/comments'],
     ] as [$method, $uri]) {
         $this->json($method, $uri)->assertUnauthorized();
     }
+
+    $this->getJson('/api/checkout/payment-methods')->assertOk();
 });
 
 it('keeps browsing and guest commerce endpoints free of permission checks', function (): void {

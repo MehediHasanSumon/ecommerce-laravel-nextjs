@@ -53,7 +53,7 @@ return new class extends Migration
                     'mission' => [
                         'title' => 'Our Mission',
                         'body' => [
-                            "At LuxeCart, we believe that premium quality should not come with a premium price tag. We work directly with top brands and manufacturers to bring you authentic products at fair prices.",
+                            'At LuxeCart, we believe that premium quality should not come with a premium price tag. We work directly with top brands and manufacturers to bring you authentic products at fair prices.',
                             'Our platform is built on three pillars: authenticity, accessibility, and sustainability. Every product we carry is verified genuine, and we are committed to reducing our environmental footprint.',
                         ],
                         'image' => 'https://images.unsplash.com/photo-1567401893414-76b7b1e5a7a5?w=800&auto=format&fit=crop',

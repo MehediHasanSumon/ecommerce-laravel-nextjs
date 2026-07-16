@@ -8,6 +8,8 @@ use App\Services\Admin\Settings\Concerns\HandlesSettingAssets;
 use App\Services\Admin\Settings\Concerns\ManagesSingletonSettings;
 use App\Services\Seo\SeoMetadataService;
 use App\Support\Admin\SettingsDefaults;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\UploadedFile;
 
 class CompanySettingsService
 {
@@ -32,7 +34,7 @@ class CompanySettingsService
         return SettingsDefaults::company();
     }
 
-    public function upload(\Illuminate\Http\UploadedFile $file): string
+    public function upload(UploadedFile $file): string
     {
         $url = $this->storeAsset($file, 'settings/company');
         $this->clearSeoCaches();
@@ -40,7 +42,7 @@ class CompanySettingsService
         return $url;
     }
 
-    public function get(): \Illuminate\Database\Eloquent\Model
+    public function get(): Model
     {
         $settings = $this->baseGet()->load('currency');
 
@@ -55,7 +57,7 @@ class CompanySettingsService
         return $settings;
     }
 
-    public function update(array $data, ?int $userId = null): \Illuminate\Database\Eloquent\Model
+    public function update(array $data, ?int $userId = null): Model
     {
         $settings = $this->baseUpdate($data, $userId)->load('currency');
         $this->clearSeoCaches();

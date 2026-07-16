@@ -11,7 +11,10 @@ use Stripe\Webhook;
 
 class StripeService implements PaymentGatewayInterface
 {
-    public function gateway(): string { return 'stripe'; }
+    public function gateway(): string
+    {
+        return 'stripe';
+    }
 
     public function assertConfigured(PaymentGatewaySetting $setting): void
     {
@@ -69,10 +72,12 @@ class StripeService implements PaymentGatewayInterface
             $event = Webhook::constructEvent($request->getContent(), $request->header('Stripe-Signature', ''), (string) $setting->webhook_secret);
             $session = $event->data->object;
             $transaction = PaymentTransaction::query()->where('gateway_payment_id', $session->id)->firstOrFail();
+
             return $this->verify($transaction, $setting, ['session_id' => $session->id]);
         }
 
         $transaction = PaymentTransaction::query()->where('gateway_payment_id', $request->input('session_id'))->firstOrFail();
+
         return $this->verify($transaction, $setting, $request->all());
     }
 }

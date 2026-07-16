@@ -21,6 +21,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class CheckoutService
 {
@@ -44,17 +45,17 @@ class CheckoutService
             abort(401, 'Please sign in before checkout.');
         }
 
-        return DB::transaction(function () use ($request, $payload): array {
+        $paymentSetting = $this->payments->setting($payload['payment_method']);
+        $gateway = $this->payments->gateway($payload['payment_method']);
+        $gateway->assertConfigured($paymentSetting);
+
+        [$cart, $order, $transaction, $session] = DB::transaction(function () use ($request, $payload, $paymentSetting): array {
             $cart = $this->cartService->get($request, strictCouponValidation: true);
             $cart->load(['items.product', 'items.variant', 'coupon']);
 
             if ($cart->items->isEmpty()) {
                 throw ValidationException::withMessages(['cart' => ['Your cart is empty.']]);
             }
-
-            $paymentSetting = $this->payments->setting($payload['payment_method']);
-            $gateway = $this->payments->gateway($payload['payment_method']);
-            $gateway->assertConfigured($paymentSetting);
 
             $billingAddress = $this->resolveAddress($request, $payload, 'billing');
             $otpChallenge = $this->checkoutOtp->assertForCheckout(
@@ -157,16 +158,51 @@ class CheckoutService
             ]);
             $this->orders->record($order, 'payment', 'initiated', null, 'Payment initiated', null, ['gateway' => $paymentSetting->gateway], $request->user()?->id);
 
-            $result = $gateway->initiate($order, $transaction, $paymentSetting);
-            $order->setAttribute('redirect_url', $result->redirectUrl);
+            return [$cart, $order, $transaction, $session];
+        });
 
-            if ($result->status === 'pending') {
+        try {
+            $result = $gateway->initiate($order, $transaction, $paymentSetting);
+        } catch (Throwable $exception) {
+            DB::transaction(function () use ($cart, $order, $transaction, $session, $exception): void {
+                $lockedOrder = $order->newQuery()->lockForUpdate()->findOrFail($order->id);
+                $lockedTransaction = $transaction->newQuery()->lockForUpdate()->findOrFail($transaction->id);
+
+                if ($lockedTransaction->status === 'initiated') {
+                    $lockedTransaction->update([
+                        'status' => 'failed',
+                        'failed_at' => now(),
+                        'failure_message' => Str::limit($exception->getMessage(), 2000),
+                    ]);
+                    $session->newQuery()->whereKey($session->id)->update(['status' => 'failed']);
+                    $this->orderCreator->releaseItems($lockedOrder);
+                    $this->coupons->reverseRedemption($cart);
+                    $lockedOrder->update(['payment_status' => 'failed', 'status' => 'cancelled']);
+                    $this->orders->record(
+                        $lockedOrder,
+                        'payment',
+                        'failed',
+                        'pending',
+                        'Payment initialization failed',
+                        Str::limit($exception->getMessage(), 1000),
+                    );
+                }
+            });
+
+            throw $exception;
+        }
+
+        $order->setAttribute('redirect_url', $result->redirectUrl);
+
+        if ($result->status === 'pending') {
+            DB::transaction(function () use ($cart, $order, $transaction, $session): void {
                 $this->orders->syncPayment($order, $transaction->fresh(), 'pending', 'Offline payment pending.');
                 $this->completeCart($cart);
-            }
+                $session->newQuery()->whereKey($session->id)->update(['status' => 'completed']);
+            });
+        }
 
-            return [$order->fresh('items'), $result];
-        });
+        return [$order->fresh('items'), $result];
     }
 
     public function markPaid(PaymentTransaction $transaction): void

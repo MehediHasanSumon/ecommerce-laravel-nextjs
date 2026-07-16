@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\ReorderRecordsRequest;
 use App\Http\Requests\Admin\Shipping\ShippingBulkDeleteRequest;
 use App\Http\Requests\Admin\Shipping\ShippingMethodIndexRequest;
 use App\Http\Requests\Admin\Shipping\ShippingMethodRequest;
-use App\Http\Requests\Admin\ReorderRecordsRequest;
 use App\Http\Resources\Admin\ShippingMethodAdminResource;
 use App\Http\Resources\Admin\ShippingZoneResource;
 use App\Http\Responses\ApiResponse;
