@@ -70,13 +70,16 @@ export function Footer() {
     { icon: Phone, value: branding?.support_phone || branding?.company_phone },
     { icon: Mail, value: branding?.support_email },
   ].filter((row) => row.value);
-  const footerLinks = navigation.length
+  const configuredFooterLinks = navigation.length
     ? navigation
     : [
         { label: 'Home', href: '/' },
         { label: 'Shop', href: '/shop' },
         { label: 'Contact', href: '/contact' },
       ];
+  const footerLinks = configuredFooterLinks.some((link) => link.href === '/order-tracking')
+    ? configuredFooterLinks
+    : [...configuredFooterLinks, { label: 'Track Order', href: '/order-tracking' }];
   const legalLinks = [
     { label: 'Privacy', href: '/privacy' },
     { label: 'Terms', href: '/terms' },

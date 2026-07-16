@@ -36,6 +36,7 @@ use App\Http\Controllers\Api\CustomerAddressController;
 use App\Http\Controllers\Api\HomePageController;
 use App\Http\Controllers\Api\NewsletterSubscriptionController;
 use App\Http\Controllers\Api\OrderController;
+use App\Http\Controllers\Api\OrderTrackingController;
 use App\Http\Controllers\Api\PaymentCallbackController;
 use App\Http\Controllers\Api\ProductCatalogController;
 use App\Http\Controllers\Api\SeoMetadataController;
@@ -61,6 +62,7 @@ Route::get('/reviews', [ProductCatalogController::class, 'reviews'])->middleware
 Route::get('/shipping-methods', [ShippingMethodController::class, 'index'])->middleware('throttle:public-settings');
 Route::post('/contact-messages', [ContactMessageController::class, 'store'])->middleware('throttle:public-settings');
 Route::post('/newsletter/subscribe', [NewsletterSubscriptionController::class, 'store'])->middleware('throttle:public-settings');
+Route::post('/order-tracking', [OrderTrackingController::class, 'show'])->middleware('throttle:order-tracking');
 Route::match(['get', 'post'], '/payments/{gateway}/callback/{result?}', [PaymentCallbackController::class, 'callback'])->name('payments.callback');
 Route::post('/payments/{gateway}/webhook', [PaymentCallbackController::class, 'webhook'])->name('payments.webhook');
 Route::middleware(['auth.cookie.optional:access', 'throttle:public-settings'])->group(function (): void {
