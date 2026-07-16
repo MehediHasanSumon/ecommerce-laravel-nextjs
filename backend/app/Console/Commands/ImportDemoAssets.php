@@ -519,17 +519,11 @@ class ImportDemoAssets extends Command
             $variant->fill([
                 'product_id' => $product->id,
                 'sku' => $variant->sku ?: SkuGenerator::generate($product->name.' '.collect($values)->pluck('value')->implode(' '), [Product::class, ProductVariant::class]),
-                'barcode' => $variant->barcode ?: $this->barcodeForVariant($product, $index),
                 'price_cents' => $product->base_price_cents + ($index * 500),
                 'compare_at_price_cents' => $product->compare_at_price_cents + ($index * 500),
                 'cost_price_cents' => $product->cost_price_cents + ($index * 250),
                 'stock_quantity' => max(1, (int) floor($stock / max(1, count($variants)))),
                 'track_inventory' => true,
-                'low_stock_threshold' => 3,
-                'weight_grams' => $this->weightForProduct($product, $index),
-                'length_cm' => 20 + ($index % 4),
-                'width_cm' => 12 + ($index % 3),
-                'height_cm' => 6 + ($index % 2),
                 'status' => 'active',
             ])->save();
 
@@ -543,6 +537,13 @@ class ImportDemoAssets extends Command
             ->get()
             ->reject(fn (ProductVariant $variant): bool => in_array($variant->attributeValues->pluck('id')->sort()->implode(':'), $seen, true))
             ->each->delete();
+
+        $product->forceFill([
+            'default_variant_id' => $product->variants()
+                ->where('status', 'active')
+                ->orderBy('id')
+                ->value('id'),
+        ])->saveQuietly();
     }
 
     private function attributeValue(string $name, string $type, string $value, ?string $hex, bool $filterable, bool $variant, int $sort): ProductAttributeValue
@@ -686,18 +687,6 @@ class ImportDemoAssets extends Command
         return $this->categoryGroup($category) === 'electronics'
             ? 'Official service warranty included'
             : 'Quality checked before delivery';
-    }
-
-    private function weightForProduct(Product $product, int $index): int
-    {
-        return $this->categoryGroup($product->category) === 'electronics'
-            ? 250 + ($index * 40)
-            : 180 + ($index * 25);
-    }
-
-    private function barcodeForVariant(Product $product, int $index): string
-    {
-        return substr(preg_replace('/\D+/', '', sha1($product->slug.'-'.$index)), 0, 12);
     }
 
     private function storeAsset(SplFileInfo $file, string $directory): string

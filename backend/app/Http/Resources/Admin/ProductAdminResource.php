@@ -23,6 +23,7 @@ class ProductAdminResource extends JsonResource
             'product_type' => $this->product_type,
             'status' => $this->status,
             'sku' => $this->sku,
+            'default_variant_id' => $this->default_variant_id,
             'base_price_cents' => $this->base_price_cents,
             'compare_at_price_cents' => $this->compare_at_price_cents,
             'cost_price_cents' => $this->cost_price_cents,
@@ -76,6 +77,7 @@ class ProductAdminResource extends JsonResource
                 'stock_quantity' => $variant->stock_quantity,
                 'track_inventory' => $variant->track_inventory,
                 'status' => $variant->status,
+                'is_default' => (int) $this->default_variant_id === (int) $variant->id,
                 'attribute_values' => ProductOptionResource::collection($variant->relationLoaded('attributeValues') ? $variant->attributeValues : collect()),
             ])),
             'seo' => $this->whenLoaded('seo', fn () => $this->seo ? [

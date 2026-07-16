@@ -21,13 +21,6 @@ class ProductCardResource extends JsonResource
         }
 
         $defaultVariantId = $this->default_variant_id;
-        if ((int) $activeVariantsCount > 0 && $defaultVariantId === null) {
-            $defaultVariantId = $this->variants()
-                ->where('status', 'active')
-                ->where(fn ($query) => $query->whereNull('stock_quantity')->orWhere('stock_quantity', '>', 0))
-                ->orderBy('id')
-                ->value('id');
-        }
 
         return [
             'id' => (string) $this->id,

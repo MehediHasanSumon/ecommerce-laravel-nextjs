@@ -28,6 +28,7 @@ export type ProductVariantDraft = {
   stock_quantity?: number | "";
   track_inventory?: boolean | null;
   status: "active" | "inactive";
+  is_default: boolean;
   attribute_values: number[];
 };
 
@@ -127,6 +128,19 @@ export const productWizardSchema = z.object({
   if (values.compare_at_price_cents !== "" && Number(values.compare_at_price_cents) < Number(values.base_price_cents)) {
     ctx.addIssue({ code: "custom", path: ["compare_at_price_cents"], message: "Sale price should be greater than or equal to regular price." });
   }
+  values.variants.forEach((variant, index) => {
+    const item = variant as ProductVariantDraft;
+    if (item.status === "active" && item.price_cents === undefined) {
+      ctx.addIssue({ code: "custom", path: ["variants", index, "price_cents"], message: "Active variants require a price." });
+    }
+    if (
+      item.price_cents !== undefined
+      && item.compare_at_price_cents !== undefined
+      && Number(item.compare_at_price_cents) < Number(item.price_cents)
+    ) {
+      ctx.addIssue({ code: "custom", path: ["variants", index, "compare_at_price_cents"], message: "Compare price must be greater than or equal to the variant price." });
+    }
+  });
 });
 
 export const stepFields: Record<ProductWizardStepId, Array<keyof ProductWizardValues | string>> = {
@@ -247,6 +261,7 @@ export function valuesFromProduct(record?: ProductRecord | null, options?: Produ
         stock_quantity: item.stock_quantity === null || item.stock_quantity === undefined ? "" : quantityInput(item.stock_quantity),
         track_inventory: typeof item.track_inventory === "boolean" ? item.track_inventory : null,
         status: item.status === "inactive" ? "inactive" : "active",
+        is_default: Boolean(item.is_default) || Number(record.default_variant_id) === Number(item.id),
         attribute_values: Array.isArray(item.attribute_values) ? item.attribute_values.map((value) => Number((value as { id: number }).id)) : [],
       };
     }) : [],
@@ -323,6 +338,7 @@ export function productPayloadFromValues(values: ProductWizardValues, publish: b
       stock_quantity: optionalNumber(variant.stock_quantity),
       track_inventory: variant.track_inventory,
       status: variant.status,
+      is_default: variant.is_default,
       attribute_values: variant.attribute_values,
     };
   });

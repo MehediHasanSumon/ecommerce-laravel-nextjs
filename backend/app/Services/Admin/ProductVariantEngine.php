@@ -21,32 +21,64 @@ class ProductVariantEngine
 
         $values = ProductAttributeValue::query()
             ->whereIn('id', $attributeValueIds)
+            ->whereHas('attribute', fn ($query) => $query->where('is_variant_defining', true))
             ->get(['id', 'attribute_id', 'value'])
             ->keyBy('id');
 
-        $existing = $product->variants()
+        $existingGroups = $product->variants()
             ->withTrashed()
             ->with(['attributeValues:id'])
+            ->orderBy('id')
             ->get()
-            ->mapWithKeys(fn (ProductVariant $variant): array => [$this->combinationKey($variant->attributeValues->pluck('id')->all()) => $variant])
+            ->groupBy(fn (ProductVariant $variant): string => $this->combinationKey($variant->attributeValues->pluck('id')->all()));
+        $existing = $existingGroups
+            ->map(fn ($group): ProductVariant => $group->first(fn (ProductVariant $variant): bool => ! $variant->trashed()) ?? $group->first())
+            ->all();
+        $duplicateIds = $existingGroups
+            ->flatMap(function ($group, string $key) use ($existing) {
+                $primaryId = $existing[$key]->id;
+
+                return $group
+                    ->reject(fn (ProductVariant $variant): bool => $variant->id === $primaryId || $variant->trashed())
+                    ->pluck('id');
+            })
+            ->values()
             ->all();
 
+        $normalizedVariants = collect($variants)
+            ->map(function (array $variantData) use ($values): ?array {
+                $combination = collect($variantData['attribute_values'] ?? [])
+                    ->map(fn ($id): int => (int) $id)
+                    ->filter(fn (int $id): bool => $values->has($id))
+                    ->unique()
+                    ->values()
+                    ->all();
+
+                if ($combination === []) {
+                    return null;
+                }
+
+                return [
+                    'data' => $variantData,
+                    'combination' => $combination,
+                    'key' => $this->combinationKey($combination),
+                ];
+            })
+            ->filter()
+            ->unique('key')
+            ->values();
+
         $seen = [];
+        $defaultKey = null;
 
-        foreach ($variants as $variantData) {
-            $combination = collect($variantData['attribute_values'] ?? [])
-                ->map(fn ($id): int => (int) $id)
-                ->filter(fn (int $id): bool => $values->has($id))
-                ->unique()
-                ->values()
-                ->all();
-
-            if ($combination === []) {
-                continue;
-            }
-
-            $key = $this->combinationKey($combination);
+        foreach ($normalizedVariants as $normalizedVariant) {
+            $variantData = $normalizedVariant['data'];
+            $combination = $normalizedVariant['combination'];
+            $key = $normalizedVariant['key'];
             $seen[] = $key;
+            if ((bool) ($variantData['is_default'] ?? false)) {
+                $defaultKey = $key;
+            }
 
             $variant = $existing[$key] ?? new ProductVariant(['product_id' => $product->id]);
             if ($variant->trashed()) {
@@ -62,18 +94,28 @@ class ProductVariantEngine
                     ->mapWithKeys(fn (int $id): array => [$id => ['attribute_id' => $values[$id]->attribute_id]])
                     ->all()
             );
-
+            $existing[$key] = $variant;
         }
 
         $removeIds = collect($existing)
             ->reject(fn (ProductVariant $variant, string $key): bool => in_array($key, $seen, true))
             ->pluck('id')
             ->filter()
+            ->merge($duplicateIds)
+            ->unique()
             ->all();
 
         if ($removeIds !== []) {
             $product->variants()->whereIn('id', $removeIds)->delete();
         }
+
+        $defaultVariant = $defaultKey ? ($existing[$defaultKey] ?? null) : null;
+        $product->forceFill([
+            'default_variant_id' => $defaultVariant?->id,
+            'base_price_cents' => $defaultVariant?->price_cents ?? $product->base_price_cents,
+            'compare_at_price_cents' => $defaultVariant ? $defaultVariant->compare_at_price_cents : $product->compare_at_price_cents,
+            'cost_price_cents' => $defaultVariant ? $defaultVariant->cost_price_cents : $product->cost_price_cents,
+        ])->saveQuietly();
     }
 
     public function combinationKey(array $attributeValueIds): string

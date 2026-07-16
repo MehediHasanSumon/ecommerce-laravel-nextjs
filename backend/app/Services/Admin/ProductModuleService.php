@@ -176,7 +176,7 @@ class ProductModuleService
                 ? Brand::query()->orderBy('sort_order')->orderBy('name')->get(['id', 'name'])
                 : collect(),
             'categories' => Category::query()->orderBy('name')->get(['id', 'name', 'parent_id']),
-            'attributes' => ProductAttribute::query()->orderBy('sort_order')->orderBy('name')->get(['id', 'name', 'type']),
+            'attributes' => ProductAttribute::query()->orderBy('sort_order')->orderBy('name')->get(['id', 'name', 'type', 'is_variant_defining']),
             'attribute_values' => ProductAttributeValue::query()
                 ->with('attribute:id,name,type')
                 ->when($attributeSearch !== '', function ($query) use ($attributeSearch): void {

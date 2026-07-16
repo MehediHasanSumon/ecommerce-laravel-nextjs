@@ -16,6 +16,7 @@ class ProductOptionResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name ?? $this->value ?? $this->title ?? (string) $this->id,
             'type' => $this->type ?? null,
+            'is_variant_defining' => isset($this->is_variant_defining) ? (bool) $this->is_variant_defining : null,
             'parent_id' => $this->parent_id ?? null,
             'attribute_id' => $this->attribute_id ?? null,
             'brand_id' => $brandsEnabled ? ($this->brand_id ?? null) : null,

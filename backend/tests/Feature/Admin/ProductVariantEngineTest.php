@@ -88,3 +88,44 @@ it('preserves variant records and skus when combinations still exist', function 
         ->and($product->variants()->count())->toBe(2)
         ->and($product->variants()->whereHas('attributeValues', fn ($query) => $query->where('attribute_values.id', $green->id))->exists())->toBeFalse();
 });
+
+it('creates only one variant for a duplicated attribute combination', function (): void {
+    $product = variantProduct();
+    [$oneKg] = variantAttribute('Weight', ['1kg']);
+
+    app(ProductVariantEngine::class)->sync($product, [
+        ['attribute_values' => [$oneKg->id], 'status' => 'active', 'price_cents' => 56000],
+        ['attribute_values' => [$oneKg->id], 'status' => 'active', 'price_cents' => 56000],
+    ]);
+
+    expect($product->variants()->count())->toBe(1)
+        ->and($product->variants()->first()->attributeValues()->pluck('attribute_values.id')->all())
+        ->toBe([$oneKg->id]);
+});
+
+it('persists one explicit default variant and mirrors its pricing to the product', function (): void {
+    $product = variantProduct();
+    [$oneKg, $twoKg] = variantAttribute('Weight', ['1kg', '2kg']);
+    $engine = app(ProductVariantEngine::class);
+
+    $engine->sync($product, [
+        ['attribute_values' => [$oneKg->id], 'status' => 'active', 'price_cents' => 56000, 'compare_at_price_cents' => 60000, 'cost_price_cents' => 40000, 'is_default' => true],
+        ['attribute_values' => [$twoKg->id], 'status' => 'active', 'price_cents' => 112000, 'is_default' => false],
+    ]);
+
+    $product->refresh();
+    $defaultVariant = $product->variants()->with('attributeValues')->find($product->default_variant_id);
+
+    expect($defaultVariant)->not->toBeNull()
+        ->and($defaultVariant->attributeValues->pluck('id')->all())->toBe([$oneKg->id])
+        ->and($product->base_price_cents)->toBe(56000)
+        ->and($product->compare_at_price_cents)->toBe(60000)
+        ->and($product->cost_price_cents)->toBe(40000);
+
+    $engine->sync($product, [
+        ['attribute_values' => [$oneKg->id], 'status' => 'active', 'price_cents' => 56000, 'is_default' => false],
+        ['attribute_values' => [$twoKg->id], 'status' => 'active', 'price_cents' => 112000, 'is_default' => false],
+    ]);
+
+    expect($product->fresh()->default_variant_id)->toBeNull();
+});

@@ -1,5 +1,9 @@
 <?php
 
+use App\Console\Commands\ImportDemoAssets;
+use App\Console\Commands\ImportProductImages;
+use App\Console\Commands\InstallApplication;
+use App\Console\Commands\SyncCollectionSchedules;
 use App\Http\Middleware\AuthenticateAuthCookie;
 use App\Http\Middleware\ResolveAuthCookie;
 use App\Http\Middleware\SecurityHeaders;
@@ -26,9 +30,10 @@ return Application::configure(basePath: dirname(__DIR__))
         'middleware' => ['api', 'auth.cookie:access', 'throttle:public-settings'],
     ])
     ->withCommands([
-        App\Console\Commands\ImportDemoAssets::class,
-        App\Console\Commands\ImportProductImages::class,
-        App\Console\Commands\SyncCollectionSchedules::class,
+        InstallApplication::class,
+        ImportDemoAssets::class,
+        ImportProductImages::class,
+        SyncCollectionSchedules::class,
     ])
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->prepend(HandleCors::class);

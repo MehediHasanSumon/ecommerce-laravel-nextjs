@@ -57,11 +57,6 @@ class ProductCatalogController extends Controller
         $query = Product::query()
             ->where('status', 'active')
             ->withCount(['variants as active_variants_count' => fn ($query) => $query->where('status', 'active')])
-            ->withMin(['variants as default_variant_id' => fn ($query) => $query
-                ->where('status', 'active')
-                ->where(function ($query): void {
-                    $query->whereNull('stock_quantity')->orWhere('stock_quantity', '>', 0);
-                })], 'id')
             ->with([
                 'brand:id,name,slug',
                 'category:id,parent_id,name,slug',

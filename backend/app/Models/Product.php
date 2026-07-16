@@ -51,6 +51,11 @@ class Product extends Model
         return $this->hasMany(ProductVariant::class);
     }
 
+    public function defaultVariant(): BelongsTo
+    {
+        return $this->belongsTo(ProductVariant::class, 'default_variant_id');
+    }
+
     public function features(): HasMany
     {
         return $this->hasMany(ProductFeature::class);

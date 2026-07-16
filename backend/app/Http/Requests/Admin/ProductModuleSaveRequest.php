@@ -103,6 +103,7 @@ class ProductModuleSaveRequest extends FormRequest
                         $variant['status'] = filled($variant['status'] ?? null)
                             ? $variant['status']
                             : 'active';
+                        $variant['is_default'] = filter_var($variant['is_default'] ?? false, FILTER_VALIDATE_BOOL);
 
                         return $variant;
                     })
@@ -302,6 +303,7 @@ class ProductModuleSaveRequest extends FormRequest
         if ((string) $this->route('module') === 'products') {
             $validator->after(function (Validator $validator): void {
                 $seen = [];
+                $defaultVariants = 0;
 
                 foreach ((array) $this->input('variants', []) as $index => $variant) {
                     if (! is_array($variant)) {
@@ -327,6 +329,28 @@ class ProductModuleSaveRequest extends FormRequest
                     }
 
                     $seen[$key] = true;
+
+                    if (($variant['status'] ?? 'active') === 'active' && ! filled($variant['price_cents'] ?? null)) {
+                        $validator->errors()->add("variants.{$index}.price_cents", 'An active variant must have a price.');
+                    }
+
+                    if (filled($variant['price_cents'] ?? null)
+                        && filled($variant['compare_at_price_cents'] ?? null)
+                        && (int) $variant['compare_at_price_cents'] < (int) $variant['price_cents']
+                    ) {
+                        $validator->errors()->add("variants.{$index}.compare_at_price_cents", 'Compare price must be greater than or equal to the variant price.');
+                    }
+
+                    if ((bool) ($variant['is_default'] ?? false)) {
+                        $defaultVariants++;
+                        if (($variant['status'] ?? 'active') !== 'active') {
+                            $validator->errors()->add("variants.{$index}.is_default", 'The default variant must be active.');
+                        }
+                    }
+                }
+
+                if ($defaultVariants > 1) {
+                    $validator->errors()->add('variants', 'Only one default variant may be selected.');
                 }
             });
         }
@@ -454,6 +478,7 @@ class ProductModuleSaveRequest extends FormRequest
             'variants.*.stock_quantity' => ['nullable', 'integer', 'min:0'],
             'variants.*.track_inventory' => ['nullable', 'boolean'],
             'variants.*.status' => ['required_with:variants', Rule::in(['active', 'inactive'])],
+            'variants.*.is_default' => ['boolean'],
             'variants.*.attribute_values' => ['required_with:variants', 'array', 'min:1'],
             'variants.*.attribute_values.*' => ['integer', 'exists:attribute_values,id'],
         ];

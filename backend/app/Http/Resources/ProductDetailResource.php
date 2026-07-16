@@ -52,6 +52,7 @@ class ProductDetailResource extends JsonResource
                 'stockStatus' => $this->stockStatus((int) ($this->stock_quantity ?? 0)),
                 'trackInventory' => (bool) $this->track_inventory,
                 'sku' => $this->sku ?: '',
+                'defaultVariantId' => $this->default_variant_id ? (int) $this->default_variant_id : null,
                 'tags' => $this->tags->pluck('name')->values()->all(),
                 'badge' => $this->badge(),
                 'features' => $this->features

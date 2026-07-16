@@ -322,13 +322,11 @@ class ProductCatalogSeeder extends Seeder
             $variant = ProductVariant::query()->create([
                 'product_id' => $product->id,
                 'sku' => $product->sku.'-'.$suffix,
-                'barcode' => '8'.fake()->unique()->numerify('############'),
                 'price_cents' => $product->base_price_cents + ($index * 100),
                 'compare_at_price_cents' => $product->compare_at_price_cents,
                 'cost_price_cents' => $product->cost_price_cents,
                 'stock_quantity' => fake()->numberBetween(8, 80),
-                'low_stock_threshold' => fake()->numberBetween(3, 10),
-                'weight_grams' => fake()->numberBetween(120, 2800),
+                'track_inventory' => $product->track_inventory,
                 'status' => 'active',
             ]);
 
@@ -340,6 +338,14 @@ class ProductCatalogSeeder extends Seeder
             }
 
         }
+
+        $product->forceFill([
+            'default_variant_id' => ProductVariant::query()
+                ->where('product_id', $product->id)
+                ->where('status', 'active')
+                ->orderBy('id')
+                ->value('id'),
+        ])->saveQuietly();
     }
 
     private function findAttributeValue(string $attributeName, string $valueName): ?ProductAttributeValue

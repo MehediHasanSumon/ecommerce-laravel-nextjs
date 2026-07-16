@@ -15,7 +15,7 @@ export type ProductModule =
 export type ProductOptions = {
   brands: Option[];
   categories: Array<Option & { parent_id?: number | null }>;
-  attributes: Array<Option & { type?: string | null }>;
+  attributes: Array<Option & { type?: string | null; is_variant_defining?: boolean | null }>;
   attribute_values: Array<Option & { attribute_id?: number | null; type?: string | null; slug?: string | null }>;
   tags: Option[];
   products: Option[];

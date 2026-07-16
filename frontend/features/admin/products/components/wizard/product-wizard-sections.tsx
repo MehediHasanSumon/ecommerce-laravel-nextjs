@@ -70,14 +70,36 @@ export function BasicInfoSection({ form, options }: SectionProps) {
 
 export function PriceSection({ form }: SectionProps) {
   const errors = form.formState.errors;
+  const variants = useFieldValue(form, "variants");
+  const defaultVariant = variants.find((variant) => variant.is_default);
+  const hasVariants = variants.length > 0;
+
   return (
     <div className="space-y-5">
-      <SectionHeader title="Pricing" description="Set customer-facing pricing and margin inputs." />
-      <FieldGrid>
-        <Input label="Regular Price" type="number" min={0} step="0.01" {...form.register("base_price_cents")} error={errors.base_price_cents?.message} />
-        <Input label="Sale Price" type="number" min={0} step="0.01" {...form.register("compare_at_price_cents")} error={errors.compare_at_price_cents?.message} />
-        <Input label="Cost Price" type="number" min={0} step="0.01" {...form.register("cost_price_cents")} error={errors.cost_price_cents?.message} />
-      </FieldGrid>
+      <SectionHeader
+        title="Pricing"
+        description={hasVariants ? "Pricing is controlled by individual variants." : "Set customer-facing pricing and margin inputs."}
+      />
+      {hasVariants ? (
+        <>
+          <div className="rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+            {defaultVariant
+              ? "These values mirror the default variant. Edit them from Attributes & Variants."
+              : "No default variant is selected. Customers must select product options before purchasing."}
+          </div>
+          <FieldGrid>
+            <Input label="Regular Price" type="number" value={defaultVariant?.price_cents ?? ""} disabled readOnly />
+            <Input label="Sale Price" type="number" value={defaultVariant?.compare_at_price_cents ?? ""} disabled readOnly />
+            <Input label="Cost Price" type="number" value={defaultVariant?.cost_price_cents ?? ""} disabled readOnly />
+          </FieldGrid>
+        </>
+      ) : (
+        <FieldGrid>
+          <Input label="Regular Price" type="number" min={0} step="0.01" {...form.register("base_price_cents")} error={errors.base_price_cents?.message} />
+          <Input label="Sale Price" type="number" min={0} step="0.01" {...form.register("compare_at_price_cents")} error={errors.compare_at_price_cents?.message} />
+          <Input label="Cost Price" type="number" min={0} step="0.01" {...form.register("cost_price_cents")} error={errors.cost_price_cents?.message} />
+        </FieldGrid>
+      )}
       <ToggleField label="Free Shipping" description="Mark this product as eligible for free shipping promotions." checked={useFieldValue(form, "free_shipping")} onChange={(checked) => form.setValue("free_shipping", checked, { shouldDirty: true })} />
     </div>
   );
@@ -112,6 +134,9 @@ export function MediaSection({ form }: SectionProps) {
 export function VariantSection({ form, options }: SectionProps) {
   const variants = useFieldValue(form, "variants");
   const selectedAttributes = useFieldValue(form, "attribute_values");
+  const productPrice = useFieldValue(form, "base_price_cents");
+  const productComparePrice = useFieldValue(form, "compare_at_price_cents");
+  const productCostPrice = useFieldValue(form, "cost_price_cents");
   const [attributeSearch, setAttributeSearch] = useState("");
   const [attributeOptions, setAttributeOptions] = useState(options.attribute_values);
   const [loadingAttributes, setLoadingAttributes] = useState(false);
@@ -143,12 +168,18 @@ export function VariantSection({ form, options }: SectionProps) {
 
   const valuesById = useMemo(() => new Map(visibleAttributeOptions.map((value) => [Number(value.id), value])), [visibleAttributeOptions]);
   const groupedAttributes = useMemo(() => {
-    const grouped = new Map<number, { id: number; name: string; type?: string | null; values: typeof visibleAttributeOptions }>();
+    const grouped = new Map<number, { id: number; name: string; type?: string | null; isVariantDefining: boolean; values: typeof visibleAttributeOptions }>();
     visibleAttributeOptions.forEach((value) => {
       const attributeId = Number(value.attribute_id ?? 0);
       if (!attributeId) return;
       const attribute = options.attributes.find((item) => Number(item.id) === attributeId);
-      const group = grouped.get(attributeId) ?? { id: attributeId, name: attribute?.name ?? "Attribute", type: attribute?.type, values: [] };
+      const group = grouped.get(attributeId) ?? {
+        id: attributeId,
+        name: attribute?.name ?? "Attribute",
+        type: attribute?.type,
+        isVariantDefining: Boolean(attribute?.is_variant_defining),
+        values: [],
+      };
       group.values.push(value);
       grouped.set(attributeId, group);
     });
@@ -157,6 +188,7 @@ export function VariantSection({ form, options }: SectionProps) {
 
   const generatedCombinations = useMemo(() => {
     const selectedGroups = groupedAttributes
+      .filter((group) => group.isVariantDefining)
       .map((group) => group.values.filter((value) => selectedAttributes.includes(Number(value.id))).map((value) => Number(value.id)))
       .filter((values) => values.length > 0);
 
@@ -187,12 +219,13 @@ export function VariantSection({ form, options }: SectionProps) {
       const existing = existingByKey.get(key);
       return existing ?? {
         id: `variant-${key || crypto.randomUUID()}`,
-        price_cents: undefined,
-        compare_at_price_cents: undefined,
-        cost_price_cents: undefined,
+        price_cents: typeof productPrice === "number" ? productPrice : undefined,
+        compare_at_price_cents: typeof productComparePrice === "number" ? productComparePrice : undefined,
+        cost_price_cents: typeof productCostPrice === "number" ? productCostPrice : undefined,
         stock_quantity: "" as const,
         track_inventory: null,
         status: "active" as const,
+        is_default: false,
         attribute_values: combination,
       };
     });
@@ -204,11 +237,31 @@ export function VariantSection({ form, options }: SectionProps) {
       form.setValue("variants", generated, { shouldDirty: true, shouldValidate: false });
       setOpenVariantIds((ids) => ids.filter((id) => generated.some((variant) => variant.id === id)));
     }
-  }, [form, generatedCombinations, selectedAttributes, variants]);
+  }, [
+    form,
+    generatedCombinations,
+    productComparePrice,
+    productCostPrice,
+    productPrice,
+    selectedAttributes,
+    variants,
+  ]);
 
   function updateVariant(id: string, patch: Partial<ProductVariantDraft>) {
     form.clearErrors("variants");
-    form.setValue("variants", variants.map((variant) => variant.id === id ? { ...variant, ...patch } : variant), { shouldDirty: true, shouldValidate: false });
+    form.setValue("variants", variants.map((variant) => {
+      if (variant.id !== id) return variant;
+      const updated = { ...variant, ...patch };
+      return updated.status === "inactive" ? { ...updated, is_default: false } : updated;
+    }), { shouldDirty: true, shouldValidate: false });
+  }
+
+  function setDefaultVariant(id: string | null) {
+    form.clearErrors("variants");
+    form.setValue("variants", variants.map((variant) => ({
+      ...variant,
+      is_default: id !== null && variant.id === id,
+    })), { shouldDirty: true, shouldValidate: false });
   }
 
   function toggleAttributeValue(id: number, checked: boolean) {
@@ -218,6 +271,24 @@ export function VariantSection({ form, options }: SectionProps) {
   function toggleAccordion(id: string) {
     setOpenVariantIds((ids) => ids.includes(id) ? ids.filter((item) => item !== id) : [...ids, id]);
   }
+
+  const defaultVariant = variants.find((variant) => variant.is_default);
+
+  useEffect(() => {
+    if (!defaultVariant) return;
+
+    if (defaultVariant.price_cents !== undefined) {
+      form.setValue("base_price_cents", defaultVariant.price_cents, { shouldValidate: false });
+    }
+    form.setValue("compare_at_price_cents", defaultVariant.compare_at_price_cents ?? "", { shouldValidate: false });
+    form.setValue("cost_price_cents", defaultVariant.cost_price_cents ?? "", { shouldValidate: false });
+  }, [
+    defaultVariant,
+    defaultVariant?.compare_at_price_cents,
+    defaultVariant?.cost_price_cents,
+    defaultVariant?.price_cents,
+    form,
+  ]);
 
   return (
     <div className="space-y-5">
@@ -255,6 +326,21 @@ export function VariantSection({ form, options }: SectionProps) {
         </div>
       </div>
       <div className="space-y-3">
+        {variants.length ? (
+          <label className="flex items-start gap-3 rounded-lg border border-border bg-muted/30 p-4">
+            <input
+              type="radio"
+              name="default-product-variant"
+              checked={!defaultVariant}
+              onChange={() => setDefaultVariant(null)}
+              className="mt-0.5 h-4 w-4 border-border"
+            />
+            <span>
+              <span className="block text-sm font-semibold">No default variant</span>
+              <span className="mt-0.5 block text-xs text-muted-foreground">Customers must select product options before adding this item to cart.</span>
+            </span>
+          </label>
+        ) : null}
         {variants.length ? variants.map((variant, index) => (
           <div key={variant.id} className="rounded-lg border border-border bg-background">
             <div className="flex items-center gap-3 p-4">
@@ -272,6 +358,18 @@ export function VariantSection({ form, options }: SectionProps) {
                   <span className="mt-0.5 block truncate text-xs text-muted-foreground">{variant.attribute_values.map((id) => valuesById.get(id)?.name ?? id).join(" / ")}</span>
                 </span>
               </button>
+              <label className="flex shrink-0 items-center gap-2 text-xs font-semibold">
+                <input
+                  type="radio"
+                  name="default-product-variant"
+                  checked={variant.is_default}
+                  disabled={variant.status !== "active"}
+                  onChange={() => setDefaultVariant(variant.id)}
+                  className="h-4 w-4 border-border"
+                  aria-label={`Set ${variantName(variant.attribute_values)} as default`}
+                />
+                Default
+              </label>
             </div>
             {openVariantIds.includes(variant.id) ? (
               <div className="border-t border-border p-4">
