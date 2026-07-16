@@ -63,7 +63,7 @@ export function ProductFormLayout({
 
       <section className="rounded-lg border border-border bg-card">
         <div className="border-b border-border p-3">
-          <div className="grid gap-2 md:grid-cols-4 xl:grid-cols-8">
+          <div className="mx-auto flex w-full max-w-5xl flex-wrap justify-center gap-2">
             {productWizardSteps.map((step, index) => {
               const complete = index < activeStep;
               const active = index === activeStep;
@@ -73,7 +73,7 @@ export function ProductFormLayout({
                   type="button"
                   onClick={() => onStepClick(index)}
                   className={cn(
-                    "flex min-h-16 items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-left transition",
+                    "flex min-h-16 w-full items-center gap-2 rounded-lg border border-transparent px-3 py-2 text-left transition sm:w-[calc(50%-0.25rem)] md:w-44",
                     active ? "border-primary bg-primary/10 text-foreground" : "hover:bg-muted",
                   )}
                 >
