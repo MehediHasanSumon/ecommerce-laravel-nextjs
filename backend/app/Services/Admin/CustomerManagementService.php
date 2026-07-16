@@ -120,7 +120,13 @@ class CustomerManagementService
     {
         $user = User::query()
             ->whereHas('roles', fn ($query) => $query->where('name', 'user'))
-            ->with(['addresses', 'orders' => fn ($query) => $query->latest('placed_at')->withCount('items')])
+            ->with([
+                'addresses',
+                'orders' => fn ($query) => $query
+                    ->latest('placed_at')
+                    ->withCount('items')
+                    ->with(['user:id,name,email,phone', 'guestCustomer:id,name,email,phone']),
+            ])
             ->findOrFail($id);
 
         return $this->detailPayload(
@@ -141,7 +147,12 @@ class CustomerManagementService
     private function guestDetail(int $id): array
     {
         $guest = GuestCustomer::query()
-            ->with(['orders' => fn ($query) => $query->latest('placed_at')->withCount('items')])
+            ->with([
+                'orders' => fn ($query) => $query
+                    ->latest('placed_at')
+                    ->withCount('items')
+                    ->with(['user:id,name,email,phone', 'guestCustomer:id,name,email,phone']),
+            ])
             ->findOrFail($id);
 
         return $this->detailPayload(

@@ -3,6 +3,9 @@
 namespace App\Http\Requests\Admin;
 
 use App\Models\Category;
+use App\Models\Product;
+use App\Models\ProductAttributeValue;
+use App\Models\ProductVariant;
 use App\Models\Settings\CompanySetting;
 use App\Services\Admin\Settings\CategoryDisplaySettingsService;
 use Illuminate\Foundation\Http\FormRequest;
@@ -103,7 +106,9 @@ class ProductModuleSaveRequest extends FormRequest
                         $variant['status'] = filled($variant['status'] ?? null)
                             ? $variant['status']
                             : 'active';
-                        $variant['is_default'] = filter_var($variant['is_default'] ?? false, FILTER_VALIDATE_BOOL);
+                        $variant['sku'] = filled($variant['sku'] ?? null)
+                            ? trim((string) $variant['sku'])
+                            : null;
 
                         return $variant;
                     })
@@ -303,9 +308,22 @@ class ProductModuleSaveRequest extends FormRequest
         if ((string) $this->route('module') === 'products') {
             $validator->after(function (Validator $validator): void {
                 $seen = [];
-                $defaultVariants = 0;
+                $seenSkus = [];
+                $variants = (array) $this->input('variants', []);
+                $productId = (int) ($this->route('id') ?: 0);
+                $product = $productId ? Product::query()->find($productId) : null;
+                $valueIds = collect($variants)
+                    ->flatMap(fn ($variant) => is_array($variant) ? ($variant['attribute_values'] ?? []) : [])
+                    ->map(fn ($id): int => (int) $id)
+                    ->filter()
+                    ->unique()
+                    ->values();
+                $attributeIdsByValue = ProductAttributeValue::query()
+                    ->whereIn('id', $valueIds)
+                    ->whereHas('attribute', fn ($query) => $query->where('is_variant_defining', true))
+                    ->pluck('attribute_id', 'id');
 
-                foreach ((array) $this->input('variants', []) as $index => $variant) {
+                foreach ($variants as $index => $variant) {
                     if (! is_array($variant)) {
                         continue;
                     }
@@ -323,6 +341,15 @@ class ProductModuleSaveRequest extends FormRequest
                         continue;
                     }
 
+                    if ($ids->count() !== $attributeIdsByValue->only($ids)->count()) {
+                        $validator->errors()->add("variants.{$index}.attribute_values", 'Variants may only use variant-defining attribute values.');
+                    }
+
+                    $attributeIds = $ids->map(fn (int $id) => $attributeIdsByValue->get($id))->filter();
+                    if ($attributeIds->count() !== $attributeIds->unique()->count()) {
+                        $validator->errors()->add("variants.{$index}.attribute_values", 'A variant may contain only one value from each attribute.');
+                    }
+
                     $key = $ids->implode(':');
                     if (isset($seen[$key])) {
                         $validator->errors()->add("variants.{$index}.attribute_values", 'Duplicate variant combinations are not allowed.');
@@ -334,6 +361,13 @@ class ProductModuleSaveRequest extends FormRequest
                         $validator->errors()->add("variants.{$index}.price_cents", 'An active variant must have a price.');
                     }
 
+                    if (($variant['status'] ?? 'active') === 'active'
+                        && (bool) ($variant['track_inventory'] ?? true)
+                        && ! filled($variant['stock_quantity'] ?? null)
+                    ) {
+                        $validator->errors()->add("variants.{$index}.stock_quantity", 'Stock quantity is required when variant inventory is tracked.');
+                    }
+
                     if (filled($variant['price_cents'] ?? null)
                         && filled($variant['compare_at_price_cents'] ?? null)
                         && (int) $variant['compare_at_price_cents'] < (int) $variant['price_cents']
@@ -341,16 +375,38 @@ class ProductModuleSaveRequest extends FormRequest
                         $validator->errors()->add("variants.{$index}.compare_at_price_cents", 'Compare price must be greater than or equal to the variant price.');
                     }
 
-                    if ((bool) ($variant['is_default'] ?? false)) {
-                        $defaultVariants++;
-                        if (($variant['status'] ?? 'active') !== 'active') {
-                            $validator->errors()->add("variants.{$index}.is_default", 'The default variant must be active.');
+                    $sku = strtoupper(trim((string) ($variant['sku'] ?? '')));
+                    if ($sku !== '') {
+                        if (isset($seenSkus[$sku])) {
+                            $validator->errors()->add("variants.{$index}.sku", 'Variant SKUs must be unique.');
+                        }
+                        $seenSkus[$sku] = true;
+
+                        if (Product::query()->where('sku', $sku)->when($product, fn ($query) => $query->whereKeyNot($product->id))->exists()) {
+                            $validator->errors()->add("variants.{$index}.sku", 'This SKU is already used by another product.');
+                        }
+
+                        $existingVariant = $product?->variants()
+                            ->withTrashed()
+                            ->where('combination_key', $key)
+                            ->first();
+                        if (ProductVariant::query()
+                            ->withTrashed()
+                            ->where('sku', $sku)
+                            ->when($existingVariant, fn ($query) => $query->whereKeyNot($existingVariant->id))
+                            ->exists()
+                        ) {
+                            $validator->errors()->add("variants.{$index}.sku", 'This SKU is already used by another variant.');
                         }
                     }
                 }
 
-                if ($defaultVariants > 1) {
-                    $validator->errors()->add('variants', 'Only one default variant may be selected.');
+                if ($variants === [] && ! filled($this->input('base_price_cents'))) {
+                    $validator->errors()->add('base_price_cents', 'Regular price is required for a product without variants.');
+                }
+
+                if ($variants !== [] && collect($variants)->where('status', 'active')->isEmpty()) {
+                    $validator->errors()->add('variants', 'A variant product must have at least one active sellable SKU.');
                 }
             });
         }
@@ -430,7 +486,7 @@ class ProductModuleSaveRequest extends FormRequest
             'description' => ['nullable', 'string'],
             'product_type' => ['required', Rule::in(['physical', 'digital'])],
             'status' => ['required', Rule::in(['draft', 'active', 'archived'])],
-            'base_price_cents' => ['required', 'integer', 'min:0'],
+            'base_price_cents' => ['nullable', 'integer', 'min:0'],
             'compare_at_price_cents' => ['nullable', 'integer', 'min:0'],
             'cost_price_cents' => ['nullable', 'integer', 'min:0'],
             'currency' => ['required', 'string', 'size:3'],
@@ -472,13 +528,13 @@ class ProductModuleSaveRequest extends FormRequest
             'seo.og_image_url' => ['nullable', 'string'],
             'seo.schema_json' => ['nullable', 'array'],
             'variants' => ['nullable', 'array'],
+            'variants.*.sku' => ['nullable', 'string', 'max:100', 'regex:/^[A-Za-z0-9][A-Za-z0-9._-]*$/'],
             'variants.*.price_cents' => ['nullable', 'integer', 'min:0'],
             'variants.*.compare_at_price_cents' => ['nullable', 'integer', 'min:0'],
             'variants.*.cost_price_cents' => ['nullable', 'integer', 'min:0'],
             'variants.*.stock_quantity' => ['nullable', 'integer', 'min:0'],
-            'variants.*.track_inventory' => ['nullable', 'boolean'],
+            'variants.*.track_inventory' => ['required_with:variants', 'boolean'],
             'variants.*.status' => ['required_with:variants', Rule::in(['active', 'inactive'])],
-            'variants.*.is_default' => ['boolean'],
             'variants.*.attribute_values' => ['required_with:variants', 'array', 'min:1'],
             'variants.*.attribute_values.*' => ['integer', 'exists:attribute_values,id'],
         ];

@@ -17,9 +17,7 @@ import { routePaths } from "@/constants/routes";
 import { ProductFormLayout } from "@/features/admin/products/components/wizard/product-form-layout";
 import {
   BasicInfoSection,
-  InventorySection,
   MediaSection,
-  PriceSection,
   PublishSection,
   SeoSection,
   VariantSection,
@@ -256,8 +254,6 @@ export function ProductWizardPage({ mode, productId }: { mode: ProductWizardMode
       <ErrorSummary errors={form.formState.errors} />
       <div className="mt-4">
         {currentStepId === "basic" ? <BasicInfoSection form={form} options={options} /> : null}
-        {currentStepId === "pricing" ? <PriceSection form={form} options={options} /> : null}
-        {currentStepId === "inventory" ? <InventorySection form={form} options={options} /> : null}
         {currentStepId === "media" ? <MediaSection form={form} options={options} /> : null}
         {currentStepId === "variants" ? <VariantSection form={form} options={options} /> : null}
         {currentStepId === "seo" ? <SeoSection form={form} options={options} /> : null}

@@ -21,14 +21,13 @@ export type ProductMediaItem = {
 
 export type ProductVariantDraft = {
   id: string;
-  sku?: string;
+  sku: string;
   price_cents?: number;
   compare_at_price_cents?: number;
   cost_price_cents?: number;
   stock_quantity?: number | "";
-  track_inventory?: boolean | null;
+  track_inventory: boolean;
   status: "active" | "inactive";
-  is_default: boolean;
   attribute_values: number[];
 };
 
@@ -70,10 +69,8 @@ export type ProductWizardValues = {
 
 export const productWizardSteps = [
   { id: "basic", title: "Basic Information" },
-  { id: "pricing", title: "Pricing" },
-  { id: "inventory", title: "Inventory" },
   { id: "media", title: "Images & Media" },
-  { id: "variants", title: "Attributes & Variants" },
+  { id: "variants", title: "Pricing" },
   { id: "seo", title: "SEO" },
   { id: "publish", title: "Publish" },
 ] as const;
@@ -96,7 +93,7 @@ export const productWizardSchema = z.object({
   short_description: z.string().trim().min(10, "Add a short description."),
   description: z.string().optional(),
   product_type: z.enum(["physical", "digital"]),
-  base_price_cents: z.coerce.number({ error: "Regular price is required." }).min(0, "Regular price cannot be negative."),
+  base_price_cents: z.union([z.coerce.number().min(0, "Regular price cannot be negative."), z.literal("")]),
   compare_at_price_cents: z.union([z.coerce.number().min(0), z.literal("")]).optional(),
   cost_price_cents: z.union([z.coerce.number().min(0), z.literal("")]).optional(),
   currency: z.string().trim().optional(),
@@ -122,33 +119,54 @@ export const productWizardSchema = z.object({
   is_flash_sale: z.boolean(),
   free_shipping: z.boolean(),
 }).superRefine((values, ctx) => {
-  if (values.track_inventory && values.stock_quantity === "") {
+  if (values.variants.length === 0 && values.base_price_cents === "") {
+    ctx.addIssue({ code: "custom", path: ["base_price_cents"], message: "Sell price is required for a product without variants." });
+  }
+  if (values.variants.length === 0 && values.track_inventory && values.stock_quantity === "") {
     ctx.addIssue({ code: "custom", path: ["stock_quantity"], message: "Stock quantity is required when inventory is tracked." });
   }
-  if (values.compare_at_price_cents !== "" && Number(values.compare_at_price_cents) < Number(values.base_price_cents)) {
-    ctx.addIssue({ code: "custom", path: ["compare_at_price_cents"], message: "Sale price should be greater than or equal to regular price." });
+  if (
+    values.variants.length === 0
+    && values.base_price_cents !== ""
+    && values.compare_at_price_cents !== ""
+    && Number(values.compare_at_price_cents) < Number(values.base_price_cents)
+  ) {
+    ctx.addIssue({ code: "custom", path: ["compare_at_price_cents"], message: "Regular price must be greater than or equal to the sell price." });
   }
+  const variantKeys = new Set<string>();
+  const variantSkus = new Set<string>();
   values.variants.forEach((variant, index) => {
     const item = variant as ProductVariantDraft;
-    if (item.status === "active" && item.price_cents === undefined) {
-      ctx.addIssue({ code: "custom", path: ["variants", index, "price_cents"], message: "Active variants require a price." });
+    const key = [...item.attribute_values].sort((a, b) => a - b).join(":");
+    if (variantKeys.has(key)) {
+      ctx.addIssue({ code: "custom", path: ["variants", index, "attribute_values"], message: "Duplicate variant combinations are not allowed." });
+    }
+    variantKeys.add(key);
+    const sku = item.sku.trim().toUpperCase();
+    if (sku && variantSkus.has(sku)) {
+      ctx.addIssue({ code: "custom", path: ["variants", index, "sku"], message: "Variant SKUs must be unique." });
+    }
+    if (sku) variantSkus.add(sku);
+    if (item.status === "active" && (item.price_cents === undefined || item.price_cents === null)) {
+      ctx.addIssue({ code: "custom", path: ["variants", index, "price_cents"], message: "Active variants require a sell price." });
+    }
+    if (item.status === "active" && item.track_inventory && item.stock_quantity === "") {
+      ctx.addIssue({ code: "custom", path: ["variants", index, "stock_quantity"], message: "Stock is required when variant inventory is tracked." });
     }
     if (
       item.price_cents !== undefined
       && item.compare_at_price_cents !== undefined
       && Number(item.compare_at_price_cents) < Number(item.price_cents)
     ) {
-      ctx.addIssue({ code: "custom", path: ["variants", index, "compare_at_price_cents"], message: "Compare price must be greater than or equal to the variant price." });
+      ctx.addIssue({ code: "custom", path: ["variants", index, "compare_at_price_cents"], message: "Regular price must be greater than or equal to the sell price." });
     }
   });
 });
 
 export const stepFields: Record<ProductWizardStepId, Array<keyof ProductWizardValues | string>> = {
   basic: ["name", "brand_id", "category_id", "subcategory_id", "short_description"],
-  pricing: ["base_price_cents", "compare_at_price_cents", "cost_price_cents"],
-  inventory: ["stock_quantity", "low_stock_threshold", "track_inventory"],
   media: ["featured_image", "gallery_images"],
-  variants: ["attribute_values", "variants"],
+  variants: ["base_price_cents", "compare_at_price_cents", "cost_price_cents", "stock_quantity", "low_stock_threshold", "track_inventory", "attribute_values", "variants"],
   seo: ["seo.custom_enabled", "seo.meta_title", "seo.meta_description", "seo.canonical_url", "seo.og_image_url"],
   publish: ["status", "published_at"],
 };
@@ -254,14 +272,13 @@ export function valuesFromProduct(record?: ProductRecord | null, options?: Produ
       const item = variant as Record<string, unknown>;
       return {
         id: String(item.id ?? `variant-${index}`),
-        sku: typeof item.sku === "string" ? item.sku : undefined,
+        sku: typeof item.sku === "string" ? item.sku : "",
         price_cents: item.price_cents === null || item.price_cents === undefined ? undefined : Number(item.price_cents) / 100,
         compare_at_price_cents: item.compare_at_price_cents === null || item.compare_at_price_cents === undefined ? undefined : Number(item.compare_at_price_cents) / 100,
         cost_price_cents: item.cost_price_cents === null || item.cost_price_cents === undefined ? undefined : Number(item.cost_price_cents) / 100,
         stock_quantity: item.stock_quantity === null || item.stock_quantity === undefined ? "" : quantityInput(item.stock_quantity),
-        track_inventory: typeof item.track_inventory === "boolean" ? item.track_inventory : null,
+        track_inventory: typeof item.track_inventory === "boolean" ? item.track_inventory : true,
         status: item.status === "inactive" ? "inactive" : "active",
-        is_default: Boolean(item.is_default) || Number(record.default_variant_id) === Number(item.id),
         attribute_values: Array.isArray(item.attribute_values) ? item.attribute_values.map((value) => Number((value as { id: number }).id)) : [],
       };
     }) : [],
@@ -332,13 +349,13 @@ export function productPayloadFromValues(values: ProductWizardValues, publish: b
   });
   const variants = values.variants.map((variant) => {
     return {
+      sku: variant.sku.trim() || null,
       price_cents: amountToCents(variant.price_cents),
       compare_at_price_cents: amountToCents(variant.compare_at_price_cents),
       cost_price_cents: amountToCents(variant.cost_price_cents),
       stock_quantity: optionalNumber(variant.stock_quantity),
       track_inventory: variant.track_inventory,
       status: variant.status,
-      is_default: variant.is_default,
       attribute_values: variant.attribute_values,
     };
   });
@@ -350,12 +367,12 @@ export function productPayloadFromValues(values: ProductWizardValues, publish: b
     description: values.description || null,
     product_type: values.product_type,
     status: publish ? "active" : values.status,
-    base_price_cents: amountToCents(values.base_price_cents) ?? 0,
-    compare_at_price_cents: amountToCents(values.compare_at_price_cents),
-    cost_price_cents: amountToCents(values.cost_price_cents),
-    track_inventory: values.track_inventory,
-    stock_quantity: optionalNumber(values.stock_quantity),
-    low_stock_threshold: optionalNumber(values.low_stock_threshold),
+    base_price_cents: variants.length ? null : amountToCents(values.base_price_cents),
+    compare_at_price_cents: variants.length ? null : amountToCents(values.compare_at_price_cents),
+    cost_price_cents: variants.length ? null : amountToCents(values.cost_price_cents),
+    track_inventory: variants.length ? false : values.track_inventory,
+    stock_quantity: variants.length ? null : optionalNumber(values.stock_quantity),
+    low_stock_threshold: variants.length ? null : optionalNumber(values.low_stock_threshold),
     is_featured: values.is_featured,
     is_new: values.is_new,
     is_best_seller: values.is_best_seller,

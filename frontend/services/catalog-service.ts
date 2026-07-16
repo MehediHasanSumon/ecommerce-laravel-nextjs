@@ -94,6 +94,7 @@ export type ProductVariantDetail = {
   originalPrice?: number | null;
   stock: number;
   stockStatus: string;
+  trackInventory: boolean;
   options: Record<string, { id: number; name: string; value: string; display_value?: string | null; hex?: string | null }>;
   images: string[];
 };
@@ -109,6 +110,7 @@ export type ProductDetail = Product & {
   categories?: Array<{ name: string; slug: string }>;
   stockStatus?: string;
   trackInventory?: boolean;
+  priceRange?: { min: number; max: number } | null;
   attributes?: ProductAttributeGroup[];
   variants?: ProductVariantDetail[];
   shippingInfo?: string;

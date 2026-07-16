@@ -28,6 +28,24 @@ class ProductDetailResource extends JsonResource
             ->values()
             ->map(fn (ProductVariant $variant): array => $this->variantPayload($variant))
             ->all();
+        $variantCollection = collect($variants);
+        $hasVariants = $variantCollection->isNotEmpty();
+        $lowestVariant = $variantCollection->sortBy('price')->first();
+        $highestVariant = $variantCollection->sortByDesc('price')->first();
+        $priceCents = $hasVariants
+            ? (int) round(((float) ($lowestVariant['price'] ?? 0)) * 100)
+            : $this->base_price_cents;
+        $compareAtPriceCents = $hasVariants
+            ? (isset($lowestVariant['originalPrice']) ? (int) round(((float) $lowestVariant['originalPrice']) * 100) : null)
+            : $this->compare_at_price_cents;
+        $availableVariants = $this->variants
+            ->where('status', 'active')
+            ->filter(fn (ProductVariant $variant): bool => ! $variant->track_inventory || (int) ($variant->stock_quantity ?? 0) > 0);
+        $stock = $hasVariants
+            ? ($availableVariants->isNotEmpty() ? max(1, (int) $availableVariants->sum('stock_quantity')) : 0)
+            : ($this->track_inventory
+                ? (int) ($this->stock_quantity ?? 0)
+                : max(1, (int) ($this->stock_quantity ?? 0)));
 
         return [
             'product' => [
@@ -36,9 +54,13 @@ class ProductDetailResource extends JsonResource
                 'name' => $this->name,
                 'description' => $this->short_description ?: '',
                 'longDescription' => $this->description,
-                'price' => $this->money($this->base_price_cents),
-                'originalPrice' => $this->compare_at_price_cents ? $this->money($this->compare_at_price_cents) : null,
-                'discount' => $this->discountPercent(),
+                'price' => $this->money($priceCents),
+                'originalPrice' => $compareAtPriceCents ? $this->money($compareAtPriceCents) : null,
+                'priceRange' => $hasVariants ? [
+                    'min' => (float) ($lowestVariant['price'] ?? 0),
+                    'max' => (float) ($highestVariant['price'] ?? 0),
+                ] : null,
+                'discount' => $this->discountPercent($priceCents, $compareAtPriceCents),
                 'category' => $this->category?->name ?: '',
                 'categorySlug' => $this->category?->slug ?: '',
                 'categories' => $this->categoryBreadcrumb(),
@@ -48,11 +70,12 @@ class ProductDetailResource extends JsonResource
                 'thumbnail' => $primaryImage,
                 'rating' => (float) ($this->rating_average ?? 0),
                 'reviewCount' => (int) ($this->review_count ?? 0),
-                'stock' => (int) ($this->stock_quantity ?? 0),
-                'stockStatus' => $this->stockStatus((int) ($this->stock_quantity ?? 0)),
-                'trackInventory' => (bool) $this->track_inventory,
-                'sku' => $this->sku ?: '',
-                'defaultVariantId' => $this->default_variant_id ? (int) $this->default_variant_id : null,
+                'stock' => $stock,
+                'stockStatus' => $this->stockStatus($stock),
+                'trackInventory' => $hasVariants
+                    ? $this->variants->where('status', 'active')->every(fn (ProductVariant $variant): bool => (bool) $variant->track_inventory)
+                    : (bool) $this->track_inventory,
+                'sku' => $hasVariants ? '' : ($this->sku ?: ''),
                 'tags' => $this->tags->pluck('name')->values()->all(),
                 'badge' => $this->badge(),
                 'features' => $this->features
@@ -166,12 +189,13 @@ class ProductDetailResource extends JsonResource
         return [
             'id' => (string) $variant->id,
             'sku' => $variant->sku,
-            'price' => $variant->price_cents !== null ? $this->money($variant->price_cents) : $this->money($this->base_price_cents),
-            'originalPrice' => $variant->compare_at_price_cents !== null ? $this->money($variant->compare_at_price_cents) : ($this->compare_at_price_cents ? $this->money($this->compare_at_price_cents) : null),
-            'stock' => (int) ($variant->stock_quantity ?? $this->stock_quantity ?? 0),
-            'stockStatus' => $this->stockStatus((int) ($variant->stock_quantity ?? $this->stock_quantity ?? 0)),
-            'trackInventory' => (bool) ($variant->track_inventory ?? $this->track_inventory),
+            'price' => $this->money($variant->price_cents),
+            'originalPrice' => $variant->compare_at_price_cents !== null ? $this->money($variant->compare_at_price_cents) : null,
+            'stock' => $variant->track_inventory ? (int) ($variant->stock_quantity ?? 0) : max(1, (int) ($variant->stock_quantity ?? 0)),
+            'stockStatus' => ! $variant->track_inventory || (int) ($variant->stock_quantity ?? 0) > 0 ? 'in_stock' : 'out_of_stock',
+            'trackInventory' => (bool) $variant->track_inventory,
             'options' => $options,
+            'images' => [],
         ];
     }
 
@@ -253,18 +277,18 @@ class ProductDetailResource extends JsonResource
         return $stock > 0 ? 'in_stock' : 'out_of_stock';
     }
 
-    private function discountPercent(): ?int
+    private function discountPercent(?int $priceCents, ?int $compareAtPriceCents): ?int
     {
-        if (! $this->compare_at_price_cents || $this->compare_at_price_cents <= $this->base_price_cents) {
+        if (! $compareAtPriceCents || $compareAtPriceCents <= $priceCents) {
             return null;
         }
 
-        return (int) round((($this->compare_at_price_cents - $this->base_price_cents) / $this->compare_at_price_cents) * 100);
+        return (int) round((($compareAtPriceCents - $priceCents) / $compareAtPriceCents) * 100);
     }
 
     private function badge(): ?string
     {
-        if ($this->is_flash_sale && $this->discountPercent()) {
+        if ($this->is_flash_sale) {
             return 'sale';
         }
         if ($this->is_best_seller) {

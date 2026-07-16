@@ -92,7 +92,9 @@ class CollectionProductResolver
                 return $product;
             }
 
-            $basePrice = (int) $product->base_price_cents;
+            $basePrice = (int) ($product->active_variants_count > 0
+                ? $product->cheapestActiveVariant?->price_cents
+                : $product->base_price_cents);
             $discounted = match ($pricingCollection->discount_type) {
                 'percentage' => (int) round($basePrice * max(0, 100 - (int) $pricingCollection->discount_value) / 100),
                 'fixed' => max(0, $basePrice - (int) $pricingCollection->discount_value),
@@ -103,8 +105,8 @@ class CollectionProductResolver
                 return $product;
             }
 
-            $product->base_price_cents = $discounted;
-            $product->compare_at_price_cents = $basePrice;
+            $product->setAttribute('catalog_price_cents', $discounted);
+            $product->setAttribute('catalog_compare_at_price_cents', $basePrice);
             $product->is_flash_sale = $pricingCollection->rule_key === 'flash_sale' || $pricingCollection->priority >= 90;
             $product->flash_sale_ends_at = $pricingCollection->ends_at;
 
@@ -128,10 +130,8 @@ class CollectionProductResolver
         return Product::query()
             ->where('status', 'active')
             ->whereNotNull('published_at')
-            ->withCount(['variants as active_variants_count' => fn (Builder $query) => $query->where('status', 'active')])
-            ->where(fn (Builder $query) => $query
-                ->where('track_inventory', false)
-                ->orWhere('stock_quantity', '>', 0))
+            ->withSellableVariantMetrics()
+            ->whereSellableAvailable()
             ->with([
                 'brand:id,name,slug',
                 'category:id,name,slug',
@@ -146,10 +146,8 @@ class CollectionProductResolver
             return $collection->products()
                 ->where('products.status', 'active')
                 ->whereNotNull('products.published_at')
-                ->withCount(['variants as active_variants_count' => fn (Builder $query) => $query->where('status', 'active')])
-                ->where(fn (Builder $query) => $query
-                    ->where('products.track_inventory', false)
-                    ->orWhere('products.stock_quantity', '>', 0))
+                ->withSellableVariantMetrics()
+                ->whereSellableAvailable()
                 ->with([
                     'brand:id,name,slug',
                     'category:id,name,slug',
@@ -185,9 +183,7 @@ class CollectionProductResolver
         return $collection->products()
             ->where('products.status', 'active')
             ->whereNotNull('products.published_at')
-            ->where(fn (Builder $query) => $query
-                ->where('products.track_inventory', false)
-                ->orWhere('products.stock_quantity', '>', 0))
+            ->whereSellableAvailable()
             ->orderBy('product_collection_product.sort_order')
             ->pluck('products.id');
     }

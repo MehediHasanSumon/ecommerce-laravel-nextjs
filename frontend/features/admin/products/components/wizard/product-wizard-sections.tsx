@@ -68,57 +68,6 @@ export function BasicInfoSection({ form, options }: SectionProps) {
   );
 }
 
-export function PriceSection({ form }: SectionProps) {
-  const errors = form.formState.errors;
-  const variants = useFieldValue(form, "variants");
-  const defaultVariant = variants.find((variant) => variant.is_default);
-  const hasVariants = variants.length > 0;
-
-  return (
-    <div className="space-y-5">
-      <SectionHeader
-        title="Pricing"
-        description={hasVariants ? "Pricing is controlled by individual variants." : "Set customer-facing pricing and margin inputs."}
-      />
-      {hasVariants ? (
-        <>
-          <div className="rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
-            {defaultVariant
-              ? "These values mirror the default variant. Edit them from Attributes & Variants."
-              : "No default variant is selected. Customers must select product options before purchasing."}
-          </div>
-          <FieldGrid>
-            <Input label="Regular Price" type="number" value={defaultVariant?.price_cents ?? ""} disabled readOnly />
-            <Input label="Sale Price" type="number" value={defaultVariant?.compare_at_price_cents ?? ""} disabled readOnly />
-            <Input label="Cost Price" type="number" value={defaultVariant?.cost_price_cents ?? ""} disabled readOnly />
-          </FieldGrid>
-        </>
-      ) : (
-        <FieldGrid>
-          <Input label="Regular Price" type="number" min={0} step="0.01" {...form.register("base_price_cents")} error={errors.base_price_cents?.message} />
-          <Input label="Sale Price" type="number" min={0} step="0.01" {...form.register("compare_at_price_cents")} error={errors.compare_at_price_cents?.message} />
-          <Input label="Cost Price" type="number" min={0} step="0.01" {...form.register("cost_price_cents")} error={errors.cost_price_cents?.message} />
-        </FieldGrid>
-      )}
-      <ToggleField label="Free Shipping" description="Mark this product as eligible for free shipping promotions." checked={useFieldValue(form, "free_shipping")} onChange={(checked) => form.setValue("free_shipping", checked, { shouldDirty: true })} />
-    </div>
-  );
-}
-
-export function InventorySection({ form }: SectionProps) {
-  const errors = form.formState.errors;
-  return (
-    <div className="space-y-5">
-      <SectionHeader title="Inventory" description="Control stock tracking and low-stock alerts." />
-      <ToggleField label="Track Inventory" description="Deduct stock when orders are placed." checked={useFieldValue(form, "track_inventory")} onChange={(checked) => form.setValue("track_inventory", checked, { shouldDirty: true, shouldValidate: true })} />
-      <FieldGrid>
-        <Input label="Stock Quantity" type="number" min={0} {...form.register("stock_quantity")} error={errors.stock_quantity?.message} />
-        <Input label="Low Stock Alert" type="number" min={0} {...form.register("low_stock_threshold")} error={errors.low_stock_threshold?.message} />
-      </FieldGrid>
-    </div>
-  );
-}
-
 export function MediaSection({ form }: SectionProps) {
   return (
     <div className="space-y-6">
@@ -132,11 +81,10 @@ export function MediaSection({ form }: SectionProps) {
 }
 
 export function VariantSection({ form, options }: SectionProps) {
+  const errors = form.formState.errors;
   const variants = useFieldValue(form, "variants");
+  const trackInventory = useFieldValue(form, "track_inventory");
   const selectedAttributes = useFieldValue(form, "attribute_values");
-  const productPrice = useFieldValue(form, "base_price_cents");
-  const productComparePrice = useFieldValue(form, "compare_at_price_cents");
-  const productCostPrice = useFieldValue(form, "cost_price_cents");
   const [attributeSearch, setAttributeSearch] = useState("");
   const [attributeOptions, setAttributeOptions] = useState(options.attribute_values);
   const [loadingAttributes, setLoadingAttributes] = useState(false);
@@ -219,13 +167,13 @@ export function VariantSection({ form, options }: SectionProps) {
       const existing = existingByKey.get(key);
       return existing ?? {
         id: `variant-${key || crypto.randomUUID()}`,
-        price_cents: typeof productPrice === "number" ? productPrice : undefined,
-        compare_at_price_cents: typeof productComparePrice === "number" ? productComparePrice : undefined,
-        cost_price_cents: typeof productCostPrice === "number" ? productCostPrice : undefined,
-        stock_quantity: "" as const,
-        track_inventory: null,
+        sku: "",
+        price_cents: undefined,
+        compare_at_price_cents: undefined,
+        cost_price_cents: undefined,
+        stock_quantity: 0,
+        track_inventory: true,
         status: "active" as const,
-        is_default: false,
         attribute_values: combination,
       };
     });
@@ -240,28 +188,13 @@ export function VariantSection({ form, options }: SectionProps) {
   }, [
     form,
     generatedCombinations,
-    productComparePrice,
-    productCostPrice,
-    productPrice,
     selectedAttributes,
     variants,
   ]);
 
   function updateVariant(id: string, patch: Partial<ProductVariantDraft>) {
     form.clearErrors("variants");
-    form.setValue("variants", variants.map((variant) => {
-      if (variant.id !== id) return variant;
-      const updated = { ...variant, ...patch };
-      return updated.status === "inactive" ? { ...updated, is_default: false } : updated;
-    }), { shouldDirty: true, shouldValidate: false });
-  }
-
-  function setDefaultVariant(id: string | null) {
-    form.clearErrors("variants");
-    form.setValue("variants", variants.map((variant) => ({
-      ...variant,
-      is_default: id !== null && variant.id === id,
-    })), { shouldDirty: true, shouldValidate: false });
+    form.setValue("variants", variants.map((variant) => variant.id === id ? { ...variant, ...patch } : variant), { shouldDirty: true, shouldValidate: false });
   }
 
   function toggleAttributeValue(id: number, checked: boolean) {
@@ -272,27 +205,28 @@ export function VariantSection({ form, options }: SectionProps) {
     setOpenVariantIds((ids) => ids.includes(id) ? ids.filter((item) => item !== id) : [...ids, id]);
   }
 
-  const defaultVariant = variants.find((variant) => variant.is_default);
-
-  useEffect(() => {
-    if (!defaultVariant) return;
-
-    if (defaultVariant.price_cents !== undefined) {
-      form.setValue("base_price_cents", defaultVariant.price_cents, { shouldValidate: false });
-    }
-    form.setValue("compare_at_price_cents", defaultVariant.compare_at_price_cents ?? "", { shouldValidate: false });
-    form.setValue("cost_price_cents", defaultVariant.cost_price_cents ?? "", { shouldValidate: false });
-  }, [
-    defaultVariant,
-    defaultVariant?.compare_at_price_cents,
-    defaultVariant?.cost_price_cents,
-    defaultVariant?.price_cents,
-    form,
-  ]);
-
   return (
     <div className="space-y-5">
-      <SectionHeader title="Attributes & Variants" description="Select attribute values. Variant combinations are generated automatically and inherit product defaults unless overridden." />
+      <SectionHeader
+        title="Pricing"
+        description={variants.length ? "Configure pricing and inventory for every sellable SKU combination." : "Set product pricing or select attributes to create separately priced variants."}
+      />
+      {!variants.length ? (
+        <div className="space-y-4">
+          <FieldGrid>
+            <Input label="Sell Price" type="number" min={0} step="0.01" {...form.register("base_price_cents")} error={errors.base_price_cents?.message} />
+            <Input label="Regular Price" type="number" min={0} step="0.01" {...form.register("compare_at_price_cents")} error={errors.compare_at_price_cents?.message} />
+            <Input label="Cost Price" type="number" min={0} step="0.01" {...form.register("cost_price_cents")} error={errors.cost_price_cents?.message} />
+          </FieldGrid>
+          <ToggleField label="Track Inventory" description="Deduct stock when orders are placed." checked={trackInventory} onChange={(checked) => form.setValue("track_inventory", checked, { shouldDirty: true, shouldValidate: true })} />
+          {trackInventory ? (
+            <FieldGrid>
+              <Input label="Stock Quantity" type="number" min={0} {...form.register("stock_quantity")} error={errors.stock_quantity?.message} />
+              <Input label="Low Stock Alert" type="number" min={0} {...form.register("low_stock_threshold")} error={errors.low_stock_threshold?.message} />
+            </FieldGrid>
+          ) : null}
+        </div>
+      ) : null}
       <div className="rounded-lg border border-border bg-background">
         <div className="border-b border-border p-3">
           <input
@@ -326,21 +260,6 @@ export function VariantSection({ form, options }: SectionProps) {
         </div>
       </div>
       <div className="space-y-3">
-        {variants.length ? (
-          <label className="flex items-start gap-3 rounded-lg border border-border bg-muted/30 p-4">
-            <input
-              type="radio"
-              name="default-product-variant"
-              checked={!defaultVariant}
-              onChange={() => setDefaultVariant(null)}
-              className="mt-0.5 h-4 w-4 border-border"
-            />
-            <span>
-              <span className="block text-sm font-semibold">No default variant</span>
-              <span className="mt-0.5 block text-xs text-muted-foreground">Customers must select product options before adding this item to cart.</span>
-            </span>
-          </label>
-        ) : null}
         {variants.length ? variants.map((variant, index) => (
           <div key={variant.id} className="rounded-lg border border-border bg-background">
             <div className="flex items-center gap-3 p-4">
@@ -358,26 +277,15 @@ export function VariantSection({ form, options }: SectionProps) {
                   <span className="mt-0.5 block truncate text-xs text-muted-foreground">{variant.attribute_values.map((id) => valuesById.get(id)?.name ?? id).join(" / ")}</span>
                 </span>
               </button>
-              <label className="flex shrink-0 items-center gap-2 text-xs font-semibold">
-                <input
-                  type="radio"
-                  name="default-product-variant"
-                  checked={variant.is_default}
-                  disabled={variant.status !== "active"}
-                  onChange={() => setDefaultVariant(variant.id)}
-                  className="h-4 w-4 border-border"
-                  aria-label={`Set ${variantName(variant.attribute_values)} as default`}
-                />
-                Default
-              </label>
             </div>
             {openVariantIds.includes(variant.id) ? (
               <div className="border-t border-border p-4">
                 <div className="grid gap-3 md:grid-cols-3">
-                  <Input label="Price" type="number" min={0} step="0.01" placeholder="Enter price" value={variant.price_cents ?? ""} onChange={(event) => updateVariant(variant.id, { price_cents: event.target.value ? Number(event.target.value) : undefined })} />
-                  <Input label="Compare Price" type="number" min={0} step="0.01" placeholder="Enter price" value={variant.compare_at_price_cents ?? ""} onChange={(event) => updateVariant(variant.id, { compare_at_price_cents: event.target.value ? Number(event.target.value) : undefined })} />
+                  <Input label="SKU" placeholder="Auto-generated if blank" value={variant.sku} onChange={(event) => updateVariant(variant.id, { sku: event.target.value })} />
+                  <Input label="Sell Price" type="number" min={0} step="0.01" placeholder="Enter sell price" value={variant.price_cents ?? ""} onChange={(event) => updateVariant(variant.id, { price_cents: event.target.value ? Number(event.target.value) : undefined })} />
+                  <Input label="Regular Price" type="number" min={0} step="0.01" placeholder="Enter regular price" value={variant.compare_at_price_cents ?? ""} onChange={(event) => updateVariant(variant.id, { compare_at_price_cents: event.target.value ? Number(event.target.value) : undefined })} />
                   <Input label="Cost Price" type="number" min={0} step="0.01" placeholder="Enter price" value={variant.cost_price_cents ?? ""} onChange={(event) => updateVariant(variant.id, { cost_price_cents: event.target.value ? Number(event.target.value) : undefined })} />
-                  <SelectField label="Track Inventory" value={variant.track_inventory === null || variant.track_inventory === undefined ? "inherit" : String(variant.track_inventory)} placeholder="Select inventory behavior" options={[{ id: "inherit", name: "Use product setting" }, { id: "true", name: "Track inventory" }, { id: "false", name: "Do not track" }]} onChange={(value) => updateVariant(variant.id, { track_inventory: value === "inherit" ? null : value === "true" })} />
+                  <SelectField label="Track Inventory" value={String(variant.track_inventory)} placeholder="Select inventory behavior" options={[{ id: "true", name: "Track inventory" }, { id: "false", name: "Do not track" }]} onChange={(value) => updateVariant(variant.id, { track_inventory: value === "true" })} />
                   <Input label="Quantity" type="number" min={0} placeholder="Enter quantity" value={variant.stock_quantity ?? ""} onChange={(event) => updateVariant(variant.id, { stock_quantity: event.target.value ? Number(event.target.value) : "" })} />
                   <SelectField label="Status" value={variant.status} placeholder="Select status" options={[{ id: "active", name: "Active" }, { id: "inactive", name: "Inactive" }]} onChange={(value) => updateVariant(variant.id, { status: value as ProductVariantDraft["status"] })} />
                 </div>
@@ -423,10 +331,12 @@ export function SeoSection({ form }: SectionProps) {
 
 export function PublishSection({ form, options }: SectionProps) {
   const values = form.getValues();
+  const hasVariants = values.variants.length > 0;
+  const activeVariants = values.variants.filter((variant) => variant.status === "active");
   const checks = [
     { label: "Basic information", complete: Boolean(values.name && values.category_id && values.short_description) },
-    { label: "Pricing", complete: values.base_price_cents !== "" },
-    { label: "Inventory", complete: !values.track_inventory || values.stock_quantity !== "" },
+    { label: "Pricing", complete: hasVariants ? activeVariants.length > 0 && activeVariants.every((variant) => variant.price_cents !== undefined) : values.base_price_cents !== "" },
+    { label: "Inventory", complete: hasVariants ? activeVariants.every((variant) => !variant.track_inventory || variant.stock_quantity !== "") : !values.track_inventory || values.stock_quantity !== "" },
     { label: "Media", complete: Boolean(values.featured_image || values.gallery_images.length) },
     { label: "SEO", complete: true },
   ];
@@ -440,8 +350,8 @@ export function PublishSection({ form, options }: SectionProps) {
           <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
             <Summary label="Brand" value={optionName(options, "brands", values.brand_id)} />
             <Summary label="Category" value={optionName(options, "categories", values.subcategory_id || values.category_id)} />
-            <Summary label="Regular Price" value={formatCurrency(Number(values.base_price_cents || 0))} />
-            <Summary label="Stock" value={values.track_inventory ? String(values.stock_quantity || 0) : "Not tracked"} />
+            <Summary label="Sell Price" value={hasVariants ? "Managed by sellable SKU" : formatCurrency(Number(values.base_price_cents || 0))} />
+            <Summary label="Stock" value={hasVariants ? "Managed by sellable SKU" : values.track_inventory ? String(values.stock_quantity || 0) : "Not tracked"} />
             <Summary label="Images" value={`${values.featured_image ? 1 : 0} featured, ${values.gallery_images.length} gallery`} />
             <Summary label="Variants" value={String(values.variants.length)} />
           </div>
@@ -462,11 +372,12 @@ export function PublishSection({ form, options }: SectionProps) {
           </div>
         </div>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <ToggleField label="Featured" checked={useFieldValue(form, "is_featured")} onChange={(checked) => form.setValue("is_featured", checked, { shouldDirty: true })} />
         <ToggleField label="New Arrival" checked={useFieldValue(form, "is_new")} onChange={(checked) => form.setValue("is_new", checked, { shouldDirty: true })} />
         <ToggleField label="Best Seller" checked={useFieldValue(form, "is_best_seller")} onChange={(checked) => form.setValue("is_best_seller", checked, { shouldDirty: true })} />
         <ToggleField label="Flash Sale" checked={useFieldValue(form, "is_flash_sale")} onChange={(checked) => form.setValue("is_flash_sale", checked, { shouldDirty: true })} />
+        <ToggleField label="Free Shipping" description="Eligible for free shipping promotions." checked={useFieldValue(form, "free_shipping")} onChange={(checked) => form.setValue("free_shipping", checked, { shouldDirty: true })} />
       </div>
     </div>
   );

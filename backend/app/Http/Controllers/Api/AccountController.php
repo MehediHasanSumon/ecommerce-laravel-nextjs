@@ -34,8 +34,9 @@ class AccountController extends Controller
         $totalSpent = (clone $orders)->where('payment_status', 'paid')->whereNotIn('status', ['cancelled', 'refunded'])->sum('total_cents');
         $suggested = Product::query()
             ->where('status', 'active')
+            ->withSellableVariantMetrics()
+            ->whereSellableAvailable()
             ->with(['category:id,name,slug', 'brand:id,name,slug', 'images', 'tags'])
-            ->withCount(['variants as active_variants_count' => fn ($query) => $query->where('status', 'active')])
             ->withAvg(['reviews as rating_average' => fn ($query) => $query->where('status', 'approved')], 'rating')
             ->withCount(['reviews as review_count' => fn ($query) => $query->where('status', 'approved')])
             ->orderByDesc('is_best_seller')

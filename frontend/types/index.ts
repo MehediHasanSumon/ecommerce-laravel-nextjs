@@ -31,7 +31,7 @@ export interface Product {
   flashSaleEndsAt?: string;
   freeShipping?: boolean;
   requiresVariantSelection?: boolean;
-  defaultVariantId?: number | null;
+  primaryVariantId?: number | null;
   createdAt: string;
 }
 

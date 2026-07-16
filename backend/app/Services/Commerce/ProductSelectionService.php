@@ -6,8 +6,6 @@ use App\Models\Product;
 use App\Models\ProductAttributeValue;
 use App\Models\ProductVariant;
 use App\Services\Collections\CollectionProductResolver;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
@@ -29,23 +27,31 @@ class ProductSelectionService
 
         $this->assertProductPurchasable($product);
 
+        $activeVariants = $product->variants->where('status', 'active');
         $variant = null;
         if (! empty($payload['product_variant_id'])) {
-            $variant = $product->variants()
-                ->with(['attributeValues.attribute:id,name,slug'])
-                ->where('status', 'active')
-                ->find($payload['product_variant_id']);
+            $variant = $activeVariants->firstWhere('id', (int) $payload['product_variant_id']);
 
             if (! $variant) {
                 throw ValidationException::withMessages([
                     'product_variant_id' => ['The selected variant is invalid or inactive.'],
                 ]);
             }
+        } elseif ($activeVariants->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                'product_variant_id' => ['Select a valid product variant.'],
+            ]);
+        } elseif ($product->variants->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                'product_id' => ['This product has no active variants.'],
+            ]);
         }
 
         $quantity = max(1, (int) ($payload['quantity'] ?? 1));
         $stock = $variant?->stock_quantity ?? $product->stock_quantity;
-        $trackInventory = (bool) $product->track_inventory;
+        $trackInventory = $variant
+            ? (bool) $variant->track_inventory
+            : (bool) $product->track_inventory;
 
         if ($trackInventory && $stock !== null && $quantity > (int) $stock) {
             throw ValidationException::withMessages([
@@ -66,8 +72,8 @@ class ProductSelectionService
             ->mapWithKeys(fn ($value, $key) => [(string) $key => $value])
             ->all();
 
-        $unitPrice = (int) ($variant?->price_cents ?: $product->base_price_cents);
-        $compareAt = (int) ($variant?->compare_at_price_cents ?: $product->compare_at_price_cents ?: 0);
+        $unitPrice = (int) ($variant ? $variant->price_cents : $product->base_price_cents);
+        $compareAt = (int) (($variant ? $variant->compare_at_price_cents : $product->compare_at_price_cents) ?: 0);
 
         $activeCollection = $this->collections->activeCollectionForProduct($product);
         $discountedPrice = $this->applyCollectionDiscount($unitPrice, $activeCollection?->discount_type, $activeCollection?->discount_value);
@@ -162,7 +168,21 @@ class ProductSelectionService
     {
         $this->assertProductVisible($product);
 
-        if ($product->track_inventory && (int) ($product->stock_quantity ?? 0) <= 0 && $product->variants()->where('status', 'active')->where('stock_quantity', '>', 0)->doesntExist()) {
+        $activeVariants = $product->variants->where('status', 'active');
+        if ($activeVariants->isNotEmpty()) {
+            $hasAvailableVariant = $activeVariants->contains(fn (ProductVariant $variant): bool => ! $variant->track_inventory
+                || (int) ($variant->stock_quantity ?? 0) > 0);
+
+            if (! $hasAvailableVariant) {
+                throw ValidationException::withMessages([
+                    'product_id' => ['This product is currently out of stock.'],
+                ]);
+            }
+
+            return;
+        }
+
+        if ($product->variants->isNotEmpty() || ($product->track_inventory && (int) ($product->stock_quantity ?? 0) <= 0)) {
             throw ValidationException::withMessages([
                 'product_id' => ['This product is currently out of stock.'],
             ]);

@@ -161,18 +161,18 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
   const displayPrice = selectedVariant?.price ?? product?.price ?? 0;
   const displayOriginalPrice = selectedVariant?.originalPrice ?? product?.originalPrice ?? null;
   const displayStock = selectedVariant?.stock ?? product?.stock ?? 0;
+  const displayTrackInventory = selectedVariant?.trackInventory ?? product?.trackInventory ?? true;
   const displaySku = selectedVariant?.sku ?? product?.sku ?? '';
   const displayImages = selectedVariant?.images?.length ? selectedVariant.images : product?.images ?? [];
 
   useEffect(() => {
     if (product) {
-      const defaultVariant = product.defaultVariantId
-        ? product.variants?.find((variant) => Number(variant.id) === Number(product.defaultVariantId))
-        : undefined;
+      const initialVariant = product.variants?.find((variant) => variant.stockStatus === 'in_stock')
+        ?? product.variants?.[0];
       setSelectedAttributeValues(
-        defaultVariant
+        initialVariant
           ? Object.fromEntries(
-              Object.entries(defaultVariant.options).map(([name, option]) => [
+              Object.entries(initialVariant.options).map(([name, option]) => [
                 name,
                 option.value || option.name,
               ]),
@@ -475,7 +475,13 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
 
             {/* Price */}
             <div className="flex min-w-0 flex-wrap items-end gap-x-3 gap-y-2">
-              <span className="max-w-full break-words text-2xl font-extrabold sm:text-3xl [overflow-wrap:anywhere]">{formatPrice(displayPrice)}</span>
+              <span className="max-w-full break-words text-2xl font-extrabold sm:text-3xl [overflow-wrap:anywhere]">
+                {!selectedVariant
+                  && product.priceRange
+                  && product.priceRange.min !== product.priceRange.max
+                  ? `${formatPrice(product.priceRange.min)} - ${formatPrice(product.priceRange.max)}`
+                  : formatPrice(displayPrice)}
+              </span>
               {displayOriginalPrice && (
                 <>
                   <span className="text-lg text-muted-foreground line-through mb-0.5">
@@ -594,21 +600,21 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
                 </button>
                 <span className="w-12 text-center font-semibold">{quantity}</span>
                 <button
-                  onClick={() => setQuantity((q) => Math.min(Math.max(displayStock, 1), q + 1))}
+                  onClick={() => setQuantity((q) => displayTrackInventory ? Math.min(Math.max(displayStock, 1), q + 1) : q + 1)}
                   className="flex h-10 w-10 items-center justify-center transition-colors hover:bg-muted"
                   aria-label="Increase quantity"
                 >
                   <Plus size={15} />
                 </button>
               </div>
-              <span className="text-sm text-muted-foreground">{displayStock} available</span>
+              <span className="text-sm text-muted-foreground">{displayTrackInventory ? `${displayStock} available` : 'In stock'}</span>
             </div>
 
             {/* CTA Buttons */}
             <div className="flex flex-col gap-3 sm:flex-row">
               <button
                 onClick={handleAddToCart}
-                disabled={Boolean(product.variants?.length && (!hasCompleteVariantSelection || !selectedVariant)) || displayStock < 1}
+                disabled={Boolean(product.variants?.length && (!hasCompleteVariantSelection || !selectedVariant)) || (displayTrackInventory && displayStock < 1)}
                 className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary py-3.5 font-bold text-primary-foreground shadow-lg transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <ShoppingCart size={18} /> Add to Cart

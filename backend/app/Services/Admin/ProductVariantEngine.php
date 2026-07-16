@@ -69,17 +69,11 @@ class ProductVariantEngine
             ->values();
 
         $seen = [];
-        $defaultKey = null;
-
         foreach ($normalizedVariants as $normalizedVariant) {
             $variantData = $normalizedVariant['data'];
             $combination = $normalizedVariant['combination'];
             $key = $normalizedVariant['key'];
             $seen[] = $key;
-            if ((bool) ($variantData['is_default'] ?? false)) {
-                $defaultKey = $key;
-            }
-
             $variant = $existing[$key] ?? new ProductVariant(['product_id' => $product->id]);
             if ($variant->trashed()) {
                 $variant->restore();
@@ -109,13 +103,6 @@ class ProductVariantEngine
             $product->variants()->whereIn('id', $removeIds)->delete();
         }
 
-        $defaultVariant = $defaultKey ? ($existing[$defaultKey] ?? null) : null;
-        $product->forceFill([
-            'default_variant_id' => $defaultVariant?->id,
-            'base_price_cents' => $defaultVariant?->price_cents ?? $product->base_price_cents,
-            'compare_at_price_cents' => $defaultVariant ? $defaultVariant->compare_at_price_cents : $product->compare_at_price_cents,
-            'cost_price_cents' => $defaultVariant ? $defaultVariant->cost_price_cents : $product->cost_price_cents,
-        ])->saveQuietly();
     }
 
     public function combinationKey(array $attributeValueIds): string
@@ -135,12 +122,15 @@ class ProductVariantEngine
     {
         return [
             'product_id' => $product->id,
-            'sku' => $variant->sku ?: $this->generateSku($product, $combination),
+            'combination_key' => $this->combinationKey($combination),
+            'sku' => filled($data['sku'] ?? null)
+                ? trim((string) $data['sku'])
+                : ($variant->sku ?: $this->generateSku($product, $combination)),
             'price_cents' => $data['price_cents'] ?? null,
             'compare_at_price_cents' => $data['compare_at_price_cents'] ?? null,
             'cost_price_cents' => $data['cost_price_cents'] ?? null,
             'stock_quantity' => $data['stock_quantity'] ?? null,
-            'track_inventory' => array_key_exists('track_inventory', $data) ? $data['track_inventory'] : null,
+            'track_inventory' => (bool) ($data['track_inventory'] ?? true),
             'status' => $data['status'] ?? 'active',
         ];
     }

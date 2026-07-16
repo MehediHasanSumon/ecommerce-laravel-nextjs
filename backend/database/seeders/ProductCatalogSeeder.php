@@ -319,8 +319,10 @@ class ProductCatalogSeeder extends Seeder
 
         foreach ($this->cartesian($groups) as $index => $combination) {
             $suffix = collect($combination)->pluck('slug')->map(fn ($slug) => strtoupper(Str::substr((string) $slug, 0, 4)))->implode('-');
+            $combinationKey = collect($combination)->pluck('id')->map(fn ($id): int => (int) $id)->sort()->implode(':');
             $variant = ProductVariant::query()->create([
                 'product_id' => $product->id,
+                'combination_key' => $combinationKey,
                 'sku' => $product->sku.'-'.$suffix,
                 'price_cents' => $product->base_price_cents + ($index * 100),
                 'compare_at_price_cents' => $product->compare_at_price_cents,
@@ -340,11 +342,13 @@ class ProductCatalogSeeder extends Seeder
         }
 
         $product->forceFill([
-            'default_variant_id' => ProductVariant::query()
-                ->where('product_id', $product->id)
-                ->where('status', 'active')
-                ->orderBy('id')
-                ->value('id'),
+            'sku' => null,
+            'base_price_cents' => null,
+            'compare_at_price_cents' => null,
+            'cost_price_cents' => null,
+            'track_inventory' => false,
+            'stock_quantity' => null,
+            'low_stock_threshold' => null,
         ])->saveQuietly();
     }
 

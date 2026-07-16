@@ -4,6 +4,8 @@ use App\Models\Product;
 use App\Models\ProductAttribute;
 use App\Models\ProductAttributeValue;
 use App\Services\Admin\ProductVariantEngine;
+use App\Services\Commerce\ProductSelectionService;
+use Illuminate\Validation\ValidationException;
 
 function variantProduct(array $overrides = []): Product
 {
@@ -39,20 +41,21 @@ function variantAttribute(string $name, array $values): array
         ->all();
 }
 
-it('creates generated variants with nullable overrides for parent inheritance', function (): void {
+it('creates independent sellable skus for generated combinations', function (): void {
     $product = variantProduct();
     [$red, $green] = variantAttribute('Color', ['Red', 'Green']);
 
     app(ProductVariantEngine::class)->sync($product, [
-        ['attribute_values' => [$red->id], 'status' => 'active', 'price_cents' => null, 'stock_quantity' => null],
+        ['attribute_values' => [$red->id], 'status' => 'active', 'price_cents' => 11000, 'stock_quantity' => 4, 'track_inventory' => true],
         ['attribute_values' => [$green->id], 'status' => 'inactive', 'price_cents' => 12500, 'stock_quantity' => 7, 'track_inventory' => false],
     ]);
 
     $variants = $product->variants()->with('attributeValues')->orderBy('id')->get();
 
     expect($variants)->toHaveCount(2)
-        ->and($variants[0]->price_cents)->toBeNull()
-        ->and($variants[0]->stock_quantity)->toBeNull()
+        ->and($variants[0]->price_cents)->toBe(11000)
+        ->and($variants[0]->stock_quantity)->toBe(4)
+        ->and($variants[0]->combination_key)->toBe((string) $red->id)
         ->and($variants[1]->price_cents)->toBe(12500)
         ->and($variants[1]->stock_quantity)->toBe(7)
         ->and($variants[1]->track_inventory)->toBeFalse();
@@ -66,7 +69,7 @@ it('preserves variant records and skus when combinations still exist', function 
 
     $engine->sync($product, [
         ['attribute_values' => [$red->id, $small->id], 'status' => 'active', 'price_cents' => 11000],
-        ['attribute_values' => [$green->id, $small->id], 'status' => 'active'],
+        ['attribute_values' => [$green->id, $small->id], 'status' => 'active', 'price_cents' => 11200],
     ]);
 
     $redSmall = $product->variants()->with('attributeValues')->get()
@@ -76,7 +79,7 @@ it('preserves variant records and skus when combinations still exist', function 
 
     $engine->sync($product, [
         ['attribute_values' => [$red->id, $small->id], 'status' => 'inactive', 'price_cents' => 11500],
-        ['attribute_values' => [$red->id, $medium->id], 'status' => 'active'],
+        ['attribute_values' => [$red->id, $medium->id], 'status' => 'active', 'price_cents' => 11800],
     ]);
 
     $redSmall->refresh();
@@ -103,29 +106,55 @@ it('creates only one variant for a duplicated attribute combination', function (
         ->toBe([$oneKg->id]);
 });
 
-it('persists one explicit default variant and mirrors its pricing to the product', function (): void {
+it('persists variant sku and pricing without changing product pricing', function (): void {
     $product = variantProduct();
     [$oneKg, $twoKg] = variantAttribute('Weight', ['1kg', '2kg']);
     $engine = app(ProductVariantEngine::class);
 
     $engine->sync($product, [
-        ['attribute_values' => [$oneKg->id], 'status' => 'active', 'price_cents' => 56000, 'compare_at_price_cents' => 60000, 'cost_price_cents' => 40000, 'is_default' => true],
-        ['attribute_values' => [$twoKg->id], 'status' => 'active', 'price_cents' => 112000, 'is_default' => false],
+        ['attribute_values' => [$oneKg->id], 'sku' => 'WEIGHT-1KG', 'status' => 'active', 'price_cents' => 56000, 'compare_at_price_cents' => 60000, 'cost_price_cents' => 40000],
+        ['attribute_values' => [$twoKg->id], 'sku' => 'WEIGHT-2KG', 'status' => 'active', 'price_cents' => 112000],
     ]);
 
     $product->refresh();
-    $defaultVariant = $product->variants()->with('attributeValues')->find($product->default_variant_id);
+    $oneKgVariant = $product->variants()->with('attributeValues')->where('sku', 'WEIGHT-1KG')->first();
 
-    expect($defaultVariant)->not->toBeNull()
-        ->and($defaultVariant->attributeValues->pluck('id')->all())->toBe([$oneKg->id])
-        ->and($product->base_price_cents)->toBe(56000)
-        ->and($product->compare_at_price_cents)->toBe(60000)
-        ->and($product->cost_price_cents)->toBe(40000);
+    expect($oneKgVariant)->not->toBeNull()
+        ->and($oneKgVariant->attributeValues->pluck('id')->all())->toBe([$oneKg->id])
+        ->and($oneKgVariant->price_cents)->toBe(56000)
+        ->and($product->base_price_cents)->toBe(10000)
+        ->and($product->compare_at_price_cents)->toBe(12000)
+        ->and($product->cost_price_cents)->toBe(6000);
+});
 
-    $engine->sync($product, [
-        ['attribute_values' => [$oneKg->id], 'status' => 'active', 'price_cents' => 56000, 'is_default' => false],
-        ['attribute_values' => [$twoKg->id], 'status' => 'active', 'price_cents' => 112000, 'is_default' => false],
+it('requires an explicit active variant for cart selection', function (): void {
+    $product = variantProduct(['published_at' => now()]);
+    [$oneKg] = variantAttribute('Weight', ['1kg']);
+
+    app(ProductVariantEngine::class)->sync($product, [
+        [
+            'attribute_values' => [$oneKg->id],
+            'sku' => 'CART-1KG',
+            'status' => 'active',
+            'price_cents' => 56000,
+            'stock_quantity' => 5,
+            'track_inventory' => true,
+        ],
     ]);
 
-    expect($product->fresh()->default_variant_id)->toBeNull();
+    expect(fn () => app(ProductSelectionService::class)->resolveCartSelection([
+        'product_id' => $product->id,
+        'quantity' => 1,
+    ]))->toThrow(ValidationException::class);
+
+    $variant = $product->variants()->firstOrFail();
+    $selection = app(ProductSelectionService::class)->resolveCartSelection([
+        'product_id' => $product->id,
+        'product_variant_id' => $variant->id,
+        'quantity' => 2,
+    ]);
+
+    expect($selection['variant']->id)->toBe($variant->id)
+        ->and($selection['unit_price_cents'])->toBe(56000)
+        ->and($selection['selection_snapshot']['selected_sku'])->toBe('CART-1KG');
 });

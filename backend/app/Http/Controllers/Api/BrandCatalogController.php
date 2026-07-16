@@ -81,10 +81,8 @@ class BrandCatalogController extends Controller
             ->where('status', 'active')
             ->where('brand_id', $brand->id)
             ->whereNotNull('published_at')
-            ->withCount(['variants as active_variants_count' => fn (Builder $query) => $query->where('status', 'active')])
-            ->where(fn (Builder $query) => $query
-                ->where('track_inventory', false)
-                ->orWhere('stock_quantity', '>', 0))
+            ->withSellableVariantMetrics()
+            ->whereSellableAvailable()
             ->with([
                 'brand:id,name,slug',
                 'category:id,name,slug',

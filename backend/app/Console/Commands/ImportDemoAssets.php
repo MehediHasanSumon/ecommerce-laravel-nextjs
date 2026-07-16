@@ -518,6 +518,7 @@ class ImportDemoAssets extends Command
 
             $variant->fill([
                 'product_id' => $product->id,
+                'combination_key' => $key,
                 'sku' => $variant->sku ?: SkuGenerator::generate($product->name.' '.collect($values)->pluck('value')->implode(' '), [Product::class, ProductVariant::class]),
                 'price_cents' => $product->base_price_cents + ($index * 500),
                 'compare_at_price_cents' => $product->compare_at_price_cents + ($index * 500),
@@ -539,10 +540,13 @@ class ImportDemoAssets extends Command
             ->each->delete();
 
         $product->forceFill([
-            'default_variant_id' => $product->variants()
-                ->where('status', 'active')
-                ->orderBy('id')
-                ->value('id'),
+            'sku' => null,
+            'base_price_cents' => null,
+            'compare_at_price_cents' => null,
+            'cost_price_cents' => null,
+            'track_inventory' => false,
+            'stock_quantity' => null,
+            'low_stock_threshold' => null,
         ])->saveQuietly();
     }
 

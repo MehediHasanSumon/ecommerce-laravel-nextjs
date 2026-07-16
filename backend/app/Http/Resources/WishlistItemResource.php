@@ -16,7 +16,7 @@ class WishlistItemResource extends JsonResource
         $discountedPrice = null;
 
         if ($collection && $collection->discount_enabled && $collection->discount_type && $collection->discount_value) {
-            $base = (int) $product->base_price_cents;
+            $base = (int) ($card['price'] * 100);
             $discounted = match ($collection->discount_type) {
                 'percentage' => (int) round($base * max(0, 100 - (int) $collection->discount_value) / 100),
                 'fixed' => max(0, $base - (int) $collection->discount_value),
@@ -33,7 +33,7 @@ class WishlistItemResource extends JsonResource
             'addedAt' => optional($this->created_at)->toISOString(),
             'product' => $card,
             'discountedPrice' => $discountedPrice,
-            'stockStatus' => ! $product ? 'unavailable' : ((! $product->track_inventory || (int) ($product->stock_quantity ?? 0) > 0) ? 'in_stock' : 'out_of_stock'),
+            'stockStatus' => ! $product ? 'unavailable' : (($card['stock'] ?? 0) > 0 ? 'in_stock' : 'out_of_stock'),
         ];
     }
 }

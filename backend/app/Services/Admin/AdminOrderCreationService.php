@@ -82,7 +82,9 @@ class AdminOrderCreationService
                 'id' => $product->id,
                 'name' => $product->name,
                 'sku' => $product->sku,
-                'price' => round($product->base_price_cents / 100, 2),
+                'price' => $product->variants->isEmpty()
+                    ? round(((int) $product->base_price_cents) / 100, 2)
+                    : null,
                 'stock' => $product->stock_quantity,
                 'variants' => $product->variants->map(fn ($variant): array => [
                     'id' => $variant->id,
@@ -91,7 +93,7 @@ class AdminOrderCreationService
                         ->filter()
                         ->implode(', ') ?: $variant->sku,
                     'sku' => $variant->sku,
-                    'price' => round(($variant->price_cents ?: $product->base_price_cents) / 100, 2),
+                    'price' => round(((int) $variant->price_cents) / 100, 2),
                     'stock' => $variant->stock_quantity,
                 ])->values(),
             ])->values()->all();

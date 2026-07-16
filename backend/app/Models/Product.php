@@ -51,9 +51,62 @@ class Product extends Model
         return $this->hasMany(ProductVariant::class);
     }
 
-    public function defaultVariant(): BelongsTo
+    public function activeVariants(): HasMany
     {
-        return $this->belongsTo(ProductVariant::class, 'default_variant_id');
+        return $this->variants()->where('status', 'active');
+    }
+
+    public function cheapestActiveVariant(): HasOne
+    {
+        return $this->hasOne(ProductVariant::class)
+            ->ofMany(
+                ['price_cents' => 'min', 'id' => 'min'],
+                fn ($query) => $query
+                    ->where('status', 'active')
+                    ->whereNotNull('price_cents')
+                    ->where(fn ($availabilityQuery) => $availabilityQuery
+                        ->where('track_inventory', false)
+                        ->orWhere('stock_quantity', '>', 0))
+            );
+    }
+
+    public function scopeWithSellableVariantMetrics($query)
+    {
+        return $query
+            ->with([
+                'cheapestActiveVariant' => fn ($variantQuery) => $variantQuery->select([
+                    'product_variants.id',
+                    'product_variants.product_id',
+                    'product_variants.sku',
+                    'product_variants.price_cents',
+                    'product_variants.compare_at_price_cents',
+                    'product_variants.stock_quantity',
+                    'product_variants.track_inventory',
+                    'product_variants.status',
+                ]),
+            ])
+            ->withCount([
+                'activeVariants as active_variants_count',
+                'activeVariants as available_variants_count' => fn ($variantQuery) => $variantQuery
+                    ->where(fn ($availabilityQuery) => $availabilityQuery
+                        ->where('track_inventory', false)
+                        ->orWhere('stock_quantity', '>', 0)),
+            ])
+            ->withSum('activeVariants as active_variants_stock', 'stock_quantity');
+    }
+
+    public function scopeWhereSellableAvailable($query)
+    {
+        return $query->where(fn ($availabilityQuery) => $availabilityQuery
+            ->whereHas('activeVariants', fn ($variantQuery) => $variantQuery
+                ->where(fn ($stockQuery) => $stockQuery
+                    ->where('track_inventory', false)
+                    ->orWhere('stock_quantity', '>', 0)))
+            ->orWhere(fn ($simpleQuery) => $simpleQuery
+                ->whereDoesntHave('variants')
+                ->where(fn ($stockQuery) => $stockQuery
+                    ->where('track_inventory', false)
+                    ->orWhere('stock_quantity', '>', 0))));
     }
 
     public function features(): HasMany

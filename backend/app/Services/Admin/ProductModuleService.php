@@ -351,8 +351,19 @@ class ProductModuleService
             $data['variants'],
         );
 
+        $hasVariants = $variants !== [];
+        if ($hasVariants) {
+            $data['sku'] = null;
+            $data['base_price_cents'] = null;
+            $data['compare_at_price_cents'] = null;
+            $data['cost_price_cents'] = null;
+            $data['track_inventory'] = false;
+            $data['stock_quantity'] = null;
+            $data['low_stock_threshold'] = null;
+        }
+
         $this->applySlug('products', $model, $data);
-        $this->applyProductSku($model, $data);
+        $this->applyProductSku($model, $data, $hasVariants);
         $model->fill($data)->save();
         $model->tags()->sync($this->resolveProductTags($tags));
         $this->syncProductAttributeValues($model, $attributeValues);
@@ -404,8 +415,14 @@ class ProductModuleService
         );
     }
 
-    private function applyProductSku(Model $model, array &$data): void
+    private function applyProductSku(Model $model, array &$data, bool $hasVariants): void
     {
+        if ($hasVariants) {
+            $data['sku'] = null;
+
+            return;
+        }
+
         if ($model->exists && filled($model->getAttribute('sku'))) {
             $data['sku'] = $model->getAttribute('sku');
 

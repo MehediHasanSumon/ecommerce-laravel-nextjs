@@ -39,7 +39,9 @@ class CartItemResource extends JsonResource
             'tax' => $this->tax_snapshot ?? ['estimated_tax_cents' => 0],
             'product' => $this->product ? ProductCardResource::make($this->product)->resolve() : null,
             'availability' => [
-                'inStock' => $this->product ? ((bool) ! $this->product->track_inventory || (int) ($this->variant?->stock_quantity ?? $this->product->stock_quantity ?? 0) > 0) : false,
+                'inStock' => $this->product ? ($this->variant
+                    ? (! $this->variant->track_inventory || (int) ($this->variant->stock_quantity ?? 0) > 0)
+                    : (! $this->product->track_inventory || (int) ($this->product->stock_quantity ?? 0) > 0)) : false,
                 'stock' => $this->product ? (int) ($this->variant?->stock_quantity ?? $this->product->stock_quantity ?? 0) : 0,
                 'status' => $this->product?->status,
             ],
