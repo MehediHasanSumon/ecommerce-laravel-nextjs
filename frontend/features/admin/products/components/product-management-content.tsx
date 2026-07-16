@@ -259,11 +259,11 @@ export const productModuleConfigs: Record<ProductModule, ModuleConfig> = {
     types: ["physical", "digital"],
     fields: productFields(),
     columns: [
-      { key: "name", label: "Product", sortable: true, render: (item) => <div><p className="font-semibold">{String(item.name ?? "")}</p><p className="text-xs text-muted-foreground">{String(item.sku ?? "No SKU")}</p></div> },
+      { key: "name", label: "Product", sortable: true, render: (item) => <div><p className="font-semibold">{String(item.name ?? "")}</p><p className="text-xs text-muted-foreground">{String(item.display_sku ?? item.sku ?? "No SKU")}</p></div> },
       { key: "brand", label: "Brand", render: (item) => optionName(item.brand) },
       { key: "category", label: "Category", render: (item) => optionName(item.category) },
-      { key: "base_price_cents", label: "Price", sortable: true, render: (item) => money(item.base_price_cents, item.currency) },
-      { key: "stock_quantity", label: "Stock", sortable: true },
+      { key: "base_price_cents", label: "Price", sortable: true, render: (item) => money(item.display_price_cents ?? item.base_price_cents, item.currency) },
+      { key: "stock_quantity", label: "Stock", sortable: true, render: productStockLabel },
       { key: "status", label: "Status", sortable: true, render: (item) => <StatusBadge value={String(item.status ?? "draft")} /> },
     ],
   },
@@ -1477,9 +1477,15 @@ function optionName(value: unknown) {
 }
 
 function money(value: unknown, currency: unknown) {
-  const amount = Number(value ?? 0) / 100;
-  const settings = selectCurrencySettings(useSettingsStore.getState());
-  return formatCurrency(amount, { ...settings, currency: String(currency || settings.currency) });
+    const amount = Number(value ?? 0) / 100;
+    const settings = selectCurrencySettings(useSettingsStore.getState());
+    return formatCurrency(amount, { ...settings, currency: String(currency || settings.currency) });
+}
+
+function productStockLabel(item: ProductRecord) {
+  if (item.display_inventory_mode === "untracked") return "Not tracked";
+  const stock = Number(item.display_stock_quantity ?? item.stock_quantity ?? 0);
+  return item.display_inventory_mode === "mixed" ? `${stock} tracked + untracked` : String(stock);
 }
 
 function numericIfOption(value: string) {

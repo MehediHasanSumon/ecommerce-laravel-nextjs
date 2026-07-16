@@ -45,10 +45,11 @@ class ProductModuleService
         $this->applyModuleFilters($query, $module, $filters);
         $this->applyDateFilters($query, $filters);
         $sortColumn = $this->sortColumn($module, $filters['sort'] ?? 'created_at');
+        $direction = $filters['direction'] ?? 'desc';
 
-        return $query
-            ->orderBy($sortColumn, $filters['direction'] ?? 'desc')
-            ->paginate($filters['per_page'] ?? 10);
+        $this->applySort($query, $module, $sortColumn, $direction);
+
+        return $query->paginate($filters['per_page'] ?? 10);
     }
 
     public function create(string $module, array $data): Model
@@ -547,9 +548,11 @@ class ProductModuleService
             'categories' => $query->with('parent:id,name')->withCount('products'),
             'attributes' => $query->withCount('values'),
             'attribute-values' => $query->with('attribute:id,name,type'),
-            'products' => $query->with($detailed
-                ? ['brand:id,name', 'category:id,name', 'tags:id,name', 'attributeValues:id,value,attribute_id,slug', 'images', 'features', 'specifications', 'seo', 'variants.attributeValues:id,value,attribute_id,slug']
-                : ['brand:id,name', 'category:id,name', 'tags:id,name']),
+            'products' => $query
+                ->with($detailed
+                    ? ['brand:id,name', 'category:id,name', 'tags:id,name', 'attributeValues:id,value,attribute_id,slug', 'images', 'features', 'specifications', 'seo', 'variants.attributeValues:id,value,attribute_id,slug']
+                    : ['brand:id,name', 'category:id,name', 'tags:id,name'])
+                ->when(! $detailed, fn ($productQuery) => $productQuery->withAdminSellableSummary()),
             'collections' => $query->with('products:id,name')->withCount('products'),
             'discounts' => $query->with(['products:id,name', 'categories:id,name', 'brands:id,name', 'collections:id,name', 'excludedProducts:id,name', 'excludedCategories:id,name']),
             'reviews' => $query->with(['product:id,name', 'user:id,name', 'replies.user:id,name']),
@@ -630,11 +633,17 @@ class ProductModuleService
             default => ['name', 'slug'],
         };
 
-        $query->where(fn ($query) => collect($columns)->each(
-            fn ($column, $index) => $index === 0
-                ? $query->where($column, 'like', "%{$search}%")
-                : $query->orWhere($column, 'like', "%{$search}%")
-        ));
+        $query->where(function ($query) use ($columns, $module, $search): void {
+            collect($columns)->each(
+                fn ($column, $index) => $index === 0
+                    ? $query->where($column, 'like', "%{$search}%")
+                    : $query->orWhere($column, 'like', "%{$search}%")
+            );
+
+            if ($module === 'products') {
+                $query->orWhereHas('variants', fn ($variantQuery) => $variantQuery->where('sku', 'like', "%{$search}%"));
+            }
+        });
     }
 
     private function applyModuleFilters($query, string $module, array $filters): void
@@ -656,6 +665,31 @@ class ProductModuleService
     private function sortColumn(string $module, string $sort): string
     {
         return $sort;
+    }
+
+    private function applySort($query, string $module, string $sortColumn, string $direction): void
+    {
+        if ($module !== 'products') {
+            $query->orderBy($sortColumn, $direction);
+
+            return;
+        }
+
+        $variantConstraint = "pv.product_id = products.id AND pv.status = 'active' AND pv.deleted_at IS NULL";
+        $expression = match ($sortColumn) {
+            'sku' => "COALESCE(products.sku, (SELECT MIN(pv.sku) FROM product_variants pv WHERE {$variantConstraint}))",
+            'base_price_cents' => "COALESCE(products.base_price_cents, (SELECT MIN(pv.price_cents) FROM product_variants pv WHERE {$variantConstraint}))",
+            'stock_quantity' => "COALESCE(products.stock_quantity, (SELECT SUM(COALESCE(pv.stock_quantity, 0)) FROM product_variants pv WHERE {$variantConstraint}))",
+            default => null,
+        };
+
+        if ($expression) {
+            $query->orderByRaw("{$expression} {$direction}");
+
+            return;
+        }
+
+        $query->orderBy($sortColumn, $direction);
     }
 
     private function modelClass(string $module): string

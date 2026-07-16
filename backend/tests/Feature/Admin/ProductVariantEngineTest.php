@@ -158,3 +158,42 @@ it('requires an explicit active variant for cart selection', function (): void {
         ->and($selection['unit_price_cents'])->toBe(56000)
         ->and($selection['selection_snapshot']['selected_sku'])->toBe('CART-1KG');
 });
+
+it('returns variant-aware sku price and stock summaries in the admin product list', function (): void {
+    $product = variantProduct();
+    [$oneKg] = variantAttribute('Weight', ['1kg']);
+
+    app(ProductVariantEngine::class)->sync($product, [
+        [
+            'attribute_values' => [$oneKg->id],
+            'sku' => 'ADMIN-1KG',
+            'status' => 'active',
+            'price_cents' => 56000,
+            'stock_quantity' => 5,
+            'track_inventory' => true,
+        ],
+    ]);
+
+    $product->forceFill([
+        'sku' => null,
+        'base_price_cents' => null,
+        'compare_at_price_cents' => null,
+        'cost_price_cents' => null,
+        'track_inventory' => false,
+        'stock_quantity' => null,
+        'low_stock_threshold' => null,
+    ])->save();
+
+    $token = accessTokenWithPermissions(['can_view_product']);
+
+    $this->withToken($token)
+        ->getJson('/api/admin/product-management/products?search=ADMIN-1KG')
+        ->assertOk()
+        ->assertJsonCount(1, 'data.items')
+        ->assertJsonPath('data.items.0.id', $product->id)
+        ->assertJsonPath('data.items.0.display_sku', 'ADMIN-1KG')
+        ->assertJsonPath('data.items.0.display_price_cents', 56000)
+        ->assertJsonPath('data.items.0.display_stock_quantity', 5)
+        ->assertJsonPath('data.items.0.display_inventory_mode', 'tracked')
+        ->assertJsonPath('data.items.0.active_variants_count', 1);
+});

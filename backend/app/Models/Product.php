@@ -70,6 +70,39 @@ class Product extends Model
             );
     }
 
+    public function primaryActiveVariant(): HasOne
+    {
+        return $this->hasOne(ProductVariant::class)
+            ->ofMany(
+                ['price_cents' => 'min', 'id' => 'min'],
+                fn ($query) => $query
+                    ->where('status', 'active')
+                    ->whereNotNull('price_cents')
+            );
+    }
+
+    public function scopeWithAdminSellableSummary($query)
+    {
+        return $query
+            ->with([
+                'primaryActiveVariant' => fn ($variantQuery) => $variantQuery->select([
+                    'product_variants.id',
+                    'product_variants.product_id',
+                    'product_variants.sku',
+                    'product_variants.price_cents',
+                    'product_variants.stock_quantity',
+                    'product_variants.track_inventory',
+                    'product_variants.status',
+                ]),
+            ])
+            ->withCount([
+                'activeVariants as active_variants_count',
+                'activeVariants as tracked_active_variants_count' => fn ($variantQuery) => $variantQuery
+                    ->where('track_inventory', true),
+            ])
+            ->withSum('activeVariants as active_variants_stock', 'stock_quantity');
+    }
+
     public function scopeWithSellableVariantMetrics($query)
     {
         return $query

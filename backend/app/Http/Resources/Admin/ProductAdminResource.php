@@ -11,6 +11,11 @@ class ProductAdminResource extends JsonResource
     public function toArray(Request $request): array
     {
         $brandsEnabled = app(BrandSettingsService::class)->enabled();
+        $hasVariants = (int) ($this->active_variants_count ?? 0) > 0;
+        $trackedVariants = (int) ($this->tracked_active_variants_count ?? 0);
+        $primaryVariant = $this->relationLoaded('primaryActiveVariant')
+            ? $this->primaryActiveVariant
+            : null;
 
         return [
             'id' => $this->id,
@@ -29,6 +34,15 @@ class ProductAdminResource extends JsonResource
             'currency' => $this->currency,
             'track_inventory' => (bool) $this->track_inventory,
             'stock_quantity' => $this->stock_quantity,
+            'display_sku' => $this->sku ?? $primaryVariant?->sku,
+            'display_price_cents' => $this->base_price_cents ?? $primaryVariant?->price_cents,
+            'display_stock_quantity' => $hasVariants
+                ? (int) ($this->active_variants_stock ?? 0)
+                : $this->stock_quantity,
+            'display_inventory_mode' => $hasVariants
+                ? ($trackedVariants === 0 ? 'untracked' : ($trackedVariants < (int) $this->active_variants_count ? 'mixed' : 'tracked'))
+                : ($this->track_inventory ? 'tracked' : 'untracked'),
+            'active_variants_count' => $hasVariants ? (int) $this->active_variants_count : 0,
             'low_stock_threshold' => $this->low_stock_threshold,
             'is_featured' => (bool) $this->is_featured,
             'is_new' => (bool) $this->is_new,
