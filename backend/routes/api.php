@@ -153,10 +153,12 @@ Route::prefix('admin')
 
         Route::get('/orders', [OrderManagementController::class, 'index']);
         Route::get('/orders/create-options', [OrderManagementController::class, 'createOptions']);
+        Route::get('/orders/product-search', [OrderManagementController::class, 'searchProducts']);
         Route::post('/orders', [OrderManagementController::class, 'store']);
         Route::put('/orders/bulk', [OrderManagementController::class, 'bulkUpdate']);
         Route::get('/orders/{order}', [OrderManagementController::class, 'show']);
         Route::put('/orders/{order}', [OrderManagementController::class, 'update']);
+        Route::put('/orders/{order}/full', [OrderManagementController::class, 'fullUpdate']);
         Route::delete('/orders/{order}', [OrderManagementController::class, 'destroy']);
         Route::post('/orders/{order}/refund', [OrderManagementController::class, 'refund']);
         Route::post('/orders/{order}/shipping-log', [OrderManagementController::class, 'shippingLog']);

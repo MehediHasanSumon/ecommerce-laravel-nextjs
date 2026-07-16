@@ -27,7 +27,6 @@ export type CreateOrderProduct = {
 export type CreateOrderOptions = {
   registered_customers: Array<{ id: number; name: string; email: string; phone: string | null }>;
   guest_customers: Array<{ id: number; name: string; email: string | null; phone: string; billing_address: Record<string, string | null> | null; shipping_address: Record<string, string | null> | null }>;
-  products: CreateOrderProduct[];
   shipping_methods: Array<{ id: number; name: string; rate: number }>;
   payment_methods: Array<{ gateway: string; name: string }>;
   statuses: { order: string[]; payment: string[] };
@@ -44,6 +43,16 @@ class OrderManagementService extends AdminApiService {
 
   create(payload: Record<string, unknown>) {
     return this.unwrap<{ order: OrderDetail }>(this.client.post("/admin/orders", payload));
+  }
+
+  searchProducts(search = "", ids: number[] = []) {
+    return this.unwrap<{ products: CreateOrderProduct[] }>(this.client.get("/admin/orders/product-search", {
+      params: cleanParams({ search, ids: ids.length ? ids : undefined }),
+    }));
+  }
+
+  fullUpdate(order: string, payload: Record<string, unknown>) {
+    return this.unwrap<{ order: OrderDetail }>(this.client.put(`/admin/orders/${encodeURIComponent(order)}/full`, payload));
   }
 
   show(order: string, params: { timeline_page?: number; timeline_per_page?: number } = {}) {

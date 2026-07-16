@@ -53,6 +53,44 @@ class OrderCreator
         });
     }
 
+    public function releaseItems(Order $order): void
+    {
+        $order->loadMissing('items');
+        foreach ($order->items as $item) {
+            $this->restoreInventory([
+                'product_id' => $item->product_id,
+                'product_variant_id' => $item->product_variant_id,
+                'quantity' => $item->quantity,
+            ]);
+        }
+    }
+
+    public function replaceItems(Order $order, array $items): void
+    {
+        if ($items === []) {
+            throw ValidationException::withMessages(['items' => ['At least one product is required.']]);
+        }
+
+        $order->items()->delete();
+        foreach ($items as $item) {
+            $this->decrementInventory($item);
+            $order->items()->create([
+                'product_id' => $item['product_id'],
+                'product_variant_id' => $item['product_variant_id'] ?? null,
+                'product_name' => $item['product_name'],
+                'sku' => $item['sku'] ?? null,
+                'quantity' => $item['quantity'],
+                'unit_price_cents' => $item['unit_price_cents'],
+                'discounted_price_cents' => $item['discounted_price_cents'] ?? null,
+                'line_subtotal_cents' => $item['line_subtotal_cents'],
+                'line_discount_cents' => $item['line_discount_cents'] ?? 0,
+                'selection_snapshot' => $item['selection_snapshot'] ?? null,
+                'pricing_snapshot' => $item['pricing_snapshot'] ?? null,
+                'tax_snapshot' => $item['tax_snapshot'] ?? null,
+            ]);
+        }
+    }
+
     private function decrementInventory(array $item): void
     {
         $product = Product::query()->lockForUpdate()->findOrFail($item['product_id']);
@@ -84,6 +122,31 @@ class OrderCreator
             throw ValidationException::withMessages(['items' => ["Insufficient stock for {$product->name}."]]);
         }
         $product->decrement('stock_quantity', $quantity);
+    }
+
+    private function restoreInventory(array $item): void
+    {
+        $product = Product::query()->lockForUpdate()->find($item['product_id']);
+        if (! $product) {
+            return;
+        }
+
+        $quantity = (int) $item['quantity'];
+        if (! empty($item['product_variant_id'])) {
+            $variant = ProductVariant::query()
+                ->where('product_id', $product->id)
+                ->lockForUpdate()
+                ->find($item['product_variant_id']);
+            if ($variant && ($variant->track_inventory ?? $product->track_inventory)) {
+                $variant->increment('stock_quantity', $quantity);
+            }
+
+            return;
+        }
+
+        if ($product->track_inventory) {
+            $product->increment('stock_quantity', $quantity);
+        }
     }
 
     private function nextOrderNumber(): string

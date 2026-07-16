@@ -21,9 +21,9 @@ class OrderManagementController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('permission:can_view_order', only: ['index', 'show', 'invoice', 'deliverySlip', 'createOptions']),
+            new Middleware('permission:can_view_order', only: ['index', 'show', 'invoice', 'deliverySlip', 'createOptions', 'searchProducts']),
             new Middleware('permission:can_create_order', only: ['store']),
-            new Middleware('permission:can_edit_order', only: ['update', 'bulkUpdate', 'refund', 'shippingLog']),
+            new Middleware('permission:can_edit_order', only: ['update', 'fullUpdate', 'bulkUpdate', 'refund', 'shippingLog']),
             new Middleware('permission:can_delete_order', only: ['destroy']),
         ];
     }
@@ -37,6 +37,19 @@ class OrderManagementController extends Controller implements HasMiddleware
     public function createOptions(): JsonResponse
     {
         return ApiResponse::success($this->creation->options());
+    }
+
+    public function searchProducts(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'search' => ['nullable', 'string', 'max:120'],
+            'ids' => ['nullable', 'array', 'max:50'],
+            'ids.*' => ['integer', 'exists:products,id'],
+        ]);
+
+        return ApiResponse::success([
+            'products' => $this->creation->searchProducts(trim((string) ($data['search'] ?? '')), $data['ids'] ?? []),
+        ]);
     }
 
     public function store(CreateOrderRequest $request): JsonResponse
@@ -116,6 +129,17 @@ class OrderManagementController extends Controller implements HasMiddleware
         $this->orders->delete($record, $request->user()?->id);
 
         return ApiResponse::success([], 'Order deleted successfully.');
+    }
+
+    public function fullUpdate(CreateOrderRequest $request, string $order): JsonResponse
+    {
+        $updated = $this->creation->update(
+            $this->orders->findAdmin($order),
+            $request->validated(),
+            (int) $request->user()->id,
+        );
+
+        return ApiResponse::success(['order' => OrderDetailResource::make($updated)->resolve()], 'Order updated successfully.');
     }
 
     public function bulkUpdate(Request $request): JsonResponse

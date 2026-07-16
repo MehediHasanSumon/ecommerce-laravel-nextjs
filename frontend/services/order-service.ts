@@ -47,6 +47,12 @@ export type OrderDetail = OrderListItem & {
   adminNotes?: string | null;
   customerNotes?: string | null;
   deliveryNotes?: string | null;
+  customerType?: "registered" | "guest";
+  userId?: number | null;
+  guestCustomerId?: number | null;
+  shippingMethodId?: number | null;
+  couponCode?: string | null;
+  additionalDiscount?: number;
   items: Array<{
     id: number;
     productId?: number | null;
@@ -55,6 +61,7 @@ export type OrderDetail = OrderListItem & {
     productSlug?: string | null;
     image?: string | null;
     sku?: string | null;
+    variantName?: string | null;
     quantity: number;
     unitPrice: number;
     discountedPrice?: number | null;

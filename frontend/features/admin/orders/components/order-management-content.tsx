@@ -374,6 +374,7 @@ export function AdminOrderDetailContent({ orderNumber }: { orderNumber: string }
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [timelineMeta, setTimelineMeta] = useState<PaginationMeta | null>(null);
   const [timelinePage, setTimelinePage] = useState(1);
+  const [savingStatus, setSavingStatus] = useState(false);
   const [downloading, setDownloading] = useState<"invoice" | "slip" | null>(null);
   const [refund, setRefund] = useState({ amount: "", reason: "", note: "" });
   const [shippingLog, setShippingLog] = useState({ status: "shipped", courier: "", tracking_number: "", tracking_url: "", note: "" });
@@ -392,6 +393,19 @@ export function AdminOrderDetailContent({ orderNumber }: { orderNumber: string }
   }, [orderNumber]);
 
   useEffect(() => { void load(1); }, [load]);
+
+  async function updateStatus(field: "status" | "payment_status" | "shipping_status", value: string) {
+    setSavingStatus(true);
+    try {
+      await orderManagementService.update(orderNumber, { [field]: value, note: `${label(field)} updated from order view.` });
+      await load(1);
+      toast.success("Order status updated.");
+    } catch (error) {
+      toast.error(toAppError(error).message);
+    } finally {
+      setSavingStatus(false);
+    }
+  }
 
   async function download(type: "invoice" | "slip") {
     if (!order) return;
@@ -429,9 +443,9 @@ export function AdminOrderDetailContent({ orderNumber }: { orderNumber: string }
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <StatusDisplay title="Order Status" value={order.status} />
-        <StatusDisplay title="Payment Status" value={order.paymentStatus} />
-        <StatusDisplay title="Shipping Status" value={order.shippingStatus} />
+        <StatusControl title="Order Status" value={order.status} values={orderStatuses.filter(Boolean)} disabled={!canEditOrder || savingStatus} onChange={(value) => void updateStatus("status", value)} />
+        <StatusControl title="Payment Status" value={order.paymentStatus} values={paymentStatuses.filter(Boolean)} disabled={!canEditOrder || savingStatus} onChange={(value) => void updateStatus("payment_status", value)} />
+        <StatusControl title="Shipping Status" value={order.shippingStatus} values={shippingStatuses.filter(Boolean)} disabled={!canEditOrder || savingStatus} onChange={(value) => void updateStatus("shipping_status", value)} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -444,7 +458,7 @@ export function AdminOrderDetailContent({ orderNumber }: { orderNumber: string }
       <Panel title="Ordered Products">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] text-sm">
-            <thead className="text-left text-xs uppercase text-muted-foreground"><tr>{["Product", "SKU", "Qty", "Unit", "Discount", "Line Total"].map((head) => <th key={head} className="py-2">{head}</th>)}</tr></thead>
+            <thead className="text-left text-xs uppercase text-muted-foreground"><tr>{["Product", "Product Variant", "SKU", "Qty", "Unit", "Discount", "Line Total"].map((head) => <th key={head} className="py-2">{head}</th>)}</tr></thead>
             <tbody>
               {order.items.map((item) => {
                 const productContent = (
@@ -469,6 +483,7 @@ export function AdminOrderDetailContent({ orderNumber }: { orderNumber: string }
                         </Link>
                       ) : productContent}
                     </td>
+                    <td>{item.variantName ?? "Default"}</td>
                     <td>{item.sku ?? "-"}</td>
                     <td>{item.quantity}</td>
                     <td>{formatPrice(item.unitPrice)}</td>
@@ -559,8 +574,8 @@ export function AdminOrderDetailContent({ orderNumber }: { orderNumber: string }
   );
 }
 
-function StatusDisplay({ title, value }: { title: string; value: string }) {
-  return <div className="rounded-xl border border-border bg-card p-4"><p className="mb-2 text-sm font-semibold">{title}</p><span className="inline-flex rounded-full border border-border px-2.5 py-1 text-xs font-bold">{label(value)}</span></div>;
+function StatusControl({ title, value, values, disabled, onChange }: { title: string; value: string; values: string[]; disabled: boolean; onChange: (value: string) => void }) {
+  return <div className="rounded-xl border border-border bg-card p-4"><p className="mb-2 text-sm font-semibold">{title}</p><Select value={value} disabled={disabled} onValueChange={onChange}><SelectTrigger className="h-10 rounded-lg"><SelectValue /></SelectTrigger><SelectContent>{values.map((item) => <SelectItem key={item} value={item}>{label(item)}</SelectItem>)}</SelectContent></Select></div>;
 }
 
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
