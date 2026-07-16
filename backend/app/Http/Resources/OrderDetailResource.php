@@ -26,6 +26,7 @@ class OrderDetailResource extends JsonResource
             'shippingAddress' => $this->shipping_address,
             'adminNotes' => $this->admin_notes,
             'customerNotes' => $this->customer_notes,
+            'deliveryNotes' => $this->delivery_notes,
             'items' => $this->items->map(function ($item): array {
                 $selection = (array) ($item->selection_snapshot ?? []);
                 $productImage = $item->product?->images?->firstWhere('is_primary', true)?->url

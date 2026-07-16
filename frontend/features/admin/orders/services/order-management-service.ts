@@ -52,8 +52,12 @@ class OrderManagementService extends AdminApiService {
     );
   }
 
-  update(order: string, payload: { status?: string; payment_status?: string; shipping_status?: string; admin_notes?: string | null; note?: string }) {
+  update(order: string, payload: { status?: string; payment_status?: string; shipping_status?: string; admin_notes?: string | null; customer_notes?: string | null; delivery_notes?: string | null; note?: string }) {
     return this.unwrap<{ order: OrderDetail }>(this.client.put(`/admin/orders/${encodeURIComponent(order)}`, payload));
+  }
+
+  delete(order: string) {
+    return this.unwrap<Record<string, never>>(this.client.delete(`/admin/orders/${encodeURIComponent(order)}`));
   }
 
   bulkUpdate(payload: { ids: Array<string | number>; status?: string; payment_status?: string; shipping_status?: string; note?: string }) {

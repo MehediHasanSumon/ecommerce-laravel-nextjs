@@ -43,6 +43,7 @@ export const routePaths = {
   adminReviews: "/admin/reviews",
   adminOrders: "/admin/orders",
   adminOrderCreate: "/admin/orders/create",
+  adminOrderEdit: "/admin/orders/edit",
   adminCustomers: "/admin/customers",
   adminBlogs: "/admin/blogs",
   adminContactMessages: "/admin/contact-messages",

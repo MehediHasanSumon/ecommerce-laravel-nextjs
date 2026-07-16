@@ -157,6 +157,7 @@ Route::prefix('admin')
         Route::put('/orders/bulk', [OrderManagementController::class, 'bulkUpdate']);
         Route::get('/orders/{order}', [OrderManagementController::class, 'show']);
         Route::put('/orders/{order}', [OrderManagementController::class, 'update']);
+        Route::delete('/orders/{order}', [OrderManagementController::class, 'destroy']);
         Route::post('/orders/{order}/refund', [OrderManagementController::class, 'refund']);
         Route::post('/orders/{order}/shipping-log', [OrderManagementController::class, 'shippingLog']);
         Route::get('/orders/{order}/invoice', [OrderManagementController::class, 'invoice']);

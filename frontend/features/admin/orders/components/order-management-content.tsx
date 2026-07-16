@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ChevronLeft, ChevronRight, ChevronsUpDown, Download, Eye, Filter, Plus, Search, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsUpDown, Download, Eye, Filter, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,7 @@ import type { PaginationMeta } from "@/features/admin/shared/types";
 import type { OrderDetail, OrderListItem } from "@/services/order-service";
 import { toAppError } from "@/lib/errors";
 import { hasPermission } from "@/lib/permissions";
+import { useDeleteConfirmation } from "@/hooks/use-delete-confirmation";
 import { useAuthStore } from "@/store/auth-store";
 import { formatPrice } from "@/utils/format";
 import { cn } from "@/utils/cn";
@@ -43,6 +44,8 @@ export function OrderManagementContent() {
   const [searchInput, setSearchInput] = useState(query.search);
   useAuthStore((state) => state.user?.permissions);
   const canEditOrder = hasPermission("can_edit_order");
+  const canDeleteOrder = hasPermission("can_delete_order");
+  const { confirmDelete, deleteConfirmationDialog } = useDeleteConfirmation();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -167,7 +170,7 @@ export function OrderManagementContent() {
                 <SortableHead label="Order Status" sortKey="status" activeSort={query.sort} onSort={sortBy} />
                 <SortableHead label="Shipping" sortKey="shipping_method_name" activeSort={query.sort} onSort={sortBy} />
                 <SortableHead label="Date" sortKey="placed_at" activeSort={query.sort} onSort={sortBy} />
-                <th className="w-28 px-4 py-3 text-right font-bold">Actions</th>
+                <th className="w-36 px-4 py-3 text-right font-bold">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -183,7 +186,28 @@ export function OrderManagementContent() {
                   <td className="px-4 py-3"><span className="rounded-full border border-border px-2 py-1 text-xs font-bold">{label(order.status)}</span></td>
                   <td className="px-4 py-3">{order.shippingMethod ?? "Not set"}</td>
                   <td className="px-4 py-3">{dateLabel(order.placedAt)}</td>
-                  <td className="px-4 py-3 text-right"><Link href={`/admin/orders/${order.orderNumber}`}><Button size="icon" variant="ghost" icon={<Eye className="h-4 w-4" />} title="View" aria-label={`View ${order.orderNumber}`} /></Link></td>
+                  <td className="px-4 py-3 text-right">
+                    <div className="inline-flex items-center justify-end gap-1">
+                      <Link href={`/admin/orders/${order.orderNumber}`}><Button size="icon" variant="ghost" icon={<Eye className="h-4 w-4" />} title="View" aria-label={`View ${order.orderNumber}`} /></Link>
+                      {canEditOrder ? <Link href={`/admin/orders/${encodeURIComponent(order.orderNumber)}/edit`}><Button size="icon" variant="ghost" icon={<Pencil className="h-4 w-4" />} title="Edit" aria-label={`Edit ${order.orderNumber}`} /></Link> : null}
+                      {canDeleteOrder ? <Button
+                        size="icon"
+                        variant="ghost"
+                        icon={<Trash2 className="h-4 w-4 text-destructive" />}
+                        title="Delete"
+                        aria-label={`Delete ${order.orderNumber}`}
+                        onClick={() => confirmDelete({
+                          title: "Delete Order",
+                          message: `Delete ${order.orderNumber}? The order will be archived without changing inventory.`,
+                          onConfirm: async () => {
+                            await orderManagementService.delete(order.orderNumber);
+                            toast.success("Order deleted.");
+                            await load();
+                          },
+                        })}
+                      /> : null}
+                    </div>
+                  </td>
                 </tr>
               )) : (
                 <tr>
@@ -230,6 +254,7 @@ export function OrderManagementContent() {
           setFilterOpen(false);
         }}
       />
+      {deleteConfirmationDialog}
     </div>
   );
 }
@@ -349,9 +374,7 @@ export function AdminOrderDetailContent({ orderNumber }: { orderNumber: string }
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [timelineMeta, setTimelineMeta] = useState<PaginationMeta | null>(null);
   const [timelinePage, setTimelinePage] = useState(1);
-  const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState<"invoice" | "slip" | null>(null);
-  const [note, setNote] = useState("");
   const [refund, setRefund] = useState({ amount: "", reason: "", note: "" });
   const [shippingLog, setShippingLog] = useState({ status: "shipped", courier: "", tracking_number: "", tracking_url: "", note: "" });
   useAuthStore((state) => state.user?.permissions);
@@ -361,7 +384,6 @@ export function AdminOrderDetailContent({ orderNumber }: { orderNumber: string }
     try {
       const response = await orderManagementService.show(orderNumber, { timeline_page: page, timeline_per_page: 5 });
       setOrder(response.data.order);
-      setNote(response.data.order.adminNotes ?? "");
       setTimelineMeta(response.meta.timeline_pagination ?? null);
       setTimelinePage(response.meta.timeline_pagination?.current_page ?? page);
     } catch (error) {
@@ -370,20 +392,6 @@ export function AdminOrderDetailContent({ orderNumber }: { orderNumber: string }
   }, [orderNumber]);
 
   useEffect(() => { void load(1); }, [load]);
-
-  async function update(field: "status" | "payment_status" | "shipping_status", value: string) {
-    if (!order) return;
-    setSaving(true);
-    try {
-      await orderManagementService.update(order.orderNumber, { [field]: value });
-      await load(1);
-      toast.success("Order updated.");
-    } catch (error) {
-      toast.error(toAppError(error).message);
-    } finally {
-      setSaving(false);
-    }
-  }
 
   async function download(type: "invoice" | "slip") {
     if (!order) return;
@@ -414,15 +422,16 @@ export function AdminOrderDetailContent({ orderNumber }: { orderNumber: string }
         </div>
         <div className="flex flex-wrap items-center gap-2 sm:justify-end">
           <Link href="/admin/orders"><Button variant="secondary" size="sm" className="h-9 rounded-lg px-4 text-xs">Back to Orders</Button></Link>
+          {canEditOrder ? <Link href={`/admin/orders/${encodeURIComponent(order.orderNumber)}/edit`}><Button variant="secondary" size="sm" className="h-9 rounded-lg px-4 text-xs" icon={<Pencil className="h-3.5 w-3.5" />}>Edit Order</Button></Link> : null}
           <Button size="sm" className="h-9 rounded-lg px-4 text-xs" icon={<Download className="h-3.5 w-3.5" />} isLoading={downloading === "invoice"} onClick={() => void download("invoice")}>Download Invoice</Button>
           <Button variant="secondary" size="sm" className="h-9 rounded-lg px-4 text-xs" icon={<Download className="h-3.5 w-3.5" />} isLoading={downloading === "slip"} onClick={() => void download("slip")}>Delivery Slip</Button>
         </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <StatusControl title="Order Status" value={order.status} values={orderStatuses.filter(Boolean)} disabled={saving || !canEditOrder} onChange={(value) => update("status", value)} />
-        <StatusControl title="Payment Status" value={order.paymentStatus} values={paymentStatuses.filter(Boolean)} disabled={saving || !canEditOrder} onChange={(value) => update("payment_status", value)} />
-        <StatusControl title="Shipping Status" value={order.shippingStatus} values={["pending", "processing", "shipped", "delivered", "returned"]} disabled={saving || !canEditOrder} onChange={(value) => update("shipping_status", value)} />
+        <StatusDisplay title="Order Status" value={order.status} />
+        <StatusDisplay title="Payment Status" value={order.paymentStatus} />
+        <StatusDisplay title="Shipping Status" value={order.shippingStatus} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -506,15 +515,8 @@ export function AdminOrderDetailContent({ orderNumber }: { orderNumber: string }
 
       {canEditOrder ? <div className="grid gap-4 lg:grid-cols-3">
         <Panel title="Admin Notes">
-          <textarea value={note} onChange={(event) => setNote(event.target.value)} rows={6} className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary" />
-          <Button className="mt-3" size="sm" isLoading={saving} onClick={async () => {
-            setSaving(true);
-            try {
-              await orderManagementService.update(order.orderNumber, { admin_notes: note, note: "Admin notes updated." });
-              await load(timelinePage);
-              toast.success("Admin notes saved.");
-            } catch (error) { toast.error(toAppError(error).message); } finally { setSaving(false); }
-          }}>Save Notes</Button>
+          <p className="whitespace-pre-wrap text-sm text-muted-foreground">{order.adminNotes || "No internal notes."}</p>
+          <Link href={`/admin/orders/${encodeURIComponent(order.orderNumber)}/edit`}><Button className="mt-3" variant="secondary" size="sm" icon={<Pencil className="h-4 w-4" />}>Edit Notes</Button></Link>
         </Panel>
         <Panel title="Refund Workflow">
           <div className="space-y-3">
@@ -557,8 +559,8 @@ export function AdminOrderDetailContent({ orderNumber }: { orderNumber: string }
   );
 }
 
-function StatusControl({ title, value, values, disabled, onChange }: { title: string; value: string; values: string[]; disabled?: boolean; onChange: (value: string) => void }) {
-  return <div className="rounded-xl border border-border bg-card p-4"><p className="mb-2 text-sm font-semibold">{title}</p><Select value={value} disabled={disabled} onValueChange={onChange}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{values.map((item) => <SelectItem key={item} value={item}>{label(item)}</SelectItem>)}</SelectContent></Select></div>;
+function StatusDisplay({ title, value }: { title: string; value: string }) {
+  return <div className="rounded-xl border border-border bg-card p-4"><p className="mb-2 text-sm font-semibold">{title}</p><span className="inline-flex rounded-full border border-border px-2.5 py-1 text-xs font-bold">{label(value)}</span></div>;
 }
 
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {

@@ -9,6 +9,9 @@ class OrderResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        $billingAddress = (array) ($this->billing_address ?? []);
+        $customer = $this->user ?: $this->guestCustomer;
+
         return [
             'id' => (string) $this->id,
             'orderNumber' => $this->order_number,
@@ -18,11 +21,13 @@ class OrderResource extends JsonResource
             'paymentMethod' => $this->payment_method,
             'shippingMethod' => $this->shipping_method_name,
             'currency' => $this->currency,
-            'customer' => $this->whenLoaded('user', fn () => [
-                'id' => $this->user?->id,
-                'name' => $this->user?->name,
-                'email' => $this->user?->email,
-            ]),
+            'customer' => [
+                'id' => $customer?->id,
+                'type' => $this->user_id ? 'registered' : 'guest',
+                'name' => $customer?->name ?? ($billingAddress['full_name'] ?? 'Guest Customer'),
+                'email' => $customer?->email ?? ($billingAddress['email'] ?? null),
+                'phone' => $customer?->phone ?? ($billingAddress['phone'] ?? null),
+            ],
             'itemsCount' => $this->items_count ?? $this->items?->count(),
             'summary' => [
                 'subtotal' => round($this->subtotal_cents / 100, 2),

@@ -11,12 +11,15 @@ use App\Services\Notifications\RealtimeNotificationService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class OrderService
 {
     public const ORDER_STATUSES = ['pending', 'confirmed', 'processing', 'packed', 'ready_for_shipment', 'shipped', 'out_for_delivery', 'delivered', 'cancelled', 'refunded'];
+
     public const PAYMENT_STATUSES = ['pending', 'paid', 'failed', 'cancelled', 'refunded', 'partially_refunded'];
+
     public const SHIPPING_STATUSES = ['pending', 'processing', 'shipped', 'delivered', 'returned'];
 
     public function __construct(private readonly RealtimeNotificationService $notifications) {}
@@ -24,7 +27,7 @@ class OrderService
     public function paginate(array $filters, ?int $userId = null, ?string $guestToken = null): LengthAwarePaginator
     {
         $query = Order::query()
-            ->with(['user:id,name,email', 'transactions' => fn ($query) => $query->latest()->limit(1)])
+            ->with(['user:id,name,email,phone', 'guestCustomer:id,name,email,phone', 'transactions' => fn ($query) => $query->latest()->limit(1)])
             ->withCount('items');
 
         if ($userId) {
@@ -104,6 +107,12 @@ class OrderService
         if (array_key_exists('admin_notes', $data)) {
             $order->update(['admin_notes' => $data['admin_notes']]);
         }
+        if (array_key_exists('customer_notes', $data)) {
+            $order->update(['customer_notes' => $data['customer_notes']]);
+        }
+        if (array_key_exists('delivery_notes', $data)) {
+            $order->update(['delivery_notes' => $data['delivery_notes']]);
+        }
 
         return $this->findAdmin($order->id);
     }
@@ -142,7 +151,8 @@ class OrderService
     private function detailQuery(bool $withHistories = true): Builder
     {
         $relations = [
-            'user:id,name,email',
+            'user:id,name,email,phone',
+            'guestCustomer:id,name,email,phone',
             'items.product:id,name,slug',
             'items.product.images:id,product_id,url,is_primary,sort_order',
             'items.variant:id,sku',
@@ -164,7 +174,25 @@ class OrderService
         foreach ($orders as $order) {
             $this->updateStatuses($order, $data, $userId);
         }
+
         return $orders->count();
+    }
+
+    public function delete(Order $order, ?int $userId = null): void
+    {
+        DB::transaction(function () use ($order, $userId): void {
+            $this->record(
+                $order,
+                'order',
+                'deleted',
+                $order->status,
+                'Order deleted',
+                'Order removed from admin order management.',
+                ['soft_deleted' => true],
+                $userId,
+            );
+            $order->delete();
+        });
     }
 
     public function refund(Order $order, int $amountCents, string $reason, ?string $note = null, ?int $userId = null): Order
@@ -239,7 +267,11 @@ class OrderService
             $query->where(function (Builder $query) use ($search): void {
                 $query->where('order_number', 'like', "%{$search}%")
                     ->orWhere('payment_method', 'like', "%{$search}%")
-                    ->orWhereHas('user', fn (Builder $user) => $user->where('name', 'like', "%{$search}%")->orWhere('email', 'like', "%{$search}%"));
+                    ->orWhereHas('user', fn (Builder $user) => $user->where('name', 'like', "%{$search}%")->orWhere('email', 'like', "%{$search}%"))
+                    ->orWhereHas('guestCustomer', fn (Builder $guest) => $guest->where('name', 'like', "%{$search}%")->orWhere('email', 'like', "%{$search}%")->orWhere('phone', 'like', "%{$search}%"))
+                    ->orWhere('billing_address->full_name', 'like', "%{$search}%")
+                    ->orWhere('billing_address->email', 'like', "%{$search}%")
+                    ->orWhere('billing_address->phone', 'like', "%{$search}%");
             });
         });
         foreach (['status', 'payment_status', 'shipping_status', 'payment_method'] as $field) {
@@ -264,6 +296,7 @@ class OrderService
     private function titleFor(string $field, string $status): string
     {
         $label = str_replace('_', ' ', $status);
+
         return ucfirst(str_replace('_', ' ', $field)).' changed to '.ucwords($label);
     }
 

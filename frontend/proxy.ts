@@ -68,6 +68,9 @@ function requiredPermissionForPath(pathname: string) {
   if (pathname === routePaths.adminOrderCreate) {
     return "can_create_order";
   }
+  if (/^\/admin\/orders\/[^/]+\/edit$/.test(pathname)) {
+    return "can_edit_order";
+  }
   if (pathname === routePaths.adminProductCreate) {
     return "can_create_product";
   }

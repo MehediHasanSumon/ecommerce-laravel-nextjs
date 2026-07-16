@@ -46,6 +46,7 @@ export type OrderDetail = OrderListItem & {
   shippingAddress: Record<string, string | null>;
   adminNotes?: string | null;
   customerNotes?: string | null;
+  deliveryNotes?: string | null;
   items: Array<{
     id: number;
     productId?: number | null;

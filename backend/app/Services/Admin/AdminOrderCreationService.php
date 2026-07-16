@@ -72,7 +72,7 @@ class AdminOrderCreationService
             'products' => $products,
             'shipping_methods' => ShippingMethod::query()
                 ->where('status', true)
-                ->orderBy('sort_order')
+                ->orderBy('display_order')
                 ->get(['id', 'name', 'rate_cents', 'shipping_zone_id'])
                 ->map(fn ($method): array => [
                     'id' => $method->id,

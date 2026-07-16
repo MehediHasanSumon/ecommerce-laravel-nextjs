@@ -24,6 +24,7 @@ class OrderManagementController extends Controller implements HasMiddleware
             new Middleware('permission:can_view_order', only: ['index', 'show', 'invoice', 'deliverySlip', 'createOptions']),
             new Middleware('permission:can_create_order', only: ['store']),
             new Middleware('permission:can_edit_order', only: ['update', 'bulkUpdate', 'refund', 'shippingLog']),
+            new Middleware('permission:can_delete_order', only: ['destroy']),
         ];
     }
 
@@ -99,12 +100,22 @@ class OrderManagementController extends Controller implements HasMiddleware
             'payment_status' => ['nullable', 'string'],
             'shipping_status' => ['nullable', 'string'],
             'admin_notes' => ['nullable', 'string', 'max:5000'],
+            'customer_notes' => ['nullable', 'string', 'max:5000'],
+            'delivery_notes' => ['nullable', 'string', 'max:5000'],
             'note' => ['nullable', 'string', 'max:1000'],
         ]);
 
         $updated = $this->orders->updateStatuses($this->orders->findAdmin($order), $data, $request->user()?->id);
 
         return ApiResponse::success(['order' => OrderDetailResource::make($updated)->resolve()], 'Order updated successfully.');
+    }
+
+    public function destroy(Request $request, string $order): JsonResponse
+    {
+        $record = $this->orders->findAdmin($order);
+        $this->orders->delete($record, $request->user()?->id);
+
+        return ApiResponse::success([], 'Order deleted successfully.');
     }
 
     public function bulkUpdate(Request $request): JsonResponse
