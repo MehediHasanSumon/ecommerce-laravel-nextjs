@@ -4,10 +4,27 @@ use App\Models\Settings\CompanySetting;
 use App\Models\Settings\StoreSetting;
 use App\Models\User;
 use App\Services\Installation\SettingsSchemaInspector;
+use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+
+it('keeps the role permission seeder available and idempotent', function (): void {
+    $this->seed(RolePermissionSeeder::class);
+
+    $roleCount = Role::query()->count();
+    $permissionCount = Permission::query()->count();
+
+    $this->seed(RolePermissionSeeder::class);
+
+    expect($roleCount)->toBe(3)
+        ->and($permissionCount)->toBeGreaterThan(0)
+        ->and(Role::query()->count())->toBe($roleCount)
+        ->and(Permission::query()->count())->toBe($permissionCount)
+        ->and(Role::findByName('admin')->permissions()->count())->toBe($permissionCount)
+        ->and(Role::findByName('super-admin')->permissions()->count())->toBe($permissionCount);
+});
 
 it('discovers configurable settings fields directly from the model and database schema', function (): void {
     Schema::table('store_settings', function ($table): void {
