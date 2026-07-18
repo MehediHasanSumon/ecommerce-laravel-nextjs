@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { AlertCircle, RotateCcw, ShoppingBag } from "lucide-react";
@@ -9,6 +9,14 @@ import { Footer } from "@/components/layout/Footer";
 import { fetchPaymentResult, type OrderDetail } from "@/services/order-service";
 
 export default function PaymentFailedPage() {
+  return (
+    <Suspense fallback={<PaymentFailedShell />}>
+      <PaymentFailedContent />
+    </Suspense>
+  );
+}
+
+function PaymentFailedContent() {
   const orderNumber = useSearchParams().get("order");
   const [order, setOrder] = useState<OrderDetail | null>(null);
 
@@ -18,6 +26,10 @@ export default function PaymentFailedPage() {
     }
   }, [orderNumber]);
 
+  return <PaymentFailedShell order={order} />;
+}
+
+function PaymentFailedShell({ order = null }: { order?: OrderDetail | null }) {
   return (
     <div className="min-h-screen bg-background">
       <Header />

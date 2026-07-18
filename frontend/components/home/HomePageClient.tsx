@@ -1,17 +1,23 @@
 'use client';
 import Link from 'next/link';
 import Image from 'next/image';
-import { createElement, useMemo, useRef, useState, useEffect } from 'react';
+import { useMemo, useRef, useState, useEffect } from 'react';
 import type { TouchEvent } from 'react';
 import {
   ArrowRight,
+  BadgeCheck,
+  CreditCard,
+  HeadphonesIcon,
+  PackageCheck,
+  RotateCcw,
+  Shield,
   Star,
+  Truck,
   Zap,
   ChevronLeft,
   ChevronRight,
   TrendingUp,
 } from 'lucide-react';
-import * as LucideIcons from 'lucide-react';
 import { AnnouncementBar } from '@/components/layout/AnnouncementBar';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
@@ -622,11 +628,28 @@ function SectionHeader({
   );
 }
 
-function renderLucideIcon(name: string, props: { className?: string; size?: number; 'aria-hidden'?: boolean }) {
-  const icons = LucideIcons as unknown as Record<string, React.ComponentType<{ className?: string; size?: number }>>;
-  const Icon = icons[name] ?? LucideIcons.BadgeCheck;
+const featureCardIcons: Record<string, React.ComponentType<{ className?: string; size?: number; 'aria-hidden'?: boolean }>> = {
+  BadgeCheck,
+  CreditCard,
+  HeadphonesIcon,
+  PackageCheck,
+  RotateCcw,
+  Shield,
+  Truck,
+};
 
-  return createElement(Icon, props);
+function FeatureCardIcon({
+  name,
+  ...props
+}: {
+  name: string;
+  className?: string;
+  size?: number;
+  'aria-hidden'?: boolean;
+}) {
+  const Icon = featureCardIcons[name] ?? BadgeCheck;
+
+  return <Icon {...props} />;
 }
 
 function FeatureCardsSection() {
@@ -651,7 +674,7 @@ function FeatureCardsSection() {
               className="group flex h-full min-h-24 items-center gap-3 rounded-xl p-3 transition-all hover:-translate-y-0.5 hover:bg-card hover:shadow-sm focus-within:bg-card"
             >
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
-                {renderLucideIcon(card.icon, { size: 19, 'aria-hidden': true })}
+                <FeatureCardIcon name={card.icon} size={19} aria-hidden />
               </div>
               <div className="min-w-0">
                 <h2 className="text-sm font-semibold">{card.title}</h2>
@@ -754,10 +777,10 @@ function HomeCollectionSection({
   );
 }
 
-export default function HomePage() {
+export default function HomePage({ initialData = null }: { initialData?: HomePageSections | null }) {
   const [mounted, setMounted] = useState(false);
-  const [homeData, setHomeData] = useState<HomePageSections | null>(null);
-  const [homeLoading, setHomeLoading] = useState(true);
+  const [homeData, setHomeData] = useState<HomePageSections | null>(initialData);
+  const [homeLoading, setHomeLoading] = useState(!initialData);
   const [homeError, setHomeError] = useState(false);
   const homeCollections = homeData?.collections ?? [];
   const categoryDisplay = useSettingsStore(selectCategoryDisplaySettings);
@@ -787,6 +810,8 @@ export default function HomePage() {
   const showHomeTestimonials = homeData?.sections.testimonials.enabled ?? runtimeHomePageSettings.testimonial_section.enabled;
 
   useEffect(() => {
+    if (initialData) return;
+
     const controller = new AbortController();
     setHomeLoading(true);
     setHomeError(false);
@@ -803,7 +828,7 @@ export default function HomePage() {
       });
 
     return () => controller.abort();
-  }, []);
+  }, [initialData]);
 
   const topBrands = showHomeBrands && homeData?.sections.topBrands.enabled ? homeData.sections.topBrands.items : [];
   const homeProducts = homeData?.sections.products.items ?? [];

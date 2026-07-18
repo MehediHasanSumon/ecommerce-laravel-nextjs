@@ -6,6 +6,7 @@ use App\Models\Settings\BrandSetting;
 use App\Services\Admin\Settings\Concerns\ManagesSingletonSettings;
 use App\Services\Seo\SeoMetadataService;
 use App\Support\Admin\SettingsDefaults;
+use App\Support\HomePageCache;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 
@@ -63,8 +64,7 @@ class BrandSettingsService
         Cache::forget($this->cacheKey());
         Cache::forget($this->cacheKey().'.id');
         Cache::forget('settings.navigation.runtime');
-        Cache::forget('home-page:product-brand-sections');
-        Cache::forget('home-page:product-brand-sections:v2');
+        HomePageCache::invalidate();
         SeoMetadataService::invalidateCache();
     }
 }

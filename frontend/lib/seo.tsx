@@ -205,6 +205,7 @@ function toMetadata(payload: SeoMetadataPayload): Metadata {
   const robots = parseRobots(payload.robots);
   const ogImage = payload.openGraph?.image;
   const twitterImage = payload.twitter?.image;
+  const favicon = payload.favicon || "/favicon.png";
 
   return {
     title: payload.title ?? undefined,
@@ -226,11 +227,11 @@ function toMetadata(payload: SeoMetadataPayload): Metadata {
       description: payload.twitter?.description ?? payload.description ?? undefined,
       images: twitterImage ? [twitterImage] : undefined,
     },
-    icons: payload.favicon ? {
-      icon: [{ url: payload.favicon }],
-      shortcut: [{ url: payload.favicon }],
-      apple: [{ url: payload.favicon }],
-    } : undefined,
+    icons: {
+      icon: [{ url: favicon }],
+      shortcut: [{ url: favicon }],
+      apple: [{ url: favicon }],
+    },
   };
 }
 

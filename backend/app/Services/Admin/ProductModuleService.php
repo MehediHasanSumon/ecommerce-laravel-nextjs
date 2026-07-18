@@ -17,6 +17,7 @@ use App\Services\Admin\Concerns\BuildsManagementQueries;
 use App\Services\Admin\Settings\BrandSettingsService;
 use App\Services\Concerns\StoresPublicUploads;
 use App\Services\Seo\SeoMetadataService;
+use App\Support\HomePageCache;
 use App\Support\Identifiers\SkuGenerator;
 use App\Support\Identifiers\SlugGenerator;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -89,8 +90,8 @@ class ProductModuleService
         if ($module === 'categories') {
             $this->clearCategoryCaches();
         }
-        if (in_array($module, ['brands', 'collections', 'currencies'], true)) {
-            $this->clearCollectionCaches();
+        if ($this->affectsHomePage($module)) {
+            $this->clearHomePageCache();
         }
         $this->clearSeoCaches($module);
     }
@@ -104,8 +105,8 @@ class ProductModuleService
         if ($module === 'categories') {
             $this->clearCategoryCaches();
         }
-        if (in_array($module, ['brands', 'collections', 'currencies'], true)) {
-            $this->clearCollectionCaches();
+        if ($this->affectsHomePage($module)) {
+            $this->clearHomePageCache();
         }
         $this->clearSeoCaches($module);
 
@@ -160,8 +161,8 @@ class ProductModuleService
             if ($module === 'categories') {
                 $this->clearCategoryCaches();
             }
-            if (in_array($module, ['brands', 'collections', 'currencies'], true)) {
-                $this->clearCollectionCaches();
+            if ($this->affectsHomePage($module)) {
+                $this->clearHomePageCache();
             }
 
             return $updated;
@@ -220,7 +221,7 @@ class ProductModuleService
             $this->assignSortOrderOnCreate($module, $model, $data);
             $model->fill($data)->save();
             $model->products()->sync(collect($products)->mapWithKeys(fn ($item) => [$item['id'] => ['sort_order' => $item['sort_order'] ?? 0]])->all());
-            $this->clearCollectionCaches();
+            $this->clearHomePageCache();
             $this->clearSeoCaches($module);
 
             return $this->find($module, $model->id);
@@ -284,7 +285,10 @@ class ProductModuleService
             $this->clearCategoryCaches();
         }
         if ($module === 'brands') {
-            $this->clearCollectionCaches();
+            $this->clearHomePageCache();
+        }
+        if ($this->affectsHomePage($module) && $module !== 'brands') {
+            $this->clearHomePageCache();
         }
         $this->clearSeoCaches($module);
 
@@ -387,6 +391,7 @@ class ProductModuleService
         }
 
         $this->variantEngine->sync($model, $variants);
+        $this->clearHomePageCache();
         $this->clearSeoCaches('products');
 
         return $this->find('products', $model->id);
@@ -720,10 +725,22 @@ class ProductModuleService
         cache()->forget('categories.runtime.tree');
     }
 
-    private function clearCollectionCaches(): void
+    private function clearHomePageCache(): void
     {
-        cache()->forget('home-page:product-brand-sections');
-        cache()->forget('home-page:product-brand-sections:v2');
+        HomePageCache::invalidate();
+    }
+
+    private function affectsHomePage(string $module): bool
+    {
+        return in_array($module, [
+            'products',
+            'brands',
+            'categories',
+            'tags',
+            'collections',
+            'currencies',
+            'discounts',
+        ], true);
     }
 
     private function clearSeoCaches(string $module): void

@@ -8,10 +8,21 @@ use App\Http\Responses\ApiResponse;
 use App\Models\BlogComment;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Validation\Rule;
 
-class BlogCommentManagementController extends Controller
+class BlogCommentManagementController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('permission:can_view_blog', only: ['index']),
+            new Middleware('permission:can_edit_blog', only: ['update']),
+            new Middleware('permission:can_delete_blog', only: ['destroy']),
+        ];
+    }
+
     public function index(Request $request): JsonResponse
     {
         $validated = $request->validate([

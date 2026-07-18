@@ -2,6 +2,7 @@
 
 use App\Models\Product;
 use App\Models\Settings\HomePageSetting;
+use App\Support\HomePageCache;
 use Illuminate\Support\Facades\Cache;
 
 beforeEach(function (): void {
@@ -31,6 +32,7 @@ function homePageSettingsProduct(int $index): Product
 
 it('updates home page settings and exposes runtime settings', function (): void {
     $token = homePageSettingsAdminToken();
+    $cacheVersion = HomePageCache::version();
 
     $this->withToken($token)->putJson('/api/admin/settings/home-page', [
         'home' => [
@@ -57,6 +59,8 @@ it('updates home page settings and exposes runtime settings', function (): void 
         ->assertJsonPath('data.settings.home.announcement_text', 'Weekend deal is live.')
         ->assertJsonPath('data.settings.categories.category_display_mode', 'home_grid_navbar_dropdown')
         ->assertJsonPath('data.settings.brand.show_on_home', false);
+
+    expect(HomePageCache::version())->toBeGreaterThan($cacheVersion);
 
     $this->getJson('/api/settings/navigation')
         ->assertOk()

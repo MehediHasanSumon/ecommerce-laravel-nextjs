@@ -1,17 +1,33 @@
 "use client";
 
 import { useEffect } from "react";
-import { selectSettingsPending, useSettingsStore } from "@/store/settings-store";
+import {
+  hydrateRuntimeSettings,
+  selectSettingsPending,
+  useSettingsStore,
+} from "@/store/settings-store";
+import type { RuntimeSettings } from "@/types/settings";
 
-export function SettingsProvider({ children }: { children: React.ReactNode }) {
+export function SettingsProvider({
+  children,
+  initialSettings = null,
+}: {
+  children: React.ReactNode;
+  initialSettings?: RuntimeSettings | null;
+}) {
   const fetchSettings = useSettingsStore((state) => state.fetchSettings);
   const settingsPending = useSettingsStore(selectSettingsPending);
 
   useEffect(() => {
-    void fetchSettings();
-  }, [fetchSettings]);
+    if (initialSettings) {
+      hydrateRuntimeSettings(initialSettings);
+      return;
+    }
 
-  if (settingsPending) {
+    void fetchSettings();
+  }, [fetchSettings, initialSettings]);
+
+  if (settingsPending && !initialSettings) {
     return <GlobalSettingsSkeleton />;
   }
 

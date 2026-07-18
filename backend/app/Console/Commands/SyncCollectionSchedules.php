@@ -3,8 +3,8 @@
 namespace App\Console\Commands;
 
 use App\Models\ProductCollection;
+use App\Support\HomePageCache;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class SyncCollectionSchedules extends Command
@@ -22,7 +22,7 @@ class SyncCollectionSchedules extends Command
             ->update(['status' => 'inactive', 'updated_at' => now()]);
 
         if ($expired > 0) {
-            Cache::forget('home-page:product-brand-sections:v2');
+            HomePageCache::invalidate();
             Log::info('Expired collections deactivated.', ['count' => $expired]);
         }
 

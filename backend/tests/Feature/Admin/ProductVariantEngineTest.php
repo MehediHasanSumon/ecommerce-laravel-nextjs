@@ -3,6 +3,7 @@
 use App\Models\Product;
 use App\Models\ProductAttribute;
 use App\Models\ProductAttributeValue;
+use App\Models\User;
 use App\Services\Admin\ProductVariantEngine;
 use App\Services\Commerce\ProductSelectionService;
 use Illuminate\Validation\ValidationException;
@@ -196,4 +197,17 @@ it('returns variant-aware sku price and stock summaries in the admin product lis
         ->assertJsonPath('data.items.0.display_stock_quantity', 5)
         ->assertJsonPath('data.items.0.display_inventory_mode', 'tracked')
         ->assertJsonPath('data.items.0.active_variants_count', 1);
+});
+
+it('requires product view permission for admin product options', function (): void {
+    $customer = User::factory()->create();
+    $customerToken = $customer->createToken('customer-access', ['access'], now()->addMinutes(15))->plainTextToken;
+
+    $this->withToken($customerToken)
+        ->getJson('/api/admin/product-options')
+        ->assertForbidden();
+
+    $this->withToken(accessTokenWithPermissions(['can_view_product']))
+        ->getJson('/api/admin/product-options')
+        ->assertOk();
 });

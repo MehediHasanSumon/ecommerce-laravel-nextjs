@@ -110,24 +110,9 @@ button:disabled,
   cursor: not-allowed;
 }
 
-button,
-a,
-input,
-select,
-textarea {
-  outline: none;
-}
-
-:where(a, button, select, [role="button"]):focus-visible {
-  box-shadow: none;
-}
-
-:where(input, textarea):focus-visible {
-  box-shadow: none;
-}
-
-:where(input[class*="bg-transparent"], input[class*="pl-9"], input[class*="pl-10"], input[class*="pl-12"]):focus-visible {
-  box-shadow: none;
+:where(a, button, input, select, textarea, summary, [role="button"]):focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
 }
 
 img,

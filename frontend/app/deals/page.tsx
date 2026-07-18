@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Tag, ChevronRight } from 'lucide-react';
@@ -21,6 +21,31 @@ function parsePage(searchParams: URLSearchParams) {
 }
 
 export default function DealsPage() {
+  return (
+    <Suspense fallback={<DealsLoadingPage />}>
+      <DealsPageContent />
+    </Suspense>
+  );
+}
+
+function DealsLoadingPage() {
+  return (
+    <div className="min-h-screen bg-background">
+      <AnnouncementBar />
+      <Header />
+      <main>
+        <div className="h-[196px] bg-muted animate-pulse" />
+        <div className="max-w-7xl mx-auto px-4 py-10 pb-16">
+          <div className="mb-8 h-5 w-36 rounded bg-muted animate-pulse" />
+          <ProductGridSkeleton count={DEALS_PER_PAGE} />
+        </div>
+      </main>
+      <Footer />
+    </div>
+  );
+}
+
+function DealsPageContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -13,6 +13,38 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { fetchBlogs, type BlogCard, type BlogListResponse } from "@/services/blog-service";
 
 export default function BlogsPage() {
+  return (
+    <Suspense fallback={<BlogsLoadingPage />}>
+      <BlogsPageContent />
+    </Suspense>
+  );
+}
+
+function BlogsLoadingPage() {
+  return (
+    <div className="min-h-screen bg-background">
+      <AnnouncementBar />
+      <Header />
+      <main className="max-w-7xl mx-auto px-4 py-8 pb-16">
+        <div className="mb-6 h-5 w-36">
+          <Skeleton className="h-full w-full" />
+        </div>
+        <div className="mb-8 space-y-2">
+          <Skeleton className="h-9 w-32" />
+          <Skeleton className="h-5 w-full max-w-xl" />
+        </div>
+        <div className="mb-8 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <Skeleton className="h-10 w-full md:max-w-md" />
+          <Skeleton className="h-10 w-full md:w-40" />
+        </div>
+        <BlogSkeleton layout="grid" />
+      </main>
+      <Footer />
+    </div>
+  );
+}
+
+function BlogsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [data, setData] = useState<BlogListResponse | null>(null);

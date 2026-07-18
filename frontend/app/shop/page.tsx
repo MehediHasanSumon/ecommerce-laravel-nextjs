@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { ChevronRight, Search, SlidersHorizontal, Star, X } from 'lucide-react';
@@ -328,6 +328,38 @@ function FilterSidebar({
 }
 
 export default function ShopPage() {
+  return (
+    <Suspense fallback={<ShopLoadingPage />}>
+      <ShopPageContent />
+    </Suspense>
+  );
+}
+
+function ShopLoadingPage() {
+  return (
+    <div className="min-h-screen bg-background">
+      <AnnouncementBar />
+      <Header />
+      <main className="mx-auto w-full max-w-7xl px-3 py-6 pb-16 sm:px-4 sm:py-8 lg:px-6">
+        <div className="mb-6 h-5 w-36 rounded bg-muted animate-pulse" />
+        <div className="mb-6 space-y-2">
+          <div className="h-9 w-48 rounded bg-muted animate-pulse" />
+          <div className="h-5 w-32 rounded bg-muted animate-pulse" />
+        </div>
+        <div className="flex gap-8">
+          <aside className="hidden h-[36rem] w-60 shrink-0 rounded-2xl bg-muted animate-pulse lg:block" />
+          <div className="min-w-0 flex-1">
+            <div className="mb-6 h-10 w-full rounded-xl bg-muted animate-pulse" />
+            <ProductGridSkeleton count={SHOP_PER_PAGE} />
+          </div>
+        </div>
+      </main>
+      <Footer />
+    </div>
+  );
+}
+
+function ShopPageContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();

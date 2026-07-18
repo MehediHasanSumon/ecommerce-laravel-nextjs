@@ -90,6 +90,8 @@ class ProductModuleController extends Controller
 
     public function optionsOnly(Request $request): JsonResponse
     {
+        abort_unless($request->user()?->can('can_view_product'), 403);
+
         return ApiResponse::success(['options' => $this->options($request)]);
     }
 

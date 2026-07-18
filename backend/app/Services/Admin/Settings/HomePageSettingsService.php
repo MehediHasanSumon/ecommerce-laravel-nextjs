@@ -5,6 +5,7 @@ namespace App\Services\Admin\Settings;
 use App\Models\Settings\HomePageSetting;
 use App\Services\Admin\Settings\Concerns\ManagesSingletonSettings;
 use App\Support\Admin\SettingsDefaults;
+use App\Support\HomePageCache;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 
@@ -63,11 +64,6 @@ class HomePageSettingsService
         Cache::forget($this->cacheKey());
         Cache::forget($this->cacheKey().'.id');
         Cache::forget('settings.navigation.runtime');
-        Cache::forget('home-page:product-brand-sections');
-        Cache::forget('home-page:product-brand-sections:v2');
-        Cache::forget('home-page:product-brand-sections:v4:0:0');
-        Cache::forget('home-page:product-brand-sections:v4:0:1');
-        Cache::forget('home-page:product-brand-sections:v4:1:0');
-        Cache::forget('home-page:product-brand-sections:v4:1:1');
+        HomePageCache::invalidate();
     }
 }

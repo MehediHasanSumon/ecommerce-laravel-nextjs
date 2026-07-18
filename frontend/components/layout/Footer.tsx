@@ -216,6 +216,7 @@ export function Footer() {
             <form onSubmit={handleSubscribe} className="flex max-w-sm flex-col gap-2 sm:flex-row lg:flex-col xl:flex-row">
               <input
                 type="email"
+                aria-label="Email address"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 placeholder="Enter email"

@@ -14,6 +14,9 @@ const emptyPaymentMethods: RuntimeSettings["payment_methods"] = [];
 const defaultFeatureCardSettings: RuntimeSettings["feature_card_settings"] = {
   enabled: true,
 };
+const pendingFeatureCardSettings: RuntimeSettings["feature_card_settings"] = {
+  enabled: false,
+};
 const defaultBlogSettings: RuntimeSettings["blog_settings"] = {
   enabled: false,
   layout: "grid",
@@ -187,6 +190,15 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   },
 }));
 
+export function hydrateRuntimeSettings(settings: RuntimeSettings) {
+  useSettingsStore.setState({
+    settings,
+    isLoading: false,
+    isLoaded: true,
+    error: null,
+  });
+}
+
 export const selectRuntimeSettings = (state: SettingsState) => state.settings;
 export const selectSettingsPending = (state: SettingsState) => !state.isLoaded && !state.error;
 export const selectBranding = (state: SettingsState) => selectSettingsPending(state) ? null : state.settings?.branding ?? null;
@@ -238,7 +250,7 @@ export const selectCategoryDisplaySettings = (state: SettingsState) =>
 export const selectRuntimeCategories = (state: SettingsState) =>
   selectSettingsPending(state) ? emptyRuntimeCategories : state.settings?.categories ?? emptyRuntimeCategories;
 export const selectFeatureCardSettings = (state: SettingsState) =>
-  selectSettingsPending(state) ? { enabled: false } : state.settings?.feature_card_settings ?? defaultFeatureCardSettings;
+  selectSettingsPending(state) ? pendingFeatureCardSettings : state.settings?.feature_card_settings ?? defaultFeatureCardSettings;
 export const selectHomeFeatureCards = (state: SettingsState) =>
   selectSettingsPending(state) ? emptyHomeFeatureCards : state.settings?.home_feature_cards ?? emptyHomeFeatureCards;
 export const selectHomePageSettings = (state: SettingsState) =>

@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { SettingsProvider } from "@/components/settings/SettingsProvider";
 import { ToastProvider } from "@/components/ui/toast-provider";
+import { getRuntimeSettings } from "@/lib/public-api";
 import { defaultMetadata } from "@/lib/seo";
 import "./globals.css";
 
@@ -20,11 +21,13 @@ export async function generateMetadata(): Promise<Metadata> {
   return defaultMetadata();
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const initialSettings = await getRuntimeSettings();
+
   return (
     <html
       lang="en"
@@ -34,7 +37,7 @@ export default function RootLayout({
     >
       <body className="flex min-h-full flex-col">
         <ThemeProvider defaultTheme="system" enableSystem>
-          <SettingsProvider>{children}</SettingsProvider>
+          <SettingsProvider initialSettings={initialSettings}>{children}</SettingsProvider>
           <ToastProvider />
         </ThemeProvider>
       </body>

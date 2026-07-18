@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { notFound, useSearchParams } from "next/navigation";
 import { CheckCircle, Download, Home, Package, ShoppingBag } from "lucide-react";
@@ -12,6 +12,14 @@ import { toAppError } from "@/lib/errors";
 import { formatPrice } from "@/utils/format";
 
 export default function PaymentSuccessPage() {
+  return (
+    <Suspense fallback={<PaymentResultSkeleton />}>
+      <PaymentSuccessContent />
+    </Suspense>
+  );
+}
+
+function PaymentSuccessContent() {
   const searchParams = useSearchParams();
   const orderNumber = searchParams.get("order");
   const [order, setOrder] = useState<OrderDetail | null>(null);

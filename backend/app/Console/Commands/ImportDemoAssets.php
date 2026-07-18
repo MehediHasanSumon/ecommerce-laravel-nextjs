@@ -9,6 +9,7 @@ use App\Models\ProductAttribute;
 use App\Models\ProductAttributeValue;
 use App\Models\ProductVariant;
 use App\Models\Tag;
+use App\Support\HomePageCache;
 use App\Support\Identifiers\SkuGenerator;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -97,8 +98,7 @@ class ImportDemoAssets extends Command
 
         cache()->forget('settings.navigation.runtime');
         cache()->forget('categories.runtime.tree');
-        cache()->forget('home-page:product-brand-sections');
-        cache()->forget('home-page:product-brand-sections:v2');
+        HomePageCache::invalidate();
 
         $this->table(['Imported', 'Count'], [
             ['Brands', count($this->brands)],

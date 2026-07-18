@@ -16,6 +16,7 @@ use App\Services\Admin\Settings\BrandSettingsService;
 use App\Services\Admin\Settings\HomePageSettingsService;
 use App\Services\BlogCatalogService;
 use App\Services\Collections\CollectionProductResolver;
+use App\Support\HomePageCache;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
@@ -25,21 +26,11 @@ class HomePageController extends Controller
 {
     public function show(CollectionProductResolver $collections, BrandSettingsService $brandSettings, HomePageSettingsService $homeSettings, BlogCatalogService $blogs, HeroSectionService $hero): JsonResponse
     {
-        $brandRuntime = $brandSettings->runtime();
-        $homeRuntime = $homeSettings->runtime();
-        $productRuntime = $homeRuntime['product_section'];
-        $testimonialRuntime = $homeRuntime['testimonial_section'];
-        $brandVersion = strtotime((string) Brand::query()->max('updated_at')) ?: 0;
-        $cacheKey = 'home-page:product-brand-sections:v5:'
-            .((int) $brandRuntime['enabled']).':'
-            .((int) $brandRuntime['show_on_home']).':'
-            .((int) $productRuntime['enabled']).':'
-            .$productRuntime['limit'].':'
-            .((int) $testimonialRuntime['enabled']).':'
-            .($homeRuntime['version'] ?? 0).':'
-            .$brandVersion;
-
-        $payload = Cache::remember($cacheKey, now()->addMinutes(5), function () use ($collections, $brandRuntime, $homeRuntime, $productRuntime, $testimonialRuntime): array {
+        $payload = Cache::remember(HomePageCache::key('catalog'), now()->addMinutes(5), function () use ($brandSettings, $collections, $homeSettings): array {
+            $brandRuntime = $brandSettings->runtime();
+            $homeRuntime = $homeSettings->runtime();
+            $productRuntime = $homeRuntime['product_section'];
+            $testimonialRuntime = $homeRuntime['testimonial_section'];
             $showBrands = (bool) ($brandRuntime['enabled'] && $brandRuntime['show_on_home']);
             $homeCollections = $collections->homeCollections()
                 ->map(fn ($collection): array => [
@@ -75,14 +66,15 @@ class HomePageController extends Controller
                 ],
             ];
         });
+        $testimonialsEnabled = (bool) $payload['settings']['testimonials']['enabled'];
         $payload['hero'] = $hero->runtime();
         $payload['sections']['blogs'] = [
             'items' => BlogCardResource::collection($blogs->homeBlogs())->resolve(),
             'settings' => $blogs->settings(),
         ];
         $payload['sections']['reviews'] = [
-            'enabled' => (bool) $testimonialRuntime['enabled'],
-            'items' => $testimonialRuntime['enabled'] ? $this->reviews(3) : [],
+            'enabled' => $testimonialsEnabled,
+            'items' => $testimonialsEnabled ? $this->reviews(3) : [],
         ];
 
         return ApiResponse::success($payload);

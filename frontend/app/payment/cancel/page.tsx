@@ -2,14 +2,27 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { Ban, ShoppingBag } from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 
 export default function PaymentCancelPage() {
+  return (
+    <Suspense fallback={<PaymentCancelShell />}>
+      <PaymentCancelContent />
+    </Suspense>
+  );
+}
+
+function PaymentCancelContent() {
   const orderNumber = useSearchParams().get("order");
   const checkoutUrl = orderNumber ? `/checkout?payment=cancelled&order=${encodeURIComponent(orderNumber)}` : "/checkout?payment=cancelled";
 
+  return <PaymentCancelShell checkoutUrl={checkoutUrl} />;
+}
+
+function PaymentCancelShell({ checkoutUrl = "/checkout?payment=cancelled" }: { checkoutUrl?: string }) {
   return (
     <div className="min-h-screen bg-background">
       <Header />

@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { Suspense, useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ChevronRight, CreditCard, MapPin, Check, Lock, ShoppingBag, Truck, Smartphone, RefreshCw } from 'lucide-react';
@@ -136,6 +136,14 @@ function CheckoutSkeleton() {
 }
 
 export default function CheckoutPage() {
+  return (
+    <Suspense fallback={<CheckoutSkeleton />}>
+      <CheckoutPageContent />
+    </Suspense>
+  );
+}
+
+function CheckoutPageContent() {
   useSettingsStore(selectCurrencyFingerprint);
   const searchParams = useSearchParams();
   const [mounted, setMounted] = useState(false);

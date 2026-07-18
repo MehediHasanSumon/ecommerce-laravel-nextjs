@@ -156,3 +156,37 @@ it('accepts comments only when comments are enabled and keeps them pending moder
         'status' => 'pending',
     ]);
 });
+
+it('requires blog permissions to moderate comments', function () {
+    $author = User::factory()->create();
+    $blog = Blog::query()->create([
+        'author_id' => $author->id,
+        'title' => 'Moderated Blog',
+        'slug' => 'moderated-blog',
+        'featured_image' => 'https://example.com/blog.jpg',
+        'excerpt' => 'Excerpt',
+        'content' => 'Content',
+        'status' => 'published',
+        'published_at' => now()->subHour(),
+        'reading_time_minutes' => 1,
+    ]);
+    $comment = $blog->comments()->create([
+        'author_name' => 'Reader',
+        'author_email' => 'reader@example.com',
+        'content' => 'Pending moderation.',
+        'status' => 'pending',
+    ]);
+    $customer = User::factory()->create();
+    $customerToken = $customer->createToken('customer-access', ['access'], now()->addMinutes(15))->plainTextToken;
+
+    $this->withToken($customerToken)->getJson('/api/admin/blog-comments')->assertForbidden();
+    $this->withToken($customerToken)
+        ->putJson("/api/admin/blog-comments/{$comment->id}", ['status' => 'approved'])
+        ->assertForbidden();
+    $this->withToken($customerToken)
+        ->deleteJson("/api/admin/blog-comments/{$comment->id}")
+        ->assertForbidden();
+
+    $adminToken = blogAdminAccessToken();
+    $this->withToken($adminToken)->getJson('/api/admin/blog-comments')->assertOk();
+});
