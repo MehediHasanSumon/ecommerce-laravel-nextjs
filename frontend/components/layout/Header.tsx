@@ -20,6 +20,13 @@ import {
   Settings,
   LayoutDashboard,
   Bell,
+  Building2,
+  Clock,
+  Layers3,
+  ShoppingBag,
+  Star,
+  Tags,
+  TrendingUp,
 } from 'lucide-react';
 import { useTheme } from '@/components/theme/ThemeProvider';
 import { BrandLogo } from '@/components/settings/BrandLogo';
@@ -39,12 +46,26 @@ import {
 } from '@/store/settings-store';
 import { NAV_LINKS } from '@/constants';
 import { formatPrice } from '@/utils/format';
-import { fetchProducts } from '@/services/catalog-service';
-import type { Product } from '@/types';
+import {
+  clearRecentSearches,
+  fetchSearchSuggestions,
+  removeRecentSearch,
+  trackSearchClick,
+  type SearchEntitySuggestion,
+  type SearchKeywordSuggestion,
+  type SearchSuggestions,
+} from '@/services/catalog-service';
 import type { RuntimeCategory } from '@/types/settings';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { RealtimeNotifications } from '@/components/notifications/RealtimeNotifications';
+import {
+  clearGuestSearchHistory,
+  getGuestSearchHistory,
+  rememberGuestSearch,
+  removeGuestSearch,
+  setSearchAttribution,
+} from '@/lib/search-state';
 
 function timeAgo(value?: string | null) {
   if (!value) return '';
@@ -184,60 +205,163 @@ function ThemeToggle() {
 }
 
 function SearchOverlay({ onClose }: { onClose: () => void }) {
+  const router = useRouter();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<Product[]>([]);
+  const [suggestions, setSuggestions] = useState<SearchSuggestions>({
+    products: [],
+    categories: [],
+    brands: [],
+    collections: [],
+    tags: [],
+    popular: [],
+    recent: [],
+    trending: [],
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  const [error, setError] = useState('');
+  const [activeIndex, setActiveIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     inputRef.current?.focus();
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', handleKey);
-    return () => document.removeEventListener('keydown', handleKey);
-  }, [onClose]);
+  }, []);
 
   useEffect(() => {
     const normalizedQuery = query.trim();
-    if (normalizedQuery.length <= 1) {
-      setResults([]);
-      setIsLoading(false);
-      setHasSearched(false);
-      return;
-    }
+    if (normalizedQuery.length === 1) return;
 
     const controller = new AbortController();
     const timer = window.setTimeout(() => {
       setIsLoading(true);
-      fetchProducts(
-        {
-          search: normalizedQuery,
-          page: 1,
-          per_page: 5,
-        },
-        { signal: controller.signal },
-      )
+      setError('');
+      fetchSearchSuggestions(normalizedQuery, { signal: controller.signal, limit: 5 })
         .then((response) => {
-          setResults(response.items);
+          setSuggestions({
+            ...response,
+            recent: isAuthenticated ? response.recent : getGuestSearchHistory().slice(0, 5),
+          });
           setHasSearched(true);
+          setActiveIndex(-1);
         })
         .catch((err: unknown) => {
           if ((err as { name?: string })?.name === 'CanceledError') return;
-          setResults([]);
+          setSuggestions((current) => ({ ...current, products: [], categories: [], brands: [], collections: [], tags: [] }));
+          setError('Search suggestions are temporarily unavailable.');
           setHasSearched(true);
         })
         .finally(() => {
           if (!controller.signal.aborted) setIsLoading(false);
         });
-    }, 250);
+    }, normalizedQuery === '' ? 0 : 250);
 
     return () => {
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [query]);
+  }, [isAuthenticated, query]);
+
+  const navigableItems = useMemo(() => {
+    const entityItem = (item: SearchEntitySuggestion) => ({
+      key: `${item.type}-${item.id}`,
+      type: item.type,
+      id: Number(item.id),
+      slug: item.slug,
+      label: item.name,
+      href: item.type === 'category'
+        ? `/shop?category=${encodeURIComponent(item.slug)}`
+        : item.type === 'brand'
+          ? `/brands/${item.slug}`
+          : item.type === 'collection'
+            ? `/collections/${item.slug}`
+            : `/shop?search=${encodeURIComponent(item.name)}`,
+    });
+    const keywordItem = (item: SearchKeywordSuggestion, group: 'recent' | 'popular' | 'trending') => ({
+      key: `${group}-${item.id}`,
+      type: 'keyword' as const,
+      id: Number(item.id) || undefined,
+      slug: undefined,
+      label: item.keyword,
+      href: `/shop?search=${encodeURIComponent(item.keyword)}`,
+    });
+
+    return [
+      ...suggestions.products.map((product) => ({
+        key: `product-${product.id}`,
+        type: 'product' as const,
+        id: Number(product.id),
+        slug: product.slug,
+        label: product.name,
+        href: `/products/${product.slug}`,
+      })),
+      ...suggestions.categories.map(entityItem),
+      ...suggestions.brands.map(entityItem),
+      ...suggestions.collections.map(entityItem),
+      ...suggestions.tags.map(entityItem),
+      ...suggestions.recent.map((item) => keywordItem(item, 'recent')),
+      ...suggestions.popular.map((item) => keywordItem(item, 'popular')),
+      ...suggestions.trending.map((item) => keywordItem(item, 'trending')),
+    ];
+  }, [suggestions]);
+
+  const openSuggestion = (item: (typeof navigableItems)[number], position: number) => {
+    const keyword = query.trim() || item.label;
+    if (!isAuthenticated) {
+      setSuggestions((current) => ({ ...current, recent: rememberGuestSearch(keyword).slice(0, 5) }));
+    }
+    void trackSearchClick({
+      query: keyword,
+      target_type: item.type,
+      target_id: item.id,
+      target_slug: item.slug,
+      position: position + 1,
+    }).then(setSearchAttribution).catch(() => undefined);
+    onClose();
+    router.push(item.href);
+  };
+
+  const submitQuery = () => {
+    const normalized = query.trim();
+    if (!normalized) return;
+    if (!isAuthenticated) rememberGuestSearch(normalized);
+    onClose();
+    router.push(`/shop?search=${encodeURIComponent(normalized)}`);
+  };
+
+  const removeHistory = (item: SearchKeywordSuggestion) => {
+    if (isAuthenticated) {
+      void removeRecentSearch(item.id).catch(() => undefined);
+      setSuggestions((current) => ({ ...current, recent: current.recent.filter((recent) => recent.id !== item.id) }));
+      return;
+    }
+    setSuggestions((current) => ({ ...current, recent: removeGuestSearch(item.id).slice(0, 5) }));
+  };
+
+  const clearHistory = () => {
+    if (isAuthenticated) {
+      void clearRecentSearches().catch(() => undefined);
+    } else {
+      clearGuestSearchHistory();
+    }
+    setSuggestions((current) => ({ ...current, recent: [] }));
+  };
+
+  const resultCount = suggestions.products.length
+    + suggestions.categories.length
+    + suggestions.brands.length
+    + suggestions.collections.length
+    + suggestions.tags.length
+    + suggestions.popular.length
+    + suggestions.recent.length
+    + suggestions.trending.length;
+  const highlighted = (value: string) => <HighlightedMatch value={value} query={query} />;
+  const entitySections = [
+    { key: 'categories', label: 'Categories', icon: Layers3, items: suggestions.categories },
+    { key: 'brands', label: 'Brands', icon: Building2, items: suggestions.brands },
+    { key: 'collections', label: 'Collections', icon: ShoppingBag, items: suggestions.collections },
+    { key: 'tags', label: 'Tags', icon: Tags, items: suggestions.tags },
+  ] as const;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" onClick={onClose}>
@@ -254,6 +378,36 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
               placeholder="Search..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Escape') {
+                  event.preventDefault();
+                  onClose();
+                  return;
+                }
+                if (event.key === 'ArrowDown') {
+                  event.preventDefault();
+                  setActiveIndex((current) => Math.min(navigableItems.length - 1, current + 1));
+                  return;
+                }
+                if (event.key === 'ArrowUp') {
+                  event.preventDefault();
+                  setActiveIndex((current) => Math.max(-1, current - 1));
+                  return;
+                }
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  if (activeIndex >= 0 && navigableItems[activeIndex]) {
+                    openSuggestion(navigableItems[activeIndex], activeIndex);
+                  } else {
+                    submitQuery();
+                  }
+                }
+              }}
+              role="combobox"
+              aria-autocomplete="list"
+              aria-expanded={resultCount > 0}
+              aria-controls="store-search-suggestions"
+              aria-activedescendant={activeIndex >= 0 ? `store-search-option-${activeIndex}` : undefined}
               className="min-w-0 flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground focus-visible:shadow-none"
             />
             <button
@@ -280,14 +434,25 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
             </div>
           )}
 
-          {!isLoading && results.length > 0 && (
-            <div className="mt-3 space-y-1 pb-2">
-              {results.map((product) => (
+          {!isLoading && resultCount > 0 && (
+            <div id="store-search-suggestions" role="listbox" className="mt-3 max-h-[min(70vh,38rem)] space-y-3 overflow-y-auto pb-2">
+              {suggestions.products.length > 0 ? (
+                <SearchSuggestionSection title={query.trim() ? 'Products' : 'Popular Products'} icon={<Package className="h-4 w-4" />}>
+                  {suggestions.products.map((product) => {
+                    const currentIndex = navigableItems.findIndex((item) => item.key === `product-${product.id}`);
+                    return (
                 <Link
                   key={product.id}
+                  id={`store-search-option-${currentIndex}`}
                   href={`/products/${product.slug}`}
-                  onClick={onClose}
-                  className="group flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-muted"
+                  role="option"
+                  aria-selected={activeIndex === currentIndex}
+                  onMouseEnter={() => setActiveIndex(currentIndex)}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    openSuggestion(navigableItems[currentIndex], currentIndex);
+                  }}
+                  className={cn('group flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-muted', activeIndex === currentIndex && 'bg-muted')}
                 >
                   <div className="w-12 h-12 relative rounded-lg overflow-hidden bg-muted shrink-0">
                     <Image
@@ -300,17 +465,112 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm group-hover:text-primary transition-colors truncate">
-                      {product.name}
+                      {highlighted(product.name)}
                     </p>
-                    <p className="text-xs text-muted-foreground">{product.category}</p>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span>{product.category}</span>
+                      <span className="inline-flex items-center gap-0.5"><Star className="h-3 w-3 fill-amber-400 text-amber-400" />{product.rating}</span>
+                    </div>
                   </div>
-                  <span className="font-semibold text-sm">{formatPrice(product.price)}</span>
+                  <div className="text-right">
+                    {product.discount ? <span className="mb-0.5 block text-[10px] font-bold text-rose-500">-{product.discount}%</span> : null}
+                    <span className="font-semibold text-sm">{formatPrice(product.price)}</span>
+                  </div>
                 </Link>
-              ))}
+                    );
+                  })}
+                </SearchSuggestionSection>
+              ) : null}
+
+              {entitySections.map((section) => section.items.length > 0 ? (
+                <SearchSuggestionSection key={section.key} title={section.label} icon={<section.icon className="h-4 w-4" />}>
+                  {section.items.map((item) => {
+                    const currentIndex = navigableItems.findIndex((option) => option.key === `${item.type}-${item.id}`);
+                    return (
+                      <Link
+                        key={item.id}
+                        id={`store-search-option-${currentIndex}`}
+                        href={navigableItems[currentIndex].href}
+                        role="option"
+                        aria-selected={activeIndex === currentIndex}
+                        onMouseEnter={() => setActiveIndex(currentIndex)}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          openSuggestion(navigableItems[currentIndex], currentIndex);
+                        }}
+                        className={cn('flex items-center justify-between gap-3 rounded-lg px-2 py-2 text-sm transition-colors hover:bg-muted', activeIndex === currentIndex && 'bg-muted')}
+                      >
+                        <span className="min-w-0 truncate font-medium">{highlighted(item.name)}</span>
+                        <span className="shrink-0 text-xs text-muted-foreground">{item.product_count} products</span>
+                      </Link>
+                    );
+                  })}
+                </SearchSuggestionSection>
+              ) : null)}
+
+              {suggestions.recent.length > 0 ? (
+                <SearchSuggestionSection
+                  title="Recent Searches"
+                  icon={<Clock className="h-4 w-4" />}
+                  action={<button type="button" onClick={clearHistory} className="text-xs font-medium text-primary hover:underline">Clear</button>}
+                >
+                  {suggestions.recent.map((item) => {
+                    const currentIndex = navigableItems.findIndex((option) => option.key === `recent-${item.id}`);
+                    return (
+                      <div key={item.id} className={cn('flex items-center rounded-lg transition-colors hover:bg-muted', activeIndex === currentIndex && 'bg-muted')}>
+                        <button
+                          id={`store-search-option-${currentIndex}`}
+                          type="button"
+                          role="option"
+                          aria-selected={activeIndex === currentIndex}
+                          onMouseEnter={() => setActiveIndex(currentIndex)}
+                          onClick={() => openSuggestion(navigableItems[currentIndex], currentIndex)}
+                          className="min-w-0 flex-1 px-2 py-2 text-left text-sm font-medium"
+                        >
+                          {highlighted(item.keyword)}
+                        </button>
+                        <button type="button" onClick={() => removeHistory(item)} className="mr-1 rounded-md p-1 text-muted-foreground hover:bg-background hover:text-foreground" aria-label={`Remove ${item.keyword} from recent searches`}>
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </SearchSuggestionSection>
+              ) : null}
+
+              {([
+                { key: 'popular', title: 'Popular Searches', icon: <Search className="h-4 w-4" />, items: suggestions.popular },
+                { key: 'trending', title: 'Trending Searches', icon: <TrendingUp className="h-4 w-4" />, items: suggestions.trending },
+              ] as const).map((section) => section.items.length > 0 ? (
+                <SearchSuggestionSection key={section.key} title={section.title} icon={section.icon}>
+                  {section.items.map((item) => {
+                    const currentIndex = navigableItems.findIndex((option) => option.key === `${section.key}-${item.id}`);
+                    return (
+                      <button
+                        key={item.id}
+                        id={`store-search-option-${currentIndex}`}
+                        type="button"
+                        role="option"
+                        aria-selected={activeIndex === currentIndex}
+                        onMouseEnter={() => setActiveIndex(currentIndex)}
+                        onClick={() => openSuggestion(navigableItems[currentIndex], currentIndex)}
+                        className={cn('flex w-full items-center justify-between gap-3 rounded-lg px-2 py-2 text-left text-sm transition-colors hover:bg-muted', activeIndex === currentIndex && 'bg-muted')}
+                      >
+                        <span className="min-w-0 truncate font-medium">{highlighted(item.keyword)}</span>
+                        {item.search_count ? <span className="shrink-0 text-xs text-muted-foreground">{item.search_count.toLocaleString()}</span> : null}
+                      </button>
+                    );
+                  })}
+                </SearchSuggestionSection>
+              ) : null)}
             </div>
           )}
 
-          {!isLoading && query.length > 1 && hasSearched && results.length === 0 && (
+          {!isLoading && error ? (
+            <p className="py-4 text-center text-sm text-destructive">{error}</p>
+          ) : null}
+
+          {!isLoading && query.trim().length > 1 && hasSearched && resultCount === 0 && !error && (
             <p className="text-center text-muted-foreground py-4 text-sm">
               No results for &ldquo;{query}&rdquo;
             </p>
@@ -320,6 +580,43 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
       </div>
     </div>
   );
+}
+
+function SearchSuggestionSection({
+  title,
+  icon,
+  action,
+  children,
+}: {
+  title: string;
+  icon: React.ReactNode;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <section>
+      <div className="mb-1 flex items-center justify-between gap-3 px-2">
+        <h3 className="flex items-center gap-2 text-xs font-bold uppercase text-muted-foreground">
+          {icon}
+          {title}
+        </h3>
+        {action}
+      </div>
+      <div className="space-y-1">{children}</div>
+    </section>
+  );
+}
+
+function HighlightedMatch({ value, query }: { value: string; query: string }) {
+  const terms = Array.from(new Set(query.trim().split(/\s+/).filter(Boolean))).sort((a, b) => b.length - a.length);
+  if (!terms.length) return value;
+
+  const expression = new RegExp(`(${terms.map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'ig');
+  return value.split(expression).map((part, index) => (
+    terms.some((term) => part.toLocaleLowerCase() === term.toLocaleLowerCase())
+      ? <mark key={`${part}-${index}`} className="bg-transparent font-extrabold text-primary">{part}</mark>
+      : <span key={`${part}-${index}`}>{part}</span>
+  ));
 }
 
 function CategoryDropdown({

@@ -19,6 +19,7 @@ use App\Services\Admin\Concerns\BuildsManagementQueries;
 use App\Services\Admin\Settings\BrandSettingsService;
 use App\Services\Concerns\StoresPublicUploads;
 use App\Services\ProductReviewMetricsService;
+use App\Services\Search\ProductSearchIndexer;
 use App\Services\Seo\SeoMetadataService;
 use App\Support\HomePageCache;
 use App\Support\Identifiers\SkuGenerator;
@@ -38,6 +39,7 @@ class ProductModuleService
         private readonly ProductVariantEngine $variantEngine,
         private readonly BrandSettingsService $brandSettings,
         private readonly ProductReviewMetricsService $reviewMetrics,
+        private readonly ProductSearchIndexer $searchIndexer,
     ) {}
 
     public function paginate(string $module, array $filters): LengthAwarePaginator
@@ -89,7 +91,9 @@ class ProductModuleService
     {
         $this->guardBrandModule($module);
 
+        $affectedProductIds = $this->searchIndexer->affectedProductIds($module, [$id]);
         $this->modelClass($module)::query()->findOrFail($id)->delete();
+        $this->searchIndexer->indexMany($affectedProductIds);
 
         if ($module === 'categories') {
             $this->clearCategoryCaches();
@@ -104,6 +108,7 @@ class ProductModuleService
     {
         $this->guardBrandModule($module);
 
+        $affectedProductIds = $this->searchIndexer->affectedProductIds($module, $ids);
         $deleted = DB::transaction(function () use ($module, $ids): int {
             $productIds = $module === 'reviews'
                 ? ProductReview::query()->whereIn('id', $ids)->pluck('product_id')
@@ -124,6 +129,7 @@ class ProductModuleService
             $this->clearHomePageCache();
         }
         $this->clearSeoCaches($module);
+        $this->searchIndexer->indexMany($affectedProductIds);
 
         return $deleted;
     }
@@ -253,6 +259,7 @@ class ProductModuleService
 
         if ($module === 'collections') {
             $products = $data['products'] ?? [];
+            $affectedProductIds = $model->exists ? $model->products()->pluck('products.id') : collect();
             unset($data['products']);
             $this->applySlug($module, $model, $data);
             $data['type'] = ($data['collection_type'] ?? $data['type'] ?? 'manual') === 'smart' ? 'automatic' : 'manual';
@@ -263,6 +270,8 @@ class ProductModuleService
             $this->assignSortOrderOnCreate($module, $model, $data);
             $model->fill($data)->save();
             $model->products()->sync(collect($products)->mapWithKeys(fn ($item) => [$item['id'] => ['sort_order' => $item['sort_order'] ?? 0]])->all());
+            $affectedProductIds = $affectedProductIds->merge(collect($products)->pluck('id'))->unique();
+            DB::afterCommit(fn () => $this->searchIndexer->indexMany($affectedProductIds));
             $this->clearHomePageCache();
             $this->clearSeoCaches($module);
 
@@ -349,6 +358,10 @@ class ProductModuleService
             $this->clearHomePageCache();
         }
         $this->clearSeoCaches($module);
+        if (in_array($module, ['brands', 'categories', 'tags', 'attributes', 'attribute-values'], true)) {
+            $affectedProductIds = $this->searchIndexer->affectedProductIds($module, [$model->id]);
+            DB::afterCommit(fn () => $this->searchIndexer->indexMany($affectedProductIds));
+        }
 
         return $this->find($module, $model->id);
     }
@@ -449,6 +462,7 @@ class ProductModuleService
         }
 
         $this->variantEngine->sync($model, $variants);
+        DB::afterCommit(fn () => $this->searchIndexer->index((int) $model->id));
         $this->clearHomePageCache();
         $this->clearSeoCaches('products');
 

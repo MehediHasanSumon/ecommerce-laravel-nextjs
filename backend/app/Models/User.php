@@ -75,4 +75,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(CustomerNotification::class);
     }
+
+    public function searchHistory(): HasMany
+    {
+        return $this->hasMany(UserSearchHistory::class);
+    }
 }

@@ -14,6 +14,8 @@ import {
   fetchProducts,
   type ProductFilterMetadata,
   type ProductQueryParams,
+  type SearchContext,
+  trackSearchClick,
 } from '@/services/catalog-service';
 import type { PaginationMeta } from '@/features/admin/shared/types';
 import type { Product } from '@/types';
@@ -26,6 +28,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { selectBrandsEnabled, useSettingsStore } from '@/store/settings-store';
+import { rememberGuestSearch, setSearchAttribution } from '@/lib/search-state';
+import { useAuthStore } from '@/store/auth-store';
 
 const SHOP_PER_PAGE = 15;
 const defaultFilters: ProductFilterMetadata = {
@@ -53,12 +57,15 @@ const defaultFilters: ProductFilterMetadata = {
 
 type ShopQuery = {
   search: string;
+  category: string;
+  collection: string;
   brand: string[];
   attributes: Record<string, string[]>;
   price_min: string;
   price_max: string;
   availability: string;
   rating: string;
+  on_sale: boolean;
   sort: string;
   page: number;
 };
@@ -86,10 +93,13 @@ function parseQuery(searchParams: URLSearchParams): ShopQuery {
   const reservedKeys = new Set([
     'search',
     'brand',
+    'category',
+    'collection',
     'price_min',
     'price_max',
     'availability',
     'rating',
+    'on_sale',
     'sort',
     'page',
   ]);
@@ -110,12 +120,15 @@ function parseQuery(searchParams: URLSearchParams): ShopQuery {
 
   return {
     search: (searchParams.get('search') ?? '').slice(0, 120),
+    category: /^[a-zA-Z0-9-_]+$/.test(searchParams.get('category') ?? '') ? (searchParams.get('category') ?? '') : '',
+    collection: /^[a-zA-Z0-9-_]+$/.test(searchParams.get('collection') ?? '') ? (searchParams.get('collection') ?? '') : '',
     brand: csv(searchParams.get('brand')),
     attributes,
     price_min: parsePositiveNumber(searchParams.get('price_min')),
     price_max: parsePositiveNumber(searchParams.get('price_max')),
     availability: validAvailability.has(availability) ? availability : '',
     rating: parsePositiveNumber(searchParams.get('rating')),
+    on_sale: searchParams.get('on_sale') === '1' || searchParams.get('on_sale') === 'true',
     sort: validSorts.has(sort) ? sort : 'default',
     page: Number.isInteger(page) && page > 0 ? page : 1,
   };
@@ -125,6 +138,8 @@ function serializeQuery(query: ShopQuery) {
   const params = new URLSearchParams();
 
   if (query.search) params.set('search', query.search);
+  if (query.category) params.set('category', query.category);
+  if (query.collection) params.set('collection', query.collection);
   if (query.brand.length) params.set('brand', query.brand.join(','));
   Object.entries(query.attributes).forEach(([slug, values]) => {
     if (values.length) params.set(slug, values.join(','));
@@ -133,6 +148,7 @@ function serializeQuery(query: ShopQuery) {
   if (query.price_max) params.set('price_max', query.price_max);
   if (query.availability) params.set('availability', query.availability);
   if (query.rating) params.set('rating', query.rating);
+  if (query.on_sale) params.set('on_sale', '1');
   if (query.sort !== 'default') params.set('sort', query.sort);
   if (query.page > 1) params.set('page', String(query.page));
   return params;
@@ -141,12 +157,15 @@ function serializeQuery(query: ShopQuery) {
 function toApiParams(query: ShopQuery, brandsEnabled: boolean): ProductQueryParams {
   return {
     search: query.search || undefined,
+    category: query.category || undefined,
+    collection: query.collection || undefined,
     brand: brandsEnabled ? (query.brand.join(',') || undefined) : undefined,
     attributes: JSON.stringify(query.attributes),
     price_min: query.price_min || undefined,
     price_max: query.price_max || undefined,
     availability: query.availability || undefined,
     rating: query.rating || undefined,
+    on_sale: query.on_sale || undefined,
     sort: query.sort,
     page: query.page,
     per_page: SHOP_PER_PAGE,
@@ -174,12 +193,15 @@ function FilterSidebar({
 }) {
   const hasFilters =
     query.search ||
+    query.category ||
+    query.collection ||
     (brandsEnabled && query.brand.length) ||
     Object.values(query.attributes).some((values) => values.length) ||
     query.price_min ||
     query.price_max ||
     query.availability ||
-    query.rating;
+    query.rating ||
+    query.on_sale;
 
   return (
     <div className="space-y-6" aria-busy={disabled}>
@@ -368,9 +390,11 @@ function ShopPageContent() {
   const [products, setProducts] = useState<Product[]>([]);
   const [filters, setFilters] = useState<ProductFilterMetadata>(defaultFilters);
   const [pagination, setPagination] = useState<PaginationMeta | null>(null);
+  const [searchContext, setSearchContext] = useState<SearchContext | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const brandsEnabled = useSettingsStore(selectBrandsEnabled);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const query = useMemo(() => parseQuery(searchParams), [searchParams]);
   const [searchInput, setSearchInput] = useState(query.search);
   const serializedQuery = useMemo(() => serializeQuery(query).toString(), [query]);
@@ -423,6 +447,10 @@ function ShopPageContent() {
         setProducts(response.items);
         setFilters(response.filters);
         setPagination(response.pagination);
+        setSearchContext(response.search ?? null);
+        if (query.search && query.page === 1 && !isAuthenticated) {
+          rememberGuestSearch(query.search);
+        }
         if (response.pagination.last_page > 0 && query.page > response.pagination.last_page) {
           patchQuery({ page: response.pagination.last_page });
         }
@@ -430,6 +458,7 @@ function ShopPageContent() {
       .catch((caught) => {
         if (axios.isCancel(caught) || caught?.name === 'CanceledError') return;
         setProducts([]);
+        setSearchContext(null);
         setError('Unable to load products. Please try again.');
       })
       .finally(() => {
@@ -439,7 +468,19 @@ function ShopPageContent() {
       });
 
     return () => controller.abort();
-  }, [brandsEnabled, patchQuery, query, serializedQuery]);
+  }, [brandsEnabled, isAuthenticated, patchQuery, query, serializedQuery]);
+
+  const trackProductOpen = useCallback((product: Product) => {
+    if (!query.search) return;
+    void trackSearchClick({
+      event_id: searchContext?.event_id,
+      query: query.search,
+      target_type: 'product',
+      target_id: Number(product.id),
+      target_slug: product.slug,
+      position: products.findIndex((item) => item.id === product.id) + 1,
+    }).then(setSearchAttribution).catch(() => undefined);
+  }, [products, query.search, searchContext?.event_id]);
 
   const toggleBrand = (slug: string) => {
     if (!brandsEnabled) return;
@@ -461,7 +502,20 @@ function ShopPageContent() {
   };
 
   const clearAll = () => {
-    replaceQuery({ ...query, search: '', brand: [], attributes: {}, price_min: '', price_max: '', availability: '', rating: '', page: 1 });
+    replaceQuery({
+      ...query,
+      search: '',
+      category: '',
+      collection: '',
+      brand: [],
+      attributes: {},
+      price_min: '',
+      price_max: '',
+      availability: '',
+      rating: '',
+      on_sale: false,
+      page: 1,
+    });
   };
 
   const page = pagination?.current_page ?? query.page;
@@ -558,21 +612,49 @@ function ShopPageContent() {
                 </button>
               </div>
             ) : products.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-24 text-center">
-                <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mb-4">
-                  <SlidersHorizontal size={32} className="text-muted-foreground" />
+              <div>
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mb-4">
+                    <SlidersHorizontal size={32} className="text-muted-foreground" />
+                  </div>
+                  <h3 className="font-bold text-lg mb-2">No products found</h3>
+                  <p className="text-muted-foreground text-sm mb-6">
+                    {query.search ? `Try a related category, brand, or a simpler search for "${query.search}".` : 'Try adjusting your filters'}
+                  </p>
+                  <button
+                    onClick={clearAll}
+                    className="px-5 py-2.5 bg-primary text-primary-foreground rounded-xl font-medium text-sm hover:opacity-90 transition-opacity"
+                  >
+                    Clear Filters
+                  </button>
                 </div>
-                <h3 className="font-bold text-lg mb-2">No products found</h3>
-                <p className="text-muted-foreground text-sm mb-6">Try adjusting your filters</p>
-                <button
-                  onClick={clearAll}
-                  className="px-5 py-2.5 bg-primary text-primary-foreground rounded-xl font-medium text-sm hover:opacity-90 transition-opacity"
-                >
-                  Clear Filters
-                </button>
+
+                {searchContext?.no_results?.recommended_products.length ? (
+                  <section className="border-t border-border pt-8">
+                    <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+                      <div>
+                        <h2 className="text-xl font-bold">Recommended Products</h2>
+                        <p className="mt-1 text-sm text-muted-foreground">Popular products you may be interested in.</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2 text-sm">
+                        {searchContext.no_results.suggested_categories.slice(0, 3).map((item) => (
+                          <Link key={`category-${item.id}`} href={`/shop?category=${encodeURIComponent(item.slug)}`} className="rounded-lg border border-border px-3 py-1.5 font-medium hover:bg-muted">
+                            {item.name}
+                          </Link>
+                        ))}
+                        {searchContext.no_results.suggested_brands.slice(0, 2).map((item) => (
+                          <Link key={`brand-${item.id}`} href={`/brands/${item.slug}`} className="rounded-lg border border-border px-3 py-1.5 font-medium hover:bg-muted">
+                            {item.name}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                    <ProductListing products={searchContext.no_results.recommended_products} onProductOpen={trackProductOpen} />
+                  </section>
+                ) : null}
               </div>
             ) : (
-              <ProductListing products={products} />
+              <ProductListing products={products} onProductOpen={trackProductOpen} />
             )}
 
             {!loading && !error && lastPage > 1 ? (

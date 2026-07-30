@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\Admin\PermissionManagementController;
 use App\Http\Controllers\Api\Admin\ProductModuleController;
 use App\Http\Controllers\Api\Admin\ReportsController;
 use App\Http\Controllers\Api\Admin\RoleManagementController;
+use App\Http\Controllers\Api\Admin\SearchAnalyticsController;
 use App\Http\Controllers\Api\Admin\Settings\BlogSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\CompanySettingsController;
 use App\Http\Controllers\Api\Admin\Settings\HomeFeatureCardSettingsController;
@@ -45,6 +46,7 @@ use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\OrderTrackingController;
 use App\Http\Controllers\Api\PaymentCallbackController;
 use App\Http\Controllers\Api\ProductCatalogController;
+use App\Http\Controllers\Api\SearchController;
 use App\Http\Controllers\Api\SeoMetadataController;
 use App\Http\Controllers\Api\Settings\NavigationSettingsController;
 use App\Http\Controllers\Api\ShippingMethodController;
@@ -63,6 +65,17 @@ Route::get('/brands/{slug}', [BrandCatalogController::class, 'show'])->where('sl
 Route::get('/collections/{slug}', [CollectionCatalogController::class, 'show'])->where('slug', '[A-Za-z0-9\\-]+')->middleware('throttle:public-settings');
 Route::get('/content-pages/{slug}', [ContentPageController::class, 'show'])->where('slug', '[A-Za-z0-9\\-]+')->middleware('throttle:public-settings');
 Route::get('/products', [ProductCatalogController::class, 'index'])->middleware('throttle:public-settings');
+Route::middleware(['auth.cookie.optional:access', 'throttle:search'])->group(function (): void {
+    Route::get('/search', [ProductCatalogController::class, 'index']);
+    Route::get('/search/suggestions', [SearchController::class, 'suggestions']);
+    Route::get('/search/trending', [SearchController::class, 'trending']);
+    Route::get('/search/recent', [SearchController::class, 'recent']);
+});
+Route::middleware(['auth.cookie.optional:access', 'throttle:search-write'])->group(function (): void {
+    Route::post('/search/click', [SearchController::class, 'click']);
+    Route::delete('/search/recent', [SearchController::class, 'clearRecent']);
+    Route::delete('/search/recent/{history}', [SearchController::class, 'removeRecent'])->whereNumber('history');
+});
 Route::get('/products/{slug}', [ProductCatalogController::class, 'show'])
     ->where('slug', '[A-Za-z0-9\\-]+')
     ->middleware(['auth.cookie.optional:access', 'throttle:public-settings']);
@@ -146,6 +159,7 @@ Route::prefix('admin')
     ->group(function (): void {
         Route::get('/navigation', [AdminNavigationController::class, 'show'])->middleware('administrator');
         Route::get('/dashboard', [DashboardController::class, 'show']);
+        Route::get('/search-analytics', [SearchAnalyticsController::class, 'index']);
 
         Route::get('/ip-blocks/analytics', [IpBlockManagementController::class, 'analytics']);
         Route::post('/ip-blocks/bulk', [IpBlockManagementController::class, 'bulk']);

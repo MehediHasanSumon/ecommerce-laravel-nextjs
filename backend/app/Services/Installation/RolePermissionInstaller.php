@@ -48,6 +48,7 @@ class RolePermissionInstaller
         'payment_report',
         'shipping_report',
         'inventory_report',
+        'search_analytics',
         'account_dashboard',
         'account_profile',
         'account_settings',

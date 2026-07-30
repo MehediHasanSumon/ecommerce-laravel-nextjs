@@ -7,6 +7,7 @@ import type { Product } from "@/types";
 import type { Brand } from "@/types";
 import type { HeroSectionPayload } from "@/features/admin/hero-section/types";
 import type { BlogCard, BlogSettingsRuntime } from "@/services/blog-service";
+import { getSearchSessionId } from "@/lib/search-state";
 
 const apiBaseUrl = (
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/auth"
@@ -16,6 +17,46 @@ const authClient = createAuthAwareClient({ baseURL: apiBaseUrl });
 type ProductListPayload = {
   items: Product[];
   filters: ProductFilterMetadata;
+  search?: SearchContext | null;
+};
+
+export type SearchEntitySuggestion = {
+  id: string;
+  name: string;
+  slug: string;
+  type: "category" | "brand" | "collection" | "tag";
+  product_count: number;
+};
+
+export type SearchKeywordSuggestion = {
+  id: string;
+  keyword: string;
+  search_count?: number;
+  searched_at?: string | null;
+};
+
+export type SearchSuggestions = {
+  products: Product[];
+  categories: SearchEntitySuggestion[];
+  brands: SearchEntitySuggestion[];
+  collections: SearchEntitySuggestion[];
+  tags: SearchEntitySuggestion[];
+  popular: SearchKeywordSuggestion[];
+  recent: SearchKeywordSuggestion[];
+  trending: SearchKeywordSuggestion[];
+};
+
+export type SearchNoResults = {
+  recommended_products: Product[];
+  suggested_categories: SearchEntitySuggestion[];
+  suggested_brands: SearchEntitySuggestion[];
+  suggested_collections: SearchEntitySuggestion[];
+};
+
+export type SearchContext = {
+  query: string;
+  event_id?: string | null;
+  no_results?: SearchNoResults | null;
 };
 
 export type ProductFilterMetadata = {
@@ -42,6 +83,7 @@ export type ProductFilterMetadata = {
 export type ProductQueryParams = {
   search?: string;
   category?: string;
+  collection?: string;
   brand?: string;
   attributes?: string;
   price_min?: number | string;
@@ -58,6 +100,7 @@ export type ProductListResponse = {
   items: Product[];
   filters: ProductFilterMetadata;
   pagination: PaginationMeta;
+  search?: SearchContext | null;
 };
 
 export type PublicReview = {
@@ -371,19 +414,24 @@ export async function fetchProducts(
   params: ProductQueryParams = {},
   options: { signal?: AbortSignal } = {},
 ): Promise<ProductListResponse> {
-  const response = await axios.get<ApiEnvelope<ProductListPayload>>(`${apiBaseUrl}/products`, {
+  const endpoint = typeof params.search === "string" && params.search.trim() !== ""
+    ? "search"
+    : "products";
+  const response = await axios.get<ApiEnvelope<ProductListPayload>>(`${apiBaseUrl}/${endpoint}`, {
     params,
     signal: options.signal,
     withCredentials: true,
     headers: {
       Accept: "application/json",
       "X-Requested-With": "XMLHttpRequest",
+      ...(endpoint === "search" && getSearchSessionId() ? { "X-Search-Session": getSearchSessionId() } : {}),
     },
   });
 
   return {
     items: response.data.data.items,
     filters: response.data.data.filters,
+    search: response.data.data.search ?? null,
     pagination: response.data.meta.pagination ?? {
       current_page: 1,
       last_page: 1,
@@ -393,6 +441,80 @@ export async function fetchProducts(
       to: response.data.data.items.length || null,
     },
   };
+}
+
+export async function fetchSearchSuggestions(
+  query = "",
+  options: { signal?: AbortSignal; limit?: number } = {},
+): Promise<SearchSuggestions> {
+  const response = await axios.get<ApiEnvelope<{ suggestions: SearchSuggestions }>>(
+    `${apiBaseUrl}/search/suggestions`,
+    {
+      params: { q: query, limit: options.limit ?? 5 },
+      signal: options.signal,
+      withCredentials: true,
+      headers: {
+        Accept: "application/json",
+        "X-Requested-With": "XMLHttpRequest",
+        ...(getSearchSessionId() ? { "X-Search-Session": getSearchSessionId() } : {}),
+      },
+    },
+  );
+
+  return response.data.data.suggestions;
+}
+
+export async function fetchTrendingSearches(limit = 10): Promise<SearchKeywordSuggestion[]> {
+  const response = await axios.get<ApiEnvelope<{ items: SearchKeywordSuggestion[] }>>(
+    `${apiBaseUrl}/search/trending`,
+    {
+      params: { limit },
+      withCredentials: true,
+      headers: {
+        Accept: "application/json",
+        "X-Requested-With": "XMLHttpRequest",
+      },
+    },
+  );
+
+  return response.data.data.items;
+}
+
+export async function fetchRecentSearches(): Promise<SearchKeywordSuggestion[]> {
+  const response = await axios.get<ApiEnvelope<{ items: SearchKeywordSuggestion[] }>>(
+    `${apiBaseUrl}/search/recent`,
+    {
+      withCredentials: true,
+      headers: {
+        Accept: "application/json",
+        "X-Requested-With": "XMLHttpRequest",
+      },
+    },
+  );
+
+  return response.data.data.items;
+}
+
+export async function clearRecentSearches(): Promise<void> {
+  await authClient.delete("/search/recent");
+}
+
+export async function removeRecentSearch(id: string): Promise<void> {
+  await authClient.delete(`/search/recent/${encodeURIComponent(id)}`);
+}
+
+export async function trackSearchClick(payload: {
+  event_id?: string | null;
+  query?: string;
+  target_type: "product" | "category" | "brand" | "collection" | "tag" | "keyword";
+  target_id?: number;
+  target_slug?: string;
+  position?: number;
+}): Promise<string> {
+  const response = await authClient.post<ApiEnvelope<{ event_id: string }>>("/search/click", payload, {
+    headers: getSearchSessionId() ? { "X-Search-Session": getSearchSessionId() } : undefined,
+  });
+  return response.data.data.event_id;
 }
 
 export async function fetchPublicReviews(

@@ -15,6 +15,7 @@ use App\Services\Customers\GuestCustomerService;
 use App\Services\Orders\OrderCreator;
 use App\Services\Orders\OrderService;
 use App\Services\Payments\PaymentGatewayManager;
+use App\Services\Search\SearchAnalyticsService;
 use App\Services\Shipping\ShippingZoneMatcher;
 use App\Services\Sms\CheckoutOtpService;
 use Illuminate\Http\Request;
@@ -36,6 +37,7 @@ class CheckoutService
         private readonly OrderCreator $orderCreator,
         private readonly StoreSettingsService $storeSettings,
         private readonly CheckoutOtpService $checkoutOtp,
+        private readonly SearchAnalyticsService $searchAnalytics,
     ) {}
 
     public function place(Request $request, array $payload): array
@@ -201,6 +203,8 @@ class CheckoutService
                 $session->newQuery()->whereKey($session->id)->update(['status' => 'completed']);
             });
         }
+
+        $this->searchAnalytics->recordConversion($order, $payload['search_event_id'] ?? null);
 
         return [$order->fresh('items'), $result];
     }

@@ -58,6 +58,7 @@ export const routePaths = {
   adminReportsPayment: "/admin/reports/payment",
   adminReportsShipping: "/admin/reports/shipping",
   adminReportsInventory: "/admin/reports/inventory",
+  adminSearchAnalytics: "/admin/search-analytics",
   adminSettingsCompany: "/admin/settings/company",
   adminSettingsHeroSection: "/admin/settings/hero-section",
   adminSettingsHomeFeatureCards: "/admin/settings/home-feature-cards",

@@ -17,3 +17,8 @@ Schedule::command('security:maintain-ip-blocking')
     ->everyMinute()
     ->withoutOverlapping(5)
     ->onOneServer();
+
+Schedule::command('search:reindex-products --stale --limit=1000')
+    ->everyTenMinutes()
+    ->withoutOverlapping(30)
+    ->onOneServer();

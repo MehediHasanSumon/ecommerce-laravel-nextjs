@@ -19,6 +19,9 @@ use App\Models\ProductVariant;
 use App\Services\Admin\Settings\BrandSettingsService;
 use App\Services\Admin\Settings\StoreSettingsService;
 use App\Services\ProductFeedbackService;
+use App\Services\Search\ProductSearchService;
+use App\Services\Search\SearchAnalyticsService;
+use App\Services\Search\SearchSuggestionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -32,6 +35,9 @@ class ProductCatalogController extends Controller
         private readonly BrandSettingsService $brandSettings,
         private readonly StoreSettingsService $storeSettings,
         private readonly ProductFeedbackService $feedback,
+        private readonly ProductSearchService $productSearch,
+        private readonly SearchAnalyticsService $searchAnalytics,
+        private readonly SearchSuggestionService $searchSuggestions,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -40,6 +46,7 @@ class ProductCatalogController extends Controller
         $validated = $request->validate([
             'search' => ['nullable', 'string', 'max:120'],
             'category' => ['nullable', 'string', 'max:255'],
+            'collection' => ['nullable', 'string', 'max:255'],
             'brand' => ['nullable'],
             'attributes' => ['nullable'],
             'price_min' => ['nullable', 'numeric', 'min:0'],
@@ -73,16 +80,6 @@ class ProductCatalogController extends Controller
                 'images:id,product_id,url,is_primary,sort_order',
                 'tags:id,name',
             ])
-            ->when($request->filled('search'), function ($query) use ($request): void {
-                $search = trim((string) $request->query('search'));
-                $query->where(function ($query) use ($search): void {
-                    $query
-                        ->where('name', 'like', "%{$search}%")
-                        ->orWhere('short_description', 'like', "%{$search}%")
-                        ->orWhere('description', 'like', "%{$search}%")
-                        ->orWhere('sku', 'like', "%{$search}%");
-                });
-            })
             ->when($request->string('category')->isNotEmpty(), function ($query) use ($request): void {
                 $category = Category::query()
                     ->where('slug', $request->string('category')->toString())
@@ -105,6 +102,11 @@ class ProductCatalogController extends Controller
                 $query->whereIn('category_id', $categoryIds);
             })
             ->when($brandSlugs !== [], fn ($query) => $query->whereHas('brand', fn ($brandQuery) => $brandQuery->whereIn('slug', $brandSlugs)))
+            ->when($request->string('collection')->isNotEmpty(), fn ($query) => $query->whereHas('collections', fn ($collectionQuery) => $collectionQuery
+                ->where('collections.slug', $request->string('collection')->toString())
+                ->where('collections.status', 'active')
+                ->where(fn ($schedule) => $schedule->whereNull('collections.starts_at')->orWhere('collections.starts_at', '<=', now()))
+                ->where(fn ($schedule) => $schedule->whereNull('collections.ends_at')->orWhere('collections.ends_at', '>=', now()))))
             ->when($request->filled('price_min'), fn ($query) => $this->whereEffectivePrice($query, '>=', (int) round(((float) $request->query('price_min')) * 100)))
             ->when($request->filled('price_max'), fn ($query) => $this->whereEffectivePrice($query, '<=', (int) round(((float) $request->query('price_max')) * 100)))
             ->when($request->query('availability') === 'in_stock', fn ($query) => $query->whereSellableAvailable())
@@ -121,6 +123,11 @@ class ProductCatalogController extends Controller
             }))
             ->when($request->filled('rating'), fn ($query) => $query->where('rating_average', '>=', (float) $request->query('rating')));
 
+        $search = trim((string) ($validated['search'] ?? ''));
+        if ($search !== '') {
+            $this->productSearch->apply($query, $search);
+        }
+
         foreach ($attributeFilters as $slug => $values) {
             $query->whereHas('attributeValues', function ($attributeQuery) use ($slug, $values): void {
                 $attributeQuery
@@ -129,12 +136,29 @@ class ProductCatalogController extends Controller
             });
         }
 
-        $this->applySort($query, (string) ($validated['sort'] ?? 'default'));
+        $this->applySort($query, (string) ($validated['sort'] ?? 'default'), $search !== '');
 
         $products = $query->paginate((int) ($validated['per_page'] ?? 24))->withQueryString();
+        $searchEvent = null;
+        if ($search !== '' && $products->currentPage() === 1) {
+            $searchEvent = $this->searchAnalytics->recordSearch(
+                $request,
+                $search,
+                $products->total(),
+                collect($validated)->except(['search', 'page', 'per_page'])->filter(fn ($value) => $value !== null && $value !== '')->all(),
+            );
+        }
+        $searchContext = $search !== '' ? [
+            'query' => $search,
+            'event_id' => $searchEvent?->public_id,
+            'no_results' => $products->total() === 0
+                ? $this->searchSuggestions->noResults($request, $search)
+                : null,
+        ] : null;
 
         return ApiResponse::success([
             'items' => ProductCardResource::collection($products->getCollection())->resolve(),
+            'search' => $searchContext,
             'filters' => Cache::remember(
                 'catalog.filters.v1.'.($brandsEnabled ? 'brands' : 'no-brands'),
                 now()->addMinutes(10),
@@ -149,6 +173,10 @@ class ProductCatalogController extends Controller
                 'from' => $products->firstItem(),
                 'to' => $products->lastItem(),
             ],
+            'search' => $searchContext ? [
+                'event_id' => $searchContext['event_id'],
+                'query' => $searchContext['query'],
+            ] : null,
         ]);
     }
 
@@ -320,7 +348,7 @@ class ProductCatalogController extends Controller
         ], $message);
     }
 
-    private function applySort($query, string $sort): void
+    private function applySort($query, string $sort, bool $hasSearch = false): void
     {
         match ($sort) {
             'newest' => $query->latest('published_at')->latest('created_at'),
@@ -335,7 +363,9 @@ class ProductCatalogController extends Controller
             'best_selling', 'most_popular' => $query->orderByDesc('review_count')->orderByDesc('rating_average'),
             'highest_rated' => $query->orderByDesc('rating_average')->orderByDesc('review_count'),
             'featured' => $query->orderByDesc('is_featured')->latest('published_at'),
-            default => $query->orderByDesc('is_featured')->latest('published_at')->latest('created_at'),
+            default => $hasSearch
+                ? $query->orderByDesc('search_relevance')->latest('published_at')->latest('created_at')
+                : $query->orderByDesc('is_featured')->latest('published_at')->latest('created_at'),
         };
     }
 

@@ -11,9 +11,10 @@ type ProductListingProps = {
   products: Product[];
   className?: string;
   cardClassName?: string;
+  onProductOpen?: (product: Product) => void;
 };
 
-export function ProductListing({ products, className, cardClassName }: ProductListingProps) {
+export function ProductListing({ products, className, cardClassName, onProductOpen }: ProductListingProps) {
   const settings = useSettingsStore(selectProductCardSettings);
   const viewportRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<number | null>(null);
@@ -78,7 +79,7 @@ export function ProductListing({ products, className, cardClassName }: ProductLi
     return (
       <div className={cn('grid grid-cols-1 gap-4 lg:grid-cols-2', className)}>
         {products.map((product) => (
-          <ProductCard key={product.id} product={product} layout="list" className={cardClassName} />
+          <ProductCard key={product.id} product={product} layout="list" className={cardClassName} onOpen={onProductOpen} />
         ))}
       </div>
     );
@@ -88,7 +89,7 @@ export function ProductListing({ products, className, cardClassName }: ProductLi
     return (
       <div className={cn('grid grid-cols-1 gap-3 min-[380px]:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-5 xl:grid-cols-4 xl:gap-6', className)}>
         {products.map((product) => (
-          <ProductCard key={product.id} product={product} className={cardClassName} />
+          <ProductCard key={product.id} product={product} className={cardClassName} onOpen={onProductOpen} />
         ))}
       </div>
     );
@@ -159,7 +160,7 @@ export function ProductListing({ products, className, cardClassName }: ProductLi
             key={product.id}
             className={cn('product-slider-slide min-w-0 shrink-0', settings.slider.center_mode ? 'snap-center' : 'snap-start')}
           >
-            <ProductCard product={product} className={cn('h-full', cardClassName)} />
+            <ProductCard product={product} className={cn('h-full', cardClassName)} onOpen={onProductOpen} />
           </div>
         ))}
       </div>

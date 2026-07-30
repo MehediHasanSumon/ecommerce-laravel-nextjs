@@ -113,6 +113,7 @@ const reportManagementItems = [
   { href: routePaths.adminReportsPayment, label: "Payment Reports", icon: CreditCard },
   { href: routePaths.adminReportsShipping, label: "Shipping Reports", icon: PackageCheck },
   { href: routePaths.adminReportsInventory, label: "Inventory Reports", icon: Warehouse },
+  { href: routePaths.adminSearchAnalytics, label: "Search Analytics", icon: Search },
 ];
 
 const settingsItems = [
@@ -167,6 +168,7 @@ const adminPermissionAliases: Record<string, string> = {
   "payment-reports.view": "can_view_payment_report",
   "shipping-reports.view": "can_view_shipping_report",
   "inventory-reports.view": "can_view_inventory_report",
+  "search-analytics.view": "can_view_search_analytics",
   "blogs.view": "can_view_blog",
   "contact-messages.view": "can_view_contact_message",
   "ip-blocks.view": "can-view-ip-block",
@@ -210,6 +212,7 @@ const adminRoutePermissions: Record<string, string> = {
   [routePaths.adminReportsPayment]: "can_view_payment_report",
   [routePaths.adminReportsShipping]: "can_view_shipping_report",
   [routePaths.adminReportsInventory]: "can_view_inventory_report",
+  [routePaths.adminSearchAnalytics]: "can_view_search_analytics",
   [routePaths.adminBlogs]: "can_view_blog",
   [routePaths.adminContactMessages]: "can_view_contact_message",
   [routePaths.adminIpBlocks]: "can-view-ip-block",

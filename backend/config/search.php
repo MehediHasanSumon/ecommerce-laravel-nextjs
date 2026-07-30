@@ -1,0 +1,40 @@
+<?php
+
+return [
+    'history_limit' => 12,
+    'suggestion_cache_seconds' => 120,
+    'trending_cache_seconds' => 300,
+    'fuzzy' => [
+        'candidate_limit' => 80,
+        'result_limit' => 12,
+        'short_word_distance' => 1,
+        'long_word_distance' => 2,
+    ],
+    'source_weights' => [
+        'name' => 100,
+        'sku' => 95,
+        'brand' => 70,
+        'category' => 65,
+        'collection' => 60,
+        'tag' => 55,
+        'keyword' => 50,
+        'attribute' => 40,
+        'description' => 15,
+    ],
+    'ranking' => [
+        'exact_name' => 1200,
+        'name_prefix' => 900,
+        'exact_sku' => 850,
+        'sku_prefix' => 700,
+        'name_contains' => 600,
+        'brand' => 400,
+        'category' => 360,
+        'collection' => 320,
+        'tag' => 280,
+        'keyword' => 240,
+        'attribute' => 180,
+        'description' => 80,
+        'popularity_cap' => 500,
+        'fulltext_multiplier' => 20,
+    ],
+];

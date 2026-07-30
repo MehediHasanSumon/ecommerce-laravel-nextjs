@@ -43,6 +43,7 @@ class PlaceOrderRequest extends FormRequest
             'shipping_method_id' => ['required', 'integer', 'exists:shipping_methods,id'],
             'payment_method' => ['required', 'string', 'max:80'],
             'otp_verification_id' => ['nullable', 'uuid'],
+            'search_event_id' => ['nullable', 'uuid', 'exists:search_events,public_id'],
         ];
     }
 

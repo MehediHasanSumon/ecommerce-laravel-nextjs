@@ -52,6 +52,16 @@ class AppServiceProvider extends ServiceProvider
 
         RateLimiter::for('public-settings', fn (Request $request) => Limit::perMinute(300)->by($request->ip()));
 
+        RateLimiter::for('search', fn (Request $request) => [
+            Limit::perMinute(120)->by(optional($request->user())->getAuthIdentifier() ?: $request->ip()),
+            Limit::perHour(1500)->by($request->ip()),
+        ]);
+
+        RateLimiter::for('search-write', fn (Request $request) => [
+            Limit::perMinute(60)->by(optional($request->user())->getAuthIdentifier() ?: $request->ip()),
+            Limit::perHour(500)->by($request->ip()),
+        ]);
+
         RateLimiter::for('product-feedback', fn (Request $request) => [
             Limit::perMinute(5)->by(
                 'feedback:'.(optional($request->user())->getAuthIdentifier() ?: hash('sha256', $request->ip().'|'.(string) $request->userAgent()))

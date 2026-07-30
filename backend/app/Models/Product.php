@@ -167,6 +167,11 @@ class Product extends Model
         return $this->hasOne(ProductSeo::class);
     }
 
+    public function searchDocument(): HasOne
+    {
+        return $this->hasOne(ProductSearchDocument::class);
+    }
+
     public function tags(): BelongsToMany
     {
         return $this->belongsToMany(Tag::class)->withTimestamps();

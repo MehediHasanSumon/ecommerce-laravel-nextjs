@@ -73,6 +73,7 @@ const permissionRouteRequirements: Array<{ route: string; permission: string }> 
   { route: routePaths.adminReportsPayment, permission: "can_view_payment_report" },
   { route: routePaths.adminReportsShipping, permission: "can_view_shipping_report" },
   { route: routePaths.adminReportsInventory, permission: "can_view_inventory_report" },
+  { route: routePaths.adminSearchAnalytics, permission: "can_view_search_analytics" },
   { route: routePaths.adminBlogs, permission: "can_view_blog" },
   { route: routePaths.adminContactMessages, permission: "can_view_contact_message" },
   { route: routePaths.adminIpBlocks, permission: "can-view-ip-block" },

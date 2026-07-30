@@ -1,6 +1,7 @@
 "use client";
 
 import { createAuthAwareClient } from "@/lib/api-client";
+import { clearSearchAttribution, getSearchAttribution } from "@/lib/search-state";
 import type { ApiEnvelope } from "@/features/admin/shared/types";
 
 const apiBaseUrl = (
@@ -72,6 +73,7 @@ export type PlaceOrderPayload = {
   shipping_method_id: number;
   payment_method: string;
   otp_verification_id?: string;
+  search_event_id?: string;
 };
 
 export type CheckoutOtpRequirements = {
@@ -173,9 +175,13 @@ export async function deleteAddress(id: string) {
 }
 
 export async function placeOrder(payload: PlaceOrderPayload): Promise<PlaceOrderResponse> {
-  const response = await client.post<ApiEnvelope<PlaceOrderResponse>>("/checkout/place-order", payload, {
+  const response = await client.post<ApiEnvelope<PlaceOrderResponse>>("/checkout/place-order", {
+    ...payload,
+    search_event_id: payload.search_event_id ?? getSearchAttribution(),
+  }, {
     headers: checkoutHeaders(),
   });
 
+  clearSearchAttribution();
   return response.data.data;
 }

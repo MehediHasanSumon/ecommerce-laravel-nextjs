@@ -4,6 +4,7 @@ use App\Console\Commands\ImportDemoAssets;
 use App\Console\Commands\ImportProductImages;
 use App\Console\Commands\InstallApplication;
 use App\Console\Commands\MaintainIpBlocking;
+use App\Console\Commands\RebuildProductSearchIndex;
 use App\Console\Commands\SyncCollectionSchedules;
 use App\Http\Middleware\AuthenticateAuthCookie;
 use App\Http\Middleware\EnforceIpBlock;
@@ -39,6 +40,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ImportProductImages::class,
         SyncCollectionSchedules::class,
         MaintainIpBlocking::class,
+        RebuildProductSearchIndex::class,
     ])
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->prepend(HandleCors::class);

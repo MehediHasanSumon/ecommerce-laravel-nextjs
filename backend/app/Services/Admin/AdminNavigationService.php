@@ -122,6 +122,7 @@ class AdminNavigationService
                 $this->item('Payment Reports', '/admin/reports/payment', 'CreditCard', 'can_view_payment_report'),
                 $this->item('Shipping Reports', '/admin/reports/shipping', 'PackageCheck', 'can_view_shipping_report'),
                 $this->item('Inventory Reports', '/admin/reports/inventory', 'Warehouse', 'can_view_inventory_report'),
+                $this->item('Search Analytics', '/admin/search-analytics', 'Search', 'can_view_search_analytics'),
             ]],
             ['key' => 'security', 'label' => 'Security', 'icon' => 'ShieldAlert', 'type' => 'group', 'items' => [
                 $this->item('IP Blocking', '/admin/security/ip-blocks', 'ShieldAlert', 'can-view-ip-block'),

@@ -5,13 +5,17 @@ namespace App\Services\Orders;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Services\Search\ProductSearchIndexer;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class OrderCreator
 {
-    public function __construct(private readonly OrderService $orders) {}
+    public function __construct(
+        private readonly OrderService $orders,
+        private readonly ProductSearchIndexer $searchIndexer,
+    ) {}
 
     public function create(array $attributes, array $items, ?int $actorId = null): Order
     {
@@ -47,7 +51,11 @@ class OrderCreator
                 ]);
             }
 
-            DB::afterCommit(fn () => $this->orders->queueOrderPlacedNotifications($order->fresh()));
+            DB::afterCommit(function () use ($order): void {
+                $this->orders->queueOrderPlacedNotifications($order->fresh());
+                $order->items()->whereNotNull('product_id')->distinct()->pluck('product_id')
+                    ->each(fn ($productId) => $this->searchIndexer->index((int) $productId));
+            });
 
             return $order->fresh('items');
         });

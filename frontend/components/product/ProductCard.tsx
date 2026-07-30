@@ -24,6 +24,7 @@ interface ProductCardProps {
   product: Product;
   className?: string;
   layout?: 'grid' | 'list';
+  onOpen?: (product: Product) => void;
 }
 
 const BADGE_STYLES: Record<string, string> = {
@@ -34,7 +35,7 @@ const BADGE_STYLES: Record<string, string> = {
   bestseller: 'bg-amber-500 text-white',
 };
 
-export function ProductCard({ product, className, layout = 'grid' }: ProductCardProps) {
+export function ProductCard({ product, className, layout = 'grid', onOpen }: ProductCardProps) {
   const router = useRouter();
   const addItem = useCartStore((state) => state.addItem);
   const toggleItem = useWishlistStore((state) => state.toggleItem);
@@ -158,6 +159,7 @@ export function ProductCard({ product, className, layout = 'grid' }: ProductCard
       >
         <Link
           href={`/products/${product.slug}`}
+          onClick={() => onOpen?.(product)}
           className="relative h-28 w-28 shrink-0 overflow-hidden rounded-xl bg-muted sm:h-36 sm:w-36"
         >
           <Image
@@ -171,7 +173,7 @@ export function ProductCard({ product, className, layout = 'grid' }: ProductCard
         </Link>
         <div className="flex min-w-0 flex-1 flex-col">
           {brandsEnabled && product.brand ? <p className="mb-1 text-xs text-muted-foreground">{product.brand}</p> : null}
-          <Link href={`/products/${product.slug}`} className="font-semibold text-sm line-clamp-2 transition-colors group-hover:text-primary">
+          <Link href={`/products/${product.slug}`} onClick={() => onOpen?.(product)} className="font-semibold text-sm line-clamp-2 transition-colors group-hover:text-primary">
             {product.name}
           </Link>
           {product.description ? (
@@ -221,7 +223,7 @@ export function ProductCard({ product, className, layout = 'grid' }: ProductCard
         className,
       )}
     >
-      <Link href={`/products/${product.slug}`} className="relative block aspect-square overflow-hidden bg-muted">
+      <Link href={`/products/${product.slug}`} onClick={() => onOpen?.(product)} className="relative block aspect-square overflow-hidden bg-muted">
         <Image
           src={product.thumbnail}
           alt={product.name}
@@ -279,6 +281,7 @@ export function ProductCard({ product, className, layout = 'grid' }: ProductCard
                 onClick={(event) => {
                   event.preventDefault();
                   event.stopPropagation();
+                  onOpen?.(product);
                   router.push(`/products/${product.slug}`);
                 }}
                 className="rounded-xl bg-background/95 p-2 shadow-lg backdrop-blur-sm transition-colors hover:bg-muted"
@@ -293,7 +296,7 @@ export function ProductCard({ product, className, layout = 'grid' }: ProductCard
 
       <div className="flex min-w-0 flex-1 flex-col p-2.5 sm:p-4">
         {brandsEnabled && product.brand ? <p className="mb-1 text-xs font-medium text-muted-foreground">{product.brand}</p> : null}
-        <Link href={`/products/${product.slug}`} className="line-clamp-2 flex-1 text-[13px] font-semibold leading-snug transition-colors group-hover:text-primary sm:text-sm">
+        <Link href={`/products/${product.slug}`} onClick={() => onOpen?.(product)} className="line-clamp-2 flex-1 text-[13px] font-semibold leading-snug transition-colors group-hover:text-primary sm:text-sm">
           {product.name}
         </Link>
 
