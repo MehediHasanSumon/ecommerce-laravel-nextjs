@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AccountController;
+use App\Http\Controllers\Api\Admin\AdminNavigationController;
 use App\Http\Controllers\Api\Admin\BlogCommentManagementController;
 use App\Http\Controllers\Api\Admin\BlogManagementController;
 use App\Http\Controllers\Api\Admin\ContactMessageManagementController;
@@ -136,6 +137,7 @@ Route::prefix('auth')->group(function (): void {
 Route::prefix('admin')
     ->middleware(['auth.cookie:access', 'throttle:admin-api'])
     ->group(function (): void {
+        Route::get('/navigation', [AdminNavigationController::class, 'show'])->middleware('administrator');
         Route::get('/dashboard', [DashboardController::class, 'show']);
 
         Route::get('/ip-blocks/analytics', [IpBlockManagementController::class, 'analytics']);

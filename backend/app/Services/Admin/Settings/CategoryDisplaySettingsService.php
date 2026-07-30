@@ -53,7 +53,7 @@ class CategoryDisplaySettingsService
         $model->fill([...$data, 'updated_by' => $userId])->save();
         cache()->forget($this->cacheKey());
         cache()->forget($this->cacheKey().'.id');
-        cache()->forget('settings.navigation.runtime');
+        cache()->forget('navigation.public.runtime');
 
         return $this->get();
     }

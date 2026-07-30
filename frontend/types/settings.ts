@@ -202,7 +202,6 @@ export type RuntimeSettings = {
   };
   navigation: {
     frontend: RuntimeNavigationItem[];
-    admin_sidebar: RuntimeNavigationGroup[];
   };
   categories: RuntimeCategory[];
   home_feature_cards: RuntimeHomeFeatureCard[];

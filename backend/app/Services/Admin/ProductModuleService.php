@@ -721,7 +721,7 @@ class ProductModuleService
 
     private function clearCategoryCaches(): void
     {
-        cache()->forget('settings.navigation.runtime');
+        cache()->forget('navigation.public.runtime');
         cache()->forget('categories.runtime.tree');
     }
 

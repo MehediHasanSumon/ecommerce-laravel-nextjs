@@ -7,6 +7,7 @@ use App\Console\Commands\MaintainIpBlocking;
 use App\Console\Commands\SyncCollectionSchedules;
 use App\Http\Middleware\AuthenticateAuthCookie;
 use App\Http\Middleware\EnforceIpBlock;
+use App\Http\Middleware\EnsureAdministrator;
 use App\Http\Middleware\MonitorSuspiciousActivity;
 use App\Http\Middleware\ResolveAuthCookie;
 use App\Http\Middleware\SecurityHeaders;
@@ -60,6 +61,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'auth.cookie' => AuthenticateAuthCookie::class,
             'auth.cookie.optional' => ResolveAuthCookie::class,
+            'administrator' => EnsureAdministrator::class,
             'permission' => PermissionMiddleware::class,
             'role' => RoleMiddleware::class,
             'role_or_permission' => RoleOrPermissionMiddleware::class,

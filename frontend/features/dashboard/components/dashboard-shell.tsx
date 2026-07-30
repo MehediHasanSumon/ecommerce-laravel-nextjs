@@ -55,11 +55,11 @@ import { BrandLogo } from "@/components/settings/BrandLogo";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { routePaths } from "@/constants/routes";
 import { useAuthStore } from "@/store/auth-store";
-import { selectAdminNavigation, selectSettingsPending, useSettingsStore } from "@/store/settings-store";
+import { selectAdminNavigation, selectAdminNavigationPending, useSettingsStore } from "@/store/settings-store";
 import { cn } from "@/utils/cn";
 import { getInitials } from "@/utils/sanitize";
 import type { User } from "@/types/auth";
-import type { RuntimeNavigationGroup, RuntimeNavigationItem } from "@/types/settings";
+import type { RuntimeNavigationItem } from "@/types/settings";
 
 const navItems = [
   { href: routePaths.dashboard, label: "Dashboard", icon: Home },
@@ -297,21 +297,6 @@ function renderIcon(name: string | undefined, className: string) {
   }
 }
 
-function fallbackAdminNavigation(): RuntimeNavigationGroup[] {
-  return [
-    { key: "main", label: "Main", type: "single", items: navItems.map((item) => ({ label: item.label, href: item.href, icon: item.icon.name, enabled: true })) },
-    { key: "orders", label: "Orders", type: "single", items: orderManagementItems.map((item) => ({ label: item.label, href: item.href, icon: item.icon.name, enabled: true })) },
-    { key: "products", label: "Products", type: "single", items: productManagementItems.map((item) => ({ label: item.label, href: item.href, icon: item.icon.name, enabled: true })) },
-    { key: "users", label: "Users Management", icon: "UsersRound", type: "group", items: usersManagementItems.map((item) => ({ label: item.label, href: item.href, icon: item.icon.name, enabled: true })) },
-    { key: "catalog", label: "Catalog", icon: "Layers3", type: "group", items: catalogManagementItems.map((item) => ({ label: item.label, href: item.href, icon: item.icon.name, enabled: true })) },
-    { key: "marketing", label: "Marketing & Pricing", icon: "Megaphone", type: "group", items: marketingManagementItems.map((item) => ({ label: item.label, href: item.href, icon: item.icon.name, enabled: true })) },
-    { key: "content", label: "Content", icon: "Newspaper", type: "group", items: contentManagementItems.map((item) => ({ label: item.label, href: item.href, icon: item.icon.name, enabled: true })) },
-    { key: "security", label: "Security", icon: "ShieldAlert", type: "group", items: securityManagementItems.map((item) => ({ label: item.label, href: item.href, icon: item.icon.name, enabled: true })) },
-    { key: "reports", label: "Reports & Analytics", icon: "BarChart3", type: "group", items: reportManagementItems.map((item) => ({ label: item.label, href: item.href, icon: item.icon.name, enabled: true })) },
-    { key: "settings", label: "Settings", icon: "Settings2", type: "group", items: settingsItems.map((item) => ({ label: item.label, href: item.href, icon: item.icon.name, enabled: true })) },
-  ];
-}
-
 function requiredPermissionForItem(item: RuntimeNavigationItem): string | null {
   if (item.permission) {
     return adminPermissionAliases[item.permission] ?? item.permission;
@@ -347,9 +332,14 @@ function AdminSidebar({
   onLogout,
 }: AdminSidebarProps) {
   const dynamicGroups = useSettingsStore(selectAdminNavigation);
-  const settingsLoading = useSettingsStore(selectSettingsPending);
+  const settingsLoading = useSettingsStore(selectAdminNavigationPending);
+  const fetchAdminNavigation = useSettingsStore((state) => state.fetchAdminNavigation);
+  const userId = useAuthStore((state) => state.user?.id);
   const permissions = useAuthStore((state) => state.user?.permissions);
-  const groups = (dynamicGroups.length ? dynamicGroups : fallbackAdminNavigation())
+  useEffect(() => {
+    if (userId) void fetchAdminNavigation({ force: true });
+  }, [fetchAdminNavigation, userId]);
+  const groups = dynamicGroups
     .map((group) => ({
       ...group,
       items: group.items.filter((item) => canAccessAdminItem(item, permissions)),
@@ -615,6 +605,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const logout = useAuthStore((state) => state.logout);
+  const clearAdminNavigation = useSettingsStore((state) => state.clearAdminNavigation);
   const isLoading = useAuthStore((state) => state.isLoading);
   const activeItem =
     [...navItems, ...usersManagementItems].find((item) => item.href === pathname) ??
@@ -633,6 +624,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
 
   async function handleLogout() {
     await logout();
+    clearAdminNavigation();
     toast.success("Signed out securely.");
     router.replace(routePaths.home);
     router.refresh();

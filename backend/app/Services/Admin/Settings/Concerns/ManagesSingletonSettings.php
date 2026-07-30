@@ -2,6 +2,7 @@
 
 namespace App\Services\Admin\Settings\Concerns;
 
+use App\Services\Admin\AdminNavigationService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 
@@ -31,7 +32,8 @@ trait ManagesSingletonSettings
         $model->fill([...$data, 'updated_by' => $userId])->save();
         Cache::forget($this->cacheKey());
         Cache::forget($this->cacheKey().'.id');
-        Cache::forget('settings.navigation.runtime');
+        Cache::forget('navigation.public.runtime');
+        app(AdminNavigationService::class)->invalidate();
 
         return $this->get();
     }

@@ -96,7 +96,7 @@ class ImportDemoAssets extends Command
             $this->importProducts($source);
         });
 
-        cache()->forget('settings.navigation.runtime');
+        cache()->forget('navigation.public.runtime');
         cache()->forget('categories.runtime.tree');
         HomePageCache::invalidate();
 

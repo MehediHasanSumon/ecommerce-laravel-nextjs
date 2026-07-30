@@ -121,6 +121,6 @@ class HomeFeatureCardService
     private function clearRuntimeCaches(): void
     {
         Cache::forget('home-feature-cards.runtime');
-        Cache::forget('settings.navigation.runtime');
+        Cache::forget('navigation.public.runtime');
     }
 }

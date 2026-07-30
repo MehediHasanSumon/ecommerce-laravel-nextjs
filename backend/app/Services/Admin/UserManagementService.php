@@ -46,6 +46,7 @@ class UserManagementService
             ]);
 
             $user->syncRoles($data['roles'] ?? []);
+            DB::afterCommit(fn () => app(AdminNavigationService::class)->invalidate());
 
             return $user->load('roles:id,name');
         });
@@ -67,6 +68,7 @@ class UserManagementService
 
             $user->save();
             $user->syncRoles($data['roles'] ?? []);
+            DB::afterCommit(fn () => app(AdminNavigationService::class)->invalidate());
 
             return $user->load('roles:id,name');
         });

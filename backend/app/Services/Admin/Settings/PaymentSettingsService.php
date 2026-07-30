@@ -55,7 +55,7 @@ class PaymentSettingsService
                 [...$gateway, 'display_order' => $gateway['display_order'] ?? $index, 'updated_by' => $userId]
             );
         }
-        Cache::forget('settings.navigation.runtime');
+        Cache::forget('navigation.public.runtime');
         Cache::forget('checkout.payment-methods.enabled');
 
         return $this->all();

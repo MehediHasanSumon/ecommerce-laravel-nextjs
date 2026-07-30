@@ -298,7 +298,7 @@ class InstallApplication extends Command
             'settings.store',
             'settings.company.id',
             'settings.store.id',
-            'settings.navigation.runtime',
+            'navigation.public.runtime',
         ] as $key) {
             Cache::forget($key);
         }

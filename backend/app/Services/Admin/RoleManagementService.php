@@ -30,6 +30,7 @@ class RoleManagementService
         return DB::transaction(function () use ($data): Role {
             $role = Role::query()->create(['name' => $data['name'], 'guard_name' => 'web']);
             $role->syncPermissions($data['permissions'] ?? []);
+            DB::afterCommit(fn () => app(AdminNavigationService::class)->invalidate());
 
             return $role->load('permissions:id,name')->loadCount('permissions');
         });
@@ -40,6 +41,7 @@ class RoleManagementService
         return DB::transaction(function () use ($role, $data): Role {
             $role->update(['name' => $data['name']]);
             $role->syncPermissions($data['permissions'] ?? []);
+            DB::afterCommit(fn () => app(AdminNavigationService::class)->invalidate());
 
             return $role->load('permissions:id,name')->loadCount('permissions');
         });
@@ -48,10 +50,14 @@ class RoleManagementService
     public function delete(Role $role): void
     {
         $role->delete();
+        app(AdminNavigationService::class)->invalidate();
     }
 
     public function bulkDelete(array $ids): int
     {
-        return Role::query()->whereIn('id', $ids)->delete();
+        $deleted = Role::query()->whereIn('id', $ids)->delete();
+        app(AdminNavigationService::class)->invalidate();
+
+        return $deleted;
     }
 }

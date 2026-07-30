@@ -3,6 +3,7 @@
 namespace App\Services\Admin\Settings;
 
 use App\Models\Settings\BrandSetting;
+use App\Services\Admin\AdminNavigationService;
 use App\Services\Admin\Settings\Concerns\ManagesSingletonSettings;
 use App\Services\Seo\SeoMetadataService;
 use App\Support\Admin\SettingsDefaults;
@@ -63,7 +64,8 @@ class BrandSettingsService
     {
         Cache::forget($this->cacheKey());
         Cache::forget($this->cacheKey().'.id');
-        Cache::forget('settings.navigation.runtime');
+        Cache::forget('navigation.public.runtime');
+        app(AdminNavigationService::class)->invalidate();
         HomePageCache::invalidate();
         SeoMetadataService::invalidateCache();
     }

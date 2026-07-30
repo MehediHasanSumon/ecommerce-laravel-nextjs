@@ -266,7 +266,7 @@ class HeroSectionService
     {
         Cache::forget('hero.settings');
         Cache::forget('hero.runtime.v1');
-        Cache::forget('settings.navigation.runtime');
+        Cache::forget('navigation.public.runtime');
     }
 
     private function assetUrl(?string $path): ?string

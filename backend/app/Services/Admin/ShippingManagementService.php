@@ -164,7 +164,7 @@ class ShippingManagementService
 
     private function clearRuntimeCache(): void
     {
-        Cache::forget('settings.navigation.runtime');
+        Cache::forget('navigation.public.runtime');
     }
 
     private function reorder(string $class, array $items, string $type): int

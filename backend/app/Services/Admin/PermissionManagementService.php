@@ -24,12 +24,16 @@ class PermissionManagementService
 
     public function create(array $data): Permission
     {
-        return Permission::query()->create(['name' => $data['name'], 'guard_name' => 'web']);
+        $permission = Permission::query()->create(['name' => $data['name'], 'guard_name' => 'web']);
+        app(AdminNavigationService::class)->invalidate();
+
+        return $permission;
     }
 
     public function update(Permission $permission, array $data): Permission
     {
         $permission->update(['name' => $data['name']]);
+        app(AdminNavigationService::class)->invalidate();
 
         return $permission;
     }
@@ -37,10 +41,14 @@ class PermissionManagementService
     public function delete(Permission $permission): void
     {
         $permission->delete();
+        app(AdminNavigationService::class)->invalidate();
     }
 
     public function bulkDelete(array $ids): int
     {
-        return Permission::query()->whereIn('id', $ids)->delete();
+        $deleted = Permission::query()->whereIn('id', $ids)->delete();
+        app(AdminNavigationService::class)->invalidate();
+
+        return $deleted;
     }
 }

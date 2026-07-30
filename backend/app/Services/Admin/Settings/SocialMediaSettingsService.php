@@ -22,7 +22,7 @@ class SocialMediaSettingsService
                 [...$item, 'display_order' => $item['display_order'] ?? $index, 'updated_by' => $userId]
             );
         }
-        Cache::forget('settings.navigation.runtime');
+        Cache::forget('navigation.public.runtime');
 
         return $this->all();
     }

@@ -3,10 +3,10 @@
 import axios from "axios";
 import { create } from "zustand";
 import type { ApiEnvelope } from "@/features/admin/shared/types";
-import type { RuntimeCurrencySettings, RuntimeCustomerSettings, RuntimeProductCardSettings, RuntimeSettings, RuntimeSmsSettings } from "@/types/settings";
+import type { RuntimeCurrencySettings, RuntimeCustomerSettings, RuntimeNavigationGroup, RuntimeProductCardSettings, RuntimeSettings, RuntimeSmsSettings } from "@/types/settings";
 
 const emptyFrontendNavigation: RuntimeSettings["navigation"]["frontend"] = [];
-const emptyAdminNavigation: RuntimeSettings["navigation"]["admin_sidebar"] = [];
+const emptyAdminNavigation: RuntimeNavigationGroup[] = [];
 const emptySocialLinks: RuntimeSettings["social_links"] = [];
 const emptyRuntimeCategories: RuntimeSettings["categories"] = [];
 const emptyHomeFeatureCards: RuntimeSettings["home_feature_cards"] = [];
@@ -116,11 +116,17 @@ export const defaultCurrencySettings: RuntimeCurrencySettings = {
 
 type SettingsState = {
   settings: RuntimeSettings | null;
+  adminNavigation: RuntimeNavigationGroup[];
+  adminNavigationLoading: boolean;
+  adminNavigationLoaded: boolean;
+  adminNavigationError: string | null;
   isLoading: boolean;
   isLoaded: boolean;
   error: string | null;
   fetchSettings: (options?: { force?: boolean }) => Promise<RuntimeSettings | null>;
   refreshSettings: () => Promise<RuntimeSettings | null>;
+  fetchAdminNavigation: (options?: { force?: boolean }) => Promise<RuntimeNavigationGroup[]>;
+  clearAdminNavigation: () => void;
 };
 
 const apiBaseUrl = (
@@ -128,6 +134,7 @@ const apiBaseUrl = (
 ).replace(/\/auth\/?$/, "");
 
 let settingsPromise: Promise<RuntimeSettings | null> | null = null;
+let adminNavigationPromise: Promise<RuntimeNavigationGroup[]> | null = null;
 
 async function loadRuntimeSettings() {
   const response = await axios.get<ApiEnvelope<RuntimeSettings>>(
@@ -144,6 +151,21 @@ async function loadRuntimeSettings() {
   return response.data.data;
 }
 
+async function loadAdminNavigation() {
+  const response = await axios.get<ApiEnvelope<{ navigation: RuntimeNavigationGroup[] }>>(
+    `${apiBaseUrl}/admin/navigation`,
+    {
+      withCredentials: true,
+      headers: {
+        Accept: "application/json",
+        "X-Requested-With": "XMLHttpRequest",
+      },
+    },
+  );
+
+  return response.data.data.navigation;
+}
+
 function errorMessage(error: unknown) {
   if (typeof error === "object" && error && "message" in error) {
     return String((error as { message?: unknown }).message ?? "Could not load settings.");
@@ -154,6 +176,10 @@ function errorMessage(error: unknown) {
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
   settings: null,
+  adminNavigation: [],
+  adminNavigationLoading: false,
+  adminNavigationLoaded: false,
+  adminNavigationError: null,
   isLoading: false,
   isLoaded: false,
   error: null,
@@ -187,6 +213,52 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
 
   refreshSettings() {
     return get().fetchSettings({ force: true });
+  },
+
+  async fetchAdminNavigation(options) {
+    if (!options?.force && get().adminNavigationLoaded) {
+      return get().adminNavigation;
+    }
+
+    if (!options?.force && adminNavigationPromise) {
+      return adminNavigationPromise;
+    }
+
+    set({ adminNavigationLoading: true, adminNavigationError: null });
+    adminNavigationPromise = loadAdminNavigation()
+      .then((navigation) => {
+        set({
+          adminNavigation: navigation,
+          adminNavigationLoading: false,
+          adminNavigationLoaded: true,
+          adminNavigationError: null,
+        });
+        return navigation;
+      })
+      .catch((error) => {
+        set({
+          adminNavigation: [],
+          adminNavigationLoading: false,
+          adminNavigationLoaded: true,
+          adminNavigationError: errorMessage(error),
+        });
+        return [];
+      })
+      .finally(() => {
+        adminNavigationPromise = null;
+      });
+
+    return adminNavigationPromise;
+  },
+
+  clearAdminNavigation() {
+    adminNavigationPromise = null;
+    set({
+      adminNavigation: [],
+      adminNavigationLoading: false,
+      adminNavigationLoaded: false,
+      adminNavigationError: null,
+    });
   },
 }));
 
@@ -242,7 +314,9 @@ export const selectCompanyFavicon = (state: SettingsState) =>
 export const selectFrontendNavigation = (state: SettingsState) =>
   selectSettingsPending(state) ? emptyFrontendNavigation : state.settings?.navigation.frontend ?? emptyFrontendNavigation;
 export const selectAdminNavigation = (state: SettingsState) =>
-  selectSettingsPending(state) ? emptyAdminNavigation : state.settings?.navigation.admin_sidebar ?? emptyAdminNavigation;
+  state.adminNavigationLoaded ? state.adminNavigation : emptyAdminNavigation;
+export const selectAdminNavigationPending = (state: SettingsState) =>
+  state.adminNavigationLoading || !state.adminNavigationLoaded;
 export const selectSocialLinks = (state: SettingsState) =>
   selectSettingsPending(state) ? emptySocialLinks : state.settings?.social_links ?? emptySocialLinks;
 export const selectCategoryDisplaySettings = (state: SettingsState) =>

@@ -63,7 +63,7 @@ class HomePageSettingsService
     {
         Cache::forget($this->cacheKey());
         Cache::forget($this->cacheKey().'.id');
-        Cache::forget('settings.navigation.runtime');
+        Cache::forget('navigation.public.runtime');
         HomePageCache::invalidate();
     }
 }

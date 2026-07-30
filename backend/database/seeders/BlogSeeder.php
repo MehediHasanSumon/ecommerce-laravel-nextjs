@@ -77,7 +77,7 @@ class BlogSeeder extends Seeder
             }
         });
 
-        Cache::forget('settings.navigation.runtime');
+        Cache::forget('navigation.public.runtime');
         Cache::forget('settings.blog');
         Cache::forget('settings.blog.id');
         Cache::forget('blogs.home.runtime');

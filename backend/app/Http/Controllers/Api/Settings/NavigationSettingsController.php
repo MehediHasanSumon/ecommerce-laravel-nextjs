@@ -43,7 +43,7 @@ class NavigationSettingsController extends Controller
     public function show(): JsonResponse
     {
         return ApiResponse::success(Cache::remember(
-            'settings.navigation.runtime',
+            'navigation.public.runtime',
             now()->addMinutes(10),
             fn (): array => $this->payload()
         ));
@@ -146,7 +146,6 @@ class NavigationSettingsController extends Controller
             ],
             'navigation' => [
                 'frontend' => $this->frontendNavigation($modules, $company, $store),
-                'admin_sidebar' => $this->adminSidebar($modules),
             ],
             'categories' => $this->categoryTree(),
             'home_feature_cards' => (bool) $homeFeatureCardSettings->enabled
@@ -253,137 +252,6 @@ class NavigationSettingsController extends Controller
             'home_display_order' => (int) ($category->home_display_order ?? 0),
             'navbar_display_order' => (int) ($category->navbar_display_order ?? 0),
             'children' => $children,
-        ];
-    }
-
-    private function adminSidebar(array $modules): array
-    {
-        return [
-            [
-                'key' => 'main',
-                'label' => 'Main',
-                'type' => 'single',
-                'items' => [
-                    ['label' => 'Dashboard', 'href' => '/admin/dashboard', 'icon' => 'Home', 'permission' => 'can_view_dashboard', 'enabled' => true],
-                ],
-            ],
-            [
-                'key' => 'orders',
-                'label' => 'Orders',
-                'type' => 'single',
-                'items' => [
-                    ['label' => 'Order Management', 'href' => '/admin/orders', 'icon' => 'PackageCheck', 'permission' => 'can_view_order', 'enabled' => true],
-                ],
-            ],
-            [
-                'key' => 'customers',
-                'label' => 'Customer Management',
-                'type' => 'single',
-                'items' => [
-                    ['label' => 'Customer Management', 'href' => '/admin/customers', 'icon' => 'UsersRound', 'permission' => 'can_view_customer', 'enabled' => true],
-                ],
-            ],
-            [
-                'key' => 'products',
-                'label' => 'Product Management',
-                'icon' => 'Package',
-                'type' => 'single',
-                'items' => [
-                    ['label' => 'Product Management', 'href' => '/admin/products', 'icon' => 'Package', 'permission' => 'can_view_product', 'enabled' => $modules['products']],
-                ],
-            ],
-            [
-                'key' => 'users',
-                'label' => 'Users Management',
-                'icon' => 'UsersRound',
-                'type' => 'group',
-                'items' => [
-                    ['label' => 'User Management', 'href' => '/admin/users', 'icon' => 'UsersRound', 'permission' => 'users.view', 'enabled' => true],
-                    ['label' => 'Role Management', 'href' => '/admin/roles', 'icon' => 'ShieldCheck', 'permission' => 'roles.view', 'enabled' => true],
-                    ['label' => 'Permission Management', 'href' => '/admin/permissions', 'icon' => 'KeyRound', 'permission' => 'permissions.view', 'enabled' => true],
-                ],
-            ],
-            [
-                'key' => 'catalog',
-                'label' => 'Catalog',
-                'icon' => 'Layers3',
-                'type' => 'group',
-                'items' => [
-                    ['label' => 'Brand Management', 'href' => '/admin/brands', 'icon' => 'Building2', 'permission' => 'can_view_brand', 'enabled' => $modules['brands']],
-                    ['label' => 'Category Management', 'href' => '/admin/categories', 'icon' => 'Layers3', 'permission' => 'can_view_category', 'enabled' => $modules['categories']],
-                    ['label' => 'Attribute Management', 'href' => '/admin/attributes', 'icon' => 'Shapes', 'permission' => 'can_view_attribute', 'enabled' => $modules['products']],
-                    ['label' => 'Attribute Value Management', 'href' => '/admin/attribute-values', 'icon' => 'Boxes', 'permission' => 'can_view_attribute_value', 'enabled' => $modules['products']],
-                    ['label' => 'Tag Management', 'href' => '/admin/tags', 'icon' => 'Tags', 'permission' => 'can_view_tag', 'enabled' => $modules['products']],
-                    ['label' => 'Review Management', 'href' => '/admin/reviews', 'icon' => 'Star', 'permission' => 'can_view_review', 'enabled' => $modules['reviews']],
-                ],
-            ],
-            [
-                'key' => 'marketing',
-                'label' => 'Marketing & Pricing',
-                'icon' => 'Megaphone',
-                'type' => 'group',
-                'items' => [
-                    ['label' => 'Collection Management', 'href' => '/admin/collections', 'icon' => 'ShoppingBag', 'permission' => 'can_view_collection', 'enabled' => $modules['products']],
-                    ['label' => 'Currency Management', 'href' => '/admin/currencies', 'icon' => 'CircleDollarSign', 'permission' => 'can_view_currency', 'enabled' => true],
-                    ['label' => 'Discount Management', 'href' => '/admin/discounts', 'icon' => 'CirclePercent', 'permission' => 'can_view_discount', 'enabled' => $modules['offers']],
-                ],
-            ],
-            [
-                'key' => 'content',
-                'label' => 'Content',
-                'icon' => 'Newspaper',
-                'type' => 'group',
-                'items' => [
-                    ['label' => 'Blog Management', 'href' => '/admin/blogs', 'icon' => 'Newspaper', 'permission' => 'can_view_blog', 'enabled' => true],
-                    ['label' => 'Contact Inbox', 'href' => '/admin/contact-messages', 'icon' => 'Mail', 'permission' => 'can_view_contact_message', 'enabled' => true],
-                ],
-            ],
-            [
-                'key' => 'reports',
-                'label' => 'Reports & Analytics',
-                'icon' => 'BarChart3',
-                'type' => 'group',
-                'items' => [
-                    ['label' => 'Sales Reports', 'href' => '/admin/reports/sales', 'icon' => 'BarChart3', 'permission' => 'can_view_sales_report', 'enabled' => true],
-                    ['label' => 'Revenue Analytics', 'href' => '/admin/reports/revenue', 'icon' => 'CircleDollarSign', 'permission' => 'can_view_revenue_report', 'enabled' => true],
-                    ['label' => 'Product Performance', 'href' => '/admin/reports/product-performance', 'icon' => 'Package', 'permission' => 'can_view_product_performance_report', 'enabled' => true],
-                    ['label' => 'Customer Analytics', 'href' => '/admin/reports/customer-analytics', 'icon' => 'UsersRound', 'permission' => 'can_view_customer_analytics_report', 'enabled' => true],
-                    ['label' => 'Payment Reports', 'href' => '/admin/reports/payment', 'icon' => 'CreditCard', 'permission' => 'can_view_payment_report', 'enabled' => true],
-                    ['label' => 'Shipping Reports', 'href' => '/admin/reports/shipping', 'icon' => 'PackageCheck', 'permission' => 'can_view_shipping_report', 'enabled' => true],
-                    ['label' => 'Inventory Reports', 'href' => '/admin/reports/inventory', 'icon' => 'Warehouse', 'permission' => 'can_view_inventory_report', 'enabled' => true],
-                ],
-            ],
-            [
-                'key' => 'security',
-                'label' => 'Security',
-                'icon' => 'ShieldAlert',
-                'type' => 'group',
-                'items' => [
-                    ['label' => 'IP Blocking', 'href' => '/admin/security/ip-blocks', 'icon' => 'ShieldAlert', 'permission' => 'can-view-ip-block', 'enabled' => true],
-                ],
-            ],
-            [
-                'key' => 'settings',
-                'label' => 'Settings',
-                'icon' => 'Settings2',
-                'type' => 'group',
-                'items' => [
-                    ['label' => 'Company Settings', 'href' => '/admin/settings/company', 'icon' => 'Building2', 'permission' => 'can_view_company_setting', 'enabled' => true],
-                    ['label' => 'Hero Section', 'href' => '/admin/settings/hero-section', 'icon' => 'LayoutGrid', 'permission' => 'can_view_hero_section', 'enabled' => true],
-                    ['label' => 'Home Page Settings', 'href' => '/admin/settings/home-page', 'icon' => 'LayoutGrid', 'permission' => 'can_view_home_page_setting', 'enabled' => true],
-                    ['label' => 'Feature Cards', 'href' => '/admin/settings/home-feature-cards', 'icon' => 'BadgeCheck', 'permission' => 'can_view_home_feature_card_setting', 'enabled' => true],
-                    ['label' => 'Blog Settings', 'href' => '/admin/settings/blog', 'icon' => 'Newspaper', 'permission' => 'can_view_blog_setting', 'enabled' => true],
-                    ['label' => 'Store Settings', 'href' => '/admin/settings/store', 'icon' => 'Store', 'permission' => 'can_view_store_setting', 'enabled' => true],
-                    ['label' => 'Payment Settings', 'href' => '/admin/settings/payment', 'icon' => 'CreditCard', 'permission' => 'can_view_payment_setting', 'enabled' => true],
-                    ['label' => 'Shipping Zones', 'href' => '/admin/settings/shipping-zones', 'icon' => 'MapPin', 'permission' => 'can_view_shipping_zone', 'enabled' => true],
-                    ['label' => 'Shipping Methods', 'href' => '/admin/settings/shipping-methods', 'icon' => 'PackageCheck', 'permission' => 'can_view_shipping_method', 'enabled' => true],
-                    ['label' => 'SEO Settings', 'href' => '/admin/settings/seo', 'icon' => 'Search', 'permission' => 'can_view_seo_setting', 'enabled' => true],
-                    ['label' => 'Social Media', 'href' => '/admin/settings/social', 'icon' => 'Megaphone', 'permission' => 'can_view_social_setting', 'enabled' => true],
-                    ['label' => 'SMS Settings', 'href' => '/admin/settings/sms', 'icon' => 'MessageSquareText', 'permission' => 'can_view_sms_setting', 'enabled' => true],
-                    ['label' => 'SMS Logs', 'href' => '/admin/settings/sms/logs', 'icon' => 'ListChecks', 'permission' => 'can_view_sms_log', 'enabled' => true],
-                    ['label' => 'Security Settings', 'href' => '/admin/settings/security', 'icon' => 'ShieldAlert', 'permission' => 'can-view-ip-block', 'enabled' => true],
-                ],
-            ],
         ];
     }
 

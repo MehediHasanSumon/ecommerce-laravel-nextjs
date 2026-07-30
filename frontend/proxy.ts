@@ -19,6 +19,22 @@ type SessionPayload = {
   };
 };
 
+type AdminNavigationPayload = {
+  success?: boolean;
+  data?: {
+    navigation?: Array<{
+      items?: Array<{
+        href?: string;
+      }>;
+    }>;
+  };
+};
+
+type AdminLandingResult =
+  | { status: "accessible"; href: string }
+  | { status: "forbidden" }
+  | { status: "unauthenticated" };
+
 const permissionRouteRequirements: Array<{ route: string; permission: string }> = [
   { route: routePaths.dashboard, permission: "can_view_dashboard" },
   { route: routePaths.adminUsers, permission: "can_view_user" },
@@ -161,6 +177,52 @@ async function getSession(request: NextRequest) {
   }
 }
 
+function isSafeAdminPath(pathname: unknown): pathname is string {
+  return (
+    typeof pathname === "string" &&
+    pathname.startsWith("/admin/") &&
+    !pathname.startsWith("//")
+  );
+}
+
+async function resolveAdminLanding(request: NextRequest): Promise<AdminLandingResult> {
+  try {
+    const response = await fetch(`${apiRootUrl}/admin/navigation`, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        Cookie: request.headers.get("cookie") ?? "",
+        "X-Requested-With": "XMLHttpRequest",
+      },
+      cache: "no-store",
+    });
+
+    if (response.status === 401) {
+      return { status: "unauthenticated" };
+    }
+
+    if (response.status === 403) {
+      return { status: "forbidden" };
+    }
+
+    if (!response.ok) {
+      return { status: "forbidden" };
+    }
+
+    const payload = (await response.json()) as AdminNavigationPayload;
+    const href = payload.data?.navigation
+      ?.flatMap((group) => group.items ?? [])
+      .map((item) => item.href)
+      .find(isSafeAdminPath);
+
+    return href
+      ? { status: "accessible", href }
+      : { status: "forbidden" };
+  } catch {
+    return { status: "forbidden" };
+  }
+}
+
 async function isBlogEnabled(request: NextRequest) {
   try {
     const response = await fetch(`${apiRootUrl}/settings/navigation`, {
@@ -259,6 +321,34 @@ export async function proxy(request: NextRequest) {
     loginUrl.pathname = routePaths.login;
     loginUrl.searchParams.set("redirect", safeRedirectTarget(request));
     return NextResponse.redirect(loginUrl);
+  }
+
+  if (pathname === "/admin") {
+    const landing = await resolveAdminLanding(request);
+
+    if (landing.status === "unauthenticated") {
+      const loginUrl = request.nextUrl.clone();
+      loginUrl.pathname = routePaths.login;
+      loginUrl.searchParams.set("redirect", safeRedirectTarget(request));
+      return NextResponse.redirect(loginUrl);
+    }
+
+    if (landing.status === "accessible") {
+      const landingUrl = request.nextUrl.clone();
+      landingUrl.pathname = landing.href;
+      landingUrl.search = "";
+      const response = NextResponse.redirect(landingUrl);
+      if (sessionResponse) {
+        appendSetCookies(sessionResponse, response);
+      }
+      return response;
+    }
+
+    const response = NextResponse.next();
+    if (sessionResponse) {
+      appendSetCookies(sessionResponse, response);
+    }
+    return response;
   }
 
   const requiredPermission = pathname.startsWith("/admin")
