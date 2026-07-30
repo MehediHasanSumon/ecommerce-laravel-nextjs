@@ -84,6 +84,7 @@ class AdminNavigationService
             ]],
             ['key' => 'orders', 'label' => 'Orders', 'type' => 'single', 'items' => [
                 $this->item('Order Management', '/admin/orders', 'PackageCheck', 'can_view_order'),
+                $this->item('Courier Shipments', '/admin/shipments', 'Truck', 'can_view_courier_shipment'),
             ]],
             ['key' => 'customers', 'label' => 'Customer Management', 'type' => 'single', 'items' => [
                 $this->item('Customer Management', '/admin/customers', 'UsersRound', 'can_view_customer'),
@@ -137,6 +138,7 @@ class AdminNavigationService
                 $this->item('Payment Settings', '/admin/settings/payment', 'CreditCard', 'can_view_payment_setting'),
                 $this->item('Shipping Zones', '/admin/settings/shipping-zones', 'MapPin', 'can_view_shipping_zone'),
                 $this->item('Shipping Methods', '/admin/settings/shipping-methods', 'PackageCheck', 'can_view_shipping_method'),
+                $this->item('Courier Integrations', '/admin/settings/couriers', 'Truck', 'can_view_courier_setting'),
                 $this->item('SEO Settings', '/admin/settings/seo', 'Search', 'can_view_seo_setting'),
                 $this->item('Social Media', '/admin/settings/social', 'Megaphone', 'can_view_social_setting'),
                 $this->item('SMS Settings', '/admin/settings/sms', 'MessageSquareText', 'can_view_sms_setting'),

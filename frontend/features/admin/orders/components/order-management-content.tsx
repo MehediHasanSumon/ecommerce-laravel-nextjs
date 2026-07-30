@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { orderManagementService } from "@/features/admin/orders/services/order-management-service";
+import { OrderCourierPanel } from "@/features/admin/couriers/components/order-courier-panel";
 import { useUrlQueryState } from "@/features/admin/shared/hooks/use-url-query-state";
 import type { PaginationMeta } from "@/features/admin/shared/types";
 import type { OrderDetail, OrderListItem } from "@/services/order-service";
@@ -527,6 +528,10 @@ export function AdminOrderDetailContent({ orderNumber }: { orderNumber: string }
           <Summary label="Grand Total" value={order.summary.total} strong />
         </Panel>
       </div>
+
+      {hasPermission("can_view_courier_shipment") || hasPermission("can_create_courier_shipment") ? (
+        <OrderCourierPanel orderNumber={order.orderNumber} shipment={order.courierShipment} onChanged={() => void load(1)} />
+      ) : null}
 
       {canEditOrder ? <div className="grid gap-4 lg:grid-cols-3">
         <Panel title="Admin Notes">

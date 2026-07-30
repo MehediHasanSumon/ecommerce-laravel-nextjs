@@ -2,7 +2,9 @@
 
 namespace App\Providers;
 
+use App\Models\Order;
 use App\Models\ProductReview;
+use App\Observers\OrderCourierObserver;
 use App\Observers\ProductReviewObserver;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -25,6 +27,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         ProductReview::observe(ProductReviewObserver::class);
+        Order::observe(OrderCourierObserver::class);
 
         RateLimiter::for('auth-register', fn (Request $request) => Limit::perMinute(5)->by($request->ip()));
 
@@ -60,6 +63,11 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('search-write', fn (Request $request) => [
             Limit::perMinute(60)->by(optional($request->user())->getAuthIdentifier() ?: $request->ip()),
             Limit::perHour(500)->by($request->ip()),
+        ]);
+
+        RateLimiter::for('courier-webhook', fn (Request $request) => [
+            Limit::perMinute(120)->by($request->ip()),
+            Limit::perHour(2000)->by($request->ip()),
         ]);
 
         RateLimiter::for('product-feedback', fn (Request $request) => [

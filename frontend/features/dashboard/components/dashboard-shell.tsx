@@ -43,6 +43,7 @@ import {
   Star,
   Store,
   Tags,
+  Truck,
   UsersRound,
   Sun,
   UserRound,
@@ -93,6 +94,7 @@ const marketingManagementItems = [
 
 const orderManagementItems = [
   { href: routePaths.adminOrders, label: "Order Management", icon: PackageCheck },
+  { href: routePaths.adminShipments, label: "Courier Shipments", icon: Truck },
   { href: routePaths.adminCustomers, label: "Customer Management", icon: UsersRound },
 ];
 
@@ -125,6 +127,7 @@ const settingsItems = [
   { href: routePaths.adminSettingsPayment, label: "Payment Settings", icon: CreditCard },
   { href: routePaths.adminSettingsShippingZones, label: "Shipping Zones", icon: MapPin },
   { href: routePaths.adminSettingsShippingMethods, label: "Shipping Methods", icon: PackageCheck },
+  { href: routePaths.adminSettingsCouriers, label: "Courier Integrations", icon: Truck },
   { href: routePaths.adminSettingsSeo, label: "SEO Settings", icon: Search },
   { href: routePaths.adminSettingsSocial, label: "Social Media", icon: Star },
   { href: routePaths.adminSettingsSms, label: "SMS Settings", icon: MessageSquareText },
@@ -152,6 +155,8 @@ const adminPermissionAliases: Record<string, string> = {
   "discounts.view": "can_view_discount",
   "shipping-zones.view": "can_view_shipping_zone",
   "shipping-methods.view": "can_view_shipping_method",
+  "courier-settings.view": "can_view_courier_setting",
+  "courier-shipments.view": "can_view_courier_shipment",
   "company-settings.view": "can_view_company_setting",
   "hero-section.view": "can_view_hero_section",
   "home-page-settings.view": "can_view_home_page_setting",
@@ -180,6 +185,7 @@ const adminRoutePermissions: Record<string, string> = {
   [routePaths.dashboardRoles]: "can_view_role",
   [routePaths.dashboardPermissions]: "can_view_permission",
   [routePaths.adminOrders]: "can_view_order",
+  [routePaths.adminShipments]: "can_view_courier_shipment",
   [routePaths.adminCustomers]: "can_view_customer",
   [routePaths.adminProducts]: "can_view_product",
   [routePaths.adminBrands]: "can_view_brand",
@@ -194,6 +200,7 @@ const adminRoutePermissions: Record<string, string> = {
   [routePaths.adminDiscounts]: "can_view_discount",
   [routePaths.adminSettingsShippingZones]: "can_view_shipping_zone",
   [routePaths.adminSettingsShippingMethods]: "can_view_shipping_method",
+  [routePaths.adminSettingsCouriers]: "can_view_courier_setting",
   [routePaths.adminSettingsCompany]: "can_view_company_setting",
   [routePaths.adminSettingsHeroSection]: "can_view_hero_section",
   [routePaths.adminSettingsHomePage]: "can_view_home_page_setting",
@@ -253,6 +260,7 @@ const iconMap = {
   Star,
   Store,
   Tags,
+  Truck,
   UsersRound,
   Warehouse,
 };
@@ -295,6 +303,7 @@ function renderIcon(name: string | undefined, className: string) {
     case "Star": return <Star className={className} />;
     case "Store": return <Store className={className} />;
     case "Tags": return <Tags className={className} />;
+    case "Truck": return <Truck className={className} />;
     case "UsersRound": return <UsersRound className={className} />;
     case "Warehouse": return <Warehouse className={className} />;
     case "Home":
@@ -487,6 +496,7 @@ function isAdminItemActive(item: RuntimeNavigationItem, pathname: string) {
   return pathname === item.href
     || (item.href === routePaths.adminProducts && pathname.startsWith(`${routePaths.adminProducts}/`))
     || (item.href === routePaths.adminOrders && pathname.startsWith(`${routePaths.adminOrders}/`))
+    || (item.href === routePaths.adminShipments && pathname.startsWith(`${routePaths.adminShipments}/`))
     || (item.href === routePaths.adminIpBlocks && pathname.startsWith(`${routePaths.adminIpBlocks}/`));
 }
 

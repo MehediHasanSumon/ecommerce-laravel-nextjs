@@ -29,6 +29,9 @@ class OrderTrackingService
                 'items.product:id,name,slug',
                 'items.product.images:id,product_id,url,is_primary,sort_order',
                 'shippingLogs' => fn ($query) => $query->latest(),
+                'courierShipments' => fn ($query) => $query
+                    ->with(['events' => fn ($events) => $events->oldest('occurred_at')])
+                    ->latest(),
             ])
             ->first();
 
@@ -79,9 +82,11 @@ class OrderTrackingService
         $shipping = (array) $order->shipping_address;
         $billing = (array) $order->billing_address;
         $latestShipping = $order->shippingLogs->first();
-        $estimatedDelivery = $order->shippingMethod?->estimated_days_max && $order->placed_at
-            ? $order->placed_at->copy()->addDays((int) $order->shippingMethod->estimated_days_max)->toDateString()
-            : null;
+        $shipment = $order->courierShipments->first();
+        $estimatedDelivery = $shipment?->estimated_delivery_at?->toISOString()
+            ?: ($order->shippingMethod?->estimated_days_max && $order->placed_at
+                ? $order->placed_at->copy()->addDays((int) $order->shippingMethod->estimated_days_max)->toDateString()
+                : null);
 
         return [
             'orderId' => $order->order_number,
@@ -101,8 +106,17 @@ class OrderTrackingService
                 'method' => $order->shipping_method_name,
                 'estimatedDelivery' => $estimatedDelivery,
                 'courier' => $latestShipping?->courier,
-                'trackingNumber' => $latestShipping?->tracking_number,
-                'trackingUrl' => $latestShipping?->tracking_url,
+                'trackingNumber' => $shipment?->tracking_number ?? $latestShipping?->tracking_number,
+                'trackingUrl' => $shipment?->tracking_url ?? $latestShipping?->tracking_url,
+                'courierStatus' => $shipment?->status,
+                'codStatus' => $shipment?->cod_status,
+                'latestUpdate' => optional($shipment?->last_synced_at)->toISOString(),
+                'courierTimeline' => $shipment?->events?->map(fn ($event): array => [
+                    'status' => $event->status,
+                    'title' => $event->title,
+                    'description' => null,
+                    'occurredAt' => optional($event->occurred_at)->toISOString(),
+                ])->values()->all() ?? [],
                 'deliveryNotes' => $order->delivery_notes,
             ],
             'items' => $order->items->map(function ($item): array {

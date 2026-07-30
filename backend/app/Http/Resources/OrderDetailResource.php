@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Http\Resources\Admin\CourierShipmentResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Storage;
@@ -89,6 +90,11 @@ class OrderDetailResource extends JsonResource
                 'note' => $log->note,
                 'createdAt' => optional($log->created_at)->toISOString(),
             ])->values()),
+            'courierShipment' => $this->whenLoaded('courierShipments', function () {
+                $shipment = $this->courierShipments->first();
+
+                return $shipment ? CourierShipmentResource::make($shipment)->resolve() : null;
+            }),
         ];
     }
 

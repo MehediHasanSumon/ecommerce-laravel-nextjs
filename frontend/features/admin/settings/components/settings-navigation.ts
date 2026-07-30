@@ -11,6 +11,7 @@ import {
   ShieldAlert,
   Settings2,
   Store,
+  Truck,
   MessageSquareText,
   ListChecks,
 } from "lucide-react";
@@ -27,6 +28,7 @@ export const settingsNavItems: SettingNavItem[] = [
   { href: routePaths.adminSettingsPayment, label: "Payment Settings", description: "Payment gateways and credentials", icon: CreditCard },
   { href: routePaths.adminSettingsShippingZones, label: "Shipping Zones", description: "Supported countries and delivery zones", icon: MapPin },
   { href: routePaths.adminSettingsShippingMethods, label: "Shipping Methods", description: "Zone-based delivery methods and charges", icon: PackageCheck },
+  { href: routePaths.adminSettingsCouriers, label: "Courier Integrations", description: "Steadfast and Pathao credentials and defaults", icon: Truck },
   { href: routePaths.adminSettingsSeo, label: "SEO Settings", description: "Meta defaults and indexing", icon: Search },
   { href: routePaths.adminSettingsSocial, label: "Social Media", description: "Social links and sharing", icon: Megaphone },
   { href: routePaths.adminSettingsSms, label: "SMS Settings", description: "Providers, OTP, events, templates", icon: MessageSquareText },

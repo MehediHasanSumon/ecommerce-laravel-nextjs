@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\Admin\AdminNavigationController;
 use App\Http\Controllers\Api\Admin\BlogCommentManagementController;
 use App\Http\Controllers\Api\Admin\BlogManagementController;
 use App\Http\Controllers\Api\Admin\ContactMessageManagementController;
+use App\Http\Controllers\Api\Admin\CourierShipmentController;
 use App\Http\Controllers\Api\Admin\CustomerManagementController;
 use App\Http\Controllers\Api\Admin\DashboardController;
 use App\Http\Controllers\Api\Admin\HeroSectionController;
@@ -18,6 +19,7 @@ use App\Http\Controllers\Api\Admin\RoleManagementController;
 use App\Http\Controllers\Api\Admin\SearchAnalyticsController;
 use App\Http\Controllers\Api\Admin\Settings\BlogSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\CompanySettingsController;
+use App\Http\Controllers\Api\Admin\Settings\CourierSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\HomeFeatureCardSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\HomePageSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\PaymentSettingsController;
@@ -39,6 +41,7 @@ use App\Http\Controllers\Api\CheckoutOtpController;
 use App\Http\Controllers\Api\CollectionCatalogController;
 use App\Http\Controllers\Api\ContactMessageController;
 use App\Http\Controllers\Api\ContentPageController;
+use App\Http\Controllers\Api\CourierWebhookController;
 use App\Http\Controllers\Api\CustomerAddressController;
 use App\Http\Controllers\Api\HomePageController;
 use App\Http\Controllers\Api\NewsletterSubscriptionController;
@@ -88,6 +91,7 @@ Route::get('/shipping-methods', [ShippingMethodController::class, 'index'])->mid
 Route::post('/contact-messages', [ContactMessageController::class, 'store'])->middleware('throttle:public-settings');
 Route::post('/newsletter/subscribe', [NewsletterSubscriptionController::class, 'store'])->middleware('throttle:public-settings');
 Route::post('/order-tracking', [OrderTrackingController::class, 'show'])->middleware('throttle:order-tracking');
+Route::post('/courier-webhooks/pathao', [CourierWebhookController::class, 'pathao'])->middleware('throttle:courier-webhook');
 Route::match(['get', 'post'], '/payments/{gateway}/callback/{result?}', [PaymentCallbackController::class, 'callback'])->name('payments.callback');
 Route::post('/payments/{gateway}/webhook', [PaymentCallbackController::class, 'webhook'])->name('payments.webhook');
 Route::middleware(['auth.cookie.optional:access', 'throttle:public-settings'])->group(function (): void {
@@ -201,8 +205,18 @@ Route::prefix('admin')
         Route::delete('/orders/{order}', [OrderManagementController::class, 'destroy']);
         Route::post('/orders/{order}/refund', [OrderManagementController::class, 'refund']);
         Route::post('/orders/{order}/shipping-log', [OrderManagementController::class, 'shippingLog']);
+        Route::post('/orders/{order}/courier-shipment', [CourierShipmentController::class, 'store']);
         Route::get('/orders/{order}/invoice', [OrderManagementController::class, 'invoice']);
         Route::get('/orders/{order}/delivery-slip', [OrderManagementController::class, 'deliverySlip']);
+
+        Route::get('/shipments', [CourierShipmentController::class, 'index']);
+        Route::get('/shipments/options', [CourierShipmentController::class, 'options']);
+        Route::post('/shipments/calculate-charge', [CourierShipmentController::class, 'calculateCharge']);
+        Route::post('/shipments/bulk-create', [CourierShipmentController::class, 'bulkCreate']);
+        Route::post('/shipments/bulk-sync', [CourierShipmentController::class, 'bulkSync']);
+        Route::get('/shipments/{shipment}', [CourierShipmentController::class, 'show']);
+        Route::post('/shipments/{shipment}/sync', [CourierShipmentController::class, 'sync']);
+        Route::post('/shipments/{shipment}/cancel', [CourierShipmentController::class, 'cancel']);
 
         Route::delete('/shipping-zones/bulk', [ShippingZoneController::class, 'bulkDestroy']);
         Route::post('/shipping-zones/reorder', [ShippingZoneController::class, 'reorder']);
@@ -242,6 +256,11 @@ Route::prefix('admin')
 
         Route::get('/settings/payment', [PaymentSettingsController::class, 'show']);
         Route::put('/settings/payment', [PaymentSettingsController::class, 'update']);
+
+        Route::get('/settings/couriers', [CourierSettingsController::class, 'show']);
+        Route::put('/settings/couriers', [CourierSettingsController::class, 'update']);
+        Route::post('/settings/couriers/{provider}/test', [CourierSettingsController::class, 'test']);
+        Route::get('/settings/couriers/{provider}/locations/{type}', [CourierSettingsController::class, 'locations']);
 
         Route::get('/settings/seo', [SeoSettingsController::class, 'show']);
         Route::put('/settings/seo', [SeoSettingsController::class, 'update']);

@@ -102,6 +102,12 @@ class UpdateStoreSettingsRequest extends FormRequest
             'product_slider_mobile_slides' => ['integer', 'min:1', 'max:3'],
             'product_slider_space_between' => ['integer', 'min:0', 'max:64'],
             'product_slider_center_mode' => ['boolean'],
+            'automatic_shipment_creation' => ['required', Rule::in(['disabled', 'after_order_confirmation', 'after_payment', 'after_packaging', 'after_processing'])],
+            'automatic_courier_provider' => [
+                Rule::requiredIf($this->input('automatic_shipment_creation') !== 'disabled'),
+                'nullable',
+                Rule::in(['steadfast', 'pathao']),
+            ],
         ];
     }
 }

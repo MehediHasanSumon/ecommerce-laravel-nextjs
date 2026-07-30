@@ -27,6 +27,8 @@ class RolePermissionInstaller
         'discount',
         'shipping_zone',
         'shipping_method',
+        'courier_setting',
+        'courier_shipment',
         'blog',
         'contact_message',
         'company_setting',

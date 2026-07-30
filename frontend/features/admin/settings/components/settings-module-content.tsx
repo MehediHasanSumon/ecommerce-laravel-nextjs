@@ -269,6 +269,8 @@ const moduleConfigs: Record<string, SingletonModule> = {
       product_slider_mobile_slides: 2,
       product_slider_space_between: 24,
       product_slider_center_mode: false,
+      automatic_shipment_creation: "disabled",
+      automatic_courier_provider: "",
     },
     sections: [
       { title: "Storefront Features", description: "Customer-facing catalog capabilities.", icon: PackageCheck, fields: [
@@ -307,6 +309,19 @@ const moduleConfigs: Record<string, SingletonModule> = {
       { title: "Authentication & Customer Settings", description: "Control customer registration and guest checkout access.", icon: ShieldAlert, fields: [
         { name: "allow_customer_registration", label: "Allow Customer Registration", type: "toggle" },
         { name: "allow_guest_checkout", label: "Allow Guest Checkout", type: "toggle" },
+      ] },
+      { title: "Courier Automation", description: "Choose when confirmed orders should be queued for shipment creation.", icon: PackageCheck, fields: [
+        { name: "automatic_shipment_creation", label: "Automatically Create Shipment", type: "select", required: true, options: [
+          { label: "Disabled", value: "disabled" },
+          { label: "After Order Confirmation", value: "after_order_confirmation" },
+          { label: "After Payment", value: "after_payment" },
+          { label: "After Packaging", value: "after_packaging" },
+          { label: "After Processing", value: "after_processing" },
+        ] },
+        { name: "automatic_courier_provider", label: "Automatic Courier Provider", type: "select", required: true, visibleWhen: (values) => values.automatic_shipment_creation !== "disabled", options: [
+          { label: "Steadfast Courier", value: "steadfast" },
+          { label: "Pathao Courier", value: "pathao" },
+        ] },
       ] },
       { title: "Product Card Settings", description: "Control the global product card style and storefront product layout.", icon: SlidersHorizontal, fields: [
         { name: "product_card_style", label: "Product Card Style", type: "select", required: true, options: [

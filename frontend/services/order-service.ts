@@ -2,6 +2,7 @@
 
 import { createAuthAwareClient } from "@/lib/api-client";
 import type { ApiEnvelope, PaginationMeta } from "@/features/admin/shared/types";
+import type { CourierShipment } from "@/features/admin/couriers/types";
 
 const apiBaseUrl = (
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/auth"
@@ -88,6 +89,7 @@ export type OrderDetail = OrderListItem & {
   }>;
   refunds?: Array<{ id: number; amount: number; status: string; reason?: string | null; note?: string | null; processedAt?: string | null }>;
   shippingLogs?: Array<{ id: number; status: string; courier?: string | null; trackingNumber?: string | null; trackingUrl?: string | null; note?: string | null; createdAt?: string | null }>;
+  courierShipment?: CourierShipment | null;
 };
 
 export async function fetchOrders(params: Record<string, string | number | undefined> = {}): Promise<OrderListResponse> {

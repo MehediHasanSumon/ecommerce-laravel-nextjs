@@ -169,10 +169,35 @@ export default function AccountOrderDetailPage() {
                     <DetailPanel title="Shipping Details" rows={[
                       ["Method", order.shippingMethod ?? "Not set"],
                       ["Status", label(order.shippingStatus)],
+                      ["Courier", order.courierShipment?.providerLabel ?? "Not assigned"],
+                      ["Tracking Number", order.courierShipment?.trackingNumber ?? "Not available"],
+                      ["Courier Status", label(order.courierShipment?.status)],
+                      ["COD Status", label(order.courierShipment?.codStatus)],
+                      ["Latest Update", formatDate(order.courierShipment?.lastSyncedAt)],
                       ["Customer Notes", order.customerNotes ?? "Not provided"],
                     ]} />
                   </div>
                 </section>
+                {order.courierShipment ? (
+                  <section className="rounded-2xl border border-border bg-card p-5">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <h2 className="font-bold">Courier Timeline</h2>
+                        <p className="mt-1 text-sm text-muted-foreground">{order.courierShipment.providerLabel} · {order.courierShipment.trackingNumber ?? "Tracking number pending"}</p>
+                      </div>
+                      {order.courierShipment.trackingUrl ? <a href={order.courierShipment.trackingUrl} target="_blank" rel="noreferrer" className="inline-flex w-fit items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-semibold transition-colors hover:bg-muted"><Truck size={15} />Track Parcel</a> : null}
+                    </div>
+                    <div className="mt-5 space-y-4">
+                      {order.courierShipment.events?.length ? order.courierShipment.events.map((event, index) => (
+                        <div key={`${event.id}-${index}`} className="relative flex gap-3">
+                          {index < (order.courierShipment?.events?.length ?? 0) - 1 ? <span className="absolute left-[9px] top-6 h-[calc(100%+0.25rem)] w-px bg-border" /> : null}
+                          <span className="relative mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground"><CheckCircle2 size={12} /></span>
+                          <div><p className="text-sm font-semibold">{event.title}</p><p className="text-xs text-muted-foreground">{formatDate(event.occurredAt)}</p>{event.description ? <p className="mt-1 text-xs text-muted-foreground">{event.description}</p> : null}</div>
+                        </div>
+                      )) : <p className="text-sm text-muted-foreground">No courier updates are available yet.</p>}
+                    </div>
+                  </section>
+                ) : null}
                 <section className="rounded-2xl border border-border bg-card p-5">
                   <h2 className="mb-4 font-bold">Order Summary</h2>
                   <Summary label="Subtotal" value={order.summary.subtotal} />

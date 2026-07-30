@@ -22,3 +22,8 @@ Schedule::command('search:reindex-products --stale --limit=1000')
     ->everyTenMinutes()
     ->withoutOverlapping(30)
     ->onOneServer();
+
+Schedule::command('couriers:sync-shipments --limit=100')
+    ->everyTenMinutes()
+    ->withoutOverlapping(20)
+    ->onOneServer();

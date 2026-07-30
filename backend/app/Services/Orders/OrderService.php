@@ -21,7 +21,7 @@ class OrderService
 
     public const PAYMENT_STATUSES = ['pending', 'paid', 'failed', 'cancelled', 'refunded', 'partially_refunded'];
 
-    public const SHIPPING_STATUSES = ['pending', 'processing', 'shipped', 'delivered', 'returned'];
+    public const SHIPPING_STATUSES = ['pending', 'processing', 'picked', 'shipped', 'in_transit', 'delivered', 'returned', 'cancelled', 'failed_delivery'];
 
     public function __construct(
         private readonly RealtimeNotificationService $notifications,
@@ -163,6 +163,12 @@ class OrderService
             'transactions' => fn ($query) => $query->latest(),
             'refunds' => fn ($query) => $query->latest(),
             'shippingLogs' => fn ($query) => $query->latest(),
+            'courierShipments' => fn ($query) => $query
+                ->with([
+                    'events' => fn ($events) => $events->latest('occurred_at'),
+                    'apiLogs' => fn ($logs) => $logs->latest()->limit(100),
+                ])
+                ->latest(),
         ];
 
         if ($withHistories) {

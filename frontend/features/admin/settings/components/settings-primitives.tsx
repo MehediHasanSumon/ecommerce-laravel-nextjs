@@ -174,6 +174,7 @@ export function SelectInput({
   helper,
   error,
   onChange,
+  disabled,
 }: {
   label: string;
   value: string;
@@ -182,13 +183,14 @@ export function SelectInput({
   helper?: string;
   error?: string;
   onChange: (value: string) => void;
+  disabled?: boolean;
 }) {
   return (
     <label className="block space-y-2">
       <span className="flex items-center gap-1 text-sm font-semibold text-foreground">
         {label}{required ? <span className="text-destructive">*</span> : null}
       </span>
-      <Select value={value} onValueChange={onChange} required={required}>
+      <Select value={value} onValueChange={onChange} required={required} disabled={disabled}>
         <SelectTrigger
           aria-invalid={Boolean(error)}
           className={cn(
@@ -213,19 +215,22 @@ export function ToggleSwitch({
   description,
   checked,
   onChange,
+  disabled,
 }: {
   label: string;
   description?: string;
   checked: boolean;
   onChange: (checked: boolean) => void;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
+      disabled={disabled}
       onClick={() => onChange(!checked)}
-      className="flex w-full items-center justify-between gap-4 rounded-lg border border-border bg-background p-3 text-left transition hover:bg-muted/50"
+      className="flex w-full items-center justify-between gap-4 rounded-lg border border-border bg-background p-3 text-left transition hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-60"
     >
       <span>
         <span className="block text-sm font-semibold">{label}</span>

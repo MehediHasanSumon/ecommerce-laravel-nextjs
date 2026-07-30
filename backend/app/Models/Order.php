@@ -75,4 +75,9 @@ class Order extends Model
     {
         return $this->hasMany(ShippingLog::class);
     }
+
+    public function courierShipments(): HasMany
+    {
+        return $this->hasMany(CourierShipment::class);
+    }
 }

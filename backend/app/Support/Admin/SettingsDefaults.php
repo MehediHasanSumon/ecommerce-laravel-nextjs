@@ -78,6 +78,8 @@ class SettingsDefaults
             'product_slider_mobile_slides' => 2,
             'product_slider_space_between' => 24,
             'product_slider_center_mode' => false,
+            'automatic_shipment_creation' => 'disabled',
+            'automatic_courier_provider' => null,
         ];
     }
 

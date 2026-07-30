@@ -24,6 +24,15 @@ export type TrackedOrder = {
     courier: string | null;
     trackingNumber: string | null;
     trackingUrl: string | null;
+    courierStatus: string | null;
+    codStatus: string | null;
+    latestUpdate: string | null;
+    courierTimeline: Array<{
+      status: string;
+      title: string;
+      description: string | null;
+      occurredAt: string | null;
+    }>;
     deliveryNotes: string | null;
   };
   items: Array<{

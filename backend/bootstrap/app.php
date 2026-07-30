@@ -6,6 +6,8 @@ use App\Console\Commands\InstallApplication;
 use App\Console\Commands\MaintainIpBlocking;
 use App\Console\Commands\RebuildProductSearchIndex;
 use App\Console\Commands\SyncCollectionSchedules;
+use App\Console\Commands\SyncCourierShipments;
+use App\Exceptions\CourierApiException;
 use App\Http\Middleware\AuthenticateAuthCookie;
 use App\Http\Middleware\EnforceIpBlock;
 use App\Http\Middleware\EnsureAdministrator;
@@ -41,6 +43,7 @@ return Application::configure(basePath: dirname(__DIR__))
         SyncCollectionSchedules::class,
         MaintainIpBlocking::class,
         RebuildProductSearchIndex::class,
+        SyncCourierShipments::class,
     ])
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->prepend(HandleCors::class);
@@ -80,5 +83,17 @@ return Application::configure(basePath: dirname(__DIR__))
             }
 
             return ApiResponse::error('Validation failed.', 422, $e->errors());
+        });
+
+        $exceptions->render(function (CourierApiException $e, Request $request) {
+            if (! $request->is('api/*')) {
+                return null;
+            }
+
+            $status = $e->statusCode && $e->statusCode >= 400 && $e->statusCode <= 599
+                ? $e->statusCode
+                : 502;
+
+            return ApiResponse::error($e->getMessage(), $status);
         });
     })->create();
