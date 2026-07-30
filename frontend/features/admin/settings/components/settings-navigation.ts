@@ -8,6 +8,7 @@ import {
   Newspaper,
   PackageCheck,
   Search,
+  ShieldAlert,
   Settings2,
   Store,
   MessageSquareText,
@@ -30,6 +31,7 @@ export const settingsNavItems: SettingNavItem[] = [
   { href: routePaths.adminSettingsSocial, label: "Social Media", description: "Social links and sharing", icon: Megaphone },
   { href: routePaths.adminSettingsSms, label: "SMS Settings", description: "Providers, OTP, events, templates", icon: MessageSquareText },
   { href: routePaths.adminSettingsSmsLogs, label: "SMS Logs", description: "Delivery activity and provider responses", icon: ListChecks },
+  { href: routePaths.adminSettingsSecurity, label: "Security Settings", description: "IP blocking, thresholds, and trusted proxies", icon: ShieldAlert },
 ];
 
 export const settingsSidebarItem = { href: routePaths.adminSettingsCompany, label: "Settings", icon: Settings2 };

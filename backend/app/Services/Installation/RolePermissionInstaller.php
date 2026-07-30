@@ -71,6 +71,12 @@ class RolePermissionInstaller
                 "can_view_{$resource}",
             ])
             ->push('can_apply_coupon')
+            ->push(
+                'can-view-ip-block',
+                'can-create-ip-block',
+                'can-update-ip-block',
+                'can-delete-ip-block',
+            )
             ->unique()
             ->values()
             ->all();

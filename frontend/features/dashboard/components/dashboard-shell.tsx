@@ -100,6 +100,10 @@ const contentManagementItems = [
   { href: routePaths.adminContactMessages, label: "Contact Inbox", icon: Mail },
 ];
 
+const securityManagementItems = [
+  { href: routePaths.adminIpBlocks, label: "IP Blocking", icon: ShieldAlert },
+];
+
 const reportManagementItems = [
   { href: routePaths.adminReportsSales, label: "Sales Reports", icon: BarChart3 },
   { href: routePaths.adminReportsRevenue, label: "Revenue Analytics", icon: CircleDollarSign },
@@ -123,6 +127,7 @@ const settingsItems = [
   { href: routePaths.adminSettingsSocial, label: "Social Media", icon: Star },
   { href: routePaths.adminSettingsSms, label: "SMS Settings", icon: MessageSquareText },
   { href: routePaths.adminSettingsSmsLogs, label: "SMS Logs", icon: ListChecks },
+  { href: routePaths.adminSettingsSecurity, label: "Security Settings", icon: ShieldAlert },
 ];
 
 const adminPermissionAliases: Record<string, string> = {
@@ -162,6 +167,7 @@ const adminPermissionAliases: Record<string, string> = {
   "inventory-reports.view": "can_view_inventory_report",
   "blogs.view": "can_view_blog",
   "contact-messages.view": "can_view_contact_message",
+  "ip-blocks.view": "can-view-ip-block",
 };
 
 const adminRoutePermissions: Record<string, string> = {
@@ -203,6 +209,8 @@ const adminRoutePermissions: Record<string, string> = {
   [routePaths.adminReportsInventory]: "can_view_inventory_report",
   [routePaths.adminBlogs]: "can_view_blog",
   [routePaths.adminContactMessages]: "can_view_contact_message",
+  [routePaths.adminIpBlocks]: "can-view-ip-block",
+  [routePaths.adminSettingsSecurity]: "can-view-ip-block",
 };
 
 const iconMap = {
@@ -298,6 +306,7 @@ function fallbackAdminNavigation(): RuntimeNavigationGroup[] {
     { key: "catalog", label: "Catalog", icon: "Layers3", type: "group", items: catalogManagementItems.map((item) => ({ label: item.label, href: item.href, icon: item.icon.name, enabled: true })) },
     { key: "marketing", label: "Marketing & Pricing", icon: "Megaphone", type: "group", items: marketingManagementItems.map((item) => ({ label: item.label, href: item.href, icon: item.icon.name, enabled: true })) },
     { key: "content", label: "Content", icon: "Newspaper", type: "group", items: contentManagementItems.map((item) => ({ label: item.label, href: item.href, icon: item.icon.name, enabled: true })) },
+    { key: "security", label: "Security", icon: "ShieldAlert", type: "group", items: securityManagementItems.map((item) => ({ label: item.label, href: item.href, icon: item.icon.name, enabled: true })) },
     { key: "reports", label: "Reports & Analytics", icon: "BarChart3", type: "group", items: reportManagementItems.map((item) => ({ label: item.label, href: item.href, icon: item.icon.name, enabled: true })) },
     { key: "settings", label: "Settings", icon: "Settings2", type: "group", items: settingsItems.map((item) => ({ label: item.label, href: item.href, icon: item.icon.name, enabled: true })) },
   ];
@@ -481,7 +490,8 @@ function AdminNavLink({
 function isAdminItemActive(item: RuntimeNavigationItem, pathname: string) {
   return pathname === item.href
     || (item.href === routePaths.adminProducts && pathname.startsWith(`${routePaths.adminProducts}/`))
-    || (item.href === routePaths.adminOrders && pathname.startsWith(`${routePaths.adminOrders}/`));
+    || (item.href === routePaths.adminOrders && pathname.startsWith(`${routePaths.adminOrders}/`))
+    || (item.href === routePaths.adminIpBlocks && pathname.startsWith(`${routePaths.adminIpBlocks}/`));
 }
 
 function adminTitleForPath(pathname: string, fallback: string) {
@@ -491,6 +501,9 @@ function adminTitleForPath(pathname: string, fallback: string) {
     [/^\/admin\/collections\/create$/, "Create Collection"],
     [/^\/admin\/collections\/[^/]+\/edit$/, "Edit Collection"],
     [/^\/admin\/orders\/[^/]+$/, "Order Details"],
+    [/^\/admin\/security\/ip-blocks\/create$/, "Block IP Address"],
+    [/^\/admin\/security\/ip-blocks\/[^/]+\/edit$/, "Edit IP Block"],
+    [/^\/admin\/security\/ip-blocks\/[^/]+$/, "IP Block Details"],
   ];
 
   const dynamic = dynamicMatchers.find(([pattern]) => pattern.test(pathname));
@@ -506,6 +519,7 @@ function adminTitleForPath(pathname: string, fallback: string) {
     ...catalogManagementItems,
     ...marketingManagementItems,
     ...contentManagementItems,
+    ...securityManagementItems,
     ...reportManagementItems,
     ...settingsItems,
   ];
@@ -610,6 +624,7 @@ export function DashboardShell({ user, children }: DashboardShellProps) {
       ...catalogManagementItems,
       ...marketingManagementItems,
       ...contentManagementItems,
+      ...securityManagementItems,
       ...reportManagementItems,
     ].find((item) => item.href === pathname || (item.href === routePaths.adminProducts && pathname.startsWith(`${routePaths.adminProducts}/`)) || (item.href === routePaths.adminOrders && pathname.startsWith(`${routePaths.adminOrders}/`))) ??
     settingsItems.find((item) => item.href === pathname) ??

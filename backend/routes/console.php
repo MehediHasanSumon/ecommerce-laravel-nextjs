@@ -12,3 +12,8 @@ Schedule::command('collections:sync-schedules')
     ->everyFiveMinutes()
     ->withoutOverlapping(10)
     ->onOneServer();
+
+Schedule::command('security:maintain-ip-blocking')
+    ->everyMinute()
+    ->withoutOverlapping(5)
+    ->onOneServer();

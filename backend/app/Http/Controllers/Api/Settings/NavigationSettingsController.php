@@ -354,6 +354,15 @@ class NavigationSettingsController extends Controller
                 ],
             ],
             [
+                'key' => 'security',
+                'label' => 'Security',
+                'icon' => 'ShieldAlert',
+                'type' => 'group',
+                'items' => [
+                    ['label' => 'IP Blocking', 'href' => '/admin/security/ip-blocks', 'icon' => 'ShieldAlert', 'permission' => 'can-view-ip-block', 'enabled' => true],
+                ],
+            ],
+            [
                 'key' => 'settings',
                 'label' => 'Settings',
                 'icon' => 'Settings2',
@@ -372,6 +381,7 @@ class NavigationSettingsController extends Controller
                     ['label' => 'Social Media', 'href' => '/admin/settings/social', 'icon' => 'Megaphone', 'permission' => 'can_view_social_setting', 'enabled' => true],
                     ['label' => 'SMS Settings', 'href' => '/admin/settings/sms', 'icon' => 'MessageSquareText', 'permission' => 'can_view_sms_setting', 'enabled' => true],
                     ['label' => 'SMS Logs', 'href' => '/admin/settings/sms/logs', 'icon' => 'ListChecks', 'permission' => 'can_view_sms_log', 'enabled' => true],
+                    ['label' => 'Security Settings', 'href' => '/admin/settings/security', 'icon' => 'ShieldAlert', 'permission' => 'can-view-ip-block', 'enabled' => true],
                 ],
             ],
         ];

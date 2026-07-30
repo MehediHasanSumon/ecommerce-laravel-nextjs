@@ -36,6 +36,16 @@ class DashboardAnalyticsService
             $orders = $this->ordersBetween($from, $to);
             $paidOrders = (clone $orders)->where('payment_status', 'paid');
             $orderIds = (clone $orders)->pluck('id');
+            $security = app(IpBlockManagementService::class)->analytics();
+            $cards = $this->cards($from, $to, $previous);
+            $cards[] = $this->card('ip_blocks', 'Currently Blocked', $security['currently_blocked'], 0, 'number', [
+                ['label' => 'Blocked Today', 'value' => $security['blocked_today'], 'format' => 'number'],
+                ['label' => 'This Week', 'value' => $security['blocked_this_week'], 'format' => 'number'],
+                ['label' => 'This Month', 'value' => $security['blocked_this_month'], 'format' => 'number'],
+            ]);
+            $cards[] = $this->card('automatic_ip_blocks', 'Automatic Blocks', $security['automatic_blocks'], 0, 'number', [
+                ['label' => 'Manual Blocks', 'value' => $security['manual_blocks'], 'format' => 'number'],
+            ]);
 
             return [
                 'filters' => [
@@ -45,7 +55,8 @@ class DashboardAnalyticsService
                 ],
                 'currency' => $this->currency(),
                 'brand_enabled' => app(BrandSettingsService::class)->enabled(),
-                'cards' => $this->cards($from, $to, $previous),
+                'cards' => $cards,
+                'security' => $security,
                 'sales' => [
                     'series' => $this->dailyOrderSeries($from, $to),
                     'summary' => [

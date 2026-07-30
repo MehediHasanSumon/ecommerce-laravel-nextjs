@@ -3,8 +3,11 @@
 use App\Console\Commands\ImportDemoAssets;
 use App\Console\Commands\ImportProductImages;
 use App\Console\Commands\InstallApplication;
+use App\Console\Commands\MaintainIpBlocking;
 use App\Console\Commands\SyncCollectionSchedules;
 use App\Http\Middleware\AuthenticateAuthCookie;
+use App\Http\Middleware\EnforceIpBlock;
+use App\Http\Middleware\MonitorSuspiciousActivity;
 use App\Http\Middleware\ResolveAuthCookie;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Responses\ApiResponse;
@@ -34,6 +37,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ImportDemoAssets::class,
         ImportProductImages::class,
         SyncCollectionSchedules::class,
+        MaintainIpBlocking::class,
     ])
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->prepend(HandleCors::class);
@@ -44,6 +48,13 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->api(prepend: [
             SecurityHeaders::class,
+            EnforceIpBlock::class,
+            MonitorSuspiciousActivity::class,
+        ]);
+
+        $middleware->web(prepend: [
+            EnforceIpBlock::class,
+            MonitorSuspiciousActivity::class,
         ]);
 
         $middleware->alias([

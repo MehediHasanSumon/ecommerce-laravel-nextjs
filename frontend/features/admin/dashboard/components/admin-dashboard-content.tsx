@@ -19,6 +19,7 @@ import {
   RefreshCw,
   ShoppingBag,
   ShoppingCart,
+  ShieldAlert,
   Star,
   Tags,
   Truck,
@@ -59,6 +60,8 @@ const cardIcons: Record<string, LucideIcon> = {
   blogs: BookOpen,
   wishlist: Star,
   reviews: Star,
+  ip_blocks: ShieldAlert,
+  automatic_ip_blocks: AlertTriangle,
 };
 
 const quickActions = [
@@ -172,6 +175,17 @@ export function AdminDashboardContent() {
               <NotificationList rows={dashboard.notifications} />
             </TablePanel>
           </div>
+
+          {dashboard.security ? (
+            <div className="grid gap-4 xl:grid-cols-2">
+              <TablePanel title="Top Blocked Countries">
+                <SecurityRankedRows rows={dashboard.security.top_countries.map((row) => ({ label: row.country, value: row.total }))} />
+              </TablePanel>
+              <TablePanel title="Top Block Reasons">
+                <SecurityRankedRows rows={dashboard.security.top_reasons.map((row) => ({ label: row.reason, value: row.total }))} />
+              </TablePanel>
+            </div>
+          ) : null}
 
           <div className="grid gap-4 xl:grid-cols-3">
             <TablePanel title="Recent Orders" className="xl:col-span-2">
@@ -394,6 +408,12 @@ function RankedChart({ rows }: { rows: DashboardPoint[] }) {
   if (!rows.length) return <EmptyState />;
   const max = Math.max(...rows.map((row) => row.value), 0);
   return <div className="space-y-3">{rows.map((row) => <div key={row.label}><div className="mb-1 flex justify-between gap-3 text-sm"><span className="truncate font-semibold">{row.label}</span><span>{formatCurrency(row.value)}</span></div><div className="h-2 rounded-full bg-muted"><div className="h-2 rounded-full bg-primary" style={{ width: `${max ? (row.value / max) * 100 : 0}%` }} /></div></div>)}</div>;
+}
+
+function SecurityRankedRows({ rows }: { rows: Array<{ label: string; value: number }> }) {
+  if (!rows.length) return <p className="py-8 text-center text-sm text-muted-foreground">No security data yet.</p>;
+  const maximum = Math.max(...rows.map((row) => row.value), 1);
+  return <div className="space-y-3">{rows.map((row) => <div key={row.label}><div className="flex items-center justify-between gap-3 text-sm"><span className="font-medium">{row.label}</span><span className="font-bold">{row.value}</span></div><div className="mt-1.5 h-2 overflow-hidden rounded-full bg-muted"><div className="h-full bg-primary" style={{ width: `${Math.max(4, (row.value / maximum) * 100)}%` }} /></div></div>)}</div>;
 }
 
 function Customers({ rows }: { rows: DashboardData["tables"]["latest_customers"] }) {

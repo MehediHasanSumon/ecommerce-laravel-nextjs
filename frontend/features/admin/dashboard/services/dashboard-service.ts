@@ -42,6 +42,16 @@ export type DashboardData = {
   brand_enabled: boolean;
   currency: string;
   cards: DashboardCard[];
+  security?: {
+    blocked_today: number;
+    blocked_this_week: number;
+    blocked_this_month: number;
+    currently_blocked: number;
+    automatic_blocks: number;
+    manual_blocks: number;
+    top_countries: Array<{ country: string; total: number }>;
+    top_reasons: Array<{ reason: string; total: number }>;
+  };
   sales: {
     series: DashboardPoint[];
     summary: { revenue: number; orders: number; average_order_value: number };

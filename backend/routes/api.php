@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\Admin\CustomerManagementController;
 use App\Http\Controllers\Api\Admin\DashboardController;
 use App\Http\Controllers\Api\Admin\HeroSectionController;
 use App\Http\Controllers\Api\Admin\HomeFeatureCardController;
+use App\Http\Controllers\Api\Admin\IpBlockManagementController;
 use App\Http\Controllers\Api\Admin\OrderManagementController;
 use App\Http\Controllers\Api\Admin\PermissionManagementController;
 use App\Http\Controllers\Api\Admin\ProductModuleController;
@@ -18,6 +19,7 @@ use App\Http\Controllers\Api\Admin\Settings\CompanySettingsController;
 use App\Http\Controllers\Api\Admin\Settings\HomeFeatureCardSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\HomePageSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\PaymentSettingsController;
+use App\Http\Controllers\Api\Admin\Settings\SecuritySettingsController;
 use App\Http\Controllers\Api\Admin\Settings\SeoSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\SmsSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\SocialMediaSettingsController;
@@ -136,6 +138,12 @@ Route::prefix('admin')
     ->group(function (): void {
         Route::get('/dashboard', [DashboardController::class, 'show']);
 
+        Route::get('/ip-blocks/analytics', [IpBlockManagementController::class, 'analytics']);
+        Route::post('/ip-blocks/bulk', [IpBlockManagementController::class, 'bulk']);
+        Route::post('/ip-blocks/bulk-unblock', [IpBlockManagementController::class, 'bulkUnblock']);
+        Route::post('/ip-blocks/delete-expired', [IpBlockManagementController::class, 'deleteExpired']);
+        Route::apiResource('ip-blocks', IpBlockManagementController::class);
+
         Route::delete('/users/bulk', [UserManagementController::class, 'bulkDestroy']);
         Route::apiResource('users', UserManagementController::class);
         Route::get('/customers', [CustomerManagementController::class, 'index']);
@@ -224,6 +232,9 @@ Route::prefix('admin')
         Route::post('/settings/sms/test', [SmsSettingsController::class, 'test']);
         Route::get('/sms-logs', [SmsLogController::class, 'index']);
         Route::get('/sms-logs/{smsLog:public_id}', [SmsLogController::class, 'show']);
+
+        Route::get('/settings/security', [SecuritySettingsController::class, 'show']);
+        Route::put('/settings/security', [SecuritySettingsController::class, 'update']);
 
         Route::get('/product-options', [ProductModuleController::class, 'optionsOnly']);
         Route::delete('/product-management/{module}/bulk', [ProductModuleController::class, 'bulkDestroy']);

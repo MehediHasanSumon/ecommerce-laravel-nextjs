@@ -58,6 +58,8 @@ const permissionRouteRequirements: Array<{ route: string; permission: string }> 
   { route: routePaths.adminReportsInventory, permission: "can_view_inventory_report" },
   { route: routePaths.adminBlogs, permission: "can_view_blog" },
   { route: routePaths.adminContactMessages, permission: "can_view_contact_message" },
+  { route: routePaths.adminIpBlocks, permission: "can-view-ip-block" },
+  { route: routePaths.adminSettingsSecurity, permission: "can-view-ip-block" },
 ];
 
 function requiredPermissionForPath(pathname: string) {
@@ -69,6 +71,14 @@ function requiredPermissionForPath(pathname: string) {
   }
   if (pathname === routePaths.adminProductCreate) {
     return "can_create_product";
+  }
+
+  if (pathname === routePaths.adminIpBlockCreate) {
+    return "can-create-ip-block";
+  }
+
+  if (/^\/admin\/security\/ip-blocks\/[^/]+\/edit$/.test(pathname)) {
+    return "can-update-ip-block";
   }
 
   if (/^\/admin\/products\/[^/]+\/edit$/.test(pathname)) {
