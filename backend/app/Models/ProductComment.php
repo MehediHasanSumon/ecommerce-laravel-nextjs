@@ -5,10 +5,9 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class ProductReview extends Model
+class ProductComment extends Model
 {
     use HasFactory, SoftDeletes;
 
@@ -17,9 +16,7 @@ class ProductReview extends Model
     protected function casts(): array
     {
         return [
-            'is_verified_purchase' => 'boolean',
             'approved_at' => 'datetime',
-            'admin_replied_at' => 'datetime',
             'edited_at' => 'datetime',
         ];
     }
@@ -32,11 +29,6 @@ class ProductReview extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
-    }
-
-    public function replies(): HasMany
-    {
-        return $this->hasMany(ProductReviewReply::class);
     }
 
     public function approver(): BelongsTo

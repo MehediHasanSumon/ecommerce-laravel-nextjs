@@ -42,6 +42,13 @@ export type QueryState = {
   amount_min: string;
   amount_max: string;
   permission_search: string;
+  type?: string;
+  brand_id?: string;
+  category_id?: string;
+  product_id?: string;
+  rating?: string;
+  customer_id?: string;
+  guest?: string;
 };
 
 export type Option = {

@@ -4,9 +4,12 @@ namespace App\Http\Resources;
 
 use App\Models\Product;
 use App\Models\ProductAttributeValue;
+use App\Models\ProductComment;
 use App\Models\ProductReview;
 use App\Models\ProductVariant;
 use App\Services\Admin\Settings\BrandSettingsService;
+use App\Services\Admin\Settings\StoreSettingsService;
+use App\Services\ProductFeedbackService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Storage;
@@ -16,6 +19,8 @@ class ProductDetailResource extends JsonResource
     public function toArray(Request $request): array
     {
         $brandsEnabled = app(BrandSettingsService::class)->enabled();
+        $settings = app(StoreSettingsService::class)->get();
+        $feedback = app(ProductFeedbackService::class);
         $images = $this->images
             ->sortBy([['sort_order', 'asc'], ['id', 'asc']])
             ->map(fn ($image): ?string => $this->assetUrl($image->url))
@@ -119,12 +124,13 @@ class ProductDetailResource extends JsonResource
                     'userId' => (string) ($review->user_id ?? ''),
                     'user' => [
                         'id' => (string) ($review->user_id ?? ''),
-                        'name' => $review->user?->name ?: 'Customer',
-                        'avatar' => $this->assetUrl($review->user?->avatar) ?: 'https://ui-avatars.com/api/?name='.urlencode($review->user?->name ?: 'Customer').'&background=111827&color=fff',
+                        'name' => $review->user?->name ?: $review->guest_name ?: 'Guest',
+                        'avatar' => $this->assetUrl($review->user?->avatar),
                     ],
                     'rating' => (int) $review->rating,
                     'comment' => $review->comment,
-                    'verified' => (bool) $review->is_verified_purchase,
+                    'verified' => (bool) $settings->verified_purchase_badge_enabled
+                        && (bool) $review->is_verified_purchase,
                     'createdAt' => optional($review->created_at)->toISOString(),
                     'replies' => $review->admin_reply ? [[
                         'id' => 'admin-'.$review->id,
@@ -132,6 +138,26 @@ class ProductDetailResource extends JsonResource
                         'comment' => $review->admin_reply,
                         'createdAt' => optional($review->admin_replied_at ?: $review->updated_at)->toISOString(),
                     ]] : [],
+                ])
+                ->all(),
+            'comments' => $this->comments
+                ->sortByDesc('created_at')
+                ->values()
+                ->map(fn (ProductComment $comment): array => [
+                    'id' => (string) $comment->id,
+                    'productId' => (string) $comment->product_id,
+                    'userId' => (string) ($comment->user_id ?? ''),
+                    'user' => [
+                        'id' => (string) ($comment->user_id ?? ''),
+                        'name' => $comment->user?->name ?: $comment->guest_name ?: 'Guest',
+                        'avatar' => $this->assetUrl($comment->user?->avatar),
+                    ],
+                    'content' => $comment->content,
+                    'createdAt' => optional($comment->created_at)->toISOString(),
+                    'editedAt' => optional($comment->edited_at)->toISOString(),
+                    'canEdit' => $request->user()
+                        && (int) $comment->user_id === (int) $request->user()->id
+                        && $feedback->canEditComment($comment),
                 ])
                 ->all(),
             'relatedProducts' => ProductCardResource::collection($this->relationProducts('related'))->resolve(),

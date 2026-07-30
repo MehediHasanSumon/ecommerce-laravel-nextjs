@@ -16,6 +16,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronsUpDown,
+  CheckCircle2,
   Download,
   Edit3,
   Filter,
@@ -24,6 +25,7 @@ import {
   Search,
   Trash2,
   X,
+  XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -96,6 +98,7 @@ const modulePermissionResources: Record<ProductModule, string> = {
   currencies: "currency",
   discounts: "discount",
   reviews: "review",
+  comments: "comment",
 };
 const emptyOptions: ProductOptions = {
   brands: [],
@@ -105,6 +108,7 @@ const emptyOptions: ProductOptions = {
   tags: [],
   products: [],
   collections: [],
+  customers: [],
 };
 
 const commonStatus = ["active", "inactive"];
@@ -391,6 +395,9 @@ export const productModuleConfigs: Record<ProductModule, ModuleConfig> = {
     statuses: ["pending", "approved", "rejected"],
     fields: [
       { name: "product_id", label: "Product", type: "select", options: "products" },
+      { name: "user_id", label: "Customer", type: "select", options: "customers", optional: true },
+      { name: "guest_name", label: "Guest Name", type: "text", optional: true },
+      { name: "guest_email", label: "Guest Email", type: "text", optional: true },
       { name: "rating", label: "Rating", type: "number" },
       { name: "comment", label: "Comment", type: "textarea" },
       { name: "admin_reply", label: "Reply", type: "textarea", optional: true },
@@ -399,9 +406,33 @@ export const productModuleConfigs: Record<ProductModule, ModuleConfig> = {
     ],
     columns: [
       { key: "product", label: "Product", render: (item) => optionName(item.product) },
+      { key: "customer", label: "Customer", render: feedbackCustomer },
       { key: "rating", label: "Rating", sortable: true },
       { key: "comment", label: "Comment", render: (item) => <span className="line-clamp-2 text-sm text-muted-foreground">{String(item.comment ?? "")}</span> },
       { key: "replies", label: "Replies", render: (item) => Array.isArray(item.replies) ? item.replies.length : 0 },
+      { key: "status", label: "Status", sortable: true, render: (item) => <StatusBadge value={String(item.status ?? "pending")} /> },
+      { key: "created_at", label: "Created At", sortable: true, render: (item) => formatDate(item.created_at) },
+    ],
+  },
+  comments: {
+    module: "comments",
+    title: "Comment Management",
+    description: "Moderate registered and guest product comments.",
+    createLabel: "Create Comment",
+    defaultSort: "created_at",
+    statuses: ["pending", "approved", "rejected"],
+    fields: [
+      { name: "product_id", label: "Product", type: "select", options: "products" },
+      { name: "user_id", label: "Customer", type: "select", options: "customers", optional: true },
+      { name: "guest_name", label: "Guest Name", type: "text", optional: true },
+      { name: "guest_email", label: "Guest Email", type: "text", optional: true },
+      { name: "content", label: "Comment", type: "textarea" },
+      { name: "status", label: "Status", type: "select", options: ["pending", "approved", "rejected"] },
+    ],
+    columns: [
+      { key: "product", label: "Product", render: (item) => optionName(item.product) },
+      { key: "customer", label: "Customer", render: feedbackCustomer },
+      { key: "content", label: "Comment", render: (item) => <span className="line-clamp-2 text-sm text-muted-foreground">{String(item.content ?? "")}</span> },
       { key: "status", label: "Status", sortable: true, render: (item) => <StatusBadge value={String(item.status ?? "pending")} /> },
       { key: "created_at", label: "Created At", sortable: true, render: (item) => formatDate(item.created_at) },
     ],
@@ -1092,6 +1123,16 @@ function FilterModal({ open, query, config, options, onClose, onApply }: { open:
               <CompactOptionSelect label="Category" value={(draft as Record<string, string>).category_id ?? ""} options={options.categories} onChange={(category_id) => setDraft({ ...draft, category_id } as Partial<QueryState>)} />
             </>
           ) : null}
+          {config.module === "reviews" || config.module === "comments" ? (
+            <>
+              <CompactOptionSelect label="Product" value={draft.product_id ?? ""} options={options.products} onChange={(product_id) => setDraft({ ...draft, product_id })} />
+              <CompactOptionSelect label="Customer" value={draft.customer_id ?? ""} options={options.customers} onChange={(customer_id) => setDraft({ ...draft, customer_id })} />
+              <CompactSelect label="Submitter" value={draft.guest ?? ""} options={["guest", "registered"]} onChange={(guest) => setDraft({ ...draft, guest })} />
+              {config.module === "reviews" ? (
+                <CompactSelect label="Rating" value={draft.rating ?? ""} options={["1", "2", "3", "4", "5"]} onChange={(rating) => setDraft({ ...draft, rating })} />
+              ) : null}
+            </>
+          ) : null}
           <DatePicker label="Created From" value={draft.created_from || null} onChange={(created_from) => setDraft({ ...draft, created_from })} />
           <DatePicker label="Created To" value={draft.created_to || null} onChange={(created_to) => setDraft({ ...draft, created_to })} />
           <DatePicker label="Updated From" value={draft.updated_from || null} onChange={(updated_from) => setDraft({ ...draft, updated_from })} />
@@ -1246,6 +1287,12 @@ export function ProductManagementContent({ module }: { module: ProductModule }) 
         onEdit={(item) => module === "products" ? router.push(`${routePaths.adminProducts}/${item.id}/edit`) : module === "collections" ? router.push(`${routePaths.adminCollections}/${item.id}/edit`) : setDrawer({ open: true, mode: "edit", item })}
         onDelete={(item) => confirmDelete({ title: "Confirm Deletion", onConfirm: async () => { await productManagementService.delete(module, item.id); toast.success("Record deleted."); await load(); } })}
         onBulkDelete={() => confirmDelete({ title: "Confirm Deletion", onConfirm: async () => { await productManagementService.bulkDelete(module, selected); setSelected([]); toast.success("Selected records deleted."); await load(); } })}
+        onBulkStatus={module === "reviews" || module === "comments" ? async (status) => {
+          await productManagementService.bulkStatus(module, selected, status);
+          setSelected([]);
+          toast.success(`Selected records ${status}.`);
+          await load();
+        } : undefined}
         onExport={() => exportCsv(`${module}.csv`, items.filter((item) => selected.includes(item.id)).map((item) => ({ id: item.id, name: String(item.name ?? item.title ?? item.value ?? ""), status: String(item.status ?? ""), created_at: item.created_at ?? "" })))}
         onFilterOpen={() => setFilterOpen(true)}
         canCreate={canCreate}
@@ -1281,6 +1328,7 @@ function ManagementPage({
   onEdit,
   onDelete,
   onBulkDelete,
+  onBulkStatus,
   onExport,
   onFilterOpen,
   canCreate = true,
@@ -1306,6 +1354,7 @@ function ManagementPage({
   onEdit: (item: ProductRecord) => void;
   onDelete: (item: ProductRecord) => void;
   onBulkDelete: () => void;
+  onBulkStatus?: (status: "approved" | "rejected") => Promise<void>;
   onExport: () => void;
   onFilterOpen: () => void;
   canCreate?: boolean;
@@ -1370,6 +1419,12 @@ function ManagementPage({
             <p className="text-sm font-semibold">{selected.length} selected</p>
             <div className="flex gap-2">
               <Button size="sm" variant="secondary" icon={<Download className="h-4 w-4" />} onClick={onExport}>Export</Button>
+              {canEdit && onBulkStatus ? (
+                <>
+                  <Button size="sm" variant="secondary" icon={<CheckCircle2 className="h-4 w-4" />} onClick={() => void onBulkStatus("approved")}>Bulk Approve</Button>
+                  <Button size="sm" variant="secondary" icon={<XCircle className="h-4 w-4" />} onClick={() => void onBulkStatus("rejected")}>Bulk Reject</Button>
+                </>
+              ) : null}
               {canDelete ? <Button size="sm" variant="danger" icon={<Trash2 className="h-4 w-4" />} onClick={onBulkDelete}>Bulk Delete</Button> : null}
             </div>
           </div>
@@ -1474,6 +1529,15 @@ function boolLabel(value: unknown) {
 function optionName(value: unknown) {
   if (!value || typeof value !== "object") return "Not set";
   return String((value as { name?: string }).name ?? "Not set");
+}
+
+function feedbackCustomer(item: ProductRecord) {
+  const user = optionName(item.user);
+  if (user !== "Not set") return user;
+
+  const name = String(item.guest_name ?? "Guest");
+  const email = String(item.guest_email ?? "");
+  return email ? `${name} (${email})` : name;
 }
 
 function money(value: unknown, currency: unknown) {

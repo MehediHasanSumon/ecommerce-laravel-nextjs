@@ -14,6 +14,7 @@ use App\Models\ProductReview;
 use App\Services\Admin\HeroSectionService;
 use App\Services\Admin\Settings\BrandSettingsService;
 use App\Services\Admin\Settings\HomePageSettingsService;
+use App\Services\Admin\Settings\StoreSettingsService;
 use App\Services\BlogCatalogService;
 use App\Services\Collections\CollectionProductResolver;
 use App\Support\HomePageCache;
@@ -119,6 +120,8 @@ class HomePageController extends Controller
 
     private function reviews(int $limit): array
     {
+        $settings = app(StoreSettingsService::class)->get();
+
         return ProductReview::query()
             ->where('status', 'approved')
             ->with([
@@ -136,11 +139,12 @@ class HomePageController extends Controller
                 'id' => (string) $review->id,
                 'rating' => (int) $review->rating,
                 'comment' => $review->comment,
-                'verified' => (bool) $review->is_verified_purchase,
+                'verified' => (bool) $settings->verified_purchase_badge_enabled
+                    && (bool) $review->is_verified_purchase,
                 'createdAt' => optional($review->created_at)->toISOString(),
                 'user' => [
                     'id' => (string) $review->user?->id,
-                    'name' => $review->user?->name ?: 'Customer',
+                    'name' => $review->user?->name ?: $review->guest_name ?: 'Guest',
                     'avatar' => $this->assetUrl($review->user?->avatar),
                 ],
                 'product' => $review->product

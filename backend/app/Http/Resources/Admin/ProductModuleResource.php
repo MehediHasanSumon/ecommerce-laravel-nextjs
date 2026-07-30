@@ -9,6 +9,7 @@ use App\Models\Discount;
 use App\Models\ProductAttribute;
 use App\Models\ProductAttributeValue;
 use App\Models\ProductCollection;
+use App\Models\ProductComment;
 use App\Models\ProductReview;
 use App\Models\Tag;
 use App\Services\Collections\CollectionProductResolver;
@@ -165,6 +166,8 @@ class ProductModuleResource extends JsonResource
             ProductReview::class => $base + [
                 'product_id' => $this->product_id,
                 'user_id' => $this->user_id,
+                'guest_name' => $this->guest_name,
+                'guest_email' => $this->guest_email,
                 'rating' => $this->rating,
                 'comment' => $this->comment,
                 'admin_reply' => $this->admin_reply,
@@ -179,6 +182,18 @@ class ProductModuleResource extends JsonResource
                 ])->values()),
                 'is_verified_purchase' => (bool) $this->is_verified_purchase,
                 'status' => $this->status,
+                'product' => $this->whenLoaded('product', fn () => $this->product ? ['id' => $this->product->id, 'name' => $this->product->name] : null),
+                'user' => $this->whenLoaded('user', fn () => $this->user ? ['id' => $this->user->id, 'name' => $this->user->name] : null),
+            ],
+            ProductComment::class => $base + [
+                'product_id' => $this->product_id,
+                'user_id' => $this->user_id,
+                'guest_name' => $this->guest_name,
+                'guest_email' => $this->guest_email,
+                'content' => $this->content,
+                'status' => $this->status,
+                'approved_at' => optional($this->approved_at)->toISOString(),
+                'edited_at' => optional($this->edited_at)->toISOString(),
                 'product' => $this->whenLoaded('product', fn () => $this->product ? ['id' => $this->product->id, 'name' => $this->product->name] : null),
                 'user' => $this->whenLoaded('user', fn () => $this->user ? ['id' => $this->user->id, 'name' => $this->user->name] : null),
             ],

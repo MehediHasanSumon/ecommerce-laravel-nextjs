@@ -14,6 +14,7 @@ import {
   RotateCcw,
   Check,
   Minus,
+  MessageSquare,
   Plus,
 } from 'lucide-react';
 import { AnnouncementBar } from '@/components/layout/AnnouncementBar';
@@ -29,7 +30,9 @@ import { toast } from 'sonner';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   fetchProductDetail,
+  submitProductComment,
   submitProductReview,
+  updateProductComment,
   type ProductDetail,
   type ProductDetailResponse,
   type ProductVariantDetail,
@@ -54,6 +57,25 @@ function findSelectedVariant(
   }) ?? null;
 }
 
+function FeedbackLoginPrompt({ action, redirectPath }: { action: string; redirectPath: string }) {
+  const redirect = encodeURIComponent(redirectPath);
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-5">
+      <h3 className="text-sm font-bold">Sign in required</h3>
+      <p className="mt-1 text-sm text-muted-foreground">Please log in or create an account to {action}.</p>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Link href={`/login?redirect=${redirect}`} className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground">
+          Login
+        </Link>
+        <Link href={`/register?redirect=${redirect}`} className="rounded-xl border border-border px-4 py-2 text-sm font-bold">
+          Register
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 export default function ProductDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
   useSettingsStore(selectCurrencyFingerprint);
@@ -63,7 +85,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedAttributeValues, setSelectedAttributeValues] = useState<Record<string, string>>({});
   const [quantity, setQuantity] = useState(1);
-  const [activeTab, setActiveTab] = useState<'description' | 'specs' | 'reviews'>('description');
+  const [activeTab, setActiveTab] = useState<'description' | 'specs' | 'reviews' | 'comments'>('description');
   const [data, setData] = useState<ProductDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -71,6 +93,13 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
   const [reviewComment, setReviewComment] = useState('');
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [reviewMessage, setReviewMessage] = useState<string | null>(null);
+  const [guestName, setGuestName] = useState('');
+  const [guestEmail, setGuestEmail] = useState('');
+  const [commentContent, setCommentContent] = useState('');
+  const [commentSubmitting, setCommentSubmitting] = useState(false);
+  const [commentMessage, setCommentMessage] = useState<string | null>(null);
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editingCommentContent, setEditingCommentContent] = useState('');
 
   const addItem = useCartStore((s) => s.addItem);
   const toggleItem = useWishlistStore((s) => s.toggleItem);
@@ -123,6 +152,12 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
 
   const product = data?.product ?? null;
   const reviews = data?.reviews ?? [];
+  const comments = data?.comments ?? [];
+  const feedbackSettings = runtimeSettings?.feedback_settings;
+  const reviewsEnabled = feedbackSettings?.reviews.enabled ?? runtimeSettings?.module_settings.reviews ?? true;
+  const commentsEnabled = feedbackSettings?.comments.enabled ?? runtimeSettings?.module_settings.comments ?? true;
+  const reviewSubmissionAllowed = isAuthenticated || feedbackSettings?.reviews.access === 'everyone';
+  const commentSubmissionAllowed = isAuthenticated || feedbackSettings?.comments.access === 'everyone';
   const relatedProducts = (data?.relatedProducts.length ? data.relatedProducts : data?.similarProducts ?? []).slice(0, 4);
   const variantOptionNames = useMemo(
     () => Array.from(new Set(
@@ -346,7 +381,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
     event.preventDefault();
     setReviewMessage(null);
 
-    if (!isAuthenticated) {
+    if (!reviewSubmissionAllowed) {
       toast.error('Please sign in to write a review.');
       return;
     }
@@ -356,16 +391,62 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
       const message = await submitProductReview(slug, {
         rating: reviewRating,
         comment: reviewComment.trim(),
+        ...(!isAuthenticated ? {
+          guest_name: guestName.trim(),
+          guest_email: guestEmail.trim(),
+        } : {}),
       });
       setReviewComment('');
       setReviewRating(5);
       setReviewMessage(message);
       toast.success(message);
+      setData(await fetchProductDetail(slug));
     } catch (error) {
       const appError = toAppError(error);
       toast.error(appError.message);
     } finally {
       setReviewSubmitting(false);
+    }
+  };
+  const handleCommentSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setCommentMessage(null);
+
+    if (!commentSubmissionAllowed) {
+      toast.error('Please sign in to write a comment.');
+      return;
+    }
+
+    setCommentSubmitting(true);
+    try {
+      const message = await submitProductComment(slug, {
+        content: commentContent.trim(),
+        ...(!isAuthenticated ? {
+          guest_name: guestName.trim(),
+          guest_email: guestEmail.trim(),
+        } : {}),
+      });
+      setCommentContent('');
+      setCommentMessage(message);
+      toast.success(message);
+      setData(await fetchProductDetail(slug));
+    } catch (error) {
+      toast.error(toAppError(error).message);
+    } finally {
+      setCommentSubmitting(false);
+    }
+  };
+  const handleCommentUpdate = async (commentId: string) => {
+    try {
+      const message = await updateProductComment(slug, commentId, {
+        content: editingCommentContent.trim(),
+      });
+      setEditingCommentId(null);
+      setEditingCommentContent('');
+      toast.success(message);
+      setData(await fetchProductDetail(slug));
+    } catch (error) {
+      toast.error(toAppError(error).message);
     }
   };
   const discount = product.discount ?? 0;
@@ -660,7 +741,12 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
         {/* Tabs Section */}
         <div className="mb-16">
           <div className="flex border-b border-border mb-8 overflow-x-auto overflow-y-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {(['description', 'specs', 'reviews'] as const).map((tab) => (
+            {([
+              'description',
+              'specs',
+              reviewsEnabled ? 'reviews' : null,
+              commentsEnabled ? 'comments' : null,
+            ].filter(Boolean) as Array<'description' | 'specs' | 'reviews' | 'comments'>).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -673,6 +759,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
               >
                 {tab === 'reviews'
                   ? `Reviews (${reviews.length})`
+                  : tab === 'comments'
+                    ? `Comments (${comments.length})`
                   : tab === 'specs'
                     ? 'Specifications'
                     : 'Description'}
@@ -716,9 +804,9 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
             </div>
           )}
 
-          {activeTab === 'reviews' && (
+          {activeTab === 'reviews' && reviewsEnabled && (
             <div className="space-y-5 max-w-3xl">
-              {isAuthenticated && (
+              {reviewSubmissionAllowed ? (
                 <form onSubmit={handleReviewSubmit} className="rounded-2xl border border-border bg-card p-5">
                   <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
@@ -752,6 +840,27 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
                     </div>
                   )}
                   <div className="space-y-3">
+                    {!isAuthenticated ? (
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <input
+                          value={guestName}
+                          onChange={(event) => setGuestName(event.target.value)}
+                          className="h-11 rounded-xl border border-border bg-background px-3 text-sm outline-none transition-colors focus:border-primary"
+                          placeholder="Name"
+                          maxLength={120}
+                          required={feedbackSettings?.guest_name_required}
+                        />
+                        <input
+                          type="email"
+                          value={guestEmail}
+                          onChange={(event) => setGuestEmail(event.target.value)}
+                          className="h-11 rounded-xl border border-border bg-background px-3 text-sm outline-none transition-colors focus:border-primary"
+                          placeholder="Email"
+                          maxLength={255}
+                          required={feedbackSettings?.guest_email_required}
+                        />
+                      </div>
+                    ) : null}
                     <textarea
                       value={reviewComment}
                       onChange={(event) => setReviewComment(event.target.value)}
@@ -772,6 +881,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
                     </div>
                   </div>
                 </form>
+              ) : (
+                <FeedbackLoginPrompt action="write a review" redirectPath={`/products/${slug}`} />
               )}
               {reviews.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
@@ -844,6 +955,110 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
                   </div>
                 ))
               )}
+            </div>
+          )}
+          {activeTab === 'comments' && commentsEnabled && (
+            <div className="max-w-3xl space-y-5">
+              {commentSubmissionAllowed ? (
+                <form onSubmit={handleCommentSubmit} className="rounded-2xl border border-border bg-card p-5">
+                  <div className="mb-4">
+                    <h3 className="text-sm font-bold">Write a comment</h3>
+                    <p className="mt-1 text-xs text-muted-foreground">Ask a question or share product feedback.</p>
+                  </div>
+                  {commentMessage ? (
+                    <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
+                      {commentMessage}
+                    </div>
+                  ) : null}
+                  <div className="space-y-3">
+                    {!isAuthenticated ? (
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <input
+                          value={guestName}
+                          onChange={(event) => setGuestName(event.target.value)}
+                          className="h-11 rounded-xl border border-border bg-background px-3 text-sm outline-none transition-colors focus:border-primary"
+                          placeholder="Name"
+                          maxLength={120}
+                          required={feedbackSettings?.guest_name_required}
+                        />
+                        <input
+                          type="email"
+                          value={guestEmail}
+                          onChange={(event) => setGuestEmail(event.target.value)}
+                          className="h-11 rounded-xl border border-border bg-background px-3 text-sm outline-none transition-colors focus:border-primary"
+                          placeholder="Email"
+                          maxLength={255}
+                          required={feedbackSettings?.guest_email_required}
+                        />
+                      </div>
+                    ) : null}
+                    <textarea
+                      value={commentContent}
+                      onChange={(event) => setCommentContent(event.target.value)}
+                      className="min-h-28 w-full resize-y rounded-xl border border-border bg-background px-3 py-3 text-sm outline-none transition-colors focus:border-primary"
+                      placeholder="Enter comment"
+                      minLength={2}
+                      maxLength={2000}
+                      required
+                    />
+                    <div className="flex justify-end">
+                      <button
+                        type="submit"
+                        disabled={commentSubmitting}
+                        className="rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {commentSubmitting ? 'Submitting...' : 'Submit Comment'}
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              ) : (
+                <FeedbackLoginPrompt action="write a comment" redirectPath={`/products/${slug}`} />
+              )}
+              {comments.length === 0 ? (
+                <div className="py-12 text-center text-muted-foreground">
+                  <MessageSquare size={40} className="mx-auto mb-3 opacity-20" />
+                  <p>No comments yet. Be the first to comment on this product.</p>
+                </div>
+              ) : comments.map((comment) => (
+                <article key={comment.id} className="rounded-2xl border border-border bg-card p-5">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-semibold">{comment.user.name}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">{comment.createdAt.slice(0, 10)}</p>
+                    </div>
+                    {comment.canEdit && editingCommentId !== comment.id ? (
+                      <button
+                        type="button"
+                        className="text-xs font-semibold text-primary hover:underline"
+                        onClick={() => {
+                          setEditingCommentId(comment.id);
+                          setEditingCommentContent(comment.content);
+                        }}
+                      >
+                        Edit
+                      </button>
+                    ) : null}
+                  </div>
+                  {editingCommentId === comment.id ? (
+                    <div className="mt-4 space-y-3">
+                      <textarea
+                        value={editingCommentContent}
+                        onChange={(event) => setEditingCommentContent(event.target.value)}
+                        className="min-h-24 w-full resize-y rounded-xl border border-border bg-background px-3 py-3 text-sm outline-none focus:border-primary"
+                        minLength={2}
+                        maxLength={2000}
+                      />
+                      <div className="flex justify-end gap-2">
+                        <button type="button" className="rounded-xl border border-border px-4 py-2 text-sm font-semibold" onClick={() => setEditingCommentId(null)}>Cancel</button>
+                        <button type="button" className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground" onClick={() => void handleCommentUpdate(comment.id)}>Save</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="mt-4 text-sm leading-relaxed text-muted-foreground">{comment.content}</p>
+                  )}
+                </article>
+              ))}
             </div>
           )}
         </div>

@@ -82,6 +82,7 @@ const catalogManagementItems = [
   { href: routePaths.adminAttributeValues, label: "Attribute Value Management", icon: Boxes },
   { href: routePaths.adminTags, label: "Tag Management", icon: Tags },
   { href: routePaths.adminReviews, label: "Review Management", icon: Star },
+  { href: routePaths.adminComments, label: "Comment Management", icon: MessageSquareText },
 ];
 
 const marketingManagementItems = [
@@ -144,6 +145,7 @@ const adminPermissionAliases: Record<string, string> = {
   "attribute-values.view": "can_view_attribute_value",
   "tags.view": "can_view_tag",
   "reviews.view": "can_view_review",
+  "comments.view": "can_view_comment",
   "collections.view": "can_view_collection",
   "currencies.view": "can_view_currency",
   "discounts.view": "can_view_discount",
@@ -184,6 +186,7 @@ const adminRoutePermissions: Record<string, string> = {
   [routePaths.adminAttributeValues]: "can_view_attribute_value",
   [routePaths.adminTags]: "can_view_tag",
   [routePaths.adminReviews]: "can_view_review",
+  [routePaths.adminComments]: "can_view_comment",
   [routePaths.adminCollections]: "can_view_collection",
   [routePaths.adminCurrencies]: "can_view_currency",
   [routePaths.adminDiscounts]: "can_view_discount",

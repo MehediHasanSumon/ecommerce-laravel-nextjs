@@ -57,6 +57,7 @@ export type AccountReview = {
   comment: string;
   verified: boolean;
   status: string;
+  canEdit: boolean;
   createdAt?: string | null;
   replies?: Array<{ id: string; author: string; comment: string; createdAt?: string | null }>;
   product: Product | null;

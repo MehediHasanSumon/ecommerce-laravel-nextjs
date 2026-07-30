@@ -138,6 +138,15 @@ class ProductModuleSaveRequest extends FormRequest
                 'show_in_navbar' => filter_var($this->input('show_in_navbar', false), FILTER_VALIDATE_BOOL),
             ]);
         }
+
+        if (in_array((string) $this->route('module'), ['reviews', 'comments'], true)) {
+            $field = (string) $this->route('module') === 'reviews' ? 'comment' : 'content';
+            $this->merge([
+                $field => preg_replace('/\s+/u', ' ', trim(strip_tags((string) $this->input($field)))) ?? '',
+                'guest_name' => preg_replace('/\s+/u', ' ', trim(strip_tags((string) $this->input('guest_name')))) ?? '',
+                'guest_email' => mb_strtolower(trim((string) $this->input('guest_email'))),
+            ]);
+        }
     }
 
     public function authorize(): bool
@@ -293,11 +302,21 @@ class ProductModuleSaveRequest extends FormRequest
             'reviews' => [
                 'product_id' => ['required', 'integer', 'exists:products,id'],
                 'user_id' => ['nullable', 'integer', 'exists:users,id'],
+                'guest_name' => ['nullable', 'string', 'max:120'],
+                'guest_email' => ['nullable', 'email:rfc', 'max:255'],
                 'rating' => ['required', 'integer', 'min:1', 'max:5'],
                 'comment' => ['required', 'string'],
                 'admin_reply' => ['nullable', 'string', 'max:2000'],
                 'status' => ['required', Rule::in(['pending', 'approved', 'rejected'])],
                 'is_verified_purchase' => ['boolean'],
+            ],
+            'comments' => [
+                'product_id' => ['required', 'integer', 'exists:products,id'],
+                'user_id' => ['nullable', 'integer', 'exists:users,id'],
+                'guest_name' => ['nullable', 'string', 'max:120'],
+                'guest_email' => ['nullable', 'email:rfc', 'max:255'],
+                'content' => ['required', 'string', 'min:2', 'max:2000'],
+                'status' => ['required', Rule::in(['pending', 'approved', 'rejected'])],
             ],
             default => [],
         };

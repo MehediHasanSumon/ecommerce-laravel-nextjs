@@ -45,6 +45,7 @@ class AdminNavigationService
             'brands' => $this->brands->enabled(),
             'offers' => true,
             'reviews' => (bool) $this->store->get()->enable_reviews,
+            'comments' => (bool) $this->store->get()->enable_product_comments,
         ];
     }
 
@@ -102,6 +103,7 @@ class AdminNavigationService
                 $this->item('Attribute Value Management', '/admin/attribute-values', 'Boxes', 'can_view_attribute_value', $modules['products']),
                 $this->item('Tag Management', '/admin/tags', 'Tags', 'can_view_tag', $modules['products']),
                 $this->item('Review Management', '/admin/reviews', 'Star', 'can_view_review', $modules['reviews']),
+                $this->item('Comment Management', '/admin/comments', 'MessageSquareText', 'can_view_comment', $modules['comments']),
             ]],
             ['key' => 'marketing', 'label' => 'Marketing & Pricing', 'icon' => 'Megaphone', 'type' => 'group', 'items' => [
                 $this->item('Collection Management', '/admin/collections', 'ShoppingBag', 'can_view_collection', $modules['products']),

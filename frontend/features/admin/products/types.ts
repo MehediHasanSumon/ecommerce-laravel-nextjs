@@ -10,7 +10,8 @@ export type ProductModule =
   | "collections"
   | "currencies"
   | "discounts"
-  | "reviews";
+  | "reviews"
+  | "comments";
 
 export type ProductOptions = {
   brands: Option[];
@@ -20,6 +21,7 @@ export type ProductOptions = {
   tags: Option[];
   products: Option[];
   collections: Option[];
+  customers: Option[];
 };
 
 export type ProductRecord = BaseRecord & Record<string, unknown> & {

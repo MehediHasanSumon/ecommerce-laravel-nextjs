@@ -141,6 +141,12 @@ class ProductManagementService extends AdminApiService {
     });
   }
 
+  bulkStatus(module: "reviews" | "comments", ids: number[], status: "approved" | "rejected") {
+    return this.unwrap<{ updated: number }>(
+      this.client.put(`/admin/product-management/${module}/bulk-status`, { ids, status }),
+    );
+  }
+
   reorder(module: ProductModule, items: Array<{ id: number; sort_order: number }>) {
     return this.unwrap<{ updated: number }>(
       this.client.post(`/admin/product-management/${module}/reorder`, { items }),

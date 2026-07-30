@@ -157,6 +157,11 @@ class Product extends Model
         return $this->hasMany(ProductReview::class);
     }
 
+    public function comments(): HasMany
+    {
+        return $this->hasMany(ProductComment::class);
+    }
+
     public function seo(): HasOne
     {
         return $this->hasOne(ProductSeo::class);

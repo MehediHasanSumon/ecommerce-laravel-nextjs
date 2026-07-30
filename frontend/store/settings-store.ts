@@ -3,7 +3,7 @@
 import axios from "axios";
 import { create } from "zustand";
 import type { ApiEnvelope } from "@/features/admin/shared/types";
-import type { RuntimeCurrencySettings, RuntimeCustomerSettings, RuntimeNavigationGroup, RuntimeProductCardSettings, RuntimeSettings, RuntimeSmsSettings } from "@/types/settings";
+import type { RuntimeCurrencySettings, RuntimeCustomerSettings, RuntimeFeedbackSettings, RuntimeFloatingContact, RuntimeNavigationGroup, RuntimeProductCardSettings, RuntimeSettings, RuntimeSmsSettings } from "@/types/settings";
 
 const emptyFrontendNavigation: RuntimeSettings["navigation"]["frontend"] = [];
 const emptyAdminNavigation: RuntimeNavigationGroup[] = [];
@@ -127,6 +127,30 @@ type SettingsState = {
   refreshSettings: () => Promise<RuntimeSettings | null>;
   fetchAdminNavigation: (options?: { force?: boolean }) => Promise<RuntimeNavigationGroup[]>;
   clearAdminNavigation: () => void;
+};
+export const defaultFeedbackSettings: RuntimeFeedbackSettings = {
+  reviews: {
+    enabled: true,
+    access: "registered",
+    moderated: true,
+    editing_enabled: true,
+    edit_time_limit_minutes: 1440,
+  },
+  comments: {
+    enabled: true,
+    access: "registered",
+    moderated: true,
+    editing_enabled: true,
+    edit_time_limit_minutes: 1440,
+  },
+  guest_name_required: true,
+  guest_email_required: true,
+  verified_purchase_badge_enabled: true,
+};
+export const defaultFloatingContact: RuntimeFloatingContact = {
+  enabled: false,
+  messenger_url: null,
+  whatsapp_url: null,
 };
 
 const apiBaseUrl = (
@@ -337,6 +361,10 @@ export const selectCustomerSettings = (state: SettingsState): RuntimeCustomerSet
   selectSettingsPending(state) ? defaultCustomerSettings : state.settings?.customer_settings ?? defaultCustomerSettings;
 export const selectSmsSettings = (state: SettingsState): RuntimeSmsSettings =>
   selectSettingsPending(state) ? defaultSmsSettings : state.settings?.sms_settings ?? defaultSmsSettings;
+export const selectFeedbackSettings = (state: SettingsState): RuntimeFeedbackSettings =>
+  selectSettingsPending(state) ? defaultFeedbackSettings : state.settings?.feedback_settings ?? defaultFeedbackSettings;
+export const selectFloatingContact = (state: SettingsState): RuntimeFloatingContact =>
+  selectSettingsPending(state) ? defaultFloatingContact : state.settings?.floating_contact ?? defaultFloatingContact;
 export const selectBlogSettings = (state: SettingsState) =>
   selectSettingsPending(state) ? defaultBlogSettings : state.settings?.blog_settings ?? defaultBlogSettings;
 export const selectBrandSettings = (state: SettingsState) =>

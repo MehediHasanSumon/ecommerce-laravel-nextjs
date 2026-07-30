@@ -10,12 +10,15 @@ use App\Models\Product;
 use App\Models\ProductAttribute;
 use App\Models\ProductAttributeValue;
 use App\Models\ProductCollection;
+use App\Models\ProductComment;
 use App\Models\ProductReview;
 use App\Models\ProductVariant;
 use App\Models\Tag;
+use App\Models\User;
 use App\Services\Admin\Concerns\BuildsManagementQueries;
 use App\Services\Admin\Settings\BrandSettingsService;
 use App\Services\Concerns\StoresPublicUploads;
+use App\Services\ProductReviewMetricsService;
 use App\Services\Seo\SeoMetadataService;
 use App\Support\HomePageCache;
 use App\Support\Identifiers\SkuGenerator;
@@ -34,6 +37,7 @@ class ProductModuleService
     public function __construct(
         private readonly ProductVariantEngine $variantEngine,
         private readonly BrandSettingsService $brandSettings,
+        private readonly ProductReviewMetricsService $reviewMetrics,
     ) {}
 
     public function paginate(string $module, array $filters): LengthAwarePaginator
@@ -100,7 +104,18 @@ class ProductModuleService
     {
         $this->guardBrandModule($module);
 
-        $deleted = $this->modelClass($module)::query()->whereIn('id', $ids)->delete();
+        $deleted = DB::transaction(function () use ($module, $ids): int {
+            $productIds = $module === 'reviews'
+                ? ProductReview::query()->whereIn('id', $ids)->pluck('product_id')
+                : collect();
+            $deleted = $this->modelClass($module)::query()->whereIn('id', $ids)->delete();
+
+            if ($module === 'reviews') {
+                $this->reviewMetrics->recalculateMany($productIds);
+            }
+
+            return $deleted;
+        }, 3);
 
         if ($module === 'categories') {
             $this->clearCategoryCaches();
@@ -111,6 +126,28 @@ class ProductModuleService
         $this->clearSeoCaches($module);
 
         return $deleted;
+    }
+
+    public function bulkStatus(string $module, array $ids, string $status): int
+    {
+        abort_unless(in_array($module, ['reviews', 'comments'], true), 404);
+
+        return DB::transaction(function () use ($module, $ids, $status): int {
+            $query = $this->modelClass($module)::query()->whereIn('id', $ids);
+            $productIds = $module === 'reviews' ? (clone $query)->pluck('product_id') : collect();
+            $updated = $query->update([
+                'status' => $status,
+                'approved_at' => $status === 'approved' ? now() : null,
+                'approved_by' => $status === 'approved' ? auth()->id() : null,
+                'updated_at' => now(),
+            ]);
+
+            if ($module === 'reviews') {
+                $this->reviewMetrics->recalculateMany($productIds);
+            }
+
+            return $updated;
+        }, 3);
     }
 
     public function reorder(string $module, array $items): int
@@ -198,6 +235,11 @@ class ProductModuleService
                 ->orderBy('name')
                 ->get(['id', 'name', 'brand_id', 'category_id']),
             'collections' => ProductCollection::query()->orderBy('name')->get(['id', 'name']),
+            'customers' => User::query()
+                ->whereHas('roles', fn ($query) => $query->where('name', 'user'))
+                ->orderBy('name')
+                ->limit(500)
+                ->get(['id', 'name']),
         ];
     }
 
@@ -253,6 +295,22 @@ class ProductModuleService
             $model->excludedCategories()->sync($excludedCategories);
 
             return $this->find($module, $model->id);
+        }
+
+        if (in_array($module, ['reviews', 'comments'], true)) {
+            $data['approved_at'] = ($data['status'] ?? null) === 'approved' ? now() : null;
+            $data['approved_by'] = ($data['status'] ?? null) === 'approved' ? auth()->id() : null;
+
+            if ($module === 'comments' && ! $model->exists) {
+                $data['submission_hash'] = hash('sha256', implode('|', [
+                    'admin',
+                    (string) auth()->id(),
+                    (string) ($data['product_id'] ?? ''),
+                    (string) ($data['user_id'] ?? $data['guest_email'] ?? ''),
+                    (string) ($data['content'] ?? ''),
+                    (string) microtime(true),
+                ]));
+            }
         }
 
         if ($module === 'reviews') {
@@ -561,6 +619,7 @@ class ProductModuleService
             'collections' => $query->with('products:id,name')->withCount('products'),
             'discounts' => $query->with(['products:id,name', 'categories:id,name', 'brands:id,name', 'collections:id,name', 'excludedProducts:id,name', 'excludedCategories:id,name']),
             'reviews' => $query->with(['product:id,name', 'user:id,name', 'replies.user:id,name']),
+            'comments' => $query->with(['product:id,name', 'user:id,name']),
             default => null,
         };
     }
@@ -634,7 +693,8 @@ class ProductModuleService
             'products' => ['name', 'sku', 'short_description'],
             'currencies' => ['country', 'currency', 'symbol'],
             'attribute-values' => ['value', 'slug', 'display_value'],
-            'reviews' => ['comment'],
+            'reviews' => ['comment', 'guest_name', 'guest_email'],
+            'comments' => ['content', 'guest_name', 'guest_email'],
             default => ['name', 'slug'],
         };
 
@@ -647,6 +707,14 @@ class ProductModuleService
 
             if ($module === 'products') {
                 $query->orWhereHas('variants', fn ($variantQuery) => $variantQuery->where('sku', 'like', "%{$search}%"));
+            }
+
+            if (in_array($module, ['reviews', 'comments'], true)) {
+                $query
+                    ->orWhereHas('product', fn ($productQuery) => $productQuery->where('name', 'like', "%{$search}%"))
+                    ->orWhereHas('user', fn ($userQuery) => $userQuery
+                        ->where('name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%"));
             }
         });
     }
@@ -663,6 +731,9 @@ class ProductModuleService
             ->when($filters['attribute_id'] ?? null, fn ($query, int|string $id) => $query->where('attribute_id', $id))
             ->when($filters['product_id'] ?? null, fn ($query, int|string $id) => $query->where('product_id', $id))
             ->when($filters['rating'] ?? null, fn ($query, int|string $rating) => $query->where('rating', $rating))
+            ->when($filters['customer_id'] ?? null, fn ($query, int|string $id) => $query->where('user_id', $id))
+            ->when(($filters['guest'] ?? null) === 'guest', fn ($query) => $query->whereNull('user_id'))
+            ->when(($filters['guest'] ?? null) === 'registered', fn ($query) => $query->whereNotNull('user_id'))
             ->when(($filters['featured'] ?? null) === 'yes', fn ($query) => $query->where('is_featured', true))
             ->when(($filters['featured'] ?? null) === 'no', fn ($query) => $query->where('is_featured', false));
     }
@@ -710,6 +781,7 @@ class ProductModuleService
             'currencies' => Currency::class,
             'discounts' => Discount::class,
             'reviews' => ProductReview::class,
+            'comments' => ProductComment::class,
             default => abort(404, 'Product module not found.'),
         };
     }

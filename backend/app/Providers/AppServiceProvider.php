@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Models\ProductReview;
+use App\Observers\ProductReviewObserver;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -22,6 +24,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        ProductReview::observe(ProductReviewObserver::class);
+
         RateLimiter::for('auth-register', fn (Request $request) => Limit::perMinute(5)->by($request->ip()));
 
         RateLimiter::for('auth-login', function (Request $request) {
@@ -47,6 +51,13 @@ class AppServiceProvider extends ServiceProvider
         ));
 
         RateLimiter::for('public-settings', fn (Request $request) => Limit::perMinute(300)->by($request->ip()));
+
+        RateLimiter::for('product-feedback', fn (Request $request) => [
+            Limit::perMinute(5)->by(
+                'feedback:'.(optional($request->user())->getAuthIdentifier() ?: hash('sha256', $request->ip().'|'.(string) $request->userAgent()))
+            ),
+            Limit::perHour(30)->by('feedback-ip:'.$request->ip()),
+        ]);
 
         RateLimiter::for('order-tracking', fn (Request $request) => [
             Limit::perMinute(10)->by(hash('sha256', mb_strtoupper((string) $request->input('order_id')).'|'.$request->ip())),

@@ -10,6 +10,7 @@ import {
   ImageIcon,
   Link2,
   MapPin,
+  MessageSquareText,
   PackageCheck,
   Plus,
   Search,
@@ -229,6 +230,25 @@ const moduleConfigs: Record<string, SingletonModule> = {
     icon: Store,
     defaults: {
       enable_reviews: true,
+      enable_product_comments: true,
+      review_access: "registered",
+      comment_access: "registered",
+      review_moderation_enabled: true,
+      comment_moderation_enabled: true,
+      guest_name_required: true,
+      guest_email_required: true,
+      verified_purchase_badge_enabled: true,
+      one_review_per_product: true,
+      review_editing_enabled: true,
+      review_edit_time_limit_minutes: 1440,
+      comment_editing_enabled: true,
+      comment_edit_time_limit_minutes: 1440,
+      floating_contact_enabled: false,
+      messenger_enabled: false,
+      messenger_url: "",
+      whatsapp_enabled: false,
+      whatsapp_number: "",
+      whatsapp_message: "",
       enable_wishlist: true,
       require_login_before_checkout: false,
       allow_customer_registration: true,
@@ -252,8 +272,37 @@ const moduleConfigs: Record<string, SingletonModule> = {
     },
     sections: [
       { title: "Storefront Features", description: "Customer-facing catalog capabilities.", icon: PackageCheck, fields: [
-        { name: "enable_reviews", label: "Enable Reviews", type: "toggle" },
         { name: "enable_wishlist", label: "Enable Wishlist", type: "toggle" },
+      ] },
+      { title: "Review & Comment Settings", description: "Control feedback access, moderation, guest identity, badges, and editing windows.", icon: MessageSquareText, fields: [
+        { name: "enable_reviews", label: "Enable Product Reviews", type: "toggle" },
+        { name: "enable_product_comments", label: "Enable Product Comments", type: "toggle" },
+        { name: "review_access", label: "Review Permission", type: "select", required: true, options: [
+          { label: "Registered Users Only", value: "registered" },
+          { label: "Everyone (Guests + Registered Users)", value: "everyone" },
+        ] },
+        { name: "comment_access", label: "Comment Permission", type: "select", required: true, options: [
+          { label: "Registered Users Only", value: "registered" },
+          { label: "Everyone (Guests + Registered Users)", value: "everyone" },
+        ] },
+        { name: "review_moderation_enabled", label: "Enable Review Moderation", type: "toggle" },
+        { name: "comment_moderation_enabled", label: "Enable Comment Moderation", type: "toggle" },
+        { name: "guest_name_required", label: "Guest Name Required", type: "toggle" },
+        { name: "guest_email_required", label: "Guest Email Required", type: "toggle" },
+        { name: "verified_purchase_badge_enabled", label: "Enable Verified Purchase Badge", type: "toggle" },
+        { name: "one_review_per_product", label: "Allow One Review Per Product Per Customer", type: "toggle" },
+        { name: "review_editing_enabled", label: "Allow Review Editing", type: "toggle" },
+        { name: "review_edit_time_limit_minutes", label: "Review Edit Time Limit (Minutes)", type: "number", visibleWhen: (values) => Boolean(values.review_editing_enabled) },
+        { name: "comment_editing_enabled", label: "Allow Comment Editing", type: "toggle" },
+        { name: "comment_edit_time_limit_minutes", label: "Comment Edit Time Limit (Minutes)", type: "number", visibleWhen: (values) => Boolean(values.comment_editing_enabled) },
+      ] },
+      { title: "Floating Contact Buttons", description: "Configure the storefront Messenger and WhatsApp quick-contact actions.", icon: Send, fields: [
+        { name: "floating_contact_enabled", label: "Enable Floating Contact Buttons", type: "toggle" },
+        { name: "messenger_enabled", label: "Enable Facebook Messenger", type: "toggle", visibleWhen: (values) => Boolean(values.floating_contact_enabled) },
+        { name: "messenger_url", label: "Messenger URL", type: "url", required: true, visibleWhen: (values) => Boolean(values.floating_contact_enabled && values.messenger_enabled) },
+        { name: "whatsapp_enabled", label: "Enable WhatsApp", type: "toggle", visibleWhen: (values) => Boolean(values.floating_contact_enabled) },
+        { name: "whatsapp_number", label: "WhatsApp Number", required: true, visibleWhen: (values) => Boolean(values.floating_contact_enabled && values.whatsapp_enabled) },
+        { name: "whatsapp_message", label: "Pre-filled Message", type: "textarea", visibleWhen: (values) => Boolean(values.floating_contact_enabled && values.whatsapp_enabled) },
       ] },
       { title: "Authentication & Customer Settings", description: "Control customer registration and guest checkout access.", icon: ShieldAlert, fields: [
         { name: "allow_customer_registration", label: "Allow Customer Registration", type: "toggle" },
@@ -838,6 +887,28 @@ function validateFields(sections: Section[], values: Values) {
       } catch {
         errors[field.name] = "Enter a valid URL.";
       }
+    }
+    if (field.name === "messenger_url" && value) {
+      try {
+        const url = new URL(String(value));
+        const host = url.hostname.toLowerCase();
+        const allowed = url.protocol === "https:" && (
+          host === "m.me"
+          || host === "messenger.com"
+          || host.endsWith(".messenger.com")
+          || host === "facebook.com"
+          || host.endsWith(".facebook.com")
+        );
+        if (!allowed) errors[field.name] = "Enter an official HTTPS Messenger or Facebook URL.";
+      } catch {
+        errors[field.name] = "Enter a valid Messenger URL.";
+      }
+    }
+    if (field.name === "whatsapp_number" && value && !/^\+?[1-9][0-9]{6,14}$/.test(String(value).replace(/[\s().-]+/g, ""))) {
+      errors[field.name] = "Enter a valid international WhatsApp number.";
+    }
+    if (field.name === "whatsapp_message" && String(value ?? "").length > 500) {
+      errors[field.name] = "The pre-filled message may not exceed 500 characters.";
     }
     });
   });

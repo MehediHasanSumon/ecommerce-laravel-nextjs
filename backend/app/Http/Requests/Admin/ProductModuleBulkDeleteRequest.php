@@ -18,11 +18,12 @@ class ProductModuleBulkDeleteRequest extends FormRequest
             'collections' => 'collections',
             'currencies' => 'currencies',
             'reviews' => 'product_reviews',
+            'comments' => 'product_comments',
             default => str_replace('-', '_', (string) $this->route('module')),
         };
 
         return [
-            'ids' => ['required', 'array', 'min:1'],
+            'ids' => ['required', 'array', 'min:1', 'max:500'],
             'ids.*' => ['integer', "exists:{$table},id"],
         ];
     }

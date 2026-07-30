@@ -3,18 +3,22 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreProductCommentRequest;
+use App\Http\Requests\StoreProductReviewRequest;
 use App\Http\Resources\ProductCardResource;
 use App\Http\Resources\ProductDetailResource;
 use App\Http\Responses\ApiResponse;
 use App\Models\Brand;
 use App\Models\Category;
-use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\ProductAttribute;
 use App\Models\ProductAttributeValue;
+use App\Models\ProductComment;
 use App\Models\ProductReview;
 use App\Models\ProductVariant;
 use App\Services\Admin\Settings\BrandSettingsService;
+use App\Services\Admin\Settings\StoreSettingsService;
+use App\Services\ProductFeedbackService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -24,7 +28,11 @@ use Illuminate\Validation\ValidationException;
 
 class ProductCatalogController extends Controller
 {
-    public function __construct(private readonly BrandSettingsService $brandSettings) {}
+    public function __construct(
+        private readonly BrandSettingsService $brandSettings,
+        private readonly StoreSettingsService $storeSettings,
+        private readonly ProductFeedbackService $feedback,
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -144,8 +152,9 @@ class ProductCatalogController extends Controller
         ]);
     }
 
-    public function show(string $slug): JsonResponse
+    public function show(Request $request, string $slug): JsonResponse
     {
+        $settings = $this->storeSettings->get();
         $product = Product::query()
             ->where('slug', $slug)
             ->where('status', 'active')
@@ -161,8 +170,18 @@ class ProductCatalogController extends Controller
                 'attributeValues.attribute:id,name,slug,type',
                 'variants' => fn ($query) => $query->where('status', 'active')->orderBy('id'),
                 'variants.attributeValues.attribute:id,name,slug,type',
-                'reviews' => fn ($query) => $query->where('status', 'approved')->latest()->limit(20),
+                'reviews' => fn ($query) => $query
+                    ->when(! (bool) $settings->enable_reviews, fn ($query) => $query->whereRaw('1 = 0'))
+                    ->where('status', 'approved')
+                    ->latest()
+                    ->limit(20),
                 'reviews.user:id,name,email,avatar',
+                'comments' => fn ($query) => $query
+                    ->when(! (bool) $settings->enable_product_comments, fn ($query) => $query->whereRaw('1 = 0'))
+                    ->where('status', 'approved')
+                    ->latest()
+                    ->limit(50),
+                'comments.user:id,name,email,avatar',
                 'relatedProducts' => fn ($query) => $query
                     ->where('products.status', 'active')
                     ->withSellableVariantMetrics()
@@ -177,6 +196,21 @@ class ProductCatalogController extends Controller
 
     public function reviews(Request $request): JsonResponse
     {
+        $settings = $this->storeSettings->get();
+
+        if (! (bool) $settings->enable_reviews) {
+            return ApiResponse::success(['items' => []], meta: [
+                'pagination' => [
+                    'current_page' => 1,
+                    'last_page' => 1,
+                    'per_page' => 12,
+                    'total' => 0,
+                    'from' => null,
+                    'to' => null,
+                ],
+            ]);
+        }
+
         $validated = $request->validate([
             'page' => ['nullable', 'integer', 'min:1'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:24'],
@@ -206,11 +240,12 @@ class ProductCatalogController extends Controller
                     'id' => (string) $review->id,
                     'rating' => (int) $review->rating,
                     'comment' => $review->comment,
-                    'verified' => (bool) $review->is_verified_purchase,
+                    'verified' => (bool) $settings->verified_purchase_badge_enabled
+                        && (bool) $review->is_verified_purchase,
                     'createdAt' => optional($review->created_at)->toISOString(),
                     'user' => [
                         'id' => (string) $review->user?->id,
-                        'name' => $review->user?->name ?: 'Customer',
+                        'name' => $review->user?->name ?: $review->guest_name ?: 'Guest',
                         'avatar' => $this->assetUrl($review->user?->avatar),
                     ],
                     'product' => $review->product
@@ -231,49 +266,58 @@ class ProductCatalogController extends Controller
         ]);
     }
 
-    public function storeReview(Request $request, Product $product): JsonResponse
+    public function storeReview(StoreProductReviewRequest $request, Product $product): JsonResponse
     {
         abort_unless($product->status === 'active', 404);
 
-        $validated = $request->validate([
-            'rating' => ['required', 'integer', 'min:1', 'max:5'],
-            'comment' => ['required', 'string', 'min:10', 'max:2000'],
-        ]);
-
-        $user = $request->user();
-        $existing = ProductReview::query()
-            ->where('product_id', $product->id)
-            ->where('user_id', $user->id)
-            ->exists();
-
-        if ($existing) {
-            return ApiResponse::error('You have already reviewed this product.', 409);
-        }
-
-        $verifiedPurchase = OrderItem::query()
-            ->where('product_id', $product->id)
-            ->whereHas('order', function ($query) use ($user): void {
-                $query
-                    ->where('user_id', $user->id)
-                    ->where('payment_status', 'paid');
-            })
-            ->exists();
-
-        $review = ProductReview::query()->create([
-            'product_id' => $product->id,
-            'user_id' => $user->id,
-            'rating' => $validated['rating'],
-            'comment' => $validated['comment'],
-            'is_verified_purchase' => $verifiedPurchase,
-            'status' => 'pending',
-        ]);
+        $review = $this->feedback->createReview($product, $request, $request->validated());
+        $message = $review->status === 'approved'
+            ? 'Review submitted successfully.'
+            : 'Review submitted successfully. It will appear after approval.';
 
         return ApiResponse::success([
             'review' => [
                 'id' => (string) $review->id,
                 'status' => $review->status,
             ],
-        ], 'Review submitted successfully. It will appear after approval.', 201);
+        ], $message, 201);
+    }
+
+    public function storeComment(StoreProductCommentRequest $request, Product $product): JsonResponse
+    {
+        abort_unless($product->status === 'active', 404);
+
+        $comment = $this->feedback->createComment($product, $request, $request->validated());
+        $message = $comment->status === 'approved'
+            ? 'Comment submitted successfully.'
+            : 'Comment submitted successfully. It will appear after approval.';
+
+        return ApiResponse::success([
+            'comment' => [
+                'id' => (string) $comment->id,
+                'status' => $comment->status,
+            ],
+        ], $message, 201);
+    }
+
+    public function updateComment(
+        StoreProductCommentRequest $request,
+        Product $product,
+        ProductComment $comment
+    ): JsonResponse {
+        abort_unless($product->status === 'active', 404);
+
+        $comment = $this->feedback->updateComment($product, $comment, $request, $request->validated());
+        $message = $comment->status === 'approved'
+            ? 'Comment updated successfully.'
+            : 'Comment updated successfully. It will appear after approval.';
+
+        return ApiResponse::success([
+            'comment' => [
+                'id' => (string) $comment->id,
+                'status' => $comment->status,
+            ],
+        ], $message);
     }
 
     private function applySort($query, string $sort): void

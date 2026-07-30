@@ -21,6 +21,7 @@ class RolePermissionInstaller
         'attribute_value',
         'tag',
         'review',
+        'comment',
         'collection',
         'currency',
         'discount',

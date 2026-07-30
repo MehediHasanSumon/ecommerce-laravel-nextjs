@@ -101,9 +101,11 @@ export default function ReviewsPage() {
                         </Link>
                         <div className="ml-auto flex items-center gap-2">
                           <span className="text-xs text-muted-foreground">{review.createdAt ? new Date(review.createdAt).toLocaleDateString() : ""}</span>
-                          <button type="button" onClick={() => startEdit(review)} className="p-1.5 hover:bg-muted rounded-lg transition-colors" aria-label="Edit review">
-                            <Edit2 size={14} className="text-muted-foreground" />
-                          </button>
+                          {review.canEdit ? (
+                            <button type="button" onClick={() => startEdit(review)} className="p-1.5 hover:bg-muted rounded-lg transition-colors" aria-label="Edit review">
+                              <Edit2 size={14} className="text-muted-foreground" />
+                            </button>
+                          ) : null}
                           <button type="button" disabled={deletingId === review.id} onClick={() => void deleteReview(review.id)} className="p-1.5 hover:bg-destructive/10 rounded-lg transition-colors disabled:opacity-50" aria-label="Delete review">
                             <Trash2 size={14} className="text-destructive" />
                           </button>
@@ -114,9 +116,11 @@ export default function ReviewsPage() {
                       <div className="mb-4 flex items-center justify-between gap-3 border-b border-border pb-4">
                         <p className="text-sm font-semibold text-muted-foreground">Product unavailable</p>
                         <div className="flex items-center gap-2">
-                          <button type="button" onClick={() => startEdit(review)} className="p-1.5 hover:bg-muted rounded-lg transition-colors" aria-label="Edit review">
-                            <Edit2 size={14} className="text-muted-foreground" />
-                          </button>
+                          {review.canEdit ? (
+                            <button type="button" onClick={() => startEdit(review)} className="p-1.5 hover:bg-muted rounded-lg transition-colors" aria-label="Edit review">
+                              <Edit2 size={14} className="text-muted-foreground" />
+                            </button>
+                          ) : null}
                           <button type="button" disabled={deletingId === review.id} onClick={() => void deleteReview(review.id)} className="p-1.5 hover:bg-destructive/10 rounded-lg transition-colors disabled:opacity-50" aria-label="Delete review">
                             <Trash2 size={14} className="text-destructive" />
                           </button>

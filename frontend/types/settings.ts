@@ -159,6 +159,32 @@ export type RuntimeSmsSettings = {
   otp_resend_cooldown_seconds: number;
 };
 
+export type RuntimeFeedbackSettings = {
+  reviews: {
+    enabled: boolean;
+    access: "registered" | "everyone";
+    moderated: boolean;
+    editing_enabled: boolean;
+    edit_time_limit_minutes: number;
+  };
+  comments: {
+    enabled: boolean;
+    access: "registered" | "everyone";
+    moderated: boolean;
+    editing_enabled: boolean;
+    edit_time_limit_minutes: number;
+  };
+  guest_name_required: boolean;
+  guest_email_required: boolean;
+  verified_purchase_badge_enabled: boolean;
+};
+
+export type RuntimeFloatingContact = {
+  enabled: boolean;
+  messenger_url?: string | null;
+  whatsapp_url?: string | null;
+};
+
 export type RuntimeSettings = {
   company_settings: Record<string, unknown>;
   website_settings: Record<string, unknown>;
@@ -210,4 +236,6 @@ export type RuntimeSettings = {
   product_card_settings: RuntimeProductCardSettings;
   customer_settings: RuntimeCustomerSettings;
   sms_settings: RuntimeSmsSettings;
+  feedback_settings: RuntimeFeedbackSettings;
+  floating_contact: RuntimeFloatingContact;
 };

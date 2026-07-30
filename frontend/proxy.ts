@@ -49,6 +49,7 @@ const permissionRouteRequirements: Array<{ route: string; permission: string }> 
   { route: routePaths.adminAttributeValues, permission: "can_view_attribute_value" },
   { route: routePaths.adminTags, permission: "can_view_tag" },
   { route: routePaths.adminReviews, permission: "can_view_review" },
+  { route: routePaths.adminComments, permission: "can_view_comment" },
   { route: routePaths.adminCollections, permission: "can_view_collection" },
   { route: routePaths.adminCurrencies, permission: "can_view_currency" },
   { route: routePaths.adminDiscounts, permission: "can_view_discount" },

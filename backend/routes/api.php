@@ -63,8 +63,14 @@ Route::get('/brands/{slug}', [BrandCatalogController::class, 'show'])->where('sl
 Route::get('/collections/{slug}', [CollectionCatalogController::class, 'show'])->where('slug', '[A-Za-z0-9\\-]+')->middleware('throttle:public-settings');
 Route::get('/content-pages/{slug}', [ContentPageController::class, 'show'])->where('slug', '[A-Za-z0-9\\-]+')->middleware('throttle:public-settings');
 Route::get('/products', [ProductCatalogController::class, 'index'])->middleware('throttle:public-settings');
-Route::get('/products/{slug}', [ProductCatalogController::class, 'show'])->where('slug', '[A-Za-z0-9\\-]+')->middleware('throttle:public-settings');
+Route::get('/products/{slug}', [ProductCatalogController::class, 'show'])
+    ->where('slug', '[A-Za-z0-9\\-]+')
+    ->middleware(['auth.cookie.optional:access', 'throttle:public-settings']);
 Route::get('/reviews', [ProductCatalogController::class, 'reviews'])->middleware('throttle:public-settings');
+Route::middleware(['auth.cookie.optional:access', 'throttle:product-feedback'])->group(function (): void {
+    Route::post('/products/{product:slug}/reviews', [ProductCatalogController::class, 'storeReview']);
+    Route::post('/products/{product:slug}/comments', [ProductCatalogController::class, 'storeComment']);
+});
 Route::get('/shipping-methods', [ShippingMethodController::class, 'index'])->middleware('throttle:public-settings');
 Route::post('/contact-messages', [ContactMessageController::class, 'store'])->middleware('throttle:public-settings');
 Route::post('/newsletter/subscribe', [NewsletterSubscriptionController::class, 'store'])->middleware('throttle:public-settings');
@@ -99,7 +105,8 @@ Route::middleware(['auth.cookie:access', 'throttle:public-settings'])->group(fun
     Route::post('/wishlist/merge', [WishlistController::class, 'merge']);
     Route::post('/blogs/{blog:slug}/comments', [BlogCatalogController::class, 'storeComment']);
     Route::apiResource('addresses', CustomerAddressController::class)->only(['index', 'store', 'update', 'destroy']);
-    Route::post('/products/{product:slug}/reviews', [ProductCatalogController::class, 'storeReview']);
+    Route::put('/products/{product:slug}/comments/{comment}', [ProductCatalogController::class, 'updateComment'])
+        ->middleware('throttle:product-feedback');
     Route::get('/orders', [OrderController::class, 'index']);
     Route::get('/orders/{order}', [OrderController::class, 'show']);
     Route::post('/orders/{order}/cancel', [OrderController::class, 'cancel']);
@@ -239,6 +246,7 @@ Route::prefix('admin')
         Route::put('/settings/security', [SecuritySettingsController::class, 'update']);
 
         Route::get('/product-options', [ProductModuleController::class, 'optionsOnly']);
+        Route::put('/product-management/{module}/bulk-status', [ProductModuleController::class, 'bulkStatus']);
         Route::delete('/product-management/{module}/bulk', [ProductModuleController::class, 'bulkDestroy']);
         Route::post('/product-management/{module}/reorder', [ProductModuleController::class, 'reorder']);
         Route::get('/product-management/{module}', [ProductModuleController::class, 'index']);

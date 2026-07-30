@@ -13,6 +13,7 @@ use App\Models\Product;
 use App\Models\ProductReview;
 use App\Models\Wishlist;
 use App\Services\Notifications\NotificationPayloadFormatter;
+use App\Services\ProductFeedbackService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -22,7 +23,10 @@ use Illuminate\Validation\Rules\Password;
 
 class AccountController extends Controller
 {
-    public function __construct(private readonly NotificationPayloadFormatter $notificationFormatter) {}
+    public function __construct(
+        private readonly NotificationPayloadFormatter $notificationFormatter,
+        private readonly ProductFeedbackService $feedback,
+    ) {}
 
     public function dashboard(Request $request): JsonResponse
     {
@@ -211,15 +215,14 @@ class AccountController extends Controller
             'comment' => ['required', 'string', 'min:10', 'max:2000'],
         ]);
 
-        $review->update([
-            'rating' => $data['rating'],
-            'comment' => $data['comment'],
-            'status' => 'pending',
-        ]);
+        $review = $this->feedback->updateReview($review, $request, $data);
+        $message = $review->status === 'approved'
+            ? 'Review updated successfully.'
+            : 'Review updated successfully. It will appear publicly after approval.';
 
         return ApiResponse::success([
             'review' => $this->reviewPayload($review->fresh(['product.category:id,name,slug', 'product.brand:id,name,slug', 'product.images', 'product.tags'])),
-        ], 'Review updated successfully. It will appear publicly after approval.');
+        ], $message);
     }
 
     public function deleteReview(Request $request, ProductReview $review): JsonResponse
@@ -255,6 +258,7 @@ class AccountController extends Controller
             'comment' => $review->comment,
             'verified' => (bool) $review->is_verified_purchase,
             'status' => $review->status,
+            'canEdit' => $this->feedback->canEditReview($review),
             'createdAt' => optional($review->created_at)->toISOString(),
             'replies' => $review->admin_reply ? [[
                 'id' => 'admin-'.$review->id,

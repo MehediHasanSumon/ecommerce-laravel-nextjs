@@ -73,13 +73,36 @@ class NavigationSettingsController extends Controller
             'blog' => (bool) $blogSettings['enabled'],
             'wishlist' => (bool) $store->enable_wishlist,
             'reviews' => (bool) $store->enable_reviews,
+            'comments' => (bool) $store->enable_product_comments,
             'shipping' => ShippingMethod::query()->where('status', true)->exists(),
             'payments' => $payments->contains('enabled', true),
         ];
 
         return [
             'company_settings' => $company->toArray(),
-            'website_settings' => $store->toArray(),
+            'website_settings' => [
+                'require_login_before_checkout' => ! (bool) $store->allow_guest_checkout,
+            ],
+            'feedback_settings' => [
+                'reviews' => [
+                    'enabled' => (bool) $store->enable_reviews,
+                    'access' => $store->review_access,
+                    'moderated' => (bool) $store->review_moderation_enabled,
+                    'editing_enabled' => (bool) $store->review_editing_enabled,
+                    'edit_time_limit_minutes' => (int) $store->review_edit_time_limit_minutes,
+                ],
+                'comments' => [
+                    'enabled' => (bool) $store->enable_product_comments,
+                    'access' => $store->comment_access,
+                    'moderated' => (bool) $store->comment_moderation_enabled,
+                    'editing_enabled' => (bool) $store->comment_editing_enabled,
+                    'edit_time_limit_minutes' => (int) $store->comment_edit_time_limit_minutes,
+                ],
+                'guest_name_required' => (bool) $store->guest_name_required,
+                'guest_email_required' => (bool) $store->guest_email_required,
+                'verified_purchase_badge_enabled' => (bool) $store->verified_purchase_badge_enabled,
+            ],
+            'floating_contact' => $this->floatingContact($store),
             'product_card_settings' => [
                 'style' => $store->product_card_style,
                 'layout' => $store->product_layout,
@@ -178,6 +201,24 @@ class NavigationSettingsController extends Controller
             ['label' => 'Blog', 'href' => '/blogs', 'module' => 'blog', 'enabled' => $modules['blog']],
             ['label' => 'Contact', 'href' => '/contact', 'module' => 'contact', 'enabled' => (bool) ($company->support_email || $company->support_phone)],
         ])->where('enabled', true)->values()->all();
+    }
+
+    private function floatingContact(object $store): array
+    {
+        $enabled = (bool) $store->floating_contact_enabled;
+        $messengerUrl = $enabled && (bool) $store->messenger_enabled
+            ? $store->messenger_url
+            : null;
+        $number = preg_replace('/\D+/', '', (string) $store->whatsapp_number);
+        $whatsappUrl = $enabled && (bool) $store->whatsapp_enabled && $number
+            ? 'https://wa.me/'.$number.($store->whatsapp_message ? '?text='.rawurlencode($store->whatsapp_message) : '')
+            : null;
+
+        return [
+            'enabled' => $enabled && (bool) ($messengerUrl || $whatsappUrl),
+            'messenger_url' => $messengerUrl,
+            'whatsapp_url' => $whatsappUrl,
+        ];
     }
 
     private function categoryTree(): array

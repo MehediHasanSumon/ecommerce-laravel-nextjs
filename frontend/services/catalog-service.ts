@@ -87,6 +87,17 @@ export type ProductReview = {
   replies?: Array<{ id: string; author: string; comment: string; createdAt?: string | null }>;
 };
 
+export type ProductComment = {
+  id: string;
+  productId: string;
+  userId: string;
+  user: { id: string; name: string; avatar?: string | null };
+  content: string;
+  createdAt: string;
+  editedAt?: string | null;
+  canEdit: boolean;
+};
+
 export type ProductVariantDetail = {
   id: string;
   sku: string;
@@ -129,6 +140,7 @@ export type ProductDetail = Product & {
 export type ProductDetailResponse = {
   product: ProductDetail;
   reviews: ProductReview[];
+  comments: ProductComment[];
   relatedProducts: Product[];
   similarProducts: Product[];
   frequentlyBoughtTogether: Product[];
@@ -431,10 +443,35 @@ export async function fetchProductDetail(
 
 export async function submitProductReview(
   slug: string,
-  payload: { rating: number; comment: string },
+  payload: { rating: number; comment: string; guest_name?: string; guest_email?: string; website?: string },
 ): Promise<string> {
   const response = await authClient.post<ApiEnvelope<{ review: { id: string; status: string } }>>(
     `/products/${encodeURIComponent(slug)}/reviews`,
+    payload,
+  );
+
+  return response.data.message;
+}
+
+export async function submitProductComment(
+  slug: string,
+  payload: { content: string; guest_name?: string; guest_email?: string; website?: string },
+): Promise<string> {
+  const response = await authClient.post<ApiEnvelope<{ comment: { id: string; status: string } }>>(
+    `/products/${encodeURIComponent(slug)}/comments`,
+    payload,
+  );
+
+  return response.data.message;
+}
+
+export async function updateProductComment(
+  slug: string,
+  commentId: string,
+  payload: { content: string },
+): Promise<string> {
+  const response = await authClient.put<ApiEnvelope<{ comment: { id: string; status: string } }>>(
+    `/products/${encodeURIComponent(slug)}/comments/${encodeURIComponent(commentId)}`,
     payload,
   );
 

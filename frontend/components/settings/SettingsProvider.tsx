@@ -7,6 +7,7 @@ import {
   useSettingsStore,
 } from "@/store/settings-store";
 import type { RuntimeSettings } from "@/types/settings";
+import { FloatingContactButtons } from "@/components/contact/FloatingContactButtons";
 
 export function SettingsProvider({
   children,
@@ -31,7 +32,12 @@ export function SettingsProvider({
     return <GlobalSettingsSkeleton />;
   }
 
-  return children;
+  return (
+    <>
+      {children}
+      <FloatingContactButtons />
+    </>
+  );
 }
 
 function GlobalSettingsSkeleton() {

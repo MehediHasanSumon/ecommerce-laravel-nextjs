@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\ProductFeedbackBulkStatusRequest;
 use App\Http\Requests\Admin\ProductModuleBulkDeleteRequest;
 use App\Http\Requests\Admin\ProductModuleListRequest;
 use App\Http\Requests\Admin\ProductModuleSaveRequest;
@@ -79,6 +80,19 @@ class ProductModuleController extends Controller
         return ApiResponse::success(['deleted' => $deleted], 'Selected records deleted successfully.');
     }
 
+    public function bulkStatus(ProductFeedbackBulkStatusRequest $request, string $module): JsonResponse
+    {
+        $this->authorizeModule($module, 'edit');
+
+        $updated = $this->modules->bulkStatus(
+            $module,
+            $request->validated('ids'),
+            $request->validated('status'),
+        );
+
+        return ApiResponse::success(['updated' => $updated], 'Selected feedback updated successfully.');
+    }
+
     public function reorder(ReorderRecordsRequest $request, string $module): JsonResponse
     {
         $this->authorizeModule($module, 'edit');
@@ -133,6 +147,7 @@ class ProductModuleController extends Controller
             'currencies' => 'currency',
             'discounts' => 'discount',
             'reviews' => 'review',
+            'comments' => 'comment',
         ][$module] ?? str_replace('-', '_', $module);
 
         abort_unless(request()->user()?->can("can_{$ability}_{$resource}"), 403);

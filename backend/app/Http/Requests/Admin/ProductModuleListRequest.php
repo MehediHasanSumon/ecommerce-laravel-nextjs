@@ -27,6 +27,7 @@ class ProductModuleListRequest extends FormRequest
             'attribute-values' => ['value', 'sort_order', 'created_at', 'updated_at'],
             'products' => ['name', 'sku', 'status', 'base_price_cents', 'stock_quantity', 'created_at', 'updated_at'],
             'reviews' => ['rating', 'status', 'created_at', 'updated_at'],
+            'comments' => ['status', 'created_at', 'updated_at'],
             default => ['created_at'],
         };
 
@@ -39,6 +40,8 @@ class ProductModuleListRequest extends FormRequest
             'attribute_id' => ['nullable', 'integer', 'exists:attributes,id'],
             'product_id' => ['nullable', 'integer', 'exists:products,id'],
             'rating' => ['nullable', 'integer', 'min:1', 'max:5'],
+            'customer_id' => ['nullable', 'integer', 'exists:users,id'],
+            'guest' => ['nullable', Rule::in(['guest', 'registered'])],
             'featured' => ['nullable', Rule::in(['yes', 'no'])],
         ];
     }

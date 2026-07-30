@@ -212,7 +212,7 @@ class InteractiveSettingsConfigurator
             );
         }
 
-        if (str_contains($field['name'], 'email')) {
+        if ($field['input_type'] === 'text' && preg_match('/(?:^|_)email$/', $field['name'])) {
             $rules[] = 'email';
         } elseif (str_ends_with($field['name'], '_url')) {
             $rules[] = 'url';

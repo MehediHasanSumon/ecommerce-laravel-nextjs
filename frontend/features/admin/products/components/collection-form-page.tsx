@@ -25,6 +25,7 @@ const emptyOptions: ProductOptions = {
   tags: [],
   products: [],
   collections: [],
+  customers: [],
 };
 
 export function CollectionFormPage({ mode, collectionId }: { mode: DrawerMode; collectionId?: number }) {
