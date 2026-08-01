@@ -1,5 +1,6 @@
 import {
   BadgeCheck,
+  BarChart3,
   Building2,
   LayoutGrid,
   CreditCard,
@@ -15,6 +16,7 @@ import {
   Truck,
   MessageSquareText,
   ListChecks,
+  ChartNoAxesCombined,
 } from "lucide-react";
 import { routePaths } from "@/constants/routes";
 import type { SettingNavItem } from "@/features/admin/settings/components/settings-primitives";
@@ -85,6 +87,18 @@ export const settingsNavItems: SettingNavItem[] = [
     label: "Fraud Detection",
     description: "Risk checks, provider credentials, order controls",
     icon: ShieldCheck,
+  },
+  {
+    href: routePaths.adminSettingsMetaPixel,
+    label: "Meta Pixel",
+    description: "Meta Pixel and Conversions API",
+    icon: BarChart3,
+  },
+  {
+    href: routePaths.adminSettingsGoogleAnalytics,
+    label: "Google Analytics",
+    description: "GA4 ecommerce and Measurement Protocol",
+    icon: ChartNoAxesCombined,
   },
   {
     href: routePaths.adminSettingsSeo,

@@ -102,6 +102,12 @@ export type PlaceOrderResponse = {
   };
 };
 
+export type CheckoutMarketingEventIds = {
+  beginCheckout: string;
+  shippingInfo: string;
+  paymentInfo: string;
+};
+
 export async function fetchAddresses(): Promise<CustomerAddress[]> {
   const response = await client.get<ApiEnvelope<{ items: CustomerAddress[] }>>("/addresses", {
     headers: {
@@ -174,12 +180,19 @@ export async function deleteAddress(id: string) {
   });
 }
 
-export async function placeOrder(payload: PlaceOrderPayload): Promise<PlaceOrderResponse> {
+export async function placeOrder(payload: PlaceOrderPayload, marketingEventIds?: CheckoutMarketingEventIds): Promise<PlaceOrderResponse> {
   const response = await client.post<ApiEnvelope<PlaceOrderResponse>>("/checkout/place-order", {
     ...payload,
     search_event_id: payload.search_event_id ?? getSearchAttribution(),
   }, {
-    headers: checkoutHeaders(),
+    headers: {
+      ...checkoutHeaders(),
+      ...(marketingEventIds ? {
+        "X-Marketing-Begin-Checkout-Event-Id": marketingEventIds.beginCheckout,
+        "X-Marketing-Shipping-Info-Event-Id": marketingEventIds.shippingInfo,
+        "X-Marketing-Payment-Info-Event-Id": marketingEventIds.paymentInfo,
+      } : {}),
+    },
   });
 
   clearSearchAttribution();

@@ -5,12 +5,15 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Responses\ApiResponse;
 use App\Models\NewsletterSubscriber;
+use App\Services\Marketing\MarketingEventService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class NewsletterSubscriptionController extends Controller
 {
+    public function __construct(private readonly MarketingEventService $marketingEvents) {}
+
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -45,6 +48,12 @@ class NewsletterSubscriptionController extends Controller
             'newsletter_subscriber_id' => $subscriber->id,
             'email' => $subscriber->email,
         ]);
+        $this->marketingEvents->track(
+            'subscribe',
+            ['user' => ['email' => $subscriber->email]],
+            $request,
+            eventId: $request->header('X-Marketing-Event-Id'),
+        );
 
         return ApiResponse::success([
             'subscriber' => [

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import {
   hydrateRuntimeSettings,
   selectSettingsPending,
@@ -8,6 +8,7 @@ import {
 } from "@/store/settings-store";
 import type { RuntimeSettings } from "@/types/settings";
 import { FloatingContactButtons } from "@/components/contact/FloatingContactButtons";
+import { MarketingTrackingProvider } from "@/components/marketing/MarketingTrackingProvider";
 
 export function SettingsProvider({
   children,
@@ -35,6 +36,9 @@ export function SettingsProvider({
   return (
     <>
       {children}
+      <Suspense fallback={null}>
+        <MarketingTrackingProvider />
+      </Suspense>
       <FloatingContactButtons />
     </>
   );

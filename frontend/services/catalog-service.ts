@@ -8,6 +8,7 @@ import type { Brand } from "@/types";
 import type { HeroSectionPayload } from "@/features/admin/hero-section/types";
 import type { BlogCard, BlogSettingsRuntime } from "@/services/blog-service";
 import { getSearchSessionId } from "@/lib/search-state";
+import { marketingEventHeaders, marketingTracker } from "@/lib/marketing-tracker";
 
 const apiBaseUrl = (
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/auth"
@@ -299,6 +300,7 @@ export async function fetchHomePageSections(
 }
 
 export async function subscribeToNewsletter(email: string): Promise<string> {
+  const eventId = marketingTracker.createEventId("subscribe");
   const response = await axios.post<ApiEnvelope<{ subscriber: { id: number; email: string; status: string } }>>(
     `${apiBaseUrl}/newsletter/subscribe`,
     { email },
@@ -308,9 +310,11 @@ export async function subscribeToNewsletter(email: string): Promise<string> {
         Accept: "application/json",
         "Content-Type": "application/json",
         "X-Requested-With": "XMLHttpRequest",
+        ...marketingEventHeaders(eventId),
       },
     },
   );
+  marketingTracker.track("subscribe", {}, { eventId, serverMirror: false, serverTracked: true });
 
   return response.data.message;
 }

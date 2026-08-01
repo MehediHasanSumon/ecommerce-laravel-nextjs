@@ -46,6 +46,24 @@ function fraudAndIpPermissions(): array
     ];
 }
 
+function marketingAnalyticsPermissions(): array
+{
+    return [
+        'can_view_meta_pixel_setting',
+        'can_create_meta_pixel_setting',
+        'can_edit_meta_pixel_setting',
+        'can_delete_meta_pixel_setting',
+        'can_view_google_analytics_setting',
+        'can_create_google_analytics_setting',
+        'can_edit_google_analytics_setting',
+        'can_delete_google_analytics_setting',
+        'can_view_marketing_analytics',
+        'can_create_marketing_analytics',
+        'can_edit_marketing_analytics',
+        'can_delete_marketing_analytics',
+    ];
+}
+
 it('keeps the role permission seeder available and idempotent', function (): void {
     $this->seed(RolePermissionSeeder::class);
 
@@ -65,7 +83,10 @@ it('keeps the role permission seeder available and idempotent', function (): voi
         ->and(Role::findByName('super-admin')->hasAllPermissions(fraudAndIpPermissions()))->toBeTrue()
         ->and(Permission::query()->whereIn('name', courierPermissions())->count())->toBe(count(courierPermissions()))
         ->and(Role::findByName('admin')->hasAllPermissions(courierPermissions()))->toBeTrue()
-        ->and(Role::findByName('super-admin')->hasAllPermissions(courierPermissions()))->toBeTrue();
+        ->and(Role::findByName('super-admin')->hasAllPermissions(courierPermissions()))->toBeTrue()
+        ->and(Permission::query()->whereIn('name', marketingAnalyticsPermissions())->count())->toBe(count(marketingAnalyticsPermissions()))
+        ->and(Role::findByName('admin')->hasAllPermissions(marketingAnalyticsPermissions()))->toBeTrue()
+        ->and(Role::findByName('super-admin')->hasAllPermissions(marketingAnalyticsPermissions()))->toBeTrue();
 });
 
 it('discovers configurable settings fields directly from the model and database schema', function (): void {

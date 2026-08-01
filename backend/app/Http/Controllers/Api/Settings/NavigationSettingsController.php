@@ -16,6 +16,7 @@ use App\Services\Admin\Settings\CategoryDisplaySettingsService;
 use App\Services\Admin\Settings\CompanySettingsService;
 use App\Services\Admin\Settings\HomeFeatureCardSettingsService;
 use App\Services\Admin\Settings\HomePageSettingsService;
+use App\Services\Admin\Settings\MarketingSettingsService;
 use App\Services\Admin\Settings\PaymentSettingsService;
 use App\Services\Admin\Settings\SmsSettingsService;
 use App\Services\Admin\Settings\SocialMediaSettingsService;
@@ -38,6 +39,7 @@ class NavigationSettingsController extends Controller
         private readonly SocialMediaSettingsService $socialMediaSettings,
         private readonly PaymentSettingsService $paymentSettings,
         private readonly SmsSettingsService $smsSettings,
+        private readonly MarketingSettingsService $marketingSettings,
     ) {}
 
     public function show(): JsonResponse
@@ -103,6 +105,7 @@ class NavigationSettingsController extends Controller
                 'verified_purchase_badge_enabled' => (bool) $store->verified_purchase_badge_enabled,
             ],
             'floating_contact' => $this->floatingContact($store),
+            'marketing_tracking' => $this->marketingSettings->runtime(),
             'product_card_settings' => [
                 'style' => $store->product_card_style,
                 'layout' => $store->product_layout,

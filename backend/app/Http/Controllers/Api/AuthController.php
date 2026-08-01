@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Services\Admin\Settings\StoreSettingsService;
 use App\Services\AuthService;
 use App\Services\Fraud\FraudAutomationService;
+use App\Services\Marketing\MarketingEventService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -23,6 +24,7 @@ class AuthController extends Controller
         private readonly AuthService $authService,
         private readonly StoreSettingsService $storeSettings,
         private readonly FraudAutomationService $fraudAutomation,
+        private readonly MarketingEventService $marketingEvents,
     ) {}
 
     public function register(RegisterRequest $request): JsonResponse
@@ -37,6 +39,13 @@ class AuthController extends Controller
         $registered = User::query()->find($data['user']['id'] ?? null);
         if ($registered) {
             $this->fraudAutomation->queueCustomer($registered);
+            $this->marketingEvents->track(
+                'complete_registration',
+                ['user' => ['id' => $registered->id, 'email' => $registered->email, 'phone' => $registered->phone]],
+                $request,
+                user: $registered,
+                eventId: $request->header('X-Marketing-Event-Id'),
+            );
         }
 
         return ApiResponse::success(
@@ -49,6 +58,16 @@ class AuthController extends Controller
     public function login(LoginRequest $request): JsonResponse
     {
         $data = $this->authService->login($request->validated());
+        $user = User::query()->find($data['user']['id'] ?? null);
+        if ($user) {
+            $this->marketingEvents->track(
+                'login',
+                ['user' => ['id' => $user->id, 'email' => $user->email, 'phone' => $user->phone]],
+                $request,
+                user: $user,
+                eventId: $request->header('X-Marketing-Event-Id'),
+            );
+        }
 
         return ApiResponse::success(
             ['user' => $data['user']],
@@ -90,6 +109,13 @@ class AuthController extends Controller
     public function logout(Request $request): JsonResponse
     {
         $user = $request->user();
+        $this->marketingEvents->track(
+            'logout',
+            ['user' => $user?->only(['id', 'email', 'phone'])],
+            $request,
+            user: $user,
+            eventId: $request->header('X-Marketing-Event-Id'),
+        );
 
         optional($user)->tokens()?->delete();
 

@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\Admin\FraudCheckController;
 use App\Http\Controllers\Api\Admin\HeroSectionController;
 use App\Http\Controllers\Api\Admin\HomeFeatureCardController;
 use App\Http\Controllers\Api\Admin\IpBlockManagementController;
+use App\Http\Controllers\Api\Admin\MarketingAnalyticsController;
 use App\Http\Controllers\Api\Admin\OrderManagementController;
 use App\Http\Controllers\Api\Admin\PermissionManagementController;
 use App\Http\Controllers\Api\Admin\ProductModuleController;
@@ -23,8 +24,10 @@ use App\Http\Controllers\Api\Admin\Settings\BlogSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\CompanySettingsController;
 use App\Http\Controllers\Api\Admin\Settings\CourierSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\FraudSettingsController;
+use App\Http\Controllers\Api\Admin\Settings\GoogleAnalyticsSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\HomeFeatureCardSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\HomePageSettingsController;
+use App\Http\Controllers\Api\Admin\Settings\MetaPixelSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\PaymentSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\SecuritySettingsController;
 use App\Http\Controllers\Api\Admin\Settings\SeoSettingsController;
@@ -47,6 +50,7 @@ use App\Http\Controllers\Api\ContentPageController;
 use App\Http\Controllers\Api\CourierWebhookController;
 use App\Http\Controllers\Api\CustomerAddressController;
 use App\Http\Controllers\Api\HomePageController;
+use App\Http\Controllers\Api\MarketingTrackingController;
 use App\Http\Controllers\Api\NewsletterSubscriptionController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\OrderTrackingController;
@@ -64,6 +68,9 @@ Route::get('/seo/defaults', [SeoMetadataController::class, 'defaults'])->middlew
 Route::get('/seo/{type}/{slug}', [SeoMetadataController::class, 'entity'])->where('slug', '[A-Za-z0-9\\-]+')->middleware('throttle:public-settings');
 Route::get('/seo/sitemap', [SeoMetadataController::class, 'sitemap'])->middleware('throttle:public-settings');
 Route::get('/home-page', [HomePageController::class, 'show'])->middleware('throttle:public-settings');
+Route::get('/marketing/config', [MarketingTrackingController::class, 'config'])->middleware('throttle:public-settings');
+Route::post('/marketing/events', [MarketingTrackingController::class, 'store'])
+    ->middleware(['auth.cookie.optional:access', 'throttle:marketing-events']);
 Route::get('/blogs', [BlogCatalogController::class, 'index'])->middleware('throttle:public-settings');
 Route::get('/blogs/{slug}', [BlogCatalogController::class, 'show'])->where('slug', '[A-Za-z0-9\\-]+')->middleware('throttle:public-settings');
 Route::get('/brands', [BrandCatalogController::class, 'index'])->middleware('throttle:public-settings');
@@ -168,6 +175,9 @@ Route::prefix('admin')
         Route::get('/dashboard', [DashboardController::class, 'show']);
         Route::get('/search-analytics', [SearchAnalyticsController::class, 'index']);
         Route::get('/fraud-analytics', [FraudAnalyticsController::class, 'index']);
+        Route::get('/marketing-analytics', [MarketingAnalyticsController::class, 'dashboard']);
+        Route::get('/marketing-analytics/logs', [MarketingAnalyticsController::class, 'logs']);
+        Route::get('/marketing-analytics/status', [MarketingAnalyticsController::class, 'status']);
         Route::get('/fraud-checks', [FraudCheckController::class, 'index']);
         Route::post('/fraud-checks', [FraudCheckController::class, 'store'])->middleware('throttle:fraud-check');
         Route::post('/fraud-checks/bulk', [FraudCheckController::class, 'bulk'])->middleware('throttle:fraud-bulk');
@@ -277,6 +287,16 @@ Route::prefix('admin')
         Route::put('/settings/fraud-detection', [FraudSettingsController::class, 'update']);
         Route::get('/settings/fraud-detection/status', [FraudSettingsController::class, 'status']);
         Route::post('/settings/fraud-detection/{provider}/test', [FraudSettingsController::class, 'test'])->middleware('throttle:fraud-check');
+
+        Route::get('/settings/meta-pixel', [MetaPixelSettingsController::class, 'show']);
+        Route::put('/settings/meta-pixel', [MetaPixelSettingsController::class, 'update']);
+        Route::get('/settings/meta-pixel/status', [MetaPixelSettingsController::class, 'status']);
+        Route::post('/settings/meta-pixel/test', [MetaPixelSettingsController::class, 'test'])->middleware('throttle:marketing-test');
+
+        Route::get('/settings/google-analytics', [GoogleAnalyticsSettingsController::class, 'show']);
+        Route::put('/settings/google-analytics', [GoogleAnalyticsSettingsController::class, 'update']);
+        Route::get('/settings/google-analytics/status', [GoogleAnalyticsSettingsController::class, 'status']);
+        Route::post('/settings/google-analytics/test', [GoogleAnalyticsSettingsController::class, 'test'])->middleware('throttle:marketing-test');
 
         Route::get('/settings/seo', [SeoSettingsController::class, 'show']);
         Route::put('/settings/seo', [SeoSettingsController::class, 'update']);

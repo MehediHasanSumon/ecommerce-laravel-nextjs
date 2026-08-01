@@ -1,6 +1,7 @@
 "use client";
 
 import axios, { type AxiosInstance } from "axios";
+import { getMarketingConsent } from "@/lib/marketing-consent";
 
 const baseURL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/auth";
 const csrfCookieUrl = process.env.NEXT_PUBLIC_CSRF_COOKIE_URL;
@@ -43,6 +44,7 @@ export function createAuthAwareClient({ baseURL }: AuthClientOptions): AxiosInst
   });
 
   client.interceptors.request.use(async (config) => {
+    config.headers.set("X-Marketing-Consent", getMarketingConsent());
     const method = config.method?.toUpperCase();
     if (method && ["POST", "PUT", "PATCH", "DELETE"].includes(method)) {
       await ensureCsrfCookie();

@@ -7,6 +7,7 @@ use App\Models\OrderRefund;
 use App\Models\OrderStatusHistory;
 use App\Models\PaymentTransaction;
 use App\Models\ShippingLog;
+use App\Services\Marketing\MarketingEventService;
 use App\Services\Notifications\RealtimeNotificationService;
 use App\Services\Sms\SmsService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -26,6 +27,7 @@ class OrderService
     public function __construct(
         private readonly RealtimeNotificationService $notifications,
         private readonly SmsService $sms,
+        private readonly MarketingEventService $marketingEvents,
     ) {}
 
     public function paginate(array $filters, ?int $userId = null, ?string $guestToken = null): LengthAwarePaginator
@@ -235,7 +237,7 @@ class OrderService
                 ->latest('paid_at')
                 ->first();
 
-            OrderRefund::query()->create([
+            $refund = OrderRefund::query()->create([
                 'order_id' => $lockedOrder->id,
                 'user_id' => $userId,
                 'amount_cents' => $amountCents,
@@ -259,6 +261,17 @@ class OrderService
                 ['amount_cents' => $amountCents, 'reason' => $reason, 'gateway' => $transaction?->gateway],
                 $userId,
             );
+
+            DB::afterCommit(fn () => $this->marketingEvents->trackOrder(
+                'refund',
+                $lockedOrder->fresh(),
+                ['ecommerce' => [
+                    'currency' => $lockedOrder->currency,
+                    'value' => round($amountCents / 100, 2),
+                    'transaction_id' => $lockedOrder->order_number,
+                ]],
+                "refund-{$refund->id}",
+            ));
 
             return $this->findAdmin($lockedOrder->id);
         });

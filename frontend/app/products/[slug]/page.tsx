@@ -40,6 +40,7 @@ import {
 import { useAuthStore } from '@/store/auth-store';
 import { toAppError } from '@/lib/errors';
 import { ProductGallery } from '@/components/product/ProductGallery';
+import { marketingTracker } from '@/lib/marketing-tracker';
 
 function findSelectedVariant(
   product: ProductDetail | null,
@@ -112,6 +113,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
   const router = useRouter();
   const searchParams = useSearchParams();
   const buyNowHandled = useRef(false);
+  const trackedProduct = useRef('');
 
   useEffect(() => {
     setMounted(true);
@@ -287,6 +289,28 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
       meta.content = description;
     }
   }, [product]);
+
+  useEffect(() => {
+    if (!product || trackedProduct.current === product.id) return;
+    trackedProduct.current = product.id;
+    marketingTracker.track('view_item', {
+      content_name: product.name,
+      content_category: product.category,
+      ecommerce: {
+        currency: String(runtimeSettings?.theme_configuration.currency || 'BDT'),
+        value: displayPrice,
+        items: [{
+          item_id: displaySku || product.id,
+          item_name: product.name,
+          item_brand: product.brand,
+          item_category: product.category,
+          item_variant: Object.values(selectedVariant?.options ?? {}).map((option) => option.name).join(' / ') || undefined,
+          price: displayPrice,
+          quantity: 1,
+        }],
+      },
+    });
+  }, [displayPrice, displaySku, product, runtimeSettings?.theme_configuration.currency, selectedVariant?.id, selectedVariant?.options]);
 
   if (!mounted || loading) {
     return (

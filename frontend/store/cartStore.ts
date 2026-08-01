@@ -383,11 +383,32 @@ export const useCartStore = create<CartStore>()((set, get) => ({
 
   async removeItem(itemId) {
     const requestVersion = get().requestVersion;
+    const removedItem = get().items.find((item) => item.id === itemId);
     set({ isLoading: true });
     try {
       const guestToken = ensureGuestToken(get().guestToken, set);
       const mode = activeCartMode();
-      const cart = await cartService.removeItem(guestToken, mode, itemId);
+      const cart = await cartService.removeItem(guestToken, mode, itemId, removedItem ? {
+        id: removedItem.id,
+        productId: removedItem.productId,
+        variantId: removedItem.variantId,
+        quantity: removedItem.quantity,
+        unitPrice: removedItem.unitPrice ?? removedItem.product.price,
+        discountedPrice: removedItem.discountedPrice,
+        subtotal: removedItem.subtotal ?? removedItem.product.price * removedItem.quantity,
+        discountTotal: removedItem.discountTotal ?? 0,
+        selectedVariant: removedItem.selectedVariant,
+        selectedSize: removedItem.selectedSize,
+        selectedColor: removedItem.selectedColor,
+        selectedAttributes: removedItem.selectedAttributes ?? [],
+        selectedOptions: removedItem.selectedOptions ?? {},
+        selectedSku: removedItem.selectedSku,
+        selectedImage: removedItem.selectedImage,
+        pricing: {},
+        tax: {},
+        product: removedItem.product,
+        availability: removedItem.availability ?? { inStock: true, stock: removedItem.product.stock },
+      } : undefined);
       if (get().requestVersion === requestVersion && activeCartMode() === mode) {
         applyCartState(set, cart);
       }

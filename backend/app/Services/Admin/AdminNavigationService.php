@@ -125,6 +125,7 @@ class AdminNavigationService
                 $this->item('Inventory Reports', '/admin/reports/inventory', 'Warehouse', 'can_view_inventory_report'),
                 $this->item('Search Analytics', '/admin/search-analytics', 'Search', 'can_view_search_analytics'),
                 $this->item('Fraud Analytics', '/admin/fraud-analytics', 'ShieldCheck', 'can_view_fraud_analytics'),
+                $this->item('Marketing Analytics', '/admin/marketing-analytics', 'ChartNoAxesCombined', 'can_view_marketing_analytics'),
             ]],
             ['key' => 'security', 'label' => 'Security', 'icon' => 'ShieldAlert', 'type' => 'group', 'items' => [
                 $this->item('IP Blocking', '/admin/security/ip-blocks', 'ShieldAlert', 'can-view-ip-block'),
@@ -141,6 +142,8 @@ class AdminNavigationService
                 $this->item('Shipping Methods', '/admin/settings/shipping-methods', 'PackageCheck', 'can_view_shipping_method'),
                 $this->item('Courier Integrations', '/admin/settings/couriers', 'Truck', 'can_view_courier_setting'),
                 $this->item('Fraud Detection', '/admin/settings/fraud-detection', 'ShieldCheck', 'can_view_fraud_setting'),
+                $this->item('Meta Pixel', '/admin/settings/meta-pixel', 'BarChart3', 'can_view_meta_pixel_setting'),
+                $this->item('Google Analytics', '/admin/settings/google-analytics', 'ChartNoAxesCombined', 'can_view_google_analytics_setting'),
                 $this->item('SEO Settings', '/admin/settings/seo', 'Search', 'can_view_seo_setting'),
                 $this->item('Social Media', '/admin/settings/social', 'Megaphone', 'can_view_social_setting'),
                 $this->item('SMS Settings', '/admin/settings/sms', 'MessageSquareText', 'can_view_sms_setting'),

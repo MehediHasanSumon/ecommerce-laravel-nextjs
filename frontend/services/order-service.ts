@@ -99,6 +99,7 @@ export type OrderDetail = OrderListItem & {
     approvedAt: string | null;
     approvedBy: { id: number; name: string } | null;
   };
+  marketingEventId?: string;
 };
 
 export async function fetchOrders(params: Record<string, string | number | undefined> = {}): Promise<OrderListResponse> {

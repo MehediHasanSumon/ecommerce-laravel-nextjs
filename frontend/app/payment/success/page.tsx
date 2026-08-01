@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { notFound, useSearchParams } from "next/navigation";
 import { CheckCircle, Download, Home, Package, ShoppingBag } from "lucide-react";
@@ -10,6 +10,7 @@ import { Footer } from "@/components/layout/Footer";
 import { downloadPaymentInvoice, fetchPaymentResult, type OrderDetail } from "@/services/order-service";
 import { toAppError } from "@/lib/errors";
 import { formatPrice } from "@/utils/format";
+import { marketingTracker } from "@/lib/marketing-tracker";
 
 export default function PaymentSuccessPage() {
   return (
@@ -25,6 +26,7 @@ function PaymentSuccessContent() {
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [invoiceLoading, setInvoiceLoading] = useState(false);
+  const trackedPurchase = useRef("");
 
   useEffect(() => {
     if (!orderNumber?.trim()) {
@@ -35,6 +37,31 @@ function PaymentSuccessContent() {
       .catch(() => notFound())
       .finally(() => setLoading(false));
   }, [orderNumber]);
+
+  useEffect(() => {
+    if (!order || order.paymentStatus !== "paid") return;
+    const eventId = order.marketingEventId ?? `purchase-order-${order.id}`;
+    if (trackedPurchase.current === eventId) return;
+    trackedPurchase.current = eventId;
+    marketingTracker.track("purchase", {
+      transaction_id: order.orderNumber,
+      ecommerce: {
+        transaction_id: order.orderNumber,
+        currency: order.currency,
+        value: order.summary.total,
+        tax: order.summary.tax,
+        shipping: order.summary.shipping,
+        coupon: order.couponCode,
+        items: order.items.map((item) => ({
+          item_id: item.sku || String(item.productId ?? item.id),
+          item_name: item.productName,
+          item_variant: item.variantName,
+          price: item.discountedPrice ?? item.unitPrice,
+          quantity: item.quantity,
+        })),
+      },
+    }, { eventId, serverMirror: false, serverTracked: true });
+  }, [order]);
 
   if (loading) {
     return <PaymentResultSkeleton />;

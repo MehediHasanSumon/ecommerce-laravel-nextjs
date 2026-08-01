@@ -3,6 +3,7 @@
 import { createAuthAwareClient } from "@/lib/api-client";
 import type { ApiEnvelope } from "@/features/admin/shared/types";
 import type { Product } from "@/types";
+import { marketingEventHeaders, marketingTracker } from "@/lib/marketing-tracker";
 
 const apiBaseUrl = (
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/auth"
@@ -120,11 +121,28 @@ export const cartService = {
   },
 
   async addItem(guestToken: string, mode: CartSessionMode, payload: AddCartItemPayload) {
+    const eventId = marketingTracker.createEventId("add-to-cart");
     const { data } = await client.post<ApiEnvelope<{ cart: CartApiResponse }>>("/cart/items", payload, {
-      headers: cartHeaders(guestToken, mode),
+      headers: { ...cartHeaders(guestToken, mode), ...marketingEventHeaders(eventId) },
     });
+    const cart = data.data.cart;
+    const item = cart.items.find((candidate) => Number(candidate.productId) === payload.product_id);
+    marketingTracker.track("add_to_cart", {
+      ecommerce: {
+        value: item?.subtotal,
+        items: item?.product ? [{
+          item_id: item.selectedSku ?? item.product.sku ?? item.productId,
+          item_name: item.product.name,
+          item_brand: item.product.brand,
+          item_category: item.product.category,
+          item_variant: item.selectedVariant,
+          price: item.discountedPrice ?? item.unitPrice,
+          quantity: payload.quantity,
+        }] : [],
+      },
+    }, { eventId, serverMirror: false, serverTracked: true });
 
-    return data.data.cart;
+    return cart;
   },
 
   async updateItem(guestToken: string, mode: CartSessionMode, itemId: string, quantity: number) {
@@ -137,10 +155,25 @@ export const cartService = {
     return data.data.cart;
   },
 
-  async removeItem(guestToken: string, mode: CartSessionMode, itemId: string) {
+  async removeItem(guestToken: string, mode: CartSessionMode, itemId: string, removedItem?: CartApiItem) {
+    const eventId = marketingTracker.createEventId("remove-from-cart");
     const { data } = await client.delete<ApiEnvelope<{ cart: CartApiResponse }>>(`/cart/items/${itemId}`, {
-      headers: cartHeaders(guestToken, mode),
+      headers: { ...cartHeaders(guestToken, mode), ...marketingEventHeaders(eventId) },
     });
+    marketingTracker.track("remove_from_cart", {
+      ecommerce: {
+        value: removedItem?.subtotal,
+        items: removedItem?.product ? [{
+          item_id: removedItem.selectedSku ?? removedItem.product.sku ?? removedItem.productId,
+          item_name: removedItem.product.name,
+          item_brand: removedItem.product.brand,
+          item_category: removedItem.product.category,
+          item_variant: removedItem.selectedVariant,
+          price: removedItem.discountedPrice ?? removedItem.unitPrice,
+          quantity: removedItem.quantity,
+        }] : [],
+      },
+    }, { eventId, serverMirror: false, serverTracked: true });
 
     return data.data.cart;
   },
@@ -162,12 +195,16 @@ export const cartService = {
   },
 
   async applyCoupon(guestToken: string, mode: CartSessionMode, code: string, shippingMethodId?: number) {
+    const eventId = marketingTracker.createEventId("apply-coupon");
     const { data } = await client.post<ApiEnvelope<{ cart: CartApiResponse }>>("/cart/coupon", {
       code,
       shipping_method_id: shippingMethodId,
     }, {
-      headers: cartHeaders(guestToken, mode),
+      headers: { ...cartHeaders(guestToken, mode), ...marketingEventHeaders(eventId) },
     });
+    marketingTracker.track("apply_coupon", {
+      ecommerce: { coupon: code },
+    }, { eventId, serverMirror: false, serverTracked: true });
 
     return data.data.cart;
   },

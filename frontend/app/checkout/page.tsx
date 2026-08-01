@@ -26,6 +26,7 @@ import {
 } from '@/services/checkout-service';
 import { toAppError } from '@/lib/errors';
 import { toast } from 'sonner';
+import { marketingTracker } from '@/lib/marketing-tracker';
 
 const emptyCheckoutForm = {
   fullName: '',
@@ -173,6 +174,14 @@ function CheckoutPageContent() {
   const [hasRenderedCheckoutContent, setHasRenderedCheckoutContent] = useState(false);
   const inputRefs = useRef<Partial<Record<keyof CheckoutForm, HTMLInputElement | null>>>({});
   const shippingMethodsRef = useRef<HTMLDivElement | null>(null);
+  const marketingEventIds = useRef({
+    beginCheckout: marketingTracker.createEventId('begin-checkout'),
+    shippingInfo: marketingTracker.createEventId('shipping-info'),
+    paymentInfo: marketingTracker.createEventId('payment-info'),
+  });
+  const beginCheckoutTracked = useRef(false);
+  const shippingInfoTracked = useRef(false);
+  const paymentInfoTracked = useRef(false);
   const router = useRouter();
   const paymentStatus = searchParams.get('payment');
   const paymentOrderNumber = searchParams.get('order');
@@ -190,6 +199,7 @@ function CheckoutPageContent() {
   const couponLoading = useCartStore((s) => s.isCouponLoading);
   const subtotal = getSubtotal();
   const customerSettings = useSettingsStore(selectCustomerSettings);
+  const runtimeSettings = useSettingsStore((state) => state.settings);
   const fetchSettings = useSettingsStore((state) => state.fetchSettings);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const authInitialized = useAuthStore((state) => state.initialized);
@@ -358,6 +368,27 @@ function CheckoutPageContent() {
     if (!cart.couponCode || !selectedShippingMethodId) return;
     void applyCoupon(cart.couponCode, Number(selectedShippingMethodId));
   }, [applyCoupon, cart.couponCode, selectedShippingMethodId]);
+
+  useEffect(() => {
+    if (!cartInitialized || items.length === 0 || beginCheckoutTracked.current) return;
+    beginCheckoutTracked.current = true;
+    marketingTracker.track('begin_checkout', {
+      ecommerce: {
+        currency: String(runtimeSettings?.theme_configuration.currency || 'BDT'),
+        value: cart.summary?.total ?? subtotal,
+        coupon: cart.couponCode || null,
+        items: items.map((item) => ({
+          item_id: item.selectedSku || item.product.sku || item.productId,
+          item_name: item.product.name,
+          item_brand: item.product.brand,
+          item_category: item.product.category,
+          item_variant: item.selectedVariant,
+          price: item.discountedPrice ?? item.unitPrice ?? item.product.price,
+          quantity: item.quantity,
+        })),
+      },
+    }, { eventId: marketingEventIds.current.beginCheckout });
+  }, [cart.couponCode, cart.summary?.total, cartInitialized, items, runtimeSettings?.theme_configuration.currency, subtotal]);
 
   if (!hasRenderedCheckoutContent) {
     return <CheckoutSkeleton />;
@@ -536,6 +567,12 @@ function CheckoutPageContent() {
       return;
     }
 
+    if (!shippingInfoTracked.current) {
+      shippingInfoTracked.current = true;
+      marketingTracker.track('add_shipping_info', checkoutTrackingPayload(), {
+        eventId: marketingEventIds.current.shippingInfo,
+      });
+    }
     setStep(otpRequired ? 2 : paymentStep);
   };
 
@@ -606,6 +643,14 @@ function CheckoutPageContent() {
 
     setIsSubmitting(true);
     try {
+      if (!paymentInfoTracked.current) {
+        paymentInfoTracked.current = true;
+        marketingTracker.track('add_payment_info', checkoutTrackingPayload(), {
+          eventId: marketingEventIds.current.paymentInfo,
+          serverMirror: false,
+          serverTracked: true,
+        });
+      }
       const response = await placeOrder({
         billing_address_id: selectedBillingAddress ? Number(selectedBillingAddress.id) : undefined,
         billing_address: selectedBillingAddress ? undefined : checkoutAddress,
@@ -613,7 +658,7 @@ function CheckoutPageContent() {
         shipping_method_id: Number(selectedShippingMethodId),
         payment_method: selectedPaymentMethod,
         otp_verification_id: otpRequired ? otpChallengeId : undefined,
-      });
+      }, marketingEventIds.current);
 
       if (response.payment.redirectUrl) {
         window.location.assign(response.payment.redirectUrl);
@@ -656,6 +701,28 @@ function CheckoutPageContent() {
   const couponActionLabel = couponInput.trim().length > 0 ? 'Apply' : 'Cancel';
   const showShippingSkeleton = shippingLoading && shippingMethods.length === 0;
   const showPaymentSkeleton = paymentLoading && paymentMethods.length === 0;
+
+  function checkoutTrackingPayload() {
+    return {
+      content_name: selectedPaymentMethod || selectedShippingMethod?.name || 'Checkout',
+      ecommerce: {
+        currency: String(runtimeSettings?.theme_configuration.currency || 'BDT'),
+        value: total,
+        tax,
+        shipping: shippingAmount,
+        coupon: cart.couponCode || null,
+        items: items.map((item) => ({
+          item_id: item.selectedSku || item.product.sku || item.productId,
+          item_name: item.product.name,
+          item_brand: item.product.brand,
+          item_category: item.product.category,
+          item_variant: item.selectedVariant,
+          price: item.discountedPrice ?? item.unitPrice ?? item.product.price,
+          quantity: item.quantity,
+        })),
+      },
+    };
+  }
 
   async function handleCouponApply() {
     if (!couponInput.trim()) {

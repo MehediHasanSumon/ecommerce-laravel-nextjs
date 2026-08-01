@@ -1,4 +1,5 @@
 import { apiClient } from "@/lib/api-client";
+import { marketingEventHeaders, marketingTracker } from "@/lib/marketing-tracker";
 import type {
   ApiEnvelope,
   AuthSession,
@@ -15,12 +16,20 @@ type AuthData = {
 
 export const authService = {
   async login(payload: LoginPayload) {
-    const { data } = await apiClient.post<ApiEnvelope<AuthData>>("/login", payload);
+    const eventId = marketingTracker.createEventId("login");
+    const { data } = await apiClient.post<ApiEnvelope<AuthData>>("/login", payload, {
+      headers: marketingEventHeaders(eventId),
+    });
+    marketingTracker.track("login", {}, { eventId, serverMirror: false, serverTracked: true });
     return data.data.user;
   },
 
   async register(payload: RegisterPayload) {
-    const { data } = await apiClient.post<ApiEnvelope<AuthData>>("/register", payload);
+    const eventId = marketingTracker.createEventId("complete-registration");
+    const { data } = await apiClient.post<ApiEnvelope<AuthData>>("/register", payload, {
+      headers: marketingEventHeaders(eventId),
+    });
+    marketingTracker.track("complete_registration", {}, { eventId, serverMirror: false, serverTracked: true });
     return data.data.user;
   },
 
@@ -35,7 +44,11 @@ export const authService = {
   },
 
   async logout() {
-    await apiClient.post<ApiEnvelope<Record<string, never>>>("/logout");
+    const eventId = marketingTracker.createEventId("logout");
+    await apiClient.post<ApiEnvelope<Record<string, never>>>("/logout", undefined, {
+      headers: marketingEventHeaders(eventId),
+    });
+    marketingTracker.track("logout", {}, { eventId, serverMirror: false, serverTracked: true });
   },
 
   async forgotPassword(payload: ForgotPasswordPayload) {

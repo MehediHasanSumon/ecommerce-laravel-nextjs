@@ -185,6 +185,28 @@ export type RuntimeFloatingContact = {
   whatsapp_url?: string | null;
 };
 
+export type RuntimeMarketingTracking = {
+  meta: {
+    enabled: boolean;
+    pixel_id?: string | null;
+    browser_side_tracking: boolean;
+    server_side_tracking: boolean;
+    automatic_event_tracking: boolean;
+    advanced_matching: boolean;
+    debug_mode: boolean;
+  };
+  google: {
+    enabled: boolean;
+    measurement_id?: string | null;
+    client_side_events: boolean;
+    server_side_events: boolean;
+    enhanced_ecommerce: boolean;
+    debug_mode: boolean;
+    anonymize_ip: boolean;
+    respect_consent_mode: boolean;
+  };
+};
+
 export type RuntimeSettings = {
   company_settings: Record<string, unknown>;
   website_settings: Record<string, unknown>;
@@ -238,4 +260,5 @@ export type RuntimeSettings = {
   sms_settings: RuntimeSmsSettings;
   feedback_settings: RuntimeFeedbackSettings;
   floating_contact: RuntimeFloatingContact;
+  marketing_tracking: RuntimeMarketingTracking;
 };

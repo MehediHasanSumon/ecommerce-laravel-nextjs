@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   BadgeCheck,
   BarChart3,
+  ChartNoAxesCombined,
   Bell,
   Boxes,
   Building2,
@@ -117,6 +118,7 @@ const reportManagementItems = [
   { href: routePaths.adminReportsInventory, label: "Inventory Reports", icon: Warehouse },
   { href: routePaths.adminSearchAnalytics, label: "Search Analytics", icon: Search },
   { href: routePaths.adminFraudAnalytics, label: "Fraud Analytics", icon: ShieldCheck },
+  { href: routePaths.adminMarketingAnalytics, label: "Marketing Analytics", icon: ChartNoAxesCombined },
 ];
 
 const settingsItems = [
@@ -130,6 +132,8 @@ const settingsItems = [
   { href: routePaths.adminSettingsShippingMethods, label: "Shipping Methods", icon: PackageCheck },
   { href: routePaths.adminSettingsCouriers, label: "Courier Integrations", icon: Truck },
   { href: routePaths.adminSettingsFraudDetection, label: "Fraud Detection", icon: ShieldCheck },
+  { href: routePaths.adminSettingsMetaPixel, label: "Meta Pixel", icon: BarChart3 },
+  { href: routePaths.adminSettingsGoogleAnalytics, label: "Google Analytics", icon: ChartNoAxesCombined },
   { href: routePaths.adminSettingsSeo, label: "SEO Settings", icon: Search },
   { href: routePaths.adminSettingsSocial, label: "Social Media", icon: Star },
   { href: routePaths.adminSettingsSms, label: "SMS Settings", icon: MessageSquareText },
@@ -177,6 +181,9 @@ const adminPermissionAliases: Record<string, string> = {
   "inventory-reports.view": "can_view_inventory_report",
   "search-analytics.view": "can_view_search_analytics",
   "fraud-analytics.view": "can_view_fraud_analytics",
+  "marketing-analytics.view": "can_view_marketing_analytics",
+  "meta-pixel-settings.view": "can_view_meta_pixel_setting",
+  "google-analytics-settings.view": "can_view_google_analytics_setting",
   "fraud-settings.view": "can_view_fraud_setting",
   "blogs.view": "can_view_blog",
   "contact-messages.view": "can_view_contact_message",
@@ -206,6 +213,8 @@ const adminRoutePermissions: Record<string, string> = {
   [routePaths.adminSettingsShippingMethods]: "can_view_shipping_method",
   [routePaths.adminSettingsCouriers]: "can_view_courier_setting",
   [routePaths.adminSettingsFraudDetection]: "can_view_fraud_setting",
+  [routePaths.adminSettingsMetaPixel]: "can_view_meta_pixel_setting",
+  [routePaths.adminSettingsGoogleAnalytics]: "can_view_google_analytics_setting",
   [routePaths.adminSettingsCompany]: "can_view_company_setting",
   [routePaths.adminSettingsHeroSection]: "can_view_hero_section",
   [routePaths.adminSettingsHomePage]: "can_view_home_page_setting",
@@ -226,6 +235,7 @@ const adminRoutePermissions: Record<string, string> = {
   [routePaths.adminReportsInventory]: "can_view_inventory_report",
   [routePaths.adminSearchAnalytics]: "can_view_search_analytics",
   [routePaths.adminFraudAnalytics]: "can_view_fraud_analytics",
+  [routePaths.adminMarketingAnalytics]: "can_view_marketing_analytics",
   [routePaths.adminBlogs]: "can_view_blog",
   [routePaths.adminContactMessages]: "can_view_contact_message",
   [routePaths.adminIpBlocks]: "can-view-ip-block",
@@ -236,6 +246,7 @@ const iconMap = {
   Bell,
   BadgeCheck,
   BarChart3,
+  ChartNoAxesCombined,
   Boxes,
   Building2,
   ChevronDown,
@@ -281,6 +292,7 @@ function renderIcon(name: string | undefined, className: string) {
     case "Bell": return <Bell className={className} />;
     case "BadgeCheck": return <BadgeCheck className={className} />;
     case "BarChart3": return <BarChart3 className={className} />;
+    case "ChartNoAxesCombined": return <ChartNoAxesCombined className={className} />;
     case "Boxes": return <Boxes className={className} />;
     case "Building2": return <Building2 className={className} />;
     case "CirclePercent": return <CirclePercent className={className} />;

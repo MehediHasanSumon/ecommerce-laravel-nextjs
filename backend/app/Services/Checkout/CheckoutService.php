@@ -13,6 +13,7 @@ use App\Services\Commerce\CartService;
 use App\Services\Commerce\CouponService;
 use App\Services\Customers\GuestCustomerService;
 use App\Services\Fraud\FraudAutomationService;
+use App\Services\Marketing\MarketingEventService;
 use App\Services\Orders\OrderCreator;
 use App\Services\Orders\OrderService;
 use App\Services\Payments\PaymentGatewayManager;
@@ -40,6 +41,7 @@ class CheckoutService
         private readonly CheckoutOtpService $checkoutOtp,
         private readonly SearchAnalyticsService $searchAnalytics,
         private readonly FraudAutomationService $fraudAutomation,
+        private readonly MarketingEventService $marketingEvents,
     ) {}
 
     public function place(Request $request, array $payload): array
@@ -136,6 +138,7 @@ class CheckoutService
                 'summary_snapshot' => $summary,
                 'client_ip' => $request->ip(),
                 'user_agent' => substr((string) $request->userAgent(), 0, 2000),
+                'marketing_consent_status' => $this->marketingEvents->consent($request),
                 'placed_at' => now(),
             ], $cart->items->map(fn ($item): array => [
                 'product_id' => $item->product_id,
@@ -212,12 +215,30 @@ class CheckoutService
 
         $order->setAttribute('redirect_url', $result->redirectUrl);
 
+        $this->marketingEvents->trackOrder(
+            'begin_checkout',
+            $order,
+            eventId: $request->header('X-Marketing-Begin-Checkout-Event-Id') ?: "begin-checkout-order-{$order->id}",
+        );
+        $this->marketingEvents->trackOrder(
+            'add_shipping_info',
+            $order,
+            eventId: $request->header('X-Marketing-Shipping-Info-Event-Id') ?: "shipping-info-order-{$order->id}",
+        );
+        $this->marketingEvents->trackOrder('add_payment_info', $order, [
+            'payment_type' => $order->payment_method,
+        ], $request->header('X-Marketing-Payment-Info-Event-Id') ?: "payment-info-order-{$order->id}");
+
         if ($result->status === 'pending') {
             DB::transaction(function () use ($cart, $order, $transaction, $session): void {
                 $this->orders->syncPayment($order, $transaction->fresh(), 'pending', 'Offline payment pending.');
                 $this->completeCart($cart);
                 $session->newQuery()->whereKey($session->id)->update(['status' => 'completed']);
             });
+        }
+
+        if ($result->status === 'paid' || ($result->status === 'pending' && ! $result->redirectUrl)) {
+            $this->marketingEvents->trackOrder('purchase', $order, eventId: "purchase-order-{$order->id}");
         }
 
         $this->searchAnalytics->recordConversion($order, $payload['search_event_id'] ?? null);
@@ -240,6 +261,11 @@ class CheckoutService
                 $this->completeCart($order->cart);
             }
             $this->fraudAutomation->queueOrder($order->fresh(), 'payment_verification', true);
+            DB::afterCommit(fn () => $this->marketingEvents->trackOrder(
+                'purchase',
+                $order->fresh(),
+                eventId: "purchase-order-{$order->id}",
+            ));
         });
     }
 

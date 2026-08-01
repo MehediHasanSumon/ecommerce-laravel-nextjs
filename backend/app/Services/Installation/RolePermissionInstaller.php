@@ -69,6 +69,21 @@ class RolePermissionInstaller
         'can_delete_courier_shipment',
     ];
 
+    private const MARKETING_ANALYTICS_PERMISSIONS = [
+        'can_view_meta_pixel_setting',
+        'can_create_meta_pixel_setting',
+        'can_edit_meta_pixel_setting',
+        'can_delete_meta_pixel_setting',
+        'can_view_google_analytics_setting',
+        'can_create_google_analytics_setting',
+        'can_edit_google_analytics_setting',
+        'can_delete_google_analytics_setting',
+        'can_view_marketing_analytics',
+        'can_create_marketing_analytics',
+        'can_edit_marketing_analytics',
+        'can_delete_marketing_analytics',
+    ];
+
     private const FRAUD_AND_IP_PERMISSIONS = [
         'can_view_fraud_setting',
         'can_create_fraud_setting',
@@ -104,6 +119,7 @@ class RolePermissionInstaller
             ])
             ->push('can_apply_coupon')
             ->push(...self::COURIER_PERMISSIONS)
+            ->push(...self::MARKETING_ANALYTICS_PERMISSIONS)
             ->push(...self::FRAUD_AND_IP_PERMISSIONS)
             ->unique()
             ->values()

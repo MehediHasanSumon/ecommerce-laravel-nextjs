@@ -7,6 +7,7 @@ use App\Http\Resources\ContactMessageResource;
 use App\Http\Responses\ApiResponse;
 use App\Models\ContactMessage;
 use App\Models\Settings\CompanySetting;
+use App\Services\Marketing\MarketingEventService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -14,6 +15,8 @@ use Illuminate\Support\Facades\Mail;
 
 class ContactMessageController extends Controller
 {
+    public function __construct(private readonly MarketingEventService $marketingEvents) {}
+
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -32,6 +35,13 @@ class ContactMessageController extends Controller
         ]);
 
         $this->notifySupport($message);
+        $this->marketingEvents->track(
+            'contact',
+            ['user' => ['email' => $message->email, 'phone' => $message->phone], 'content_name' => $message->subject],
+            $request,
+            user: $request->user(),
+            eventId: $request->header('X-Marketing-Event-Id'),
+        );
 
         return ApiResponse::success([
             'message' => ContactMessageResource::make($message)->resolve(),

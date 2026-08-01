@@ -3,6 +3,7 @@
 import { createAuthAwareClient } from "@/lib/api-client";
 import type { ApiEnvelope } from "@/features/admin/shared/types";
 import type { Product } from "@/types";
+import { marketingEventHeaders, marketingTracker } from "@/lib/marketing-tracker";
 
 const apiBaseUrl = (
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/auth"
@@ -44,11 +45,28 @@ export const wishlistService = {
   },
 
   async toggle(guestToken: string, productId: number) {
+    const eventId = marketingTracker.createEventId("add-to-wishlist");
     const { data } = await client.post<ApiEnvelope<{ wishlist: WishlistApiResponse }>>("/wishlist/toggle", {
       product_id: productId,
     }, {
-      headers: guestHeaders(guestToken),
+      headers: { ...guestHeaders(guestToken), ...marketingEventHeaders(eventId) },
     });
+    const item = data.data.wishlist.items.find((candidate) => Number(candidate.productId) === productId);
+    if (item?.product) {
+      marketingTracker.track("add_to_wishlist", {
+        ecommerce: {
+          value: item.discountedPrice ?? item.product.price,
+          items: [{
+            item_id: item.product.sku ?? item.productId,
+            item_name: item.product.name,
+            item_brand: item.product.brand,
+            item_category: item.product.category,
+            price: item.discountedPrice ?? item.product.price,
+            quantity: 1,
+          }],
+        },
+      }, { eventId, serverMirror: false, serverTracked: true });
+    }
 
     return data.data.wishlist;
   },

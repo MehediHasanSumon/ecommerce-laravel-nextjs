@@ -109,6 +109,7 @@ class OrderDetailResource extends JsonResource
                     'name' => $this->fraudApprover->name,
                 ] : null,
             ]),
+            'marketingEventId' => "purchase-order-{$this->id}",
         ];
     }
 

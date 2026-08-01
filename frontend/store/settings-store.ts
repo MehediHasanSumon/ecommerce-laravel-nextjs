@@ -3,7 +3,7 @@
 import axios from "axios";
 import { create } from "zustand";
 import type { ApiEnvelope } from "@/features/admin/shared/types";
-import type { RuntimeCurrencySettings, RuntimeCustomerSettings, RuntimeFeedbackSettings, RuntimeFloatingContact, RuntimeNavigationGroup, RuntimeProductCardSettings, RuntimeSettings, RuntimeSmsSettings } from "@/types/settings";
+import type { RuntimeCurrencySettings, RuntimeCustomerSettings, RuntimeFeedbackSettings, RuntimeFloatingContact, RuntimeMarketingTracking, RuntimeNavigationGroup, RuntimeProductCardSettings, RuntimeSettings, RuntimeSmsSettings } from "@/types/settings";
 
 const emptyFrontendNavigation: RuntimeSettings["navigation"]["frontend"] = [];
 const emptyAdminNavigation: RuntimeNavigationGroup[] = [];
@@ -152,6 +152,27 @@ export const defaultFloatingContact: RuntimeFloatingContact = {
   messenger_url: null,
   whatsapp_url: null,
 };
+export const defaultMarketingTracking: RuntimeMarketingTracking = {
+  meta: {
+    enabled: false,
+    pixel_id: null,
+    browser_side_tracking: false,
+    server_side_tracking: false,
+    automatic_event_tracking: false,
+    advanced_matching: false,
+    debug_mode: false,
+  },
+  google: {
+    enabled: false,
+    measurement_id: null,
+    client_side_events: false,
+    server_side_events: false,
+    enhanced_ecommerce: false,
+    debug_mode: false,
+    anonymize_ip: true,
+    respect_consent_mode: true,
+  },
+};
 
 const apiBaseUrl = (
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/auth"
@@ -172,7 +193,10 @@ async function loadRuntimeSettings() {
     },
   );
 
-  return response.data.data;
+  return {
+    ...response.data.data,
+    marketing_tracking: response.data.data.marketing_tracking ?? defaultMarketingTracking,
+  };
 }
 
 async function loadAdminNavigation() {
@@ -288,7 +312,10 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
 
 export function hydrateRuntimeSettings(settings: RuntimeSettings) {
   useSettingsStore.setState({
-    settings,
+    settings: {
+      ...settings,
+      marketing_tracking: settings.marketing_tracking ?? defaultMarketingTracking,
+    },
     isLoading: false,
     isLoaded: true,
     error: null,

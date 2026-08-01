@@ -7,12 +7,16 @@ use App\Http\Requests\Wishlist\ToggleWishlistRequest;
 use App\Http\Resources\WishlistResource;
 use App\Http\Responses\ApiResponse;
 use App\Services\Commerce\WishlistService;
+use App\Services\Marketing\MarketingEventService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class WishlistController extends Controller
 {
-    public function __construct(private readonly WishlistService $service) {}
+    public function __construct(
+        private readonly WishlistService $service,
+        private readonly MarketingEventService $marketingEvents,
+    ) {}
 
     public function show(Request $request): JsonResponse
     {
@@ -23,8 +27,19 @@ class WishlistController extends Controller
 
     public function toggle(ToggleWishlistRequest $request): JsonResponse
     {
+        $wishlist = $this->service->toggle($request, (int) $request->integer('product_id'));
+        if ($wishlist->items()->where('product_id', $request->integer('product_id'))->exists()) {
+            $this->marketingEvents->track(
+                'add_to_wishlist',
+                ['content_name' => 'Product '.$request->integer('product_id')],
+                $request,
+                user: $request->user(),
+                eventId: $request->header('X-Marketing-Event-Id'),
+            );
+        }
+
         return ApiResponse::success([
-            'wishlist' => WishlistResource::make($this->service->toggle($request, (int) $request->integer('product_id')))->resolve(),
+            'wishlist' => WishlistResource::make($wishlist)->resolve(),
         ]);
     }
 

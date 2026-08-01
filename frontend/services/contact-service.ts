@@ -2,6 +2,7 @@
 
 import axios from "axios";
 import type { ApiEnvelope } from "@/features/admin/shared/types";
+import { marketingEventHeaders, marketingTracker } from "@/lib/marketing-tracker";
 
 const apiBaseUrl = (
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/auth"
@@ -16,6 +17,7 @@ export type ContactPayload = {
 };
 
 export async function submitContactMessage(payload: ContactPayload) {
+  const eventId = marketingTracker.createEventId("contact");
   const response = await axios.post<ApiEnvelope<Record<string, unknown>>>(
     `${apiBaseUrl}/contact-messages`,
     payload,
@@ -25,9 +27,11 @@ export async function submitContactMessage(payload: ContactPayload) {
         Accept: "application/json",
         "Content-Type": "application/json",
         "X-Requested-With": "XMLHttpRequest",
+        ...marketingEventHeaders(eventId),
       },
     },
   );
+  marketingTracker.track("contact", {}, { eventId, serverMirror: false, serverTracked: true });
 
   return response.data;
 }
