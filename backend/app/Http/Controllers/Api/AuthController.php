@@ -9,8 +9,10 @@ use App\Http\Requests\Auth\RegisterRequest;
 use App\Http\Requests\Auth\ResetPasswordRequest;
 use App\Http\Responses\ApiResponse;
 use App\Http\Responses\AuthCookie;
+use App\Models\User;
 use App\Services\Admin\Settings\StoreSettingsService;
 use App\Services\AuthService;
+use App\Services\Fraud\FraudAutomationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -20,6 +22,7 @@ class AuthController extends Controller
     public function __construct(
         private readonly AuthService $authService,
         private readonly StoreSettingsService $storeSettings,
+        private readonly FraudAutomationService $fraudAutomation,
     ) {}
 
     public function register(RegisterRequest $request): JsonResponse
@@ -31,6 +34,10 @@ class AuthController extends Controller
         }
 
         $data = $this->authService->register($request->validated());
+        $registered = User::query()->find($data['user']['id'] ?? null);
+        if ($registered) {
+            $this->fraudAutomation->queueCustomer($registered);
+        }
 
         return ApiResponse::success(
             ['user' => $data['user']],

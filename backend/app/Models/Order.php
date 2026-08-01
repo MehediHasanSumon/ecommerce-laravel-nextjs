@@ -23,6 +23,12 @@ class Order extends Model
             'summary_snapshot' => 'array',
             'coupon_snapshot' => 'array',
             'placed_at' => 'datetime',
+            'fraud_score' => 'integer',
+            'fraud_checked_at' => 'datetime',
+            'fraud_flagged' => 'boolean',
+            'fraud_hold' => 'boolean',
+            'fraud_cod_blocked' => 'boolean',
+            'fraud_approved_at' => 'datetime',
         ];
     }
 
@@ -79,5 +85,20 @@ class Order extends Model
     public function courierShipments(): HasMany
     {
         return $this->hasMany(CourierShipment::class);
+    }
+
+    public function fraudChecks(): HasMany
+    {
+        return $this->hasMany(FraudCheck::class);
+    }
+
+    public function latestFraudCheck(): BelongsTo
+    {
+        return $this->belongsTo(FraudCheck::class, 'latest_fraud_check_id');
+    }
+
+    public function fraudApprover(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'fraud_approved_by');
     }
 }

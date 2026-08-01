@@ -3,13 +3,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { ChevronLeft, ChevronRight, ChevronsUpDown, Download, Eye, Filter, Pencil, Plus, Search, Trash2, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsUpDown, Download, Eye, Filter, Pencil, Plus, Search, ShieldCheck, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { orderManagementService } from "@/features/admin/orders/services/order-management-service";
 import { OrderCourierPanel } from "@/features/admin/couriers/components/order-courier-panel";
+import { FraudCheckModal, FraudRiskBadge } from "@/features/admin/fraud/components/fraud-check-modal";
+import { OrderFraudPanel } from "@/features/admin/fraud/components/order-fraud-panel";
+import { fraudService } from "@/features/admin/fraud/services/fraud-service";
 import { useUrlQueryState } from "@/features/admin/shared/hooks/use-url-query-state";
 import type { PaginationMeta } from "@/features/admin/shared/types";
 import type { OrderDetail, OrderListItem } from "@/services/order-service";
@@ -43,9 +46,11 @@ export function OrderManagementContent() {
   const [bulkStatus, setBulkStatus] = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
   const [searchInput, setSearchInput] = useState(query.search);
+  const [fraudTarget, setFraudTarget] = useState<OrderListItem | null>(null);
   useAuthStore((state) => state.user?.permissions);
   const canEditOrder = hasPermission("can_edit_order");
   const canDeleteOrder = hasPermission("can_delete_order");
+  const canCheckFraud = hasPermission("can_create_fraud_check");
   const { confirmDelete, deleteConfirmationDialog } = useDeleteConfirmation();
 
   const load = useCallback(async () => {
@@ -66,6 +71,9 @@ export function OrderManagementContent() {
         date_to: query.date_to,
         amount_min: query.amount_min,
         amount_max: query.amount_max,
+        fraud_status: query.fraud_status,
+        fraud_checked: query.fraud_checked,
+        fraud_provider: query.fraud_provider,
       });
       setItems(response.data.orders);
       setPagination(response.meta.pagination ?? null);
@@ -75,7 +83,7 @@ export function OrderManagementContent() {
     } finally {
       setLoading(false);
     }
-  }, [query.amount_max, query.amount_min, query.date_from, query.date_to, query.direction, query.page, query.payment_method, query.payment_status, query.per_page, query.search, query.shipping_method, query.shipping_status, query.sort, query.status]);
+  }, [query.amount_max, query.amount_min, query.date_from, query.date_to, query.direction, query.fraud_checked, query.fraud_provider, query.fraud_status, query.page, query.payment_method, query.payment_status, query.per_page, query.search, query.shipping_method, query.shipping_status, query.sort, query.status]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -102,6 +110,15 @@ export function OrderManagementContent() {
       await orderManagementService.bulkUpdate({ ids: selected, status: bulkStatus, note: "Bulk status update from admin order list." });
       toast.success("Selected orders updated.");
       await load();
+    } catch (error) {
+      toast.error(toAppError(error).message);
+    }
+  }
+
+  async function bulkFraudCheck() {
+    try {
+      const response = await fraudService.bulk(selected.map((id) => ({ type: "order", id })), true);
+      toast.success(response.message || `${response.data.queued} fraud checks queued.`);
     } catch (error) {
       toast.error(toAppError(error).message);
     }
@@ -154,6 +171,7 @@ export function OrderManagementContent() {
               </SelectContent>
             </Select>
             <Button size="sm" variant="secondary" disabled={!bulkStatus} onClick={applyBulkUpdate}>Apply Bulk</Button>
+            {canCheckFraud ? <Button size="sm" variant="secondary" icon={<ShieldCheck className="h-4 w-4" />} onClick={() => void bulkFraudCheck()}>Bulk Fraud Check</Button> : null}
           </div>
         </div>
       ) : null}
@@ -169,6 +187,7 @@ export function OrderManagementContent() {
                 <SortableHead label="Total" sortKey="total_cents" activeSort={query.sort} onSort={sortBy} />
                 <SortableHead label="Payment" sortKey="payment_status" activeSort={query.sort} onSort={sortBy} />
                 <SortableHead label="Order Status" sortKey="status" activeSort={query.sort} onSort={sortBy} />
+                <SortableHead label="Fraud" sortKey="fraud_score" activeSort={query.sort} onSort={sortBy} />
                 <SortableHead label="Shipping" sortKey="shipping_method_name" activeSort={query.sort} onSort={sortBy} />
                 <SortableHead label="Date" sortKey="placed_at" activeSort={query.sort} onSort={sortBy} />
                 <th className="w-36 px-4 py-3 text-right font-bold">Actions</th>
@@ -185,11 +204,13 @@ export function OrderManagementContent() {
                   <td className="px-4 py-3 font-semibold">{formatPrice(order.summary.total)}</td>
                   <td className="px-4 py-3 capitalize">{order.paymentMethod.replaceAll("_", " ")}<p className="text-xs text-muted-foreground">{label(order.paymentStatus)}</p></td>
                   <td className="px-4 py-3"><span className="rounded-full border border-border px-2 py-1 text-xs font-bold">{label(order.status)}</span></td>
+                  <td className="px-4 py-3"><FraudRiskBadge level={order.fraud?.status ?? "unchecked"} score={order.fraud?.riskScore} /></td>
                   <td className="px-4 py-3">{order.shippingMethod ?? "Not set"}</td>
                   <td className="px-4 py-3">{dateLabel(order.placedAt)}</td>
                   <td className="px-4 py-3 text-right">
                     <div className="inline-flex items-center justify-end gap-1">
                       <Link href={`/admin/orders/${order.orderNumber}`}><Button size="icon" variant="ghost" icon={<Eye className="h-4 w-4" />} title="View" aria-label={`View ${order.orderNumber}`} /></Link>
+                      {canCheckFraud ? <Button size="icon" variant="ghost" icon={<ShieldCheck className="h-4 w-4" />} title="Fraud check" aria-label={`Check fraud for ${order.orderNumber}`} onClick={() => setFraudTarget(order)} /> : null}
                       {canEditOrder ? <Link href={`/admin/orders/${encodeURIComponent(order.orderNumber)}/edit`}><Button size="icon" variant="ghost" icon={<Pencil className="h-4 w-4" />} title="Edit" aria-label={`Edit ${order.orderNumber}`} /></Link> : null}
                       {canDeleteOrder ? <Button
                         size="icon"
@@ -212,7 +233,7 @@ export function OrderManagementContent() {
                 </tr>
               )) : (
                 <tr>
-                  <td colSpan={9} className="h-48 text-center">
+                  <td colSpan={10} className="h-48 text-center">
                     <div className="mx-auto max-w-sm">
                       <p className="font-semibold">No records found</p>
                       <p className="mt-1 text-sm text-muted-foreground">Try changing filters or wait for new checkout orders.</p>
@@ -255,6 +276,12 @@ export function OrderManagementContent() {
           setFilterOpen(false);
         }}
       />
+      <FraudCheckModal
+        open={Boolean(fraudTarget)}
+        onClose={() => setFraudTarget(null)}
+        initial={fraudTarget ? { order_id: fraudTarget.orderNumber, phone: fraudTarget.customer?.phone, name: fraudTarget.customer?.name, email: fraudTarget.customer?.email } : undefined}
+        onCompleted={() => void load()}
+      />
       {deleteConfirmationDialog}
     </div>
   );
@@ -275,6 +302,9 @@ function OrderFilterModal({ open, query, onClose, onApply }: { open: boolean; qu
     date_to: "",
     amount_min: "",
     amount_max: "",
+    fraud_status: "",
+    fraud_checked: "",
+    fraud_provider: "",
   };
 
   return (
@@ -294,6 +324,9 @@ function OrderFilterModal({ open, query, onClose, onApply }: { open: boolean; qu
           <CompactSelect label="Payment Status" value={draft.payment_status} options={paymentStatuses.filter(Boolean)} onChange={(payment_status) => setDraft({ ...draft, payment_status })} />
           <CompactSelect label="Shipping Status" value={draft.shipping_status} options={shippingStatuses.filter(Boolean)} onChange={(shipping_status) => setDraft({ ...draft, shipping_status })} />
           <CompactSelect label="Payment Method" value={draft.payment_method} options={paymentMethods.filter(Boolean)} onChange={(payment_method) => setDraft({ ...draft, payment_method })} />
+          <CompactSelect label="Fraud Status" value={draft.fraud_status} options={["safe", "low", "medium", "high", "critical"]} onChange={(fraud_status) => setDraft({ ...draft, fraud_status })} />
+          <CompactSelect label="Fraud Check" value={draft.fraud_checked} options={["checked", "unchecked"]} onChange={(fraud_checked) => setDraft({ ...draft, fraud_checked })} />
+          <CompactSelect label="Fraud Provider" value={draft.fraud_provider} options={["fraudpeek", "fraud_bd", "fraudbd"]} onChange={(fraud_provider) => setDraft({ ...draft, fraud_provider })} />
           <CompactText label="Shipping Method" value={draft.shipping_method} placeholder="Enter shipping method" onChange={(shipping_method) => setDraft({ ...draft, shipping_method })} />
           <CompactText label="Minimum Amount" type="number" value={draft.amount_min} placeholder="Enter amount" onChange={(amount_min) => setDraft({ ...draft, amount_min })} />
           <CompactDate label="Date From" value={draft.date_from} onChange={(date_from) => setDraft({ ...draft, date_from })} />
@@ -313,6 +346,9 @@ function OrderFilterModal({ open, query, onClose, onApply }: { open: boolean; qu
             date_to: draft.date_to,
             amount_min: draft.amount_min,
             amount_max: draft.amount_max,
+            fraud_status: draft.fraud_status,
+            fraud_checked: draft.fraud_checked,
+            fraud_provider: draft.fraud_provider,
           })}>Apply Filters</Button>
         </div>
       </div>
@@ -334,7 +370,7 @@ function SortableHead({ label: title, sortKey, activeSort, onSort }: { label: st
 function OrderTableSkeleton() {
   return Array.from({ length: 6 }).map((_, rowIndex) => (
     <tr key={rowIndex} className="border-t border-border">
-      {Array.from({ length: 9 }).map((__, columnIndex) => (
+      {Array.from({ length: 10 }).map((__, columnIndex) => (
         <td key={columnIndex} className="px-4 py-4">
           <div className={cn("h-5 animate-pulse rounded bg-muted", columnIndex === 0 ? "w-4" : "w-full")} />
         </td>
@@ -455,6 +491,10 @@ export function AdminOrderDetailContent({ orderNumber }: { orderNumber: string }
         <AddressPanel title="Billing Address" address={order.billingAddress} />
         <AddressPanel title="Shipping Address" address={order.shippingAddress} />
       </div>
+
+      {hasPermission("can_view_fraud_check") ? (
+        <OrderFraudPanel orderNumber={order.orderNumber} customer={order.customer} check={order.fraudCheck} onChanged={() => void load(1)} />
+      ) : null}
 
       <Panel title="Ordered Products">
         <div className="overflow-x-auto">

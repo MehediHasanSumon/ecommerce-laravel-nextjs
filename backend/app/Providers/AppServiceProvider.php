@@ -70,6 +70,16 @@ class AppServiceProvider extends ServiceProvider
             Limit::perHour(2000)->by($request->ip()),
         ]);
 
+        RateLimiter::for('fraud-check', fn (Request $request) => [
+            Limit::perMinute(20)->by(optional($request->user())->getAuthIdentifier() ?: $request->ip()),
+            Limit::perHour(200)->by($request->ip()),
+        ]);
+
+        RateLimiter::for('fraud-bulk', fn (Request $request) => [
+            Limit::perMinute(5)->by(optional($request->user())->getAuthIdentifier() ?: $request->ip()),
+            Limit::perHour(30)->by($request->ip()),
+        ]);
+
         RateLimiter::for('product-feedback', fn (Request $request) => [
             Limit::perMinute(5)->by(
                 'feedback:'.(optional($request->user())->getAuthIdentifier() ?: hash('sha256', $request->ip().'|'.(string) $request->userAgent()))

@@ -28,4 +28,9 @@ class GuestCustomer extends Model
     {
         return $this->hasMany(Order::class);
     }
+
+    public function fraudChecks(): HasMany
+    {
+        return $this->hasMany(FraudCheck::class);
+    }
 }

@@ -8,6 +8,8 @@ use App\Http\Controllers\Api\Admin\ContactMessageManagementController;
 use App\Http\Controllers\Api\Admin\CourierShipmentController;
 use App\Http\Controllers\Api\Admin\CustomerManagementController;
 use App\Http\Controllers\Api\Admin\DashboardController;
+use App\Http\Controllers\Api\Admin\FraudAnalyticsController;
+use App\Http\Controllers\Api\Admin\FraudCheckController;
 use App\Http\Controllers\Api\Admin\HeroSectionController;
 use App\Http\Controllers\Api\Admin\HomeFeatureCardController;
 use App\Http\Controllers\Api\Admin\IpBlockManagementController;
@@ -20,6 +22,7 @@ use App\Http\Controllers\Api\Admin\SearchAnalyticsController;
 use App\Http\Controllers\Api\Admin\Settings\BlogSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\CompanySettingsController;
 use App\Http\Controllers\Api\Admin\Settings\CourierSettingsController;
+use App\Http\Controllers\Api\Admin\Settings\FraudSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\HomeFeatureCardSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\HomePageSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\PaymentSettingsController;
@@ -164,6 +167,14 @@ Route::prefix('admin')
         Route::get('/navigation', [AdminNavigationController::class, 'show'])->middleware('administrator');
         Route::get('/dashboard', [DashboardController::class, 'show']);
         Route::get('/search-analytics', [SearchAnalyticsController::class, 'index']);
+        Route::get('/fraud-analytics', [FraudAnalyticsController::class, 'index']);
+        Route::get('/fraud-checks', [FraudCheckController::class, 'index']);
+        Route::post('/fraud-checks', [FraudCheckController::class, 'store'])->middleware('throttle:fraud-check');
+        Route::post('/fraud-checks/bulk', [FraudCheckController::class, 'bulk'])->middleware('throttle:fraud-bulk');
+        Route::post('/fraud-checks/clear-cache', [FraudCheckController::class, 'clearCache']);
+        Route::get('/fraud-checks/provider-status', [FraudCheckController::class, 'providerStatus']);
+        Route::get('/fraud-checks/{check}', [FraudCheckController::class, 'show']);
+        Route::post('/orders/{order}/fraud-approval', [FraudCheckController::class, 'approveOrder']);
 
         Route::get('/ip-blocks/analytics', [IpBlockManagementController::class, 'analytics']);
         Route::post('/ip-blocks/bulk', [IpBlockManagementController::class, 'bulk']);
@@ -261,6 +272,11 @@ Route::prefix('admin')
         Route::put('/settings/couriers', [CourierSettingsController::class, 'update']);
         Route::post('/settings/couriers/{provider}/test', [CourierSettingsController::class, 'test']);
         Route::get('/settings/couriers/{provider}/locations/{type}', [CourierSettingsController::class, 'locations']);
+
+        Route::get('/settings/fraud-detection', [FraudSettingsController::class, 'show']);
+        Route::put('/settings/fraud-detection', [FraudSettingsController::class, 'update']);
+        Route::get('/settings/fraud-detection/status', [FraudSettingsController::class, 'status']);
+        Route::post('/settings/fraud-detection/{provider}/test', [FraudSettingsController::class, 'test'])->middleware('throttle:fraud-check');
 
         Route::get('/settings/seo', [SeoSettingsController::class, 'show']);
         Route::put('/settings/seo', [SeoSettingsController::class, 'update']);

@@ -41,6 +41,9 @@ export type QueryState = {
   date_to: string;
   amount_min: string;
   amount_max: string;
+  fraud_status: string;
+  fraud_checked: string;
+  fraud_provider: string;
   permission_search: string;
   type?: string;
   brand_id?: string;

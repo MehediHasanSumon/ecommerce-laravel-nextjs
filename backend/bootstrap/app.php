@@ -8,6 +8,7 @@ use App\Console\Commands\RebuildProductSearchIndex;
 use App\Console\Commands\SyncCollectionSchedules;
 use App\Console\Commands\SyncCourierShipments;
 use App\Exceptions\CourierApiException;
+use App\Exceptions\FraudProviderException;
 use App\Http\Middleware\AuthenticateAuthCookie;
 use App\Http\Middleware\EnforceIpBlock;
 use App\Http\Middleware\EnsureAdministrator;
@@ -86,6 +87,18 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $exceptions->render(function (CourierApiException $e, Request $request) {
+            if (! $request->is('api/*')) {
+                return null;
+            }
+
+            $status = $e->statusCode && $e->statusCode >= 400 && $e->statusCode <= 599
+                ? $e->statusCode
+                : 502;
+
+            return ApiResponse::error($e->getMessage(), $status);
+        });
+
+        $exceptions->render(function (FraudProviderException $e, Request $request) {
             if (! $request->is('api/*')) {
                 return null;
             }

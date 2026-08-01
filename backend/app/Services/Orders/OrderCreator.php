@@ -5,6 +5,7 @@ namespace App\Services\Orders;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Services\Fraud\FraudAutomationService;
 use App\Services\Search\ProductSearchIndexer;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -15,6 +16,7 @@ class OrderCreator
     public function __construct(
         private readonly OrderService $orders,
         private readonly ProductSearchIndexer $searchIndexer,
+        private readonly FraudAutomationService $fraudAutomation,
     ) {}
 
     public function create(array $attributes, array $items, ?int $actorId = null): Order
@@ -53,6 +55,7 @@ class OrderCreator
 
             DB::afterCommit(function () use ($order): void {
                 $this->orders->queueOrderPlacedNotifications($order->fresh());
+                $this->fraudAutomation->queueOrder($order->fresh(), 'order_created');
                 $order->items()->whereNotNull('product_id')->distinct()->pluck('product_id')
                     ->each(fn ($productId) => $this->searchIndexer->index((int) $productId));
             });

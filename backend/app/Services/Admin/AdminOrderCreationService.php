@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\Checkout\AddressData;
 use App\Services\Commerce\ProductSelectionService;
 use App\Services\Customers\GuestCustomerService;
+use App\Services\Fraud\FraudAutomationService;
 use App\Services\Orders\OrderCreator;
 use App\Services\Orders\OrderService;
 use App\Services\Payments\PaymentGatewayManager;
@@ -27,6 +28,7 @@ class AdminOrderCreationService
         private readonly OrderCreator $creator,
         private readonly OrderService $orders,
         private readonly PaymentGatewayManager $payments,
+        private readonly FraudAutomationService $fraudAutomation,
     ) {}
 
     public function options(): array
@@ -101,6 +103,23 @@ class AdminOrderCreationService
 
     public function create(array $data, int $actorId): Order
     {
+        $fraudBilling = AddressData::snapshot(AddressData::normalize($data['billing_address']));
+        $fraudShipping = AddressData::snapshot(AddressData::normalize($data['shipping_address']));
+        $fraudUser = $data['customer_type'] === 'registered'
+            ? User::query()->findOrFail($data['user_id'])
+            : null;
+        $fraudGuest = $data['customer_type'] === 'guest'
+            ? GuestCustomer::query()->findOrFail($data['guest_customer_id'])
+            : null;
+        $this->fraudAutomation->checkOrderCreation([
+            'phone' => $fraudBilling['phone'] ?? $fraudUser?->phone ?? $fraudGuest?->phone,
+            'name' => $fraudBilling['full_name'] ?? $fraudUser?->name ?? $fraudGuest?->name,
+            'email' => $fraudBilling['email'] ?? $fraudUser?->email ?? $fraudGuest?->email,
+            'billing_address' => $fraudBilling,
+            'shipping_address' => $fraudShipping,
+            'customer_id' => $fraudUser ? "registered-{$fraudUser->id}" : ($fraudGuest ? "guest-{$fraudGuest->id}" : null),
+        ], $data['payment_method'], $fraudUser, $fraudGuest, 'admin_order_creation', $actorId);
+
         return DB::transaction(function () use ($data, $actorId): Order {
             $billing = AddressData::snapshot(AddressData::normalize($data['billing_address']));
             $shipping = AddressData::snapshot(AddressData::normalize($data['shipping_address']));

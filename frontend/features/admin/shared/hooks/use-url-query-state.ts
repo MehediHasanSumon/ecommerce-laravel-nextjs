@@ -37,6 +37,9 @@ export function useUrlQueryState(defaultSort = "created_at") {
     date_to: searchParams.get("date_to") || "",
     amount_min: searchParams.get("amount_min") || "",
     amount_max: searchParams.get("amount_max") || "",
+    fraud_status: searchParams.get("fraud_status") || "",
+    fraud_checked: searchParams.get("fraud_checked") || "",
+    fraud_provider: searchParams.get("fraud_provider") || "",
     permission_search: searchParams.get("permission_search") || "",
   }), [defaultSort, searchParams]);
 

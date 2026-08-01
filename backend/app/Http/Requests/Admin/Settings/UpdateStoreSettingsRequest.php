@@ -108,6 +108,23 @@ class UpdateStoreSettingsRequest extends FormRequest
                 'nullable',
                 Rule::in(['steadfast', 'pathao']),
             ],
+            'fraud_detection_enabled' => ['sometimes', 'boolean'],
+            'fraud_auto_check_orders' => ['sometimes', 'boolean'],
+            'fraud_auto_check_customers' => ['sometimes', 'boolean'],
+            'fraud_check_during_checkout' => ['sometimes', 'boolean'],
+            'fraud_check_before_cod_confirmation' => ['sometimes', 'boolean'],
+            'fraud_check_before_shipment' => ['sometimes', 'boolean'],
+            'fraud_score_threshold' => ['sometimes', 'integer', 'min:0', 'max:100'],
+            'fraud_critical_score_threshold' => ['sometimes', 'integer', 'min:0', 'max:100'],
+            'fraud_auto_flag_suspicious_orders' => ['sometimes', 'boolean'],
+            'fraud_auto_hold_high_risk_orders' => ['sometimes', 'boolean'],
+            'fraud_auto_reject_critical_risk_orders' => ['sometimes', 'boolean'],
+            'fraud_block_cod_high_risk' => ['sometimes', 'boolean'],
+            'fraud_require_admin_approval' => ['sometimes', 'boolean'],
+            'fraud_provider_priority' => ['sometimes', 'array', 'size:3'],
+            'fraud_provider_priority.*' => ['required', Rule::in(['fraudpeek', 'fraud_bd', 'fraudbd']), 'distinct'],
+            'fraud_result_caching_enabled' => ['sometimes', 'boolean'],
+            'fraud_cache_duration_minutes' => ['sometimes', 'integer', 'min:1', 'max:43200'],
         ];
     }
 }

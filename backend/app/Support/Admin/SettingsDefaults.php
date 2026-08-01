@@ -80,6 +80,22 @@ class SettingsDefaults
             'product_slider_center_mode' => false,
             'automatic_shipment_creation' => 'disabled',
             'automatic_courier_provider' => null,
+            'fraud_detection_enabled' => false,
+            'fraud_auto_check_orders' => true,
+            'fraud_auto_check_customers' => false,
+            'fraud_check_during_checkout' => false,
+            'fraud_check_before_cod_confirmation' => true,
+            'fraud_check_before_shipment' => true,
+            'fraud_score_threshold' => 60,
+            'fraud_critical_score_threshold' => 85,
+            'fraud_auto_flag_suspicious_orders' => true,
+            'fraud_auto_hold_high_risk_orders' => true,
+            'fraud_auto_reject_critical_risk_orders' => false,
+            'fraud_block_cod_high_risk' => true,
+            'fraud_require_admin_approval' => true,
+            'fraud_provider_priority' => ['fraudpeek', 'fraud_bd', 'fraudbd'],
+            'fraud_result_caching_enabled' => true,
+            'fraud_cache_duration_minutes' => 1440,
         ];
     }
 

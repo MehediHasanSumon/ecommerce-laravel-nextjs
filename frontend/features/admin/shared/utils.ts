@@ -21,6 +21,9 @@ export const defaultQueryState: QueryState = {
   date_to: "",
   amount_min: "",
   amount_max: "",
+  fraud_status: "",
+  fraud_checked: "",
+  fraud_provider: "",
   permission_search: "",
 };
 

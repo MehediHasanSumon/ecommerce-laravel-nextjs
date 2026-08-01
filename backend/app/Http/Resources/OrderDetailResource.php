@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Http\Resources\Admin\CourierShipmentResource;
+use App\Http\Resources\Admin\FraudCheckResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Storage;
@@ -95,6 +96,19 @@ class OrderDetailResource extends JsonResource
 
                 return $shipment ? CourierShipmentResource::make($shipment)->resolve() : null;
             }),
+            'fraudCheck' => $this->when(
+                (bool) $request->user()?->can('can_view_fraud_check') && $this->relationLoaded('latestFraudCheck'),
+                fn () => $this->latestFraudCheck ? FraudCheckResource::make($this->latestFraudCheck)->resolve() : null,
+            ),
+            'fraudApproval' => $this->when((bool) $request->user()?->can('can_view_fraud_check'), fn (): array => [
+                'onHold' => (bool) $this->fraud_hold,
+                'codBlocked' => (bool) $this->fraud_cod_blocked,
+                'approvedAt' => optional($this->fraud_approved_at)->toISOString(),
+                'approvedBy' => $this->relationLoaded('fraudApprover') && $this->fraudApprover ? [
+                    'id' => $this->fraudApprover->id,
+                    'name' => $this->fraudApprover->name,
+                ] : null,
+            ]),
         ];
     }
 

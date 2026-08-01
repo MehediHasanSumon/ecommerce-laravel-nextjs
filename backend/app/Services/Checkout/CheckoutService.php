@@ -12,6 +12,7 @@ use App\Services\Admin\Settings\StoreSettingsService;
 use App\Services\Commerce\CartService;
 use App\Services\Commerce\CouponService;
 use App\Services\Customers\GuestCustomerService;
+use App\Services\Fraud\FraudAutomationService;
 use App\Services\Orders\OrderCreator;
 use App\Services\Orders\OrderService;
 use App\Services\Payments\PaymentGatewayManager;
@@ -38,6 +39,7 @@ class CheckoutService
         private readonly StoreSettingsService $storeSettings,
         private readonly CheckoutOtpService $checkoutOtp,
         private readonly SearchAnalyticsService $searchAnalytics,
+        private readonly FraudAutomationService $fraudAutomation,
     ) {}
 
     public function place(Request $request, array $payload): array
@@ -50,6 +52,20 @@ class CheckoutService
         $paymentSetting = $this->payments->setting($payload['payment_method']);
         $gateway = $this->payments->gateway($payload['payment_method']);
         $gateway->assertConfigured($paymentSetting);
+
+        $fraudBilling = $this->fraudAddress($request, $payload, 'billing');
+        $fraudShipping = (bool) ($payload['same_as_billing'] ?? true)
+            ? $fraudBilling
+            : $this->fraudAddress($request, $payload, 'shipping');
+        $this->fraudAutomation->checkCheckout([
+            'phone' => $fraudBilling['phone'] ?? null,
+            'name' => $fraudBilling['full_name'] ?? null,
+            'email' => $fraudBilling['email'] ?? null,
+            'ip_address' => $request->ip(),
+            'billing_address' => $fraudBilling,
+            'shipping_address' => $fraudShipping,
+            'customer_id' => $request->user() ? "registered-{$request->user()->id}" : null,
+        ], $payload['payment_method'], $request->user());
 
         [$cart, $order, $transaction, $session] = DB::transaction(function () use ($request, $payload, $paymentSetting): array {
             $cart = $this->cartService->get($request, strictCouponValidation: true);
@@ -223,7 +239,20 @@ class CheckoutService
             if ($order->cart) {
                 $this->completeCart($order->cart);
             }
+            $this->fraudAutomation->queueOrder($order->fresh(), 'payment_verification', true);
         });
+    }
+
+    private function fraudAddress(Request $request, array $payload, string $type): array
+    {
+        $id = $payload[$type.'_address_id'] ?? null;
+        if ($id) {
+            return AddressData::snapshot(AddressData::normalize(
+                CustomerAddress::query()->where('user_id', $request->user()?->id)->findOrFail($id)->toArray()
+            ));
+        }
+
+        return AddressData::snapshot(AddressData::normalize((array) ($payload[$type.'_address'] ?? [])));
     }
 
     private function resolveAddress(Request $request, array $payload, string $type): array

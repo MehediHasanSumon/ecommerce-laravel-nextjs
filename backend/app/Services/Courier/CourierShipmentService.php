@@ -9,6 +9,7 @@ use App\Models\CourierShipmentEvent;
 use App\Models\Order;
 use App\Models\ShippingLog;
 use App\Services\Admin\Settings\CourierSettingsService;
+use App\Services\Fraud\FraudAutomationService;
 use App\Services\Orders\OrderService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -28,6 +29,7 @@ class CourierShipmentService
         private readonly CourierSettingsService $settings,
         private readonly OrderService $orders,
         private readonly CourierNotificationService $notifications,
+        private readonly FraudAutomationService $fraudAutomation,
     ) {}
 
     public function paginate(array $filters): LengthAwarePaginator
@@ -78,6 +80,8 @@ class CourierShipmentService
 
     public function create(Order $order, string $provider, array $options = [], ?int $userId = null): CourierShipment
     {
+        $this->fraudAutomation->checkBeforeShipment($order);
+
         $setting = $this->settings->findEnabled($provider);
         $adapter = $this->manager->provider($provider);
         abort_unless($adapter->capabilities()['create'] ?? false, 422, 'This courier does not support shipment creation.');

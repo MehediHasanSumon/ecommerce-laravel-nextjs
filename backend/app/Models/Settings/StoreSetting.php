@@ -46,6 +46,22 @@ class StoreSetting extends Model
             'product_slider_mobile_slides' => 'integer',
             'product_slider_space_between' => 'integer',
             'product_slider_center_mode' => 'boolean',
+            'fraud_detection_enabled' => 'boolean',
+            'fraud_auto_check_orders' => 'boolean',
+            'fraud_auto_check_customers' => 'boolean',
+            'fraud_check_during_checkout' => 'boolean',
+            'fraud_check_before_cod_confirmation' => 'boolean',
+            'fraud_check_before_shipment' => 'boolean',
+            'fraud_score_threshold' => 'integer',
+            'fraud_critical_score_threshold' => 'integer',
+            'fraud_auto_flag_suspicious_orders' => 'boolean',
+            'fraud_auto_hold_high_risk_orders' => 'boolean',
+            'fraud_auto_reject_critical_risk_orders' => 'boolean',
+            'fraud_block_cod_high_risk' => 'boolean',
+            'fraud_require_admin_approval' => 'boolean',
+            'fraud_provider_priority' => 'array',
+            'fraud_result_caching_enabled' => 'boolean',
+            'fraud_cache_duration_minutes' => 'integer',
         ];
     }
 

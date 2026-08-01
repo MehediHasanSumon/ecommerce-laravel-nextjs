@@ -116,6 +116,7 @@ const reportManagementItems = [
   { href: routePaths.adminReportsShipping, label: "Shipping Reports", icon: PackageCheck },
   { href: routePaths.adminReportsInventory, label: "Inventory Reports", icon: Warehouse },
   { href: routePaths.adminSearchAnalytics, label: "Search Analytics", icon: Search },
+  { href: routePaths.adminFraudAnalytics, label: "Fraud Analytics", icon: ShieldCheck },
 ];
 
 const settingsItems = [
@@ -128,6 +129,7 @@ const settingsItems = [
   { href: routePaths.adminSettingsShippingZones, label: "Shipping Zones", icon: MapPin },
   { href: routePaths.adminSettingsShippingMethods, label: "Shipping Methods", icon: PackageCheck },
   { href: routePaths.adminSettingsCouriers, label: "Courier Integrations", icon: Truck },
+  { href: routePaths.adminSettingsFraudDetection, label: "Fraud Detection", icon: ShieldCheck },
   { href: routePaths.adminSettingsSeo, label: "SEO Settings", icon: Search },
   { href: routePaths.adminSettingsSocial, label: "Social Media", icon: Star },
   { href: routePaths.adminSettingsSms, label: "SMS Settings", icon: MessageSquareText },
@@ -174,6 +176,8 @@ const adminPermissionAliases: Record<string, string> = {
   "shipping-reports.view": "can_view_shipping_report",
   "inventory-reports.view": "can_view_inventory_report",
   "search-analytics.view": "can_view_search_analytics",
+  "fraud-analytics.view": "can_view_fraud_analytics",
+  "fraud-settings.view": "can_view_fraud_setting",
   "blogs.view": "can_view_blog",
   "contact-messages.view": "can_view_contact_message",
   "ip-blocks.view": "can-view-ip-block",
@@ -201,6 +205,7 @@ const adminRoutePermissions: Record<string, string> = {
   [routePaths.adminSettingsShippingZones]: "can_view_shipping_zone",
   [routePaths.adminSettingsShippingMethods]: "can_view_shipping_method",
   [routePaths.adminSettingsCouriers]: "can_view_courier_setting",
+  [routePaths.adminSettingsFraudDetection]: "can_view_fraud_setting",
   [routePaths.adminSettingsCompany]: "can_view_company_setting",
   [routePaths.adminSettingsHeroSection]: "can_view_hero_section",
   [routePaths.adminSettingsHomePage]: "can_view_home_page_setting",
@@ -220,6 +225,7 @@ const adminRoutePermissions: Record<string, string> = {
   [routePaths.adminReportsShipping]: "can_view_shipping_report",
   [routePaths.adminReportsInventory]: "can_view_inventory_report",
   [routePaths.adminSearchAnalytics]: "can_view_search_analytics",
+  [routePaths.adminFraudAnalytics]: "can_view_fraud_analytics",
   [routePaths.adminBlogs]: "can_view_blog",
   [routePaths.adminContactMessages]: "can_view_contact_message",
   [routePaths.adminIpBlocks]: "can-view-ip-block",

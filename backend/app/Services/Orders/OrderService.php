@@ -31,7 +31,12 @@ class OrderService
     public function paginate(array $filters, ?int $userId = null, ?string $guestToken = null): LengthAwarePaginator
     {
         $query = Order::query()
-            ->with(['user:id,name,email,phone', 'guestCustomer:id,name,email,phone', 'transactions' => fn ($query) => $query->latest()->limit(1)])
+            ->with([
+                'user:id,name,email,phone',
+                'guestCustomer:id,name,email,phone',
+                'transactions' => fn ($query) => $query->latest()->limit(1),
+                'latestFraudCheck.providerResults:id,fraud_check_id,provider,status,risk_score,risk_level,response_time_ms',
+            ])
             ->withCount('items');
 
         if ($userId) {
@@ -42,7 +47,7 @@ class OrderService
 
         $this->applyFilters($query, $filters);
 
-        $sort = in_array($filters['sort'] ?? '', ['order_number', 'status', 'payment_status', 'shipping_status', 'payment_method', 'shipping_method_name', 'total_cents', 'placed_at', 'created_at'], true)
+        $sort = in_array($filters['sort'] ?? '', ['order_number', 'status', 'payment_status', 'shipping_status', 'payment_method', 'shipping_method_name', 'total_cents', 'fraud_score', 'fraud_checked_at', 'placed_at', 'created_at'], true)
             ? $filters['sort']
             : 'created_at';
         $direction = ($filters['direction'] ?? 'desc') === 'asc' ? 'asc' : 'desc';
@@ -169,6 +174,11 @@ class OrderService
                     'apiLogs' => fn ($logs) => $logs->latest()->limit(100),
                 ])
                 ->latest(),
+            'latestFraudCheck' => fn ($query) => $query->with([
+                'providerResults' => fn ($results) => $results->orderByDesc('risk_score'),
+                'actor:id,name,email',
+            ]),
+            'fraudApprover:id,name',
         ];
 
         if ($withHistories) {
@@ -318,6 +328,11 @@ class OrderService
         $query->when($filters['date_to'] ?? null, fn (Builder $query, string $value) => $query->whereDate('placed_at', '<=', $value));
         $query->when($filters['amount_min'] ?? null, fn (Builder $query, string $value) => $query->where('total_cents', '>=', (int) round(((float) $value) * 100)));
         $query->when($filters['amount_max'] ?? null, fn (Builder $query, string $value) => $query->where('total_cents', '<=', (int) round(((float) $value) * 100)));
+        $query->when($filters['fraud_status'] ?? null, fn (Builder $query, string $value) => $query->where('fraud_status', $value));
+        $query->when(($filters['fraud_checked'] ?? null) === 'checked', fn (Builder $query) => $query->whereNotNull('fraud_checked_at'));
+        $query->when(($filters['fraud_checked'] ?? null) === 'unchecked', fn (Builder $query) => $query->whereNull('fraud_checked_at'));
+        $query->when($filters['fraud_provider'] ?? null, fn (Builder $query, string $provider) => $query
+            ->whereHas('latestFraudCheck.providerResults', fn (Builder $result) => $result->where('provider', $provider)));
     }
 
     private function historyType(string $field): string

@@ -37,6 +37,19 @@ class OrderResource extends JsonResource
                 'tax' => round($this->tax_cents / 100, 2),
                 'total' => round($this->total_cents / 100, 2),
             ],
+            'fraud' => $this->when((bool) $request->user()?->can('can_view_fraud_check'), fn (): array => [
+                'status' => $this->fraud_status ?? 'unchecked',
+                'riskScore' => $this->fraud_score !== null ? (int) $this->fraud_score : null,
+                'checkedAt' => optional($this->fraud_checked_at)->toISOString(),
+                'flagged' => (bool) $this->fraud_flagged,
+                'onHold' => (bool) $this->fraud_hold,
+                'codBlocked' => (bool) $this->fraud_cod_blocked,
+                'approvedAt' => optional($this->fraud_approved_at)->toISOString(),
+                'providers' => $this->relationLoaded('latestFraudCheck') && $this->latestFraudCheck
+                    ? $this->latestFraudCheck->providerResults->pluck('provider')->values()->all()
+                    : [],
+                'checkId' => $this->latestFraudCheck?->public_id,
+            ]),
             'redirectUrl' => $this->redirect_url ?? null,
             'placedAt' => optional($this->placed_at)->toISOString(),
         ];

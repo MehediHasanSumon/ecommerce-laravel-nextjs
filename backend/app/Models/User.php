@@ -80,4 +80,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(UserSearchHistory::class);
     }
+
+    public function fraudChecks(): HasMany
+    {
+        return $this->hasMany(FraudCheck::class);
+    }
 }
