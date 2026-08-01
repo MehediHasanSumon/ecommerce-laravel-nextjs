@@ -10,6 +10,42 @@ use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
+function courierPermissions(): array
+{
+    return [
+        'can_view_courier_setting',
+        'can_create_courier_setting',
+        'can_edit_courier_setting',
+        'can_delete_courier_setting',
+        'can_view_courier_shipment',
+        'can_create_courier_shipment',
+        'can_edit_courier_shipment',
+        'can_delete_courier_shipment',
+    ];
+}
+
+function fraudAndIpPermissions(): array
+{
+    return [
+        'can_view_fraud_setting',
+        'can_create_fraud_setting',
+        'can_edit_fraud_setting',
+        'can_delete_fraud_setting',
+        'can_view_fraud_check',
+        'can_create_fraud_check',
+        'can_edit_fraud_check',
+        'can_delete_fraud_check',
+        'can_view_fraud_analytics',
+        'can_create_fraud_analytics',
+        'can_edit_fraud_analytics',
+        'can_delete_fraud_analytics',
+        'can-view-ip-block',
+        'can-create-ip-block',
+        'can-update-ip-block',
+        'can-delete-ip-block',
+    ];
+}
+
 it('keeps the role permission seeder available and idempotent', function (): void {
     $this->seed(RolePermissionSeeder::class);
 
@@ -23,7 +59,13 @@ it('keeps the role permission seeder available and idempotent', function (): voi
         ->and(Role::query()->count())->toBe($roleCount)
         ->and(Permission::query()->count())->toBe($permissionCount)
         ->and(Role::findByName('admin')->permissions()->count())->toBe($permissionCount)
-        ->and(Role::findByName('super-admin')->permissions()->count())->toBe($permissionCount);
+        ->and(Role::findByName('super-admin')->permissions()->count())->toBe($permissionCount)
+        ->and(Permission::query()->whereIn('name', fraudAndIpPermissions())->count())->toBe(count(fraudAndIpPermissions()))
+        ->and(Role::findByName('admin')->hasAllPermissions(fraudAndIpPermissions()))->toBeTrue()
+        ->and(Role::findByName('super-admin')->hasAllPermissions(fraudAndIpPermissions()))->toBeTrue()
+        ->and(Permission::query()->whereIn('name', courierPermissions())->count())->toBe(count(courierPermissions()))
+        ->and(Role::findByName('admin')->hasAllPermissions(courierPermissions()))->toBeTrue()
+        ->and(Role::findByName('super-admin')->hasAllPermissions(courierPermissions()))->toBeTrue();
 });
 
 it('discovers configurable settings fields directly from the model and database schema', function (): void {

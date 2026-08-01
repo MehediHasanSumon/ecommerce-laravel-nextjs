@@ -27,8 +27,6 @@ class RolePermissionInstaller
         'discount',
         'shipping_zone',
         'shipping_method',
-        'courier_setting',
-        'courier_shipment',
         'blog',
         'contact_message',
         'company_setting',
@@ -51,9 +49,6 @@ class RolePermissionInstaller
         'shipping_report',
         'inventory_report',
         'search_analytics',
-        'fraud_setting',
-        'fraud_check',
-        'fraud_analytics',
         'account_dashboard',
         'account_profile',
         'account_settings',
@@ -61,6 +56,36 @@ class RolePermissionInstaller
         'notification',
         'wishlist',
         'checkout',
+    ];
+
+    private const COURIER_PERMISSIONS = [
+        'can_view_courier_setting',
+        'can_create_courier_setting',
+        'can_edit_courier_setting',
+        'can_delete_courier_setting',
+        'can_view_courier_shipment',
+        'can_create_courier_shipment',
+        'can_edit_courier_shipment',
+        'can_delete_courier_shipment',
+    ];
+
+    private const FRAUD_AND_IP_PERMISSIONS = [
+        'can_view_fraud_setting',
+        'can_create_fraud_setting',
+        'can_edit_fraud_setting',
+        'can_delete_fraud_setting',
+        'can_view_fraud_check',
+        'can_create_fraud_check',
+        'can_edit_fraud_check',
+        'can_delete_fraud_check',
+        'can_view_fraud_analytics',
+        'can_create_fraud_analytics',
+        'can_edit_fraud_analytics',
+        'can_delete_fraud_analytics',
+        'can-view-ip-block',
+        'can-create-ip-block',
+        'can-update-ip-block',
+        'can-delete-ip-block',
     ];
 
     /**
@@ -78,12 +103,8 @@ class RolePermissionInstaller
                 "can_view_{$resource}",
             ])
             ->push('can_apply_coupon')
-            ->push(
-                'can-view-ip-block',
-                'can-create-ip-block',
-                'can-update-ip-block',
-                'can-delete-ip-block',
-            )
+            ->push(...self::COURIER_PERMISSIONS)
+            ->push(...self::FRAUD_AND_IP_PERMISSIONS)
             ->unique()
             ->values()
             ->all();
