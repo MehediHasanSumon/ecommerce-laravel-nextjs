@@ -17,10 +17,14 @@ class WishlistService
     public function get(Request $request): Wishlist
     {
         return $this->resolveWishlist($request, true)->load([
-            'items.product.brand:id,name,slug',
-            'items.product.category:id,name,slug',
-            'items.product.images:id,product_id,url,is_primary,sort_order',
-            'items.product.tags:id,name',
+            'items.product' => fn ($query) => $query
+                ->withSellableVariantMetrics()
+                ->with([
+                    'brand:id,name,slug',
+                    'category:id,name,slug',
+                    'images:id,product_id,url,is_primary,sort_order',
+                    'tags:id,name',
+                ]),
         ]);
     }
 

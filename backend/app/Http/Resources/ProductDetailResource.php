@@ -35,19 +35,18 @@ class ProductDetailResource extends JsonResource
             ->all();
         $variantCollection = collect($variants);
         $hasVariants = $variantCollection->isNotEmpty();
+        $primaryVariant = $variantCollection->firstWhere('isPrimary', true)
+            ?? $variantCollection->first();
         $lowestVariant = $variantCollection->sortBy('price')->first();
         $highestVariant = $variantCollection->sortByDesc('price')->first();
         $priceCents = $hasVariants
-            ? (int) round(((float) ($lowestVariant['price'] ?? 0)) * 100)
+            ? (int) round(((float) ($primaryVariant['price'] ?? 0)) * 100)
             : $this->base_price_cents;
         $compareAtPriceCents = $hasVariants
-            ? (isset($lowestVariant['originalPrice']) ? (int) round(((float) $lowestVariant['originalPrice']) * 100) : null)
+            ? (isset($primaryVariant['originalPrice']) ? (int) round(((float) $primaryVariant['originalPrice']) * 100) : null)
             : $this->compare_at_price_cents;
-        $availableVariants = $this->variants
-            ->where('status', 'active')
-            ->filter(fn (ProductVariant $variant): bool => ! $variant->track_inventory || (int) ($variant->stock_quantity ?? 0) > 0);
         $stock = $hasVariants
-            ? ($availableVariants->isNotEmpty() ? max(1, (int) $availableVariants->sum('stock_quantity')) : 0)
+            ? (int) ($primaryVariant['stock'] ?? 0)
             : ($this->track_inventory
                 ? (int) ($this->stock_quantity ?? 0)
                 : max(1, (int) ($this->stock_quantity ?? 0)));
@@ -78,9 +77,9 @@ class ProductDetailResource extends JsonResource
                 'stock' => $stock,
                 'stockStatus' => $this->stockStatus($stock),
                 'trackInventory' => $hasVariants
-                    ? $this->variants->where('status', 'active')->every(fn (ProductVariant $variant): bool => (bool) $variant->track_inventory)
+                    ? (bool) ($primaryVariant['trackInventory'] ?? true)
                     : (bool) $this->track_inventory,
-                'sku' => $hasVariants ? '' : ($this->sku ?: ''),
+                'sku' => $hasVariants ? (string) ($primaryVariant['sku'] ?? '') : ($this->sku ?: ''),
                 'tags' => $this->tags->pluck('name')->values()->all(),
                 'badge' => $this->badge(),
                 'features' => $this->features
@@ -106,6 +105,8 @@ class ProductDetailResource extends JsonResource
                 'isFlashSale' => (bool) $this->is_flash_sale,
                 'flashSaleEndsAt' => optional($this->flash_sale_ends_at)->toISOString(),
                 'freeShipping' => (bool) $this->free_shipping,
+                'requiresVariantSelection' => $hasVariants,
+                'primaryVariantId' => $hasVariants ? (int) ($primaryVariant['id'] ?? 0) : null,
                 'createdAt' => optional($this->created_at)->toISOString(),
                 'seo' => [
                     'title' => $this->seo?->meta_title ?: $this->name,
@@ -216,11 +217,14 @@ class ProductDetailResource extends JsonResource
         return [
             'id' => (string) $variant->id,
             'sku' => $variant->sku,
-            'price' => $this->money($variant->price_cents),
-            'originalPrice' => $variant->compare_at_price_cents !== null ? $this->money($variant->compare_at_price_cents) : null,
+            'price' => $this->money($this->effectivePriceCents($variant)),
+            'originalPrice' => $this->effectiveCompareAtPriceCents($variant) !== null
+                ? $this->money($this->effectiveCompareAtPriceCents($variant))
+                : null,
             'stock' => $variant->track_inventory ? (int) ($variant->stock_quantity ?? 0) : max(1, (int) ($variant->stock_quantity ?? 0)),
             'stockStatus' => ! $variant->track_inventory || (int) ($variant->stock_quantity ?? 0) > 0 ? 'in_stock' : 'out_of_stock',
             'trackInventory' => (bool) $variant->track_inventory,
+            'isPrimary' => (bool) $variant->is_primary,
             'options' => $options,
             'images' => [],
         ];

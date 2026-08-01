@@ -21,26 +21,18 @@ class ProductCardResource extends JsonResource
         }
 
         $hasVariants = (int) $activeVariantsCount > 0;
-        $cheapestVariant = $this->relationLoaded('cheapestActiveVariant')
-            ? $this->cheapestActiveVariant
-            : ($hasVariants ? $this->cheapestActiveVariant()->first() : null);
+        $primaryVariant = $this->relationLoaded('primaryActiveVariant')
+            ? $this->primaryActiveVariant
+            : ($hasVariants ? $this->primaryActiveVariant()->first() : null);
         $priceCents = $this->catalog_price_cents
-            ?? ($hasVariants ? $cheapestVariant?->price_cents : $this->base_price_cents);
+            ?? $this->effectivePriceCents($primaryVariant);
         $compareAtPriceCents = $this->catalog_compare_at_price_cents
-            ?? ($hasVariants ? $cheapestVariant?->compare_at_price_cents : $this->compare_at_price_cents);
-        $availableVariantsCount = $this->available_variants_count;
-        $activeVariantsStock = $this->active_variants_stock;
-        if ($hasVariants && ($availableVariantsCount === null || $activeVariantsStock === null)) {
-            $aggregate = $this->activeVariants()
-                ->selectRaw('COUNT(CASE WHEN track_inventory = 0 OR stock_quantity > 0 THEN 1 END) as available_count')
-                ->selectRaw('COALESCE(SUM(stock_quantity), 0) as stock_sum')
-                ->first();
-            $availableVariantsCount = (int) ($aggregate?->available_count ?? 0);
-            $activeVariantsStock = (int) ($aggregate?->stock_sum ?? 0);
-        }
+            ?? $this->effectiveCompareAtPriceCents($primaryVariant);
         $stock = $hasVariants
-            ? ((int) $availableVariantsCount > 0
-                ? max(1, (int) $activeVariantsStock)
+            ? ($primaryVariant
+                ? ($primaryVariant->track_inventory
+                    ? (int) ($primaryVariant->stock_quantity ?? 0)
+                    : max(1, (int) ($primaryVariant->stock_quantity ?? 0)))
                 : 0)
             : ($this->track_inventory
                 ? (int) ($this->stock_quantity ?? 0)
@@ -64,7 +56,7 @@ class ProductCardResource extends JsonResource
             'rating' => (float) ($this->rating_average ?? 0),
             'reviewCount' => (int) ($this->review_count ?? 0),
             'stock' => $stock,
-            'sku' => $hasVariants ? '' : ($this->sku ?: ''),
+            'sku' => $hasVariants ? ($primaryVariant?->sku ?: '') : ($this->sku ?: ''),
             'tags' => $this->tags->pluck('name')->values()->all(),
             'badge' => $this->badge(),
             'isFeatured' => (bool) $this->is_featured,
@@ -74,7 +66,7 @@ class ProductCardResource extends JsonResource
             'flashSaleEndsAt' => optional($this->flash_sale_ends_at)->toISOString(),
             'freeShipping' => (bool) $this->free_shipping,
             'requiresVariantSelection' => $hasVariants,
-            'primaryVariantId' => $hasVariants && $cheapestVariant ? (int) $cheapestVariant->id : null,
+            'primaryVariantId' => $hasVariants && $primaryVariant ? (int) $primaryVariant->id : null,
             'createdAt' => optional($this->created_at)->toISOString(),
         ];
     }

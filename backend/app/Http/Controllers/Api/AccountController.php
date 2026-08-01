@@ -197,7 +197,11 @@ class AccountController extends Controller
     {
         $reviews = ProductReview::query()
             ->where('user_id', $request->user()->id)
-            ->with(['product.category:id,name,slug', 'product.brand:id,name,slug', 'product.images', 'product.tags'])
+            ->with([
+                'product' => fn ($query) => $query
+                    ->withSellableVariantMetrics()
+                    ->with(['category:id,name,slug', 'brand:id,name,slug', 'images', 'tags']),
+            ])
             ->latest()
             ->paginate(10);
 
@@ -221,7 +225,11 @@ class AccountController extends Controller
             : 'Review updated successfully. It will appear publicly after approval.';
 
         return ApiResponse::success([
-            'review' => $this->reviewPayload($review->fresh(['product.category:id,name,slug', 'product.brand:id,name,slug', 'product.images', 'product.tags'])),
+            'review' => $this->reviewPayload($review->fresh([
+                'product' => fn ($query) => $query
+                    ->withSellableVariantMetrics()
+                    ->with(['category:id,name,slug', 'brand:id,name,slug', 'images', 'tags']),
+            ])),
         ], $message);
     }
 

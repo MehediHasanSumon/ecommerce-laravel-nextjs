@@ -27,6 +27,7 @@ class ProductAdminResource extends JsonResource
             'description' => $this->description,
             'product_type' => $this->product_type,
             'status' => $this->status,
+            'pricing_mode' => $this->pricing_mode ?: 'global',
             'sku' => $this->sku,
             'base_price_cents' => $this->base_price_cents,
             'compare_at_price_cents' => $this->compare_at_price_cents,
@@ -35,7 +36,7 @@ class ProductAdminResource extends JsonResource
             'track_inventory' => (bool) $this->track_inventory,
             'stock_quantity' => $this->stock_quantity,
             'display_sku' => $this->sku ?? $primaryVariant?->sku,
-            'display_price_cents' => $this->base_price_cents ?? $primaryVariant?->price_cents,
+            'display_price_cents' => $this->effectivePriceCents($primaryVariant),
             'display_stock_quantity' => $hasVariants
                 ? (int) ($this->active_variants_stock ?? 0)
                 : $this->stock_quantity,
@@ -91,6 +92,7 @@ class ProductAdminResource extends JsonResource
                 'stock_quantity' => $variant->stock_quantity,
                 'track_inventory' => $variant->track_inventory,
                 'status' => $variant->status,
+                'is_primary' => (bool) $variant->is_primary,
                 'attribute_values' => ProductOptionResource::collection($variant->relationLoaded('attributeValues') ? $variant->attributeValues : collect()),
             ])),
             'seo' => $this->whenLoaded('seo', fn () => $this->seo ? [

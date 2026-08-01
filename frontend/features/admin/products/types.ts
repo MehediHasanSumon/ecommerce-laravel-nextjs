@@ -28,6 +28,7 @@ export type ProductRecord = BaseRecord & Record<string, unknown> & {
   name?: string;
   slug?: string;
   status?: string;
+  pricing_mode?: "global" | "variant";
   display_sku?: string | null;
   display_price_cents?: number | null;
   display_stock_quantity?: number | null;

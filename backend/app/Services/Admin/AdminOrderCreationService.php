@@ -73,32 +73,42 @@ class AdminOrderCreationService
             ->when($ids !== [], fn ($query) => $query->whereIn('id', $ids))
             ->when($ids === [] && $search !== '', fn ($query) => $query->where(fn ($query) => $query
                 ->where('name', 'like', "%{$search}%")
-                ->orWhere('sku', 'like', "%{$search}%")))
+                ->orWhere('sku', 'like', "%{$search}%")
+                ->orWhereHas('activeVariants', fn ($variantQuery) => $variantQuery
+                    ->where('sku', 'like', "%{$search}%"))))
             ->with([
-                'variants' => fn ($query) => $query->where('status', 'active')->with('attributeValues.attribute'),
+                'variants' => fn ($query) => $query
+                    ->where('status', 'active')
+                    ->orderByDesc('is_primary')
+                    ->orderBy('id')
+                    ->with('attributeValues.attribute'),
             ])
             ->orderBy('name')
             ->limit(20)
             ->get()
-            ->map(fn (Product $product): array => [
-                'id' => $product->id,
-                'name' => $product->name,
-                'sku' => $product->sku,
-                'price' => $product->variants->isEmpty()
-                    ? round(((int) $product->base_price_cents) / 100, 2)
-                    : null,
-                'stock' => $product->stock_quantity,
-                'variants' => $product->variants->map(fn ($variant): array => [
-                    'id' => $variant->id,
-                    'label' => $variant->attributeValues
-                        ->map(fn ($value) => "{$value->attribute?->name}: {$value->value}")
-                        ->filter()
-                        ->implode(', ') ?: $variant->sku,
-                    'sku' => $variant->sku,
-                    'price' => round(((int) $variant->price_cents) / 100, 2),
-                    'stock' => $variant->stock_quantity,
-                ])->values(),
-            ])->values()->all();
+            ->map(function (Product $product): array {
+                $primaryVariant = $product->defaultActiveVariant();
+
+                return [
+                    'id' => $product->id,
+                    'name' => $product->name,
+                    'sku' => $primaryVariant?->sku ?: $product->sku,
+                    'price' => round(((int) $product->effectivePriceCents($primaryVariant)) / 100, 2),
+                    'stock' => $primaryVariant?->stock_quantity ?? $product->stock_quantity,
+                    'primary_variant_id' => $primaryVariant?->id,
+                    'variants' => $product->variants->map(fn ($variant): array => [
+                        'id' => $variant->id,
+                        'label' => $variant->attributeValues
+                            ->map(fn ($value) => "{$value->attribute?->name}: {$value->value}")
+                            ->filter()
+                            ->implode(', ') ?: $variant->sku,
+                        'sku' => $variant->sku,
+                        'price' => round(((int) $product->effectivePriceCents($variant)) / 100, 2),
+                        'stock' => $variant->stock_quantity,
+                        'is_primary' => (bool) $variant->is_primary,
+                    ])->values(),
+                ];
+            })->values()->all();
     }
 
     public function create(array $data, int $actorId): Order

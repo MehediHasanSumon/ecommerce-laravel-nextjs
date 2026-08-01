@@ -126,10 +126,14 @@ class HomePageController extends Controller
             ->where('status', 'approved')
             ->with([
                 'user:id,name,email,avatar',
-                'product.brand:id,name,slug',
-                'product.category:id,parent_id,name,slug',
-                'product.images:id,product_id,url,is_primary,sort_order',
-                'product.tags:id,name',
+                'product' => fn ($query) => $query
+                    ->withSellableVariantMetrics()
+                    ->with([
+                        'brand:id,name,slug',
+                        'category:id,parent_id,name,slug',
+                        'images:id,product_id,url,is_primary,sort_order',
+                        'tags:id,name',
+                    ]),
             ])
             ->whereHas('product', fn ($query) => $query->where('status', 'active'))
             ->latest()

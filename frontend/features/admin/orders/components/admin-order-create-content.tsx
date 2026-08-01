@@ -619,7 +619,7 @@ function OrderItemRow({
         onSelect={(selected) =>
           onChange(item.key, {
             product: selected,
-            product_variant_id: "",
+            product_variant_id: selected.primary_variant_id ? String(selected.primary_variant_id) : "",
             unit_price: String(selected.price),
           })
         }

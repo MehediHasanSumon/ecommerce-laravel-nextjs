@@ -21,7 +21,8 @@ export type CreateOrderProduct = {
   sku: string | null;
   price: number;
   stock: number;
-  variants: Array<{ id: number; label: string; sku: string | null; price: number; stock: number }>;
+  primary_variant_id: number | null;
+  variants: Array<{ id: number; label: string; sku: string | null; price: number; stock: number; is_primary: boolean }>;
 };
 
 export type CreateOrderOptions = {

@@ -128,7 +128,7 @@ it('persists variant sku and pricing without changing product pricing', function
         ->and($product->cost_price_cents)->toBe(6000);
 });
 
-it('requires an explicit active variant for cart selection', function (): void {
+it('uses the primary active variant when cart selection omits a variant', function (): void {
     $product = variantProduct(['published_at' => now()]);
     [$oneKg] = variantAttribute('Weight', ['1kg']);
 
@@ -143,10 +143,10 @@ it('requires an explicit active variant for cart selection', function (): void {
         ],
     ]);
 
-    expect(fn () => app(ProductSelectionService::class)->resolveCartSelection([
+    $defaultSelection = app(ProductSelectionService::class)->resolveCartSelection([
         'product_id' => $product->id,
         'quantity' => 1,
-    ]))->toThrow(ValidationException::class);
+    ]);
 
     $variant = $product->variants()->firstOrFail();
     $selection = app(ProductSelectionService::class)->resolveCartSelection([
@@ -155,9 +155,42 @@ it('requires an explicit active variant for cart selection', function (): void {
         'quantity' => 2,
     ]);
 
-    expect($selection['variant']->id)->toBe($variant->id)
+    expect($defaultSelection['variant']->id)->toBe($variant->id)
+        ->and($defaultSelection['unit_price_cents'])->toBe(56000)
+        ->and($selection['variant']->id)->toBe($variant->id)
         ->and($selection['unit_price_cents'])->toBe(56000)
         ->and($selection['selection_snapshot']['selected_sku'])->toBe('CART-1KG');
+});
+
+it('inherits global product pricing without duplicating prices on variants', function (): void {
+    $product = variantProduct([
+        'published_at' => now(),
+        'pricing_mode' => Product::PRICING_MODE_GLOBAL,
+        'base_price_cents' => 120000,
+        'compare_at_price_cents' => 135000,
+        'cost_price_cents' => 80000,
+    ]);
+    [$red, $blue] = variantAttribute('Color', ['Red', 'Blue']);
+
+    app(ProductVariantEngine::class)->sync($product, [
+        ['attribute_values' => [$red->id], 'status' => 'active', 'stock_quantity' => 5, 'track_inventory' => true],
+        ['attribute_values' => [$blue->id], 'status' => 'active', 'stock_quantity' => 8, 'track_inventory' => true],
+    ], Product::PRICING_MODE_GLOBAL);
+
+    $variants = $product->variants()->orderBy('id')->get();
+    $selection = app(ProductSelectionService::class)->resolveCartSelection([
+        'product_id' => $product->id,
+        'quantity' => 1,
+    ]);
+
+    expect($variants)->toHaveCount(2)
+        ->and($variants->every(fn ($variant) => $variant->price_cents === null))->toBeTrue()
+        ->and($variants->every(fn ($variant) => $variant->compare_at_price_cents === null))->toBeTrue()
+        ->and($variants->where('is_primary', true))->toHaveCount(1)
+        ->and($variants->first()->is_primary)->toBeTrue()
+        ->and($selection['variant']->id)->toBe($variants->first()->id)
+        ->and($selection['unit_price_cents'])->toBe(120000)
+        ->and($selection['pricing_snapshot']['compare_at_price_cents'])->toBe(135000);
 });
 
 it('returns variant-aware sku price and stock summaries in the admin product list', function (): void {
@@ -197,6 +230,33 @@ it('returns variant-aware sku price and stock summaries in the admin product lis
         ->assertJsonPath('data.items.0.display_stock_quantity', 5)
         ->assertJsonPath('data.items.0.display_inventory_mode', 'tracked')
         ->assertJsonPath('data.items.0.active_variants_count', 1);
+});
+
+it('returns inherited global pricing and the primary variant in admin order product search', function (): void {
+    $product = variantProduct([
+        'published_at' => now(),
+        'pricing_mode' => Product::PRICING_MODE_GLOBAL,
+        'base_price_cents' => 120000,
+    ]);
+    [$red, $blue] = variantAttribute('Color', ['Red', 'Blue']);
+
+    app(ProductVariantEngine::class)->sync($product, [
+        ['attribute_values' => [$red->id], 'sku' => 'ORDER-RED', 'status' => 'active', 'stock_quantity' => 5, 'track_inventory' => true],
+        ['attribute_values' => [$blue->id], 'sku' => 'ORDER-BLUE', 'status' => 'active', 'stock_quantity' => 8, 'track_inventory' => true],
+    ], Product::PRICING_MODE_GLOBAL);
+
+    $primaryVariant = $product->variants()->where('is_primary', true)->firstOrFail();
+
+    $this->withToken(accessTokenWithPermissions(['can_view_order']))
+        ->getJson('/api/admin/orders/product-search?search=ORDER-RED')
+        ->assertOk()
+        ->assertJsonPath('data.products.0.id', $product->id)
+        ->assertJsonPath('data.products.0.sku', 'ORDER-RED')
+        ->assertJsonPath('data.products.0.price', 1200)
+        ->assertJsonPath('data.products.0.primary_variant_id', $primaryVariant->id)
+        ->assertJsonPath('data.products.0.variants.0.id', $primaryVariant->id)
+        ->assertJsonPath('data.products.0.variants.0.price', 1200)
+        ->assertJsonPath('data.products.0.variants.0.is_primary', true);
 });
 
 it('requires product view permission for admin product options', function (): void {

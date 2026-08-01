@@ -86,6 +86,7 @@ function mergeSavedDraft(baseValues: ProductWizardValues, saved: string | null, 
     delete parsed.base_price_cents;
     delete parsed.compare_at_price_cents;
     delete parsed.cost_price_cents;
+    delete parsed.pricing_mode;
     delete parsed.variants;
   }
 

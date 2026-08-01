@@ -38,9 +38,8 @@ class ProductSelectionService
                 ]);
             }
         } elseif ($activeVariants->isNotEmpty()) {
-            throw ValidationException::withMessages([
-                'product_variant_id' => ['Select a valid product variant.'],
-            ]);
+            $variant = $activeVariants->firstWhere('is_primary', true)
+                ?? $activeVariants->first();
         } elseif ($product->variants->isNotEmpty()) {
             throw ValidationException::withMessages([
                 'product_id' => ['This product has no active variants.'],
@@ -59,6 +58,7 @@ class ProductSelectionService
             ]);
         }
 
+        $variantSelection = $variant ? $this->variantSelection($variant) : collect();
         $selectedAttributes = collect($payload['selected_attributes'] ?? [])
             ->map(fn ($attribute) => [
                 'name' => (string) ($attribute['name'] ?? ''),
@@ -67,13 +67,29 @@ class ProductSelectionService
             ])
             ->filter(fn (array $attribute) => $attribute['name'] !== '' && $attribute['value'] !== '')
             ->values();
+        if ($selectedAttributes->isEmpty() && $variantSelection->isNotEmpty()) {
+            $selectedAttributes = $variantSelection->values();
+        }
 
         $selectedOptions = collect($payload['selected_options'] ?? [])
             ->mapWithKeys(fn ($value, $key) => [(string) $key => $value])
             ->all();
+        if ($selectedOptions === [] && $variant) {
+            $selectedOptions = $variant->attributeValues
+                ->mapWithKeys(fn (ProductAttributeValue $value): array => [
+                    (string) ($value->attribute?->name ?: 'Option') => [
+                        'id' => $value->id,
+                        'name' => $value->value,
+                        'value' => $value->slug,
+                        'display_value' => $value->display_value,
+                        'hex' => $value->hex_color,
+                    ],
+                ])
+                ->all();
+        }
 
-        $unitPrice = (int) ($variant ? $variant->price_cents : $product->base_price_cents);
-        $compareAt = (int) (($variant ? $variant->compare_at_price_cents : $product->compare_at_price_cents) ?: 0);
+        $unitPrice = (int) $product->effectivePriceCents($variant);
+        $compareAt = (int) ($product->effectiveCompareAtPriceCents($variant) ?: 0);
 
         $activeCollection = $this->collections->activeCollectionForProduct($product);
         $discountedPrice = $this->applyCollectionDiscount($unitPrice, $activeCollection?->discount_type, $activeCollection?->discount_value);
@@ -132,6 +148,7 @@ class ProductSelectionService
     public function wishlistProduct(int $productId): Product
     {
         $product = Product::query()
+            ->withSellableVariantMetrics()
             ->with(['brand:id,name,slug', 'category:id,name,slug', 'images:id,product_id,url,is_primary,sort_order', 'tags:id,name'])
             ->findOrFail($productId);
 
@@ -222,6 +239,20 @@ class ProductSelectionService
             ->all();
 
         return implode(', ', $parts);
+    }
+
+    private function variantSelection(ProductVariant $variant)
+    {
+        return $variant->attributeValues
+            ->map(function (ProductAttributeValue $value): array {
+                $name = (string) ($value->attribute?->name ?: 'Option');
+
+                return [
+                    'name' => $name,
+                    'value' => (string) $value->slug,
+                    'label' => (string) $value->value,
+                ];
+            });
     }
 
     private function assetUrl(?string $path): ?string

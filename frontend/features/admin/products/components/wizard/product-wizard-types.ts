@@ -6,6 +6,8 @@ import { selectCurrencySettings, useSettingsStore } from "@/store/settings-store
 
 export type ProductWizardMode = "create" | "edit";
 
+export type ProductPricingMode = "global" | "variant";
+
 export type ProductMediaItem = {
   id: string;
   url: string;
@@ -28,6 +30,7 @@ export type ProductVariantDraft = {
   stock_quantity?: number | "";
   track_inventory: boolean;
   status: "active" | "inactive";
+  is_primary: boolean;
   attribute_values: number[];
 };
 
@@ -40,6 +43,7 @@ export type ProductWizardValues = {
   short_description: string;
   description: string;
   product_type: "physical" | "digital";
+  pricing_mode: ProductPricingMode;
   base_price_cents: number | "";
   compare_at_price_cents: number | "";
   cost_price_cents: number | "";
@@ -93,6 +97,7 @@ export const productWizardSchema = z.object({
   short_description: z.string().trim().min(10, "Add a short description."),
   description: z.string().optional(),
   product_type: z.enum(["physical", "digital"]),
+  pricing_mode: z.enum(["global", "variant"]),
   base_price_cents: z.union([z.coerce.number().min(0, "Regular price cannot be negative."), z.literal("")]),
   compare_at_price_cents: z.union([z.coerce.number().min(0), z.literal("")]).optional(),
   cost_price_cents: z.union([z.coerce.number().min(0), z.literal("")]).optional(),
@@ -119,14 +124,14 @@ export const productWizardSchema = z.object({
   is_flash_sale: z.boolean(),
   free_shipping: z.boolean(),
 }).superRefine((values, ctx) => {
-  if (values.variants.length === 0 && values.base_price_cents === "") {
-    ctx.addIssue({ code: "custom", path: ["base_price_cents"], message: "Sell price is required for a product without variants." });
+  if (values.pricing_mode === "global" && values.base_price_cents === "") {
+    ctx.addIssue({ code: "custom", path: ["base_price_cents"], message: "Sell price is required for global product pricing." });
   }
   if (values.variants.length === 0 && values.track_inventory && values.stock_quantity === "") {
     ctx.addIssue({ code: "custom", path: ["stock_quantity"], message: "Stock quantity is required when inventory is tracked." });
   }
   if (
-    values.variants.length === 0
+    values.pricing_mode === "global"
     && values.base_price_cents !== ""
     && values.compare_at_price_cents !== ""
     && Number(values.compare_at_price_cents) < Number(values.base_price_cents)
@@ -147,13 +152,19 @@ export const productWizardSchema = z.object({
       ctx.addIssue({ code: "custom", path: ["variants", index, "sku"], message: "Variant SKUs must be unique." });
     }
     if (sku) variantSkus.add(sku);
-    if (item.status === "active" && (item.price_cents === undefined || item.price_cents === null)) {
+    if (
+      values.pricing_mode === "variant"
+      && item.status === "active"
+      && (item.price_cents === undefined || item.price_cents === null)
+    ) {
       ctx.addIssue({ code: "custom", path: ["variants", index, "price_cents"], message: "Active variants require a sell price." });
     }
     if (item.status === "active" && item.track_inventory && item.stock_quantity === "") {
       ctx.addIssue({ code: "custom", path: ["variants", index, "stock_quantity"], message: "Stock is required when variant inventory is tracked." });
     }
     if (
+      values.pricing_mode === "variant"
+      &&
       item.price_cents !== undefined
       && item.compare_at_price_cents !== undefined
       && Number(item.compare_at_price_cents) < Number(item.price_cents)
@@ -161,12 +172,15 @@ export const productWizardSchema = z.object({
       ctx.addIssue({ code: "custom", path: ["variants", index, "compare_at_price_cents"], message: "Regular price must be greater than or equal to the sell price." });
     }
   });
+  if (values.pricing_mode === "variant" && values.variants.length === 0) {
+    ctx.addIssue({ code: "custom", path: ["variants"], message: "Variant pricing requires at least one variant." });
+  }
 });
 
 export const stepFields: Record<ProductWizardStepId, Array<keyof ProductWizardValues | string>> = {
   basic: ["name", "brand_id", "category_id", "subcategory_id", "short_description"],
   media: ["featured_image", "gallery_images"],
-  variants: ["base_price_cents", "compare_at_price_cents", "cost_price_cents", "stock_quantity", "low_stock_threshold", "track_inventory", "attribute_values", "variants"],
+  variants: ["pricing_mode", "base_price_cents", "compare_at_price_cents", "cost_price_cents", "stock_quantity", "low_stock_threshold", "track_inventory", "attribute_values", "variants"],
   seo: ["seo.custom_enabled", "seo.meta_title", "seo.meta_description", "seo.canonical_url", "seo.og_image_url"],
   publish: ["status", "published_at"],
 };
@@ -181,6 +195,7 @@ export function emptyProductWizardValues(): ProductWizardValues {
     short_description: "",
     description: "",
     product_type: "physical",
+    pricing_mode: "global",
     base_price_cents: "",
     compare_at_price_cents: "",
     cost_price_cents: "",
@@ -247,6 +262,18 @@ export function valuesFromProduct(record?: ProductRecord | null, options?: Produ
   const selectedCategory = options?.categories.find((category) => String(category.id) === selectedCategoryId);
   const parentCategoryId = selectedCategory?.parent_id ? String(selectedCategory.parent_id) : selectedCategoryId;
   const subcategoryId = selectedCategory?.parent_id ? selectedCategoryId : "";
+  const recordVariants = Array.isArray(record.variants) ? record.variants : [];
+  const pricingMode = record.pricing_mode === "variant"
+    || (
+      record.pricing_mode !== "global"
+      && recordVariants.some((variant) => {
+        const item = variant as Record<string, unknown>;
+        return item.price_cents !== null && item.price_cents !== undefined;
+      })
+      && (record.base_price_cents === null || record.base_price_cents === undefined)
+    )
+    ? "variant"
+    : "global";
 
   return {
     ...values,
@@ -257,6 +284,7 @@ export function valuesFromProduct(record?: ProductRecord | null, options?: Produ
     short_description: String(record.short_description ?? ""),
     description: String(record.description ?? ""),
     product_type: record.product_type === "digital" ? "digital" : "physical",
+    pricing_mode: pricingMode,
     base_price_cents: moneyInput(record.base_price_cents),
     compare_at_price_cents: moneyInput(record.compare_at_price_cents),
     cost_price_cents: moneyInput(record.cost_price_cents),
@@ -279,6 +307,7 @@ export function valuesFromProduct(record?: ProductRecord | null, options?: Produ
         stock_quantity: item.stock_quantity === null || item.stock_quantity === undefined ? "" : quantityInput(item.stock_quantity),
         track_inventory: typeof item.track_inventory === "boolean" ? item.track_inventory : true,
         status: item.status === "inactive" ? "inactive" : "active",
+        is_primary: Boolean(item.is_primary) || (!recordVariants.some((candidate) => Boolean((candidate as Record<string, unknown>).is_primary)) && index === 0),
         attribute_values: Array.isArray(item.attribute_values) ? item.attribute_values.map((value) => Number((value as { id: number }).id)) : [],
       };
     }) : [],
@@ -348,11 +377,13 @@ export function productPayloadFromValues(values: ProductWizardValues, publish: b
     });
   });
   const variants = values.variants.map((variant) => {
+    const usesVariantPricing = values.pricing_mode === "variant";
+
     return {
       sku: variant.sku.trim() || null,
-      price_cents: amountToCents(variant.price_cents),
-      compare_at_price_cents: amountToCents(variant.compare_at_price_cents),
-      cost_price_cents: amountToCents(variant.cost_price_cents),
+      price_cents: usesVariantPricing ? amountToCents(variant.price_cents) : null,
+      compare_at_price_cents: usesVariantPricing ? amountToCents(variant.compare_at_price_cents) : null,
+      cost_price_cents: usesVariantPricing ? amountToCents(variant.cost_price_cents) : null,
       stock_quantity: optionalNumber(variant.stock_quantity),
       track_inventory: variant.track_inventory,
       status: variant.status,
@@ -367,9 +398,10 @@ export function productPayloadFromValues(values: ProductWizardValues, publish: b
     description: values.description || null,
     product_type: values.product_type,
     status: publish ? "active" : values.status,
-    base_price_cents: variants.length ? null : amountToCents(values.base_price_cents),
-    compare_at_price_cents: variants.length ? null : amountToCents(values.compare_at_price_cents),
-    cost_price_cents: variants.length ? null : amountToCents(values.cost_price_cents),
+    pricing_mode: values.pricing_mode,
+    base_price_cents: values.pricing_mode === "global" ? amountToCents(values.base_price_cents) : null,
+    compare_at_price_cents: values.pricing_mode === "global" ? amountToCents(values.compare_at_price_cents) : null,
+    cost_price_cents: values.pricing_mode === "global" ? amountToCents(values.cost_price_cents) : null,
     track_inventory: variants.length ? false : values.track_inventory,
     stock_quantity: variants.length ? null : optionalNumber(values.stock_quantity),
     low_stock_threshold: variants.length ? null : optionalNumber(values.low_stock_threshold),

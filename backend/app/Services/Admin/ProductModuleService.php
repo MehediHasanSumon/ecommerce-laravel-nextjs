@@ -428,14 +428,22 @@ class ProductModuleService
         );
 
         $hasVariants = $variants !== [];
+        $pricingMode = $hasVariants
+            ? ($data['pricing_mode'] ?? Product::PRICING_MODE_VARIANT)
+            : Product::PRICING_MODE_GLOBAL;
+        $data['pricing_mode'] = $pricingMode;
+
         if ($hasVariants) {
             $data['sku'] = null;
-            $data['base_price_cents'] = null;
-            $data['compare_at_price_cents'] = null;
-            $data['cost_price_cents'] = null;
             $data['track_inventory'] = false;
             $data['stock_quantity'] = null;
             $data['low_stock_threshold'] = null;
+
+            if ($pricingMode === Product::PRICING_MODE_VARIANT) {
+                $data['base_price_cents'] = null;
+                $data['compare_at_price_cents'] = null;
+                $data['cost_price_cents'] = null;
+            }
         }
 
         $this->applySlug('products', $model, $data);
@@ -461,7 +469,7 @@ class ProductModuleService
             $model->seo()->delete();
         }
 
-        $this->variantEngine->sync($model, $variants);
+        $this->variantEngine->sync($model, $variants, $pricingMode);
         DB::afterCommit(fn () => $this->searchIndexer->index((int) $model->id));
         $this->clearHomePageCache();
         $this->clearSeoCaches('products');
@@ -629,7 +637,7 @@ class ProductModuleService
                 ->with($detailed
                     ? ['brand:id,name', 'category:id,name', 'tags:id,name', 'attributeValues:id,value,attribute_id,slug', 'images', 'features', 'specifications', 'seo', 'variants.attributeValues:id,value,attribute_id,slug']
                     : ['brand:id,name', 'category:id,name', 'tags:id,name'])
-                ->when(! $detailed, fn ($productQuery) => $productQuery->withAdminSellableSummary()),
+                ->withAdminSellableSummary(),
             'collections' => $query->with('products:id,name')->withCount('products'),
             'discounts' => $query->with(['products:id,name', 'categories:id,name', 'brands:id,name', 'collections:id,name', 'excludedProducts:id,name', 'excludedCategories:id,name']),
             'reviews' => $query->with(['product:id,name', 'user:id,name', 'replies.user:id,name']),
@@ -765,11 +773,10 @@ class ProductModuleService
             return;
         }
 
-        $variantConstraint = "pv.product_id = products.id AND pv.status = 'active' AND pv.deleted_at IS NULL";
         $expression = match ($sortColumn) {
-            'sku' => "COALESCE(products.sku, (SELECT MIN(pv.sku) FROM product_variants pv WHERE {$variantConstraint}))",
-            'base_price_cents' => "COALESCE(products.base_price_cents, (SELECT MIN(pv.price_cents) FROM product_variants pv WHERE {$variantConstraint}))",
-            'stock_quantity' => "COALESCE(products.stock_quantity, (SELECT SUM(COALESCE(pv.stock_quantity, 0)) FROM product_variants pv WHERE {$variantConstraint}))",
+            'sku' => "COALESCE(products.sku, (SELECT pv.sku FROM product_variants pv WHERE pv.product_id = products.id AND pv.status = 'active' AND pv.is_primary = 1 AND pv.deleted_at IS NULL LIMIT 1))",
+            'base_price_cents' => Product::effectivePriceSql(),
+            'stock_quantity' => "COALESCE(products.stock_quantity, (SELECT pv.stock_quantity FROM product_variants pv WHERE pv.product_id = products.id AND pv.status = 'active' AND pv.is_primary = 1 AND pv.deleted_at IS NULL LIMIT 1))",
             default => null,
         };
 

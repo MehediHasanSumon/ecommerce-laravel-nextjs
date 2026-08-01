@@ -330,6 +330,7 @@ class ProductCatalogSeeder extends Seeder
                 'stock_quantity' => fake()->numberBetween(8, 80),
                 'track_inventory' => $product->track_inventory,
                 'status' => 'active',
+                'is_primary' => $index === 0 ? true : null,
             ]);
 
             foreach ($combination as $value) {
@@ -342,6 +343,7 @@ class ProductCatalogSeeder extends Seeder
         }
 
         $product->forceFill([
+            'pricing_mode' => Product::PRICING_MODE_VARIANT,
             'sku' => null,
             'base_price_cents' => null,
             'compare_at_price_cents' => null,

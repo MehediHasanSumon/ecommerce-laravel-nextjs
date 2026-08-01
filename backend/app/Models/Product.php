@@ -14,6 +14,10 @@ class Product extends Model
 {
     use HasFactory, SoftDeletes;
 
+    public const PRICING_MODE_GLOBAL = 'global';
+
+    public const PRICING_MODE_VARIANT = 'variant';
+
     protected $guarded = ['id'];
 
     protected function casts(): array
@@ -73,12 +77,125 @@ class Product extends Model
     public function primaryActiveVariant(): HasOne
     {
         return $this->hasOne(ProductVariant::class)
-            ->ofMany(
-                ['price_cents' => 'min', 'id' => 'min'],
-                fn ($query) => $query
-                    ->where('status', 'active')
-                    ->whereNotNull('price_cents')
-            );
+            ->where('is_primary', true)
+            ->where('status', 'active');
+    }
+
+    public function defaultActiveVariant(): ?ProductVariant
+    {
+        if ($this->relationLoaded('primaryActiveVariant') && $this->primaryActiveVariant) {
+            return $this->primaryActiveVariant;
+        }
+
+        if ($this->relationLoaded('variants')) {
+            return $this->variants->first(fn (ProductVariant $variant): bool => $variant->status === 'active' && $variant->is_primary)
+                ?? $this->variants->firstWhere('status', 'active');
+        }
+
+        return $this->primaryActiveVariant()->first()
+            ?? $this->activeVariants()->orderBy('id')->first();
+    }
+
+    public function usesGlobalPricing(): bool
+    {
+        return $this->pricing_mode !== self::PRICING_MODE_VARIANT;
+    }
+
+    public function effectivePriceCents(?ProductVariant $variant = null): ?int
+    {
+        $value = $this->usesGlobalPricing()
+            ? $this->base_price_cents
+            : $variant?->price_cents;
+
+        return $value === null ? null : (int) $value;
+    }
+
+    public function effectiveCompareAtPriceCents(?ProductVariant $variant = null): ?int
+    {
+        $value = $this->usesGlobalPricing()
+            ? $this->compare_at_price_cents
+            : $variant?->compare_at_price_cents;
+
+        return $value === null ? null : (int) $value;
+    }
+
+    public function effectiveCostPriceCents(?ProductVariant $variant = null): ?int
+    {
+        $value = $this->usesGlobalPricing()
+            ? $this->cost_price_cents
+            : $variant?->cost_price_cents;
+
+        return $value === null ? null : (int) $value;
+    }
+
+    public static function effectivePriceSql(): string
+    {
+        return "CASE
+            WHEN products.pricing_mode = 'variant' THEN COALESCE(
+                (SELECT pv.price_cents
+                    FROM product_variants pv
+                    WHERE pv.product_id = products.id
+                        AND pv.status = 'active'
+                        AND pv.is_primary = 1
+                        AND pv.deleted_at IS NULL
+                    LIMIT 1),
+                (SELECT pv.price_cents
+                    FROM product_variants pv
+                    WHERE pv.product_id = products.id
+                        AND pv.status = 'active'
+                        AND pv.deleted_at IS NULL
+                    ORDER BY pv.id
+                    LIMIT 1),
+                products.base_price_cents
+            )
+            ELSE products.base_price_cents
+        END";
+    }
+
+    public static function effectiveCompareAtPriceSql(): string
+    {
+        return "CASE
+            WHEN products.pricing_mode = 'variant' THEN CASE
+                WHEN EXISTS (
+                    SELECT 1
+                    FROM product_variants pv
+                    WHERE pv.product_id = products.id
+                        AND pv.status = 'active'
+                        AND pv.is_primary = 1
+                        AND pv.deleted_at IS NULL
+                ) THEN (
+                    SELECT pv.compare_at_price_cents
+                    FROM product_variants pv
+                    WHERE pv.product_id = products.id
+                        AND pv.status = 'active'
+                        AND pv.is_primary = 1
+                        AND pv.deleted_at IS NULL
+                    LIMIT 1
+                )
+                ELSE (
+                    SELECT pv.compare_at_price_cents
+                    FROM product_variants pv
+                    WHERE pv.product_id = products.id
+                        AND pv.status = 'active'
+                        AND pv.deleted_at IS NULL
+                    ORDER BY pv.id
+                    LIMIT 1
+                )
+            END
+            ELSE products.compare_at_price_cents
+        END";
+    }
+
+    public function scopeWhereEffectivePrice($query, string $operator, int $price)
+    {
+        return $query->whereRaw(self::effectivePriceSql()." {$operator} ?", [$price]);
+    }
+
+    public function scopeWhereEffectivelyOnSale($query)
+    {
+        return $query
+            ->whereRaw(self::effectiveCompareAtPriceSql().' IS NOT NULL')
+            ->whereRaw(self::effectiveCompareAtPriceSql().' > '.self::effectivePriceSql());
     }
 
     public function scopeWithAdminSellableSummary($query)
@@ -93,6 +210,7 @@ class Product extends Model
                     'product_variants.stock_quantity',
                     'product_variants.track_inventory',
                     'product_variants.status',
+                    'product_variants.is_primary',
                 ]),
             ])
             ->withCount([
@@ -107,7 +225,7 @@ class Product extends Model
     {
         return $query
             ->with([
-                'cheapestActiveVariant' => fn ($variantQuery) => $variantQuery->select([
+                'primaryActiveVariant' => fn ($variantQuery) => $variantQuery->select([
                     'product_variants.id',
                     'product_variants.product_id',
                     'product_variants.sku',
@@ -116,6 +234,7 @@ class Product extends Model
                     'product_variants.stock_quantity',
                     'product_variants.track_inventory',
                     'product_variants.status',
+                    'product_variants.is_primary',
                 ]),
             ])
             ->withCount([

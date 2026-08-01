@@ -9,8 +9,16 @@ use App\Support\Identifiers\SkuGenerator;
 
 class ProductVariantEngine
 {
-    public function sync(Product $product, array $variants): void
+    public function sync(
+        Product $product,
+        array $variants,
+        string $pricingMode = Product::PRICING_MODE_VARIANT
+    ): void
     {
+        if ($product->pricing_mode !== $pricingMode) {
+            $product->forceFill(['pricing_mode' => $pricingMode])->saveQuietly();
+        }
+
         $attributeValueIds = collect($variants)
             ->flatMap(fn (array $variant): array => $variant['attribute_values'] ?? [])
             ->map(fn ($id): int => (int) $id)
@@ -69,6 +77,7 @@ class ProductVariantEngine
             ->values();
 
         $seen = [];
+        $primaryVariantId = null;
         foreach ($normalizedVariants as $normalizedVariant) {
             $variantData = $normalizedVariant['data'];
             $combination = $normalizedVariant['combination'];
@@ -79,7 +88,7 @@ class ProductVariantEngine
                 $variant->restore();
             }
 
-            $payload = $this->variantPayload($product, $variant, $variantData, $combination);
+            $payload = $this->variantPayload($product, $variant, $variantData, $combination, $pricingMode);
             $variant->fill($payload);
             $variant->save();
 
@@ -89,6 +98,10 @@ class ProductVariantEngine
                     ->all()
             );
             $existing[$key] = $variant;
+
+            if ($primaryVariantId === null && $variant->status === 'active') {
+                $primaryVariantId = (int) $variant->id;
+            }
         }
 
         $removeIds = collect($existing)
@@ -103,6 +116,10 @@ class ProductVariantEngine
             $product->variants()->whereIn('id', $removeIds)->delete();
         }
 
+        $product->variants()->whereNotNull('is_primary')->update(['is_primary' => null]);
+        if ($primaryVariantId !== null) {
+            $product->variants()->whereKey($primaryVariantId)->update(['is_primary' => true]);
+        }
     }
 
     public function combinationKey(array $attributeValueIds): string
@@ -118,20 +135,29 @@ class ProductVariantEngine
         return implode(':', $ids);
     }
 
-    private function variantPayload(Product $product, ProductVariant $variant, array $data, array $combination): array
+    private function variantPayload(
+        Product $product,
+        ProductVariant $variant,
+        array $data,
+        array $combination,
+        string $pricingMode
+    ): array
     {
+        $usesVariantPricing = $pricingMode === Product::PRICING_MODE_VARIANT;
+
         return [
             'product_id' => $product->id,
             'combination_key' => $this->combinationKey($combination),
             'sku' => filled($data['sku'] ?? null)
                 ? trim((string) $data['sku'])
                 : ($variant->sku ?: $this->generateSku($product, $combination)),
-            'price_cents' => $data['price_cents'] ?? null,
-            'compare_at_price_cents' => $data['compare_at_price_cents'] ?? null,
-            'cost_price_cents' => $data['cost_price_cents'] ?? null,
+            'price_cents' => $usesVariantPricing ? ($data['price_cents'] ?? null) : null,
+            'compare_at_price_cents' => $usesVariantPricing ? ($data['compare_at_price_cents'] ?? null) : null,
+            'cost_price_cents' => $usesVariantPricing ? ($data['cost_price_cents'] ?? null) : null,
             'stock_quantity' => $data['stock_quantity'] ?? null,
             'track_inventory' => (bool) ($data['track_inventory'] ?? true),
             'status' => $data['status'] ?? 'active',
+            'is_primary' => null,
         ];
     }
 

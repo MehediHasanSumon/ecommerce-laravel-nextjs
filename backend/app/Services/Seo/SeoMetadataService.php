@@ -135,6 +135,7 @@ class SeoMetadataService
         $product = Product::query()
             ->where('slug', $slug)
             ->where('status', 'active')
+            ->withSellableVariantMetrics()
             ->with(['brand:id,name,slug', 'category:id,name,slug', 'tags:id,name', 'images:id,product_id,url,is_primary,sort_order', 'seo'])
             ->first();
 
@@ -145,6 +146,12 @@ class SeoMetadataService
         $image = $this->assetUrl($product->seo?->og_image_url)
             ?: $this->assetUrl($product->images->firstWhere('is_primary', true)?->url)
             ?: $this->assetUrl($product->images->sortBy('sort_order')->first()?->url);
+        $primaryVariant = $product->defaultActiveVariant();
+        $priceCents = $product->effectivePriceCents($primaryVariant);
+        $trackInventory = $primaryVariant
+            ? (bool) $primaryVariant->track_inventory
+            : (bool) $product->track_inventory;
+        $stockQuantity = $primaryVariant?->stock_quantity ?? $product->stock_quantity;
 
         $structuredData = [
             '@context' => 'https://schema.org',
@@ -152,13 +159,13 @@ class SeoMetadataService
             'name' => $product->name,
             'description' => $product->short_description ?: $product->description,
             'image' => $image ? [$image] : [],
-            'sku' => $product->sku,
+            'sku' => $primaryVariant?->sku ?: $product->sku,
             'category' => $product->category?->name,
             'offers' => [
                 '@type' => 'Offer',
                 'priceCurrency' => $product->currency ?: 'BDT',
-                'price' => round(((int) $product->base_price_cents) / 100, 2),
-                'availability' => ((int) $product->stock_quantity > 0 || ! $product->track_inventory)
+                'price' => round(((int) $priceCents) / 100, 2),
+                'availability' => ((int) $stockQuantity > 0 || ! $trackInventory)
                     ? 'https://schema.org/InStock'
                     : 'https://schema.org/OutOfStock',
             ],

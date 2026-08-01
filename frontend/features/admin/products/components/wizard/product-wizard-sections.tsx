@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { UseFormReturn } from "react-hook-form";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
@@ -83,12 +83,22 @@ export function MediaSection({ form }: SectionProps) {
 export function VariantSection({ form, options }: SectionProps) {
   const errors = form.formState.errors;
   const variants = useFieldValue(form, "variants");
+  const pricingMode = useFieldValue(form, "pricing_mode");
+  const globalSellPrice = useFieldValue(form, "base_price_cents");
+  const globalRegularPrice = useFieldValue(form, "compare_at_price_cents");
+  const globalCostPrice = useFieldValue(form, "cost_price_cents");
   const trackInventory = useFieldValue(form, "track_inventory");
   const selectedAttributes = useFieldValue(form, "attribute_values");
   const [attributeSearch, setAttributeSearch] = useState("");
   const [attributeOptions, setAttributeOptions] = useState(options.attribute_values);
   const [loadingAttributes, setLoadingAttributes] = useState(false);
   const [openVariantIds, setOpenVariantIds] = useState<string[]>([]);
+  const globalPricingFallback = useRef<{
+    price_cents?: number;
+    compare_at_price_cents?: number;
+    cost_price_cents?: number;
+  }>({});
+  const variantPricingFallbackInitialized = useRef(false);
 
   useEffect(() => {
     const timer = window.setTimeout(async () => {
@@ -148,6 +158,24 @@ export function VariantSection({ form, options }: SectionProps) {
     }, []);
   }, [groupedAttributes, selectedAttributes]);
 
+  useEffect(() => {
+    if (pricingMode === "global") {
+      variantPricingFallbackInitialized.current = false;
+      return;
+    }
+    if (variantPricingFallbackInitialized.current) return;
+
+    const primary = variants.find((variant) => variant.is_primary) ?? variants[0];
+    if (!primary) return;
+
+    globalPricingFallback.current = {
+      price_cents: primary.price_cents,
+      compare_at_price_cents: primary.compare_at_price_cents,
+      cost_price_cents: primary.cost_price_cents,
+    };
+    variantPricingFallbackInitialized.current = true;
+  }, [pricingMode, variants]);
+
   function variantKey(attributeValues: number[]) {
     return [...attributeValues].sort((a, b) => a - b).join(":");
   }
@@ -162,20 +190,24 @@ export function VariantSection({ form, options }: SectionProps) {
     }
 
     const existingByKey = new Map(variants.map((variant) => [variantKey(variant.attribute_values), variant]));
-    const generated: ProductVariantDraft[] = generatedCombinations.map((combination) => {
+    const pricingSeed = variants.find((variant) => variant.is_primary) ?? variants[0];
+    const generated: ProductVariantDraft[] = generatedCombinations.map((combination, index) => {
       const key = variantKey(combination);
       const existing = existingByKey.get(key);
-      return existing ?? {
+      const generatedVariant = existing ?? {
         id: `variant-${key || crypto.randomUUID()}`,
         sku: "",
-        price_cents: undefined,
-        compare_at_price_cents: undefined,
-        cost_price_cents: undefined,
+        price_cents: pricingMode === "variant" ? pricingSeed?.price_cents : undefined,
+        compare_at_price_cents: pricingMode === "variant" ? pricingSeed?.compare_at_price_cents : undefined,
+        cost_price_cents: pricingMode === "variant" ? pricingSeed?.cost_price_cents : undefined,
         stock_quantity: 0,
         track_inventory: true,
         status: "active" as const,
+        is_primary: false,
         attribute_values: combination,
       };
+
+      return { ...generatedVariant, is_primary: index === 0 };
     });
 
     const currentKeys = variants.map((variant) => variantKey(variant.attribute_values)).join("|");
@@ -188,13 +220,89 @@ export function VariantSection({ form, options }: SectionProps) {
   }, [
     form,
     generatedCombinations,
+    pricingMode,
     selectedAttributes,
     variants,
   ]);
 
+  useEffect(() => {
+    if (variants.length || pricingMode !== "variant") return;
+    const fallback = globalPricingFallback.current;
+    form.setValue("pricing_mode", "global", { shouldDirty: true, shouldValidate: false });
+    if (globalSellPrice === "" && fallback.price_cents !== undefined) {
+      form.setValue("base_price_cents", fallback.price_cents, { shouldDirty: true, shouldValidate: false });
+    }
+    if (globalRegularPrice === "" && fallback.compare_at_price_cents !== undefined) {
+      form.setValue("compare_at_price_cents", fallback.compare_at_price_cents, { shouldDirty: true, shouldValidate: false });
+    }
+    if (globalCostPrice === "" && fallback.cost_price_cents !== undefined) {
+      form.setValue("cost_price_cents", fallback.cost_price_cents, { shouldDirty: true, shouldValidate: false });
+    }
+  }, [form, globalCostPrice, globalRegularPrice, globalSellPrice, pricingMode, variants.length]);
+
+  function withPrimaryVariant(items: ProductVariantDraft[]) {
+    const firstActiveIndex = items.findIndex((variant) => variant.status === "active");
+    return items.map((variant, index) => ({
+      ...variant,
+      is_primary: firstActiveIndex >= 0 && index === firstActiveIndex,
+    }));
+  }
+
   function updateVariant(id: string, patch: Partial<ProductVariantDraft>) {
     form.clearErrors("variants");
-    form.setValue("variants", variants.map((variant) => variant.id === id ? { ...variant, ...patch } : variant), { shouldDirty: true, shouldValidate: false });
+    const nextVariants = withPrimaryVariant(
+      variants.map((variant) => variant.id === id ? { ...variant, ...patch } : variant),
+    );
+    form.setValue("variants", nextVariants, { shouldDirty: true, shouldValidate: false });
+  }
+
+  function updateVariantPricing(
+    id: string,
+    field: "price_cents" | "compare_at_price_cents" | "cost_price_cents",
+    rawValue: string,
+  ) {
+    const value = rawValue === "" ? undefined : Number(rawValue);
+    form.clearErrors("variants");
+
+    if (pricingMode === "global") {
+      const inherited = {
+        price_cents: globalSellPrice === "" ? undefined : Number(globalSellPrice),
+        compare_at_price_cents: globalRegularPrice === "" ? undefined : Number(globalRegularPrice),
+        cost_price_cents: globalCostPrice === "" ? undefined : Number(globalCostPrice),
+      };
+      globalPricingFallback.current = inherited;
+      variantPricingFallbackInitialized.current = true;
+
+      const nextVariants = withPrimaryVariant(variants.map((variant) => ({
+        ...variant,
+        ...inherited,
+        ...(variant.id === id ? { [field]: value } : {}),
+      })));
+      form.setValue("pricing_mode", "variant", { shouldDirty: true, shouldValidate: false });
+      form.setValue("variants", nextVariants, { shouldDirty: true, shouldValidate: false });
+      return;
+    }
+
+    const nextVariants = withPrimaryVariant(
+      variants.map((variant) => variant.id === id ? { ...variant, [field]: value } : variant),
+    );
+    const hasSpecificPricing = nextVariants.some((variant) => (
+      variant.price_cents !== undefined
+      || variant.compare_at_price_cents !== undefined
+      || variant.cost_price_cents !== undefined
+    ));
+
+    if (hasSpecificPricing) {
+      form.setValue("variants", nextVariants, { shouldDirty: true, shouldValidate: false });
+      return;
+    }
+
+    const fallback = globalPricingFallback.current;
+    form.setValue("base_price_cents", fallback.price_cents ?? "", { shouldDirty: true, shouldValidate: false });
+    form.setValue("compare_at_price_cents", fallback.compare_at_price_cents ?? "", { shouldDirty: true, shouldValidate: false });
+    form.setValue("cost_price_cents", fallback.cost_price_cents ?? "", { shouldDirty: true, shouldValidate: false });
+    form.setValue("pricing_mode", "global", { shouldDirty: true, shouldValidate: false });
+    form.setValue("variants", nextVariants, { shouldDirty: true, shouldValidate: false });
   }
 
   function toggleAttributeValue(id: number, checked: boolean) {
@@ -209,21 +317,27 @@ export function VariantSection({ form, options }: SectionProps) {
     <div className="space-y-5">
       <SectionHeader
         title="Pricing"
-        description={variants.length ? "Configure pricing and inventory for every sellable SKU combination." : "Set product pricing or select attributes to create separately priced variants."}
+        description={pricingMode === "global"
+          ? "Product pricing is inherited by every generated variant."
+          : "Pricing is managed independently for each sellable variant."}
       />
-      {!variants.length ? (
+      {pricingMode === "global" ? (
         <div className="space-y-4">
           <FieldGrid>
             <Input label="Sell Price" type="number" min={0} step="0.01" {...form.register("base_price_cents")} error={errors.base_price_cents?.message} />
             <Input label="Regular Price" type="number" min={0} step="0.01" {...form.register("compare_at_price_cents")} error={errors.compare_at_price_cents?.message} />
             <Input label="Cost Price" type="number" min={0} step="0.01" {...form.register("cost_price_cents")} error={errors.cost_price_cents?.message} />
           </FieldGrid>
-          <ToggleField label="Track Inventory" description="Deduct stock when orders are placed." checked={trackInventory} onChange={(checked) => form.setValue("track_inventory", checked, { shouldDirty: true, shouldValidate: true })} />
-          {trackInventory ? (
-            <FieldGrid>
-              <Input label="Stock Quantity" type="number" min={0} {...form.register("stock_quantity")} error={errors.stock_quantity?.message} />
-              <Input label="Low Stock Alert" type="number" min={0} {...form.register("low_stock_threshold")} error={errors.low_stock_threshold?.message} />
-            </FieldGrid>
+          {!variants.length ? (
+            <>
+              <ToggleField label="Track Inventory" description="Deduct stock when orders are placed." checked={trackInventory} onChange={(checked) => form.setValue("track_inventory", checked, { shouldDirty: true, shouldValidate: true })} />
+              {trackInventory ? (
+                <FieldGrid>
+                  <Input label="Stock Quantity" type="number" min={0} {...form.register("stock_quantity")} error={errors.stock_quantity?.message} />
+                  <Input label="Low Stock Alert" type="number" min={0} {...form.register("low_stock_threshold")} error={errors.low_stock_threshold?.message} />
+                </FieldGrid>
+              ) : null}
+            </>
           ) : null}
         </div>
       ) : null}
@@ -260,6 +374,13 @@ export function VariantSection({ form, options }: SectionProps) {
         </div>
       </div>
       <div className="space-y-3">
+        {variants.length ? (
+          <p className="text-xs text-muted-foreground">
+            {pricingMode === "global"
+              ? "Variant prices shown below are inherited. Editing any price switches all variants to independent pricing."
+              : "Each variant price is independent. Clear every variant price to restore global product pricing."}
+          </p>
+        ) : null}
         {variants.length ? variants.map((variant, index) => (
           <div key={variant.id} className="rounded-lg border border-border bg-background">
             <div className="flex items-center gap-3 p-4">
@@ -273,7 +394,9 @@ export function VariantSection({ form, options }: SectionProps) {
               <button type="button" className="flex min-w-0 flex-1 items-center gap-3 text-left" onClick={() => toggleAccordion(variant.id)}>
                 {openVariantIds.includes(variant.id) ? <ChevronDown className="h-4 w-4 shrink-0" /> : <ChevronRight className="h-4 w-4 shrink-0" />}
                 <span className="min-w-0">
-                  <span className="block truncate text-sm font-bold">Variant: {variantName(variant.attribute_values) || index + 1}</span>
+                  <span className="block truncate text-sm font-bold">
+                    Variant: {variantName(variant.attribute_values) || index + 1}{variant.is_primary ? " (Primary)" : ""}
+                  </span>
                   <span className="mt-0.5 block truncate text-xs text-muted-foreground">{variant.attribute_values.map((id) => valuesById.get(id)?.name ?? id).join(" / ")}</span>
                 </span>
               </button>
@@ -282,9 +405,9 @@ export function VariantSection({ form, options }: SectionProps) {
               <div className="border-t border-border p-4">
                 <div className="grid gap-3 md:grid-cols-3">
                   <Input label="SKU" placeholder="Auto-generated if blank" value={variant.sku} onChange={(event) => updateVariant(variant.id, { sku: event.target.value })} />
-                  <Input label="Sell Price" type="number" min={0} step="0.01" placeholder="Enter sell price" value={variant.price_cents ?? ""} onChange={(event) => updateVariant(variant.id, { price_cents: event.target.value ? Number(event.target.value) : undefined })} />
-                  <Input label="Regular Price" type="number" min={0} step="0.01" placeholder="Enter regular price" value={variant.compare_at_price_cents ?? ""} onChange={(event) => updateVariant(variant.id, { compare_at_price_cents: event.target.value ? Number(event.target.value) : undefined })} />
-                  <Input label="Cost Price" type="number" min={0} step="0.01" placeholder="Enter price" value={variant.cost_price_cents ?? ""} onChange={(event) => updateVariant(variant.id, { cost_price_cents: event.target.value ? Number(event.target.value) : undefined })} />
+                  <Input label="Sell Price" type="number" min={0} step="0.01" placeholder="Enter sell price" value={pricingMode === "global" ? globalSellPrice : variant.price_cents ?? ""} onChange={(event) => updateVariantPricing(variant.id, "price_cents", event.target.value)} />
+                  <Input label="Regular Price" type="number" min={0} step="0.01" placeholder="Enter regular price" value={pricingMode === "global" ? globalRegularPrice : variant.compare_at_price_cents ?? ""} onChange={(event) => updateVariantPricing(variant.id, "compare_at_price_cents", event.target.value)} />
+                  <Input label="Cost Price" type="number" min={0} step="0.01" placeholder="Enter price" value={pricingMode === "global" ? globalCostPrice : variant.cost_price_cents ?? ""} onChange={(event) => updateVariantPricing(variant.id, "cost_price_cents", event.target.value)} />
                   <SelectField label="Track Inventory" value={String(variant.track_inventory)} placeholder="Select inventory behavior" options={[{ id: "true", name: "Track inventory" }, { id: "false", name: "Do not track" }]} onChange={(value) => updateVariant(variant.id, { track_inventory: value === "true" })} />
                   <Input label="Quantity" type="number" min={0} placeholder="Enter quantity" value={variant.stock_quantity ?? ""} onChange={(event) => updateVariant(variant.id, { stock_quantity: event.target.value ? Number(event.target.value) : "" })} />
                   <SelectField label="Status" value={variant.status} placeholder="Select status" options={[{ id: "active", name: "Active" }, { id: "inactive", name: "Inactive" }]} onChange={(value) => updateVariant(variant.id, { status: value as ProductVariantDraft["status"] })} />
@@ -333,9 +456,10 @@ export function PublishSection({ form, options }: SectionProps) {
   const values = form.getValues();
   const hasVariants = values.variants.length > 0;
   const activeVariants = values.variants.filter((variant) => variant.status === "active");
+  const usesGlobalPricing = values.pricing_mode === "global";
   const checks = [
     { label: "Basic information", complete: Boolean(values.name && values.category_id && values.short_description) },
-    { label: "Pricing", complete: hasVariants ? activeVariants.length > 0 && activeVariants.every((variant) => variant.price_cents !== undefined) : values.base_price_cents !== "" },
+    { label: "Pricing", complete: usesGlobalPricing ? values.base_price_cents !== "" : activeVariants.length > 0 && activeVariants.every((variant) => variant.price_cents !== undefined) },
     { label: "Inventory", complete: hasVariants ? activeVariants.every((variant) => !variant.track_inventory || variant.stock_quantity !== "") : !values.track_inventory || values.stock_quantity !== "" },
     { label: "Media", complete: Boolean(values.featured_image || values.gallery_images.length) },
     { label: "SEO", complete: true },
@@ -350,7 +474,7 @@ export function PublishSection({ form, options }: SectionProps) {
           <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
             <Summary label="Brand" value={optionName(options, "brands", values.brand_id)} />
             <Summary label="Category" value={optionName(options, "categories", values.subcategory_id || values.category_id)} />
-            <Summary label="Sell Price" value={hasVariants ? "Managed by sellable SKU" : formatCurrency(Number(values.base_price_cents || 0))} />
+            <Summary label="Sell Price" value={usesGlobalPricing ? formatCurrency(Number(values.base_price_cents || 0)) : "Managed by sellable SKU"} />
             <Summary label="Stock" value={hasVariants ? "Managed by sellable SKU" : values.track_inventory ? String(values.stock_quantity || 0) : "Not tracked"} />
             <Summary label="Images" value={`${values.featured_image ? 1 : 0} featured, ${values.gallery_images.length} gallery`} />
             <Summary label="Variants" value={String(values.variants.length)} />

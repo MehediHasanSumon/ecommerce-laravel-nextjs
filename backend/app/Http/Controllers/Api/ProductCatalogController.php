@@ -111,16 +111,7 @@ class ProductCatalogController extends Controller
             ->when($request->filled('price_max'), fn ($query) => $this->whereEffectivePrice($query, '<=', (int) round(((float) $request->query('price_max')) * 100)))
             ->when($request->query('availability') === 'in_stock', fn ($query) => $query->whereSellableAvailable())
             ->when($request->query('availability') === 'out_of_stock', fn ($query) => $query->whereNot(fn ($query) => $query->whereSellableAvailable()))
-            ->when($request->boolean('on_sale'), fn ($query) => $query->where(function ($saleQuery): void {
-                $saleQuery
-                    ->whereHas('activeVariants', fn ($variantQuery) => $variantQuery
-                        ->whereNotNull('compare_at_price_cents')
-                        ->whereColumn('compare_at_price_cents', '>', 'price_cents'))
-                    ->orWhere(fn ($simpleQuery) => $simpleQuery
-                        ->whereDoesntHave('variants')
-                        ->whereNotNull('compare_at_price_cents')
-                        ->whereColumn('compare_at_price_cents', '>', 'base_price_cents'));
-            }))
+            ->when($request->boolean('on_sale'), fn ($query) => $query->whereEffectivelyOnSale())
             ->when($request->filled('rating'), fn ($query) => $query->where('rating_average', '>=', (float) $request->query('rating')));
 
         $search = trim((string) ($validated['search'] ?? ''));
@@ -196,7 +187,7 @@ class ProductCatalogController extends Controller
                 'specifications:id,product_id,group_name,name,value,sort_order',
                 'seo:id,product_id,meta_title,meta_description,meta_keywords,canonical_url,og_image_url,schema_json',
                 'attributeValues.attribute:id,name,slug,type',
-                'variants' => fn ($query) => $query->where('status', 'active')->orderBy('id'),
+                'variants' => fn ($query) => $query->where('status', 'active')->orderByDesc('is_primary')->orderBy('id'),
                 'variants.attributeValues.attribute:id,name,slug,type',
                 'reviews' => fn ($query) => $query
                     ->when(! (bool) $settings->enable_reviews, fn ($query) => $query->whereRaw('1 = 0'))
@@ -356,7 +347,7 @@ class ProductCatalogController extends Controller
             'price_asc' => $query->orderByRaw($this->effectivePriceSql().' asc')->orderBy('name'),
             'price_desc' => $query->orderByRaw($this->effectivePriceSql().' desc')->orderBy('name'),
             'discount_desc' => $query
-                ->orderByRaw('(compare_at_price_cents - base_price_cents) desc')
+                ->orderByRaw('('.Product::effectiveCompareAtPriceSql().' - '.Product::effectivePriceSql().') desc')
                 ->orderByDesc('published_at'),
             'name_asc' => $query->orderBy('name'),
             'name_desc' => $query->orderByDesc('name'),
@@ -371,24 +362,10 @@ class ProductCatalogController extends Controller
 
     private function filters(bool $brandsEnabled): array
     {
-        $productPriceRange = Product::query()
+        $priceRange = Product::query()
             ->where('status', 'active')
-            ->whereDoesntHave('variants')
-            ->selectRaw('min(base_price_cents) as min_price, max(base_price_cents) as max_price')
+            ->selectRaw('min('.Product::effectivePriceSql().') as min_price, max('.Product::effectivePriceSql().') as max_price')
             ->first();
-        $variantPriceRange = ProductVariant::query()
-            ->where('status', 'active')
-            ->whereHas('product', fn ($query) => $query->where('status', 'active'))
-            ->selectRaw('min(price_cents) as min_price, max(price_cents) as max_price')
-            ->first();
-        $minimumPrices = array_filter([
-            $productPriceRange?->min_price,
-            $variantPriceRange?->min_price,
-        ], fn ($value) => $value !== null);
-        $maximumPrices = array_filter([
-            $productPriceRange?->max_price,
-            $variantPriceRange?->max_price,
-        ], fn ($value) => $value !== null);
 
         return [
             'brands' => $brandsEnabled ? Brand::query()
@@ -433,8 +410,8 @@ class ProductCatalogController extends Controller
                 ])
                 ->all(),
             'price' => [
-                'min' => round(((int) ($minimumPrices === [] ? 0 : min($minimumPrices))) / 100, 2),
-                'max' => round(((int) ($maximumPrices === [] ? 0 : max($maximumPrices))) / 100, 2),
+                'min' => round(((int) ($priceRange?->min_price ?? 0)) / 100, 2),
+                'max' => round(((int) ($priceRange?->max_price ?? 0)) / 100, 2),
             ],
             'availability' => [
                 ['label' => 'In Stock', 'value' => 'in_stock'],
@@ -500,12 +477,12 @@ class ProductCatalogController extends Controller
 
     private function whereEffectivePrice($query, string $operator, int $price)
     {
-        return $query->whereRaw($this->effectivePriceSql()." {$operator} ?", [$price]);
+        return $query->whereEffectivePrice($operator, $price);
     }
 
     private function effectivePriceSql(): string
     {
-        return 'COALESCE((SELECT MIN(pv.price_cents) FROM product_variants pv WHERE pv.product_id = products.id AND pv.status = \'active\' AND pv.deleted_at IS NULL), products.base_price_cents)';
+        return Product::effectivePriceSql();
     }
 
     private function assetUrl(?string $path): ?string

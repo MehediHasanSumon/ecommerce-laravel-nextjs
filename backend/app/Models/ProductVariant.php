@@ -16,6 +16,7 @@ class ProductVariant extends Model
 
     protected $casts = [
         'track_inventory' => 'boolean',
+        'is_primary' => 'boolean',
     ];
 
     public function product(): BelongsTo
@@ -28,5 +29,20 @@ class ProductVariant extends Model
         return $this->belongsToMany(ProductAttributeValue::class, 'product_variant_attribute_value', 'product_variant_id', 'attribute_value_id')
             ->withPivot('attribute_id')
             ->withTimestamps();
+    }
+
+    public function effectivePriceCents(): ?int
+    {
+        return $this->product?->effectivePriceCents($this);
+    }
+
+    public function effectiveCompareAtPriceCents(): ?int
+    {
+        return $this->product?->effectiveCompareAtPriceCents($this);
+    }
+
+    public function effectiveCostPriceCents(): ?int
+    {
+        return $this->product?->effectiveCostPriceCents($this);
     }
 }

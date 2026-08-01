@@ -150,6 +150,7 @@ export type ProductVariantDetail = {
   stock: number;
   stockStatus: string;
   trackInventory: boolean;
+  isPrimary: boolean;
   options: Record<string, { id: number; name: string; value: string; display_value?: string | null; hex?: string | null }>;
   images: string[];
 };

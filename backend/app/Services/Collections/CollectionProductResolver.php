@@ -91,9 +91,9 @@ class CollectionProductResolver
                 return $product;
             }
 
-            $basePrice = (int) ($product->active_variants_count > 0
-                ? $product->cheapestActiveVariant?->price_cents
-                : $product->base_price_cents);
+            $basePrice = (int) $product->effectivePriceCents(
+                $product->active_variants_count > 0 ? $product->primaryActiveVariant : null
+            );
             $discounted = match ($pricingCollection->discount_type) {
                 'percentage' => (int) round($basePrice * max(0, 100 - (int) $pricingCollection->discount_value) / 100),
                 'fixed' => max(0, $basePrice - (int) $pricingCollection->discount_value),
@@ -256,12 +256,12 @@ class CollectionProductResolver
             match ($field) {
                 'category_id' => $query->when($value, fn (Builder $query) => $query->where('category_id', $value)),
                 'brand_id' => $query->when($value, fn (Builder $query) => $query->where('brand_id', $value)),
-                'price' => $query->when(is_numeric($value), fn (Builder $query) => $query->where('base_price_cents', $operator === 'less_than' ? '<=' : '>=', (int) round(((float) $value) * 100))),
+                'price' => $query->when(is_numeric($value), fn (Builder $query) => $query->whereEffectivePrice($operator === 'less_than' ? '<=' : '>=', (int) round(((float) $value) * 100))),
                 'stock_available' => $query->where(fn (Builder $query) => $query->where('track_inventory', false)->orWhere('stock_quantity', '>', 0)),
                 'featured' => $query->where('is_featured', (bool) $value),
                 'new' => $query->where('is_new', (bool) $value),
                 'rating' => $query->when(is_numeric($value), fn (Builder $query) => $query->where('rating_average', '>=', (float) $value)),
-                'discounted' => $query->whereNotNull('compare_at_price_cents')->whereColumn('compare_at_price_cents', '>', 'base_price_cents'),
+                'discounted' => $query->whereEffectivelyOnSale(),
                 default => null,
             };
         }

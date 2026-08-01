@@ -4,6 +4,7 @@ use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductImage;
+use App\Models\ProductVariant;
 use App\Models\Settings\CompanySetting;
 use App\Models\Settings\SeoSetting;
 use App\Models\Tag;
@@ -111,6 +112,40 @@ it('uses product seo overrides when custom metadata is saved', function (): void
         ->assertJsonPath('data.metadata.keywords', 'custom, apple')
         ->assertJsonPath('data.metadata.canonicalUrl', 'https://shop.example.com/custom-iphone')
         ->assertJsonPath('data.metadata.openGraph.image', url('/storage/seo/custom-iphone.png'));
+});
+
+it('uses the primary variant in product structured data', function (): void {
+    SeoSetting::query()->create([
+        'site_title' => 'Sumon Store',
+        'canonical_url' => 'https://shop.example.com',
+    ]);
+    CompanySetting::query()->create(['company_name' => 'Sumon Store']);
+    $product = Product::query()->create([
+        'name' => 'Variant Phone',
+        'slug' => 'variant-phone',
+        'short_description' => 'A phone with multiple storage variants.',
+        'status' => 'active',
+        'pricing_mode' => Product::PRICING_MODE_VARIANT,
+        'base_price_cents' => null,
+        'currency' => 'BDT',
+        'published_at' => now(),
+    ]);
+    ProductVariant::query()->create([
+        'product_id' => $product->id,
+        'combination_key' => 'primary-storage',
+        'sku' => 'PHONE-256',
+        'price_cents' => 125000,
+        'stock_quantity' => 3,
+        'track_inventory' => true,
+        'status' => 'active',
+        'is_primary' => true,
+    ]);
+
+    $this->getJson('/api/seo/product/variant-phone')
+        ->assertOk()
+        ->assertJsonPath('data.metadata.structuredData.sku', 'PHONE-256')
+        ->assertJsonPath('data.metadata.structuredData.offers.price', 1250)
+        ->assertJsonPath('data.metadata.structuredData.offers.availability', 'https://schema.org/InStock');
 });
 
 it('invalidates generated product metadata after product updates', function (): void {

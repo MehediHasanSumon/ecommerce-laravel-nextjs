@@ -91,7 +91,7 @@ class ProductModuleSaveRequest extends FormRequest
                             'cost_price_cents',
                             'stock_quantity',
                         ] as $field) {
-                            if (! filled($variant[$field] ?? null)) {
+                            if (! $this->hasValue($variant[$field] ?? null)) {
                                 $variant[$field] = null;
 
                                 continue;
@@ -118,8 +118,26 @@ class ProductModuleSaveRequest extends FormRequest
         }
 
         if ((string) $this->route('module') === 'products') {
+            $variants = (array) $this->input('variants', []);
+            $pricingMode = $this->input('pricing_mode');
+            if (! in_array($pricingMode, [Product::PRICING_MODE_GLOBAL, Product::PRICING_MODE_VARIANT], true)) {
+                $hasVariantPricing = collect($variants)->contains(function ($variant): bool {
+                    if (! is_array($variant)) {
+                        return false;
+                    }
+
+                    return collect(['price_cents', 'compare_at_price_cents', 'cost_price_cents'])
+                        ->contains(fn (string $field): bool => $this->hasValue($variant[$field] ?? null));
+                });
+
+                $pricingMode = $variants !== [] && $hasVariantPricing && ! $this->hasValue($this->input('base_price_cents'))
+                    ? Product::PRICING_MODE_VARIANT
+                    : Product::PRICING_MODE_GLOBAL;
+            }
+
             $this->merge([
                 'currency' => strtoupper((string) ($this->input('currency') ?: $this->companyCurrency())),
+                'pricing_mode' => $pricingMode,
             ]);
         }
 
@@ -329,6 +347,7 @@ class ProductModuleSaveRequest extends FormRequest
                 $seen = [];
                 $seenSkus = [];
                 $variants = (array) $this->input('variants', []);
+                $pricingMode = (string) $this->input('pricing_mode', Product::PRICING_MODE_GLOBAL);
                 $productId = (int) ($this->route('id') ?: 0);
                 $product = $productId ? Product::query()->find($productId) : null;
                 $valueIds = collect($variants)
@@ -376,19 +395,23 @@ class ProductModuleSaveRequest extends FormRequest
 
                     $seen[$key] = true;
 
-                    if (($variant['status'] ?? 'active') === 'active' && ! filled($variant['price_cents'] ?? null)) {
+                    if (
+                        $pricingMode === Product::PRICING_MODE_VARIANT
+                        && ($variant['status'] ?? 'active') === 'active'
+                        && ! $this->hasValue($variant['price_cents'] ?? null)
+                    ) {
                         $validator->errors()->add("variants.{$index}.price_cents", 'An active variant must have a price.');
                     }
 
                     if (($variant['status'] ?? 'active') === 'active'
                         && (bool) ($variant['track_inventory'] ?? true)
-                        && ! filled($variant['stock_quantity'] ?? null)
+                        && ! $this->hasValue($variant['stock_quantity'] ?? null)
                     ) {
                         $validator->errors()->add("variants.{$index}.stock_quantity", 'Stock quantity is required when variant inventory is tracked.');
                     }
 
-                    if (filled($variant['price_cents'] ?? null)
-                        && filled($variant['compare_at_price_cents'] ?? null)
+                    if ($this->hasValue($variant['price_cents'] ?? null)
+                        && $this->hasValue($variant['compare_at_price_cents'] ?? null)
                         && (int) $variant['compare_at_price_cents'] < (int) $variant['price_cents']
                     ) {
                         $validator->errors()->add("variants.{$index}.compare_at_price_cents", 'Compare price must be greater than or equal to the variant price.');
@@ -420,8 +443,46 @@ class ProductModuleSaveRequest extends FormRequest
                     }
                 }
 
-                if ($variants === [] && ! filled($this->input('base_price_cents'))) {
-                    $validator->errors()->add('base_price_cents', 'Regular price is required for a product without variants.');
+                if ($pricingMode === Product::PRICING_MODE_GLOBAL) {
+                    if (! $this->hasValue($this->input('base_price_cents'))) {
+                        $validator->errors()->add('base_price_cents', 'Sell price is required for global product pricing.');
+                    }
+
+                    if (
+                        $this->hasValue($this->input('base_price_cents'))
+                        && $this->hasValue($this->input('compare_at_price_cents'))
+                        && (int) $this->input('compare_at_price_cents') < (int) $this->input('base_price_cents')
+                    ) {
+                        $validator->errors()->add('compare_at_price_cents', 'Compare price must be greater than or equal to the sell price.');
+                    }
+
+                    foreach ($variants as $index => $variant) {
+                        if (! is_array($variant)) {
+                            continue;
+                        }
+
+                        foreach (['price_cents', 'compare_at_price_cents', 'cost_price_cents'] as $field) {
+                            if ($this->hasValue($variant[$field] ?? null)) {
+                                $validator->errors()->add(
+                                    "variants.{$index}.{$field}",
+                                    'Variant prices must be empty while global product pricing is active.'
+                                );
+                            }
+                        }
+                    }
+                } else {
+                    foreach (['base_price_cents', 'compare_at_price_cents', 'cost_price_cents'] as $field) {
+                        if ($this->hasValue($this->input($field))) {
+                            $validator->errors()->add(
+                                $field,
+                                'Product prices must be empty while variant pricing is active.'
+                            );
+                        }
+                    }
+
+                    if ($variants === []) {
+                        $validator->errors()->add('variants', 'Variant pricing requires at least one variant.');
+                    }
                 }
 
                 if ($variants !== [] && collect($variants)->where('status', 'active')->isEmpty()) {
@@ -505,6 +566,7 @@ class ProductModuleSaveRequest extends FormRequest
             'description' => ['nullable', 'string'],
             'product_type' => ['required', Rule::in(['physical', 'digital'])],
             'status' => ['required', Rule::in(['draft', 'active', 'archived'])],
+            'pricing_mode' => ['required', Rule::in([Product::PRICING_MODE_GLOBAL, Product::PRICING_MODE_VARIANT])],
             'base_price_cents' => ['nullable', 'integer', 'min:0'],
             'compare_at_price_cents' => ['nullable', 'integer', 'min:0'],
             'cost_price_cents' => ['nullable', 'integer', 'min:0'],
@@ -564,5 +626,10 @@ class ProductModuleSaveRequest extends FormRequest
         $company = CompanySetting::query()->with('currency')->first();
 
         return $company?->currency?->currency ?: 'BDT';
+    }
+
+    private function hasValue(mixed $value): bool
+    {
+        return $value !== null && $value !== '';
     }
 }

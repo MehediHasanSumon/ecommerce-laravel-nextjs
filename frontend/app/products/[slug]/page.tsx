@@ -204,7 +204,8 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
 
   useEffect(() => {
     if (product) {
-      const initialVariant = product.variants?.find((variant) => variant.stockStatus === 'in_stock')
+      const initialVariant = product.variants?.find((variant) => variant.isPrimary)
+        ?? product.variants?.find((variant) => variant.stockStatus === 'in_stock')
         ?? product.variants?.[0];
       setSelectedAttributeValues(
         initialVariant
