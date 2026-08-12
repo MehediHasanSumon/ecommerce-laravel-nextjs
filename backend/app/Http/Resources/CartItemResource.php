@@ -2,9 +2,9 @@
 
 namespace App\Http\Resources;
 
+use App\Support\Media\PublicStorageImage;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Support\Facades\Storage;
 
 class CartItemResource extends JsonResource
 {
@@ -54,14 +54,6 @@ class CartItemResource extends JsonResource
             return null;
         }
 
-        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
-            return $path;
-        }
-
-        if (str_starts_with($path, '/storage/') || str_starts_with($path, 'storage/')) {
-            return url($path);
-        }
-
-        return Storage::disk('public')->url($path);
+        return PublicStorageImage::url($path);
     }
 }

@@ -11,6 +11,7 @@ export type ProductPricingMode = "global" | "variant";
 export type ProductMediaItem = {
   id: string;
   url: string;
+  path?: string | null;
   file?: File;
   alt_text: string;
   caption?: string;
@@ -239,6 +240,7 @@ function mediaFromRecord(record: ProductRecord): { featured: ProductMediaItem | 
   const mapped = images.map((image, index): ProductMediaItem => ({
     id: String(image.id ?? `existing-${index}`),
     url: String(image.url ?? ""),
+    path: typeof image.path === "string" ? image.path : null,
     alt_text: String(image.alt_text ?? ""),
     caption: "",
     type: Boolean(image.is_primary) || image.type === "featured" ? "featured" : "gallery",
@@ -341,35 +343,45 @@ function amountToCents(value: number | "" | undefined) {
   return value === "" || value === undefined ? null : Math.round(Number(value) * 100);
 }
 
-function storagePath(url: string) {
-  if (url.startsWith("blob:") || url.startsWith("data:")) return url;
+function storagePath(image: ProductMediaItem) {
+  const source = image.path || image.url;
+  if (!source || source.startsWith("blob:") || source.startsWith("data:")) return null;
   try {
-    const parsed = new URL(url);
+    const parsed = new URL(source);
     const storageIndex = parsed.pathname.indexOf("/storage/");
     if (storageIndex >= 0) {
       return parsed.pathname.slice(storageIndex + "/storage/".length);
     }
+    return null;
   } catch {
     // Relative storage path.
   }
 
-  return url.replace(/^\/?storage\//, "");
+  const path = source.replace(/^\/?storage\//, "");
+
+  return path.includes(":") ? null : path;
 }
 
 export function productPayloadFromValues(values: ProductWizardValues, publish: boolean, includeBrand = true): ProductModulePayload {
   const images: ProductModulePayload[] = [];
-  if (values.featured_image) {
+  if (values.featured_image && !values.featured_image.file) {
+    const path = storagePath(values.featured_image);
+    if (path) {
     images.push({
-      url: storagePath(values.featured_image.url),
+      url: path,
       alt_text: values.featured_image.alt_text,
       type: "featured",
       sort_order: 0,
       is_primary: true,
     });
+    }
   }
   values.gallery_images.forEach((image, index) => {
+    if (image.file) return;
+    const path = storagePath(image);
+    if (!path) return;
     images.push({
-      url: storagePath(image.url),
+      url: path,
       alt_text: image.alt_text,
       type: "gallery",
       sort_order: index + 1,

@@ -3,9 +3,9 @@
 namespace App\Http\Resources;
 
 use App\Services\Admin\Settings\BrandSettingsService;
+use App\Support\Media\PublicStorageImage;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Support\Facades\Storage;
 
 class ProductCardResource extends JsonResource
 {
@@ -13,7 +13,11 @@ class ProductCardResource extends JsonResource
     {
         $brandsEnabled = app(BrandSettingsService::class)->enabled();
         $primaryImage = $this->images->firstWhere('is_primary', true) ?? $this->images->first();
-        $imageUrl = $this->assetUrl($primaryImage?->url);
+        $imageUrl = PublicStorageImage::url($primaryImage?->url);
+        $images = $this->images
+            ->map(fn ($image) => PublicStorageImage::object($image))
+            ->filter(fn (array $image): bool => filled($image['path']) && filled($image['url']))
+            ->values();
         $activeVariantsCount = $this->active_variants_count;
 
         if ($activeVariantsCount === null) {
@@ -51,7 +55,7 @@ class ProductCardResource extends JsonResource
             'categorySlug' => $this->category?->slug ?: '',
             'brand' => $brandsEnabled ? ($this->brand?->name ?: '') : '',
             'brandSlug' => $brandsEnabled ? ($this->brand?->slug ?: '') : '',
-            'images' => $this->images->map(fn ($image): ?string => $this->assetUrl($image->url))->filter()->values()->all(),
+            'images' => $images->all(),
             'thumbnail' => $imageUrl ?: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&auto=format&fit=crop',
             'rating' => (float) ($this->rating_average ?? 0),
             'reviewCount' => (int) ($this->review_count ?? 0),
@@ -97,20 +101,4 @@ class ProductCardResource extends JsonResource
         return null;
     }
 
-    private function assetUrl(?string $path): ?string
-    {
-        if (! $path) {
-            return null;
-        }
-
-        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
-            return $path;
-        }
-
-        if (str_starts_with($path, '/storage/') || str_starts_with($path, 'storage/')) {
-            return url($path);
-        }
-
-        return Storage::disk('public')->url($path);
-    }
 }

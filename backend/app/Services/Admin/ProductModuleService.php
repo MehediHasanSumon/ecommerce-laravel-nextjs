@@ -24,6 +24,7 @@ use App\Services\Seo\SeoMetadataService;
 use App\Support\HomePageCache;
 use App\Support\Identifiers\SkuGenerator;
 use App\Support\Identifiers\SlugGenerator;
+use App\Support\Media\PublicStorageImage;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
@@ -394,8 +395,7 @@ class ProductModuleService
             }
 
             $oldUrl = $model->exists ? (string) $model->{$config['column']} : '';
-            $path = $this->storePublicUpload($file, $config['directory'], $oldUrl);
-            $data[$config['column']] = $this->publicUploadUrl($path);
+            $data[$config['column']] = $this->storePublicUpload($file, $config['directory'], $oldUrl);
             unset($data[$input]);
         }
     }
@@ -446,14 +446,22 @@ class ProductModuleService
             }
         }
 
+        $oldImagePaths = $model->exists
+            ? $model->images()->pluck('url')->map(fn (?string $path): ?string => PublicStorageImage::path($path))->filter()->values()->all()
+            : [];
+
         $this->applySlug('products', $model, $data);
         $this->applyProductSku($model, $data, $hasVariants);
         $model->fill($data)->save();
         $model->tags()->sync($this->resolveProductTags($tags));
         $this->syncProductAttributeValues($model, $attributeValues);
         $images = $this->productImagesFromUploads($images, $featuredImageFile, $galleryImageFiles);
+        $newImagePaths = collect($images)->pluck('url')->map(fn (?string $path): ?string => PublicStorageImage::path($path))->filter()->values()->all();
         $model->images()->delete();
         $model->images()->createMany($images);
+        collect($oldImagePaths)
+            ->diff($newImagePaths)
+            ->each(fn (string $path) => $this->deletePublicUpload($path));
         if ($features !== null) {
             $model->features()->delete();
             $model->features()->createMany($features);
@@ -578,11 +586,32 @@ class ProductModuleService
 
     private function productImagesFromUploads(array $images, mixed $featuredImageFile, mixed $galleryImageFiles): array
     {
+        $images = collect($images)
+            ->filter(fn ($image): bool => is_array($image))
+            ->map(function (array $image, int $index): ?array {
+                $path = PublicStorageImage::path((string) ($image['path'] ?? $image['url'] ?? ''));
+
+                if (! $path) {
+                    return null;
+                }
+
+                return [
+                    'url' => $path,
+                    'alt_text' => $image['alt_text'] ?? null,
+                    'type' => $image['type'] ?? 'gallery',
+                    'sort_order' => $image['sort_order'] ?? $index,
+                    'is_primary' => (bool) ($image['is_primary'] ?? false),
+                ];
+            })
+            ->filter()
+            ->values()
+            ->all();
+
         if ($featuredImageFile instanceof UploadedFile && $featuredImageFile->isValid()) {
             $path = $this->storePublicUpload($featuredImageFile, 'products/featured');
             $images = array_values(array_filter($images, fn ($image) => ! ($image['is_primary'] ?? false)));
             array_unshift($images, [
-                'url' => $this->publicUploadUrl($path),
+                'url' => $path,
                 'alt_text' => $images[0]['alt_text'] ?? null,
                 'type' => 'featured',
                 'sort_order' => 0,
@@ -597,7 +626,7 @@ class ProductModuleService
 
             $path = $this->storePublicUpload($file, 'products/gallery');
             $images[] = [
-                'url' => $this->publicUploadUrl($path),
+                'url' => $path,
                 'alt_text' => null,
                 'type' => 'gallery',
                 'sort_order' => count($images) + $index + 1,
@@ -606,7 +635,7 @@ class ProductModuleService
         }
 
         return array_values(array_map(fn ($image, $index) => [
-            'url' => $image['url'],
+            'url' => PublicStorageImage::path($image['url']),
             'alt_text' => $image['alt_text'] ?? null,
             'type' => $image['type'] ?? 'gallery',
             'sort_order' => $image['sort_order'] ?? $index,

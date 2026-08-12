@@ -10,9 +10,9 @@ use App\Models\ProductVariant;
 use App\Services\Admin\Settings\BrandSettingsService;
 use App\Services\Admin\Settings\StoreSettingsService;
 use App\Services\ProductFeedbackService;
+use App\Support\Media\PublicStorageImage;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Support\Facades\Storage;
 
 class ProductDetailResource extends JsonResource
 {
@@ -21,12 +21,13 @@ class ProductDetailResource extends JsonResource
         $brandsEnabled = app(BrandSettingsService::class)->enabled();
         $settings = app(StoreSettingsService::class)->get();
         $feedback = app(ProductFeedbackService::class);
-        $images = $this->images
+        $imageObjects = $this->images
             ->sortBy([['sort_order', 'asc'], ['id', 'asc']])
-            ->map(fn ($image): ?string => $this->assetUrl($image->url))
-            ->filter()
+            ->map(fn ($image): array => PublicStorageImage::object($image))
+            ->filter(fn (array $image): bool => filled($image['path']) && filled($image['url']))
             ->values();
-        $primaryImage = $images->first() ?: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&auto=format&fit=crop';
+        $imageUrls = $imageObjects->pluck('url')->filter()->values();
+        $primaryImage = $imageUrls->first() ?: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&auto=format&fit=crop';
         $attributes = $this->attributeGroups($this->attributeValues);
         $variants = $this->variants
             ->where('status', 'active')
@@ -70,7 +71,15 @@ class ProductDetailResource extends JsonResource
                 'categories' => $this->categoryBreadcrumb(),
                 'brand' => $brandsEnabled ? ($this->brand?->name ?: '') : '',
                 'brandSlug' => $brandsEnabled ? ($this->brand?->slug ?: '') : '',
-                'images' => $images->isNotEmpty() ? $images->all() : [$primaryImage],
+                'images' => $imageObjects->isNotEmpty() ? $imageObjects->all() : [[
+                    'id' => null,
+                    'path' => null,
+                    'url' => $primaryImage,
+                    'alt_text' => $this->name,
+                    'type' => 'featured',
+                    'sort_order' => 0,
+                    'is_primary' => true,
+                ]],
                 'thumbnail' => $primaryImage,
                 'rating' => (float) ($this->rating_average ?? 0),
                 'reviewCount' => (int) ($this->review_count ?? 0),
@@ -357,10 +366,6 @@ class ProductDetailResource extends JsonResource
             return $path;
         }
 
-        if (str_starts_with($path, '/storage/') || str_starts_with($path, 'storage/')) {
-            return url($path);
-        }
-
-        return url(Storage::disk('public')->url($path));
+        return PublicStorageImage::url($path);
     }
 }

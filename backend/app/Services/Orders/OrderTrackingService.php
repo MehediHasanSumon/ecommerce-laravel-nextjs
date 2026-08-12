@@ -3,7 +3,7 @@
 namespace App\Services\Orders;
 
 use App\Models\Order;
-use Illuminate\Support\Facades\Storage;
+use App\Support\Media\PublicStorageImage;
 
 class OrderTrackingService
 {
@@ -189,10 +189,6 @@ class OrderTrackingService
         if (! $path) {
             return null;
         }
-        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
-            return $path;
-        }
-
-        return Storage::disk('public')->url($path);
+        return PublicStorageImage::url($path);
     }
 }

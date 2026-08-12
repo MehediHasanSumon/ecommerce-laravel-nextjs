@@ -21,6 +21,8 @@ type ProductListPayload = {
   search?: SearchContext | null;
 };
 
+type ProductImagePayload = string | { url?: string | null; path?: string | null };
+
 export type SearchEntitySuggestion = {
   id: string;
   name: string;
@@ -192,6 +194,51 @@ export type ProductDetailResponse = {
   recentlyViewedProducts: Product[];
 };
 
+function productImageUrl(image: ProductImagePayload): string | null {
+  if (typeof image === "string") return image || null;
+  return image.url || image.path || null;
+}
+
+function normalizeProduct(product: Product | null): Product | null {
+  if (!product) return product;
+  const images = Array.isArray(product.images)
+    ? (product.images as unknown as ProductImagePayload[]).map(productImageUrl).filter((url): url is string => Boolean(url))
+    : [];
+
+  return {
+    ...product,
+    images,
+    thumbnail: product.thumbnail || images[0] || "/placeholder.svg",
+  };
+}
+
+function normalizeProducts(products: Product[]): Product[] {
+  return products.map((product) => normalizeProduct(product)).filter((product): product is Product => Boolean(product));
+}
+
+function normalizeProductDetailResponse(response: ProductDetailResponse): ProductDetailResponse {
+  return {
+    ...response,
+    product: normalizeProduct(response.product) as ProductDetail,
+    relatedProducts: normalizeProducts(response.relatedProducts),
+    similarProducts: normalizeProducts(response.similarProducts),
+    frequentlyBoughtTogether: normalizeProducts(response.frequentlyBoughtTogether),
+    recentlyViewedProducts: normalizeProducts(response.recentlyViewedProducts),
+  };
+}
+
+function normalizeSearchContext(search?: SearchContext | null): SearchContext | null {
+  if (!search) return search ?? null;
+
+  return {
+    ...search,
+    no_results: search.no_results ? {
+      ...search.no_results,
+      recommended_products: normalizeProducts(search.no_results.recommended_products),
+    } : search.no_results,
+  };
+}
+
 export type HomePageSections = {
   hero: HeroSectionPayload;
   settings: Record<string, { enabled: boolean; limit?: number; displayOrder?: number; algorithm?: string }>;
@@ -297,7 +344,27 @@ export async function fetchHomePageSections(
     },
   });
 
-  return response.data.data;
+  return {
+    ...response.data.data,
+    collections: response.data.data.collections.map((section) => ({
+      ...section,
+      items: normalizeProducts(section.items),
+    })),
+    sections: {
+      ...response.data.data.sections,
+      products: {
+        ...response.data.data.sections.products,
+        items: normalizeProducts(response.data.data.sections.products.items),
+      },
+      reviews: {
+        ...response.data.data.sections.reviews,
+        items: response.data.data.sections.reviews.items.map((review) => ({
+          ...review,
+          product: normalizeProduct(review.product),
+        })),
+      },
+    },
+  };
 }
 
 export async function subscribeToNewsletter(email: string): Promise<string> {
@@ -371,7 +438,7 @@ export async function fetchCollectionDetail(
 
   return {
     collection: response.data.data.collection,
-    products: response.data.data.products,
+    products: normalizeProducts(response.data.data.products),
     pagination: response.data.meta.pagination ?? {
       current_page: 1,
       last_page: 1,
@@ -403,7 +470,7 @@ export async function fetchBrandDetail(
 
   return {
     brand: response.data.data.brand,
-    products: response.data.data.products,
+    products: normalizeProducts(response.data.data.products),
     pagination: response.data.meta.pagination ?? {
       current_page: 1,
       last_page: 1,
@@ -434,9 +501,9 @@ export async function fetchProducts(
   });
 
   return {
-    items: response.data.data.items,
+    items: normalizeProducts(response.data.data.items),
     filters: response.data.data.filters,
-    search: response.data.data.search ?? null,
+    search: normalizeSearchContext(response.data.data.search),
     pagination: response.data.meta.pagination ?? {
       current_page: 1,
       last_page: 1,
@@ -466,7 +533,10 @@ export async function fetchSearchSuggestions(
     },
   );
 
-  return response.data.data.suggestions;
+  return {
+    ...response.data.data.suggestions,
+    products: normalizeProducts(response.data.data.suggestions.products),
+  };
 }
 
 export async function fetchTrendingSearches(limit = 10): Promise<SearchKeywordSuggestion[]> {
@@ -537,7 +607,10 @@ export async function fetchPublicReviews(
   });
 
   return {
-    items: response.data.data.items,
+    items: response.data.data.items.map((review) => ({
+      ...review,
+      product: normalizeProduct(review.product),
+    })),
     pagination: response.data.meta.pagination ?? {
       current_page: 1,
       last_page: 1,
@@ -565,7 +638,7 @@ export async function fetchProductDetail(
     },
   );
 
-  return response.data.data;
+  return normalizeProductDetailResponse(response.data.data);
 }
 
 export async function submitProductReview(

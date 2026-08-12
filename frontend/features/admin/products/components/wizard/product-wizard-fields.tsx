@@ -345,6 +345,12 @@ function fileToMedia(file: File, type: ProductMediaItem["type"], sortOrder: numb
   };
 }
 
+function revokePreview(url?: string) {
+  if (url?.startsWith("blob:")) {
+    URL.revokeObjectURL(url);
+  }
+}
+
 function validateImage(file: File) {
   if (!imageLimits.types.includes(file.type)) return "Only JPG, PNG, and WebP images are supported.";
   if (file.size > imageLimits.maxSizeMb * 1024 * 1024) return `Image must be ${imageLimits.maxSizeMb}MB or smaller.`;
@@ -368,9 +374,12 @@ export function ProductImageUploader({
 }) {
   const [error, setError] = React.useState("");
 
+  React.useEffect(() => () => revokePreview(value?.url), [value?.url]);
+
   function handleFile(file: File | null) {
     setError("");
     if (!file) {
+      revokePreview(value?.url);
       onChange(null);
       return;
     }
@@ -379,6 +388,7 @@ export function ProductImageUploader({
       setError(message);
       return;
     }
+    revokePreview(value?.url);
     onChange(fileToMedia(file, "featured", 0));
   }
 
@@ -430,6 +440,15 @@ export function GalleryUploader({
 }) {
   const [error, setError] = React.useState("");
   const [draggedId, setDraggedId] = React.useState<string | null>(null);
+  const valuesRef = React.useRef(values);
+
+  React.useEffect(() => {
+    valuesRef.current = values;
+  }, [values]);
+
+  React.useEffect(() => () => {
+    valuesRef.current.forEach((image) => revokePreview(image.url));
+  }, []);
 
   function addFiles(fileList: FileList | null) {
     setError("");
@@ -505,7 +524,10 @@ export function GalleryUploader({
               <div className="relative aspect-square overflow-hidden rounded-md bg-muted">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={previewUrl(image.url)} alt={image.alt_text || "Product gallery preview"} className="h-full w-full object-cover" loading="lazy" />
-                <button type="button" className="absolute right-2 top-2 rounded-full bg-background/90 p-1.5 shadow" aria-label="Remove image" onClick={() => onChange(values.filter((item) => item.id !== image.id))}>
+                <button type="button" className="absolute right-2 top-2 rounded-full bg-background/90 p-1.5 shadow" aria-label="Remove image" onClick={() => {
+                  revokePreview(image.url);
+                  onChange(values.filter((item) => item.id !== image.id));
+                }}>
                   <X className="h-4 w-4" />
                 </button>
               </div>

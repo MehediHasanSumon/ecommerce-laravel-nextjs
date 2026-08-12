@@ -8,6 +8,7 @@ use App\Models\ProductAttributeValue;
 use App\Models\ProductVariant;
 use App\Models\Settings\CompanySetting;
 use App\Services\Admin\Settings\CategoryDisplaySettingsService;
+use App\Support\Media\PublicStorageImage;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -586,14 +587,14 @@ class ProductModuleSaveRequest extends FormRequest
             'attribute_values' => ['nullable', 'array'],
             'attribute_values.*' => ['integer', 'exists:attribute_values,id'],
             'images' => ['nullable', 'array'],
-            'images.*.url' => ['required_with:images', 'string'],
+            'images.*.url' => ['required_with:images', 'string', $this->storedPublicImagePath()],
             'images.*.alt_text' => ['nullable', 'string', 'max:255'],
             'images.*.type' => ['nullable', 'string', 'max:50'],
             'images.*.sort_order' => ['nullable', 'integer', 'min:0'],
             'images.*.is_primary' => ['boolean'],
-            'featured_image_file' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,avif,gif', 'max:10240'],
+            'featured_image_file' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp,avif,gif', 'max:10240', 'dimensions:max_width=6000,max_height=6000'],
             'gallery_image_files' => ['nullable', 'array', 'max:10'],
-            'gallery_image_files.*' => ['file', 'mimes:jpg,jpeg,png,webp,avif,gif', 'max:10240'],
+            'gallery_image_files.*' => ['image', 'mimes:jpg,jpeg,png,webp,avif,gif', 'max:10240', 'dimensions:max_width=6000,max_height=6000'],
             'features' => ['nullable', 'array'],
             'features.*.value' => ['required_with:features', 'string'],
             'features.*.sort_order' => ['nullable', 'integer', 'min:0'],
@@ -631,5 +632,14 @@ class ProductModuleSaveRequest extends FormRequest
     private function hasValue(mixed $value): bool
     {
         return $value !== null && $value !== '';
+    }
+
+    private function storedPublicImagePath(): \Closure
+    {
+        return static function (string $attribute, mixed $value, \Closure $fail): void {
+            if (PublicStorageImage::path(is_string($value) ? $value : null) === null) {
+                $fail("The {$attribute} field must be an existing public storage image path, not a browser preview URL.");
+            }
+        };
     }
 }

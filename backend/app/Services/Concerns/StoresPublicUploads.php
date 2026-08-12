@@ -2,8 +2,8 @@
 
 namespace App\Services\Concerns;
 
+use App\Support\Media\PublicStorageImage;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
 
 trait StoresPublicUploads
 {
@@ -13,28 +13,17 @@ trait StoresPublicUploads
 
         $this->deletePublicUpload($oldPath);
 
-        return $this->publicUploadUrl($path);
+        return $path;
     }
 
     protected function publicUploadUrl(?string $path): ?string
     {
-        if (! $path) {
-            return null;
-        }
+        return PublicStorageImage::url($path);
+    }
 
-        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
-            return $path;
-        }
-
-        if (str_starts_with($path, '/storage/')) {
-            return url($path);
-        }
-
-        if (str_starts_with($path, 'storage/')) {
-            return url($path);
-        }
-
-        return Storage::disk('public')->url($path);
+    protected function publicUploadPath(?string $pathOrUrl): ?string
+    {
+        return PublicStorageImage::path($pathOrUrl);
     }
 
     protected function deletePublicUpload(?string $pathOrUrl): void
@@ -52,22 +41,6 @@ trait StoresPublicUploads
 
     private function publicPathFromUrl(string $pathOrUrl): string
     {
-        $pathOrUrl = ltrim($pathOrUrl, '/');
-
-        if (str_starts_with($pathOrUrl, 'storage/')) {
-            return ltrim(substr($pathOrUrl, strlen('storage/')), '/');
-        }
-
-        if (! str_starts_with($pathOrUrl, 'http')) {
-            return $pathOrUrl;
-        }
-
-        $prefix = rtrim(Storage::disk('public')->url(''), '/').'/';
-
-        if (! str_starts_with($pathOrUrl, $prefix)) {
-            return '';
-        }
-
-        return ltrim(str_replace($prefix, '', $pathOrUrl), '/');
+        return PublicStorageImage::path($pathOrUrl) ?? '';
     }
 }

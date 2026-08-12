@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Admin;
 
 use App\Services\Admin\Settings\BrandSettingsService;
+use App\Support\Media\PublicStorageImage;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -62,14 +63,10 @@ class ProductAdminResource extends JsonResource
             'category' => $this->whenLoaded('category', fn () => $this->category ? ['id' => $this->category->id, 'name' => $this->category->name] : null),
             'tags' => ProductOptionResource::collection($this->whenLoaded('tags')),
             'attribute_values' => ProductOptionResource::collection($this->whenLoaded('attributeValues')),
-            'images' => $this->whenLoaded('images', fn () => $this->images->map(fn ($image) => [
-                'id' => $image->id,
-                'url' => $image->url,
-                'alt_text' => $image->alt_text,
-                'type' => $image->type,
-                'sort_order' => $image->sort_order,
-                'is_primary' => (bool) $image->is_primary,
-            ])),
+            'images' => $this->whenLoaded('images', fn () => $this->images
+                ->map(fn ($image) => PublicStorageImage::object($image))
+                ->filter(fn (array $image): bool => filled($image['path']) && filled($image['url']))
+                ->values()),
             'features' => $this->whenLoaded('features', fn () => $this->features->map(fn ($feature) => [
                 'id' => $feature->id,
                 'value' => $feature->value,

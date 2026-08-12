@@ -6,7 +6,7 @@ use App\Models\Product;
 use App\Models\ProductAttributeValue;
 use App\Models\ProductVariant;
 use App\Services\Collections\CollectionProductResolver;
-use Illuminate\Support\Facades\Storage;
+use App\Support\Media\PublicStorageImage;
 use Illuminate\Validation\ValidationException;
 
 class ProductSelectionService
@@ -94,7 +94,7 @@ class ProductSelectionService
         $activeCollection = $this->collections->activeCollectionForProduct($product);
         $discountedPrice = $this->applyCollectionDiscount($unitPrice, $activeCollection?->discount_type, $activeCollection?->discount_value);
 
-        $selectedImage = $this->resolveImage($product);
+        $selectedImage = $this->resolveImagePath($product);
         $itemKey = sha1(json_encode([
             'product_id' => (int) $product->id,
             'variant_id' => $variant?->id,
@@ -219,9 +219,9 @@ class ProductSelectionService
         };
     }
 
-    private function resolveImage(Product $product): ?string
+    private function resolveImagePath(Product $product): ?string
     {
-        return $this->assetUrl(
+        return PublicStorageImage::path(
             $product->images->firstWhere('is_primary', true)?->url
                 ?: $product->images->sortBy('sort_order')->first()?->url
         );
@@ -255,20 +255,4 @@ class ProductSelectionService
             });
     }
 
-    private function assetUrl(?string $path): ?string
-    {
-        if (! $path) {
-            return null;
-        }
-
-        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
-            return $path;
-        }
-
-        if (str_starts_with($path, '/storage/') || str_starts_with($path, 'storage/')) {
-            return url($path);
-        }
-
-        return Storage::disk('public')->url($path);
-    }
 }

@@ -49,8 +49,12 @@ const emptyOptions: ProductOptions = {
 function stripFileValues(values: ProductWizardValues): ProductWizardValues {
   return {
     ...values,
-    featured_image: values.featured_image ? { ...values.featured_image, file: undefined } : null,
-    gallery_images: values.gallery_images.map((image) => ({ ...image, file: undefined })),
+    featured_image: values.featured_image && !values.featured_image.file && !values.featured_image.url.startsWith("blob:")
+      ? { ...values.featured_image, file: undefined }
+      : null,
+    gallery_images: values.gallery_images
+      .filter((image) => !image.file && !image.url.startsWith("blob:"))
+      .map((image) => ({ ...image, file: undefined })),
     variants: values.variants,
   };
 }
