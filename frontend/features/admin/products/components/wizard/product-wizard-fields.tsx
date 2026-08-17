@@ -540,12 +540,43 @@ export function GalleryUploader({
   );
 }
 
-export function ErrorSummary({ errors }: { errors: FieldErrors<ProductWizardValues> }) {
-  const count = Object.keys(errors).length;
-  if (!count) return null;
+function extractErrorMessages(errors: FieldErrors<ProductWizardValues>, prefix = ""): Array<{ field: string; message: string }> {
+  const result: Array<{ field: string; message: string }> = [];
+
+  for (const [key, error] of Object.entries(errors)) {
+    const path = prefix ? `${prefix}.${key}` : key;
+    if (error && typeof error === "object") {
+      if ("message" in error && typeof error.message === "string" && error.message) {
+        result.push({ field: path, message: error.message });
+      } else {
+        result.push(...extractErrorMessages(error as FieldErrors<ProductWizardValues>, path));
+      }
+    }
+  }
+
+  return result;
+}
+
+export function ErrorSummary({
+  errors,
+}: {
+  errors: FieldErrors<ProductWizardValues>;
+}) {
+  const errorList = extractErrorMessages(errors);
+  if (!errorList.length) return null;
+
   return (
-    <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-      Resolve the highlighted fields before continuing.
+    <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+      <div className="flex items-center justify-between gap-2 font-semibold">
+        <span>Please resolve the following validation issues:</span>
+      </div>
+      <ul className="mt-2 list-inside list-disc space-y-1 text-xs">
+        {errorList.map((item, idx) => (
+          <li key={`${item.field}-${idx}`}>
+            <span className="font-medium capitalize">{item.field.replace(/_/g, " ").replace(/\.\d+\./g, " #")}:</span> {item.message}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

@@ -461,10 +461,6 @@ function productFields(): FieldConfig[] {
     { tab: "Inventory", name: "track_inventory", label: "Track Inventory", type: "checkbox", optional: true },
     { tab: "Inventory", name: "stock_quantity", label: "Stock Quantity", type: "number", optional: true },
     { tab: "Inventory", name: "low_stock_threshold", label: "Low Stock Threshold", type: "number", optional: true },
-    { tab: "SEO", name: "seo.meta_title", label: "Meta Title", type: "text", optional: true },
-    { tab: "SEO", name: "seo.meta_description", label: "Meta Description", type: "textarea", optional: true },
-    { tab: "SEO", name: "seo.canonical_url", label: "Canonical URL", type: "text", optional: true },
-    { tab: "SEO", name: "seo.og_image_url", label: "OG Image URL", type: "text", optional: true },
   ];
 }
 

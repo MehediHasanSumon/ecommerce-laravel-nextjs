@@ -5,7 +5,7 @@ import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
-import type { FieldErrors, Resolver } from "react-hook-form";
+import type { FieldErrors, Path, Resolver } from "react-hook-form";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
@@ -25,6 +25,7 @@ import {
 } from "@/features/admin/products/components/wizard/product-wizard-sections";
 import {
   emptyProductWizardValues,
+  getStepForField,
   productPayloadFromValues,
   productWizardSchema,
   productWizardSteps,
@@ -184,7 +185,24 @@ export function ProductWizardPage({ mode, productId }: { mode: ProductWizardMode
 
   async function validateStep(step: number) {
     const stepId = productWizardSteps[step].id as ProductWizardStepId;
-    return form.trigger(stepFields[stepId] as Array<keyof ProductWizardValues>);
+    const values = form.getValues();
+    const result = productWizardSchema.safeParse(values);
+
+    if (!result.success) {
+      const stepIssues = result.error.issues.filter((issue) => getStepForField(issue.path) === stepId);
+      if (stepIssues.length > 0) {
+        stepIssues.forEach((issue) => {
+          const path = issue.path.join(".") as Path<ProductWizardValues>;
+          form.setError(path, { type: "manual", message: issue.message });
+        });
+        toast.error(stepIssues[0].message || "Resolve the required fields on this step.");
+        return false;
+      }
+    }
+
+    const fieldsToClear = stepFields[stepId];
+    fieldsToClear.forEach((field) => form.clearErrors(field as Path<ProductWizardValues>));
+    return true;
   }
 
   async function goToStep(step: number) {
@@ -217,13 +235,26 @@ export function ProductWizardPage({ mode, productId }: { mode: ProductWizardMode
 
   async function submit(publish: boolean) {
     form.clearErrors();
-    const valid = await form.trigger();
-    if (!valid) {
-      toast.error(firstFormError(form.formState.errors) ?? "Resolve validation errors before publishing.");
+    const values = form.getValues();
+    const result = productWizardSchema.safeParse(values);
+
+    if (!result.success) {
+      result.error.issues.forEach((issue) => {
+        const path = issue.path.join(".") as Path<ProductWizardValues>;
+        form.setError(path, { type: "manual", message: issue.message });
+      });
+
+      const firstIssue = result.error.issues[0];
+      const targetStep = getStepForField(firstIssue.path);
+      const stepIndex = productWizardSteps.findIndex((s) => s.id === targetStep);
+      if (stepIndex >= 0 && stepIndex !== activeStep) {
+        setActiveStep(stepIndex);
+      }
+
+      toast.error(firstIssue.message || "Resolve validation errors before continuing.");
       return;
     }
 
-    const values = form.getValues();
     const payload = productPayloadFromValues(values, publish, brandsEnabled);
     try {
       if (mode === "edit" && productId) {
@@ -237,8 +268,20 @@ export function ProductWizardPage({ mode, productId }: { mode: ProductWizardMode
       router.push(routePaths.adminProducts);
       router.refresh();
     } catch (error) {
-      if (!applyValidationErrors(form, error) && shouldToastFormError(error)) {
-        toast.error(validationSummary(error));
+      if (!applyValidationErrors(form, error)) {
+        if (shouldToastFormError(error)) {
+          toast.error(validationSummary(error));
+        }
+      } else {
+        const errorKeys = Object.keys(form.formState.errors);
+        if (errorKeys.length > 0) {
+          const targetStep = getStepForField(errorKeys[0]);
+          const stepIndex = productWizardSteps.findIndex((s) => s.id === targetStep);
+          if (stepIndex >= 0 && stepIndex !== activeStep) {
+            setActiveStep(stepIndex);
+          }
+        }
+        toast.error(firstFormError(form.formState.errors) ?? "Resolve validation errors before continuing.");
       }
     }
   }
@@ -269,13 +312,13 @@ export function ProductWizardPage({ mode, productId }: { mode: ProductWizardMode
         onSubmit={() => void submit(true)}
         onBack={handleBack}
       >
-        <ErrorSummary errors={form.formState.errors} />
+        <ErrorSummary errors={form.formState.errors} onNavigateStep={(step) => setActiveStep(step)} />
         <div className="mt-4">
           {currentStepId === "basic" ? <BasicInfoSection form={form} options={options} /> : null}
           {currentStepId === "pricing" ? <PricingInventorySection form={form} options={options} /> : null}
           {currentStepId === "variants" ? <VariantSection form={form} options={options} /> : null}
           {currentStepId === "media" ? <MediaSection form={form} options={options} /> : null}
-          {currentStepId === "publish" ? <PublishSection form={form} options={options} /> : null}
+          {currentStepId === "publish" ? <PublishSection form={form} options={options} onNavigateStep={(step) => setActiveStep(step)} /> : null}
         </div>
         {currentStepId === "publish" ? (
           <div className="mt-5 flex flex-wrap justify-end gap-2">

@@ -3,6 +3,7 @@
 import { CheckCircle2, ChevronDown, ChevronRight, Star, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { UseFormReturn } from "react-hook-form";
+import { useWatch } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
@@ -22,7 +23,7 @@ import {
   useFieldValue,
 } from "@/features/admin/products/components/wizard/product-wizard-fields";
 import type { ProductVariantDraft, ProductWizardValues } from "@/features/admin/products/components/wizard/product-wizard-types";
-import { optionName } from "@/features/admin/products/components/wizard/product-wizard-types";
+import { computeValidationReadiness, optionName } from "@/features/admin/products/components/wizard/product-wizard-types";
 
 type SectionProps = {
   form: UseFormReturn<ProductWizardValues>;
@@ -562,19 +563,21 @@ export function MediaSection({ form }: SectionProps) {
   );
 }
 
-export function PublishSection({ form, options }: SectionProps) {
-  const values = form.getValues();
-  const hasVariants = values.variants.length > 0;
-  const activeVariants = values.variants.filter((variant) => variant.status === "active");
+export function PublishSection({ form, options, onNavigateStep }: SectionProps & { onNavigateStep?: (stepIndex: number) => void }) {
+  const watched = useWatch({ control: form.control });
+  const values = { ...form.getValues(), ...(watched || {}) } as ProductWizardValues;
+  const hasVariants = (values.variants || []).length > 0;
+  const activeVariants = (values.variants || []).filter((variant) => variant.status === "active");
   const usesGlobalPricing = values.pricing_mode === "global";
-  const primaryVariant = values.variants.find((v) => v.is_primary);
+  const primaryVariant = (values.variants || []).find((v) => v.is_primary);
+  const readiness = computeValidationReadiness(values);
 
   const checks = [
-    { label: "Basic information", complete: Boolean(values.name && values.category_id && values.short_description) },
-    { label: "Pricing", complete: usesGlobalPricing ? values.base_price_cents !== "" : activeVariants.length > 0 && activeVariants.every((variant) => variant.price_cents !== undefined && variant.price_cents !== null) },
-    { label: "Inventory", complete: hasVariants ? activeVariants.every((variant) => !variant.track_inventory || variant.stock_quantity !== "") : !values.track_inventory || values.stock_quantity !== "" },
-    { label: "Primary variant", complete: hasVariants ? Boolean(primaryVariant) : true },
-    { label: "Media assets", complete: Boolean(values.featured_image || values.gallery_images.length) },
+    { label: "Basic information", info: readiness.basic },
+    { label: "Pricing & Inventory", info: readiness.pricing },
+    { label: "Variants & Primary default", info: readiness.variants },
+    { label: "Images & Media", info: readiness.media },
+    { label: "Publication state", info: readiness.publish },
   ];
 
   return (
@@ -589,7 +592,7 @@ export function PublishSection({ form, options }: SectionProps) {
             <Summary label="Pricing Mode" value={usesGlobalPricing ? "Global Product Pricing" : "Independent Variant Pricing"} />
             <Summary label="Sell Price" value={usesGlobalPricing ? formatCurrency(Number(values.base_price_cents || 0)) : primaryVariant?.price_cents !== undefined ? `${formatCurrency(primaryVariant.price_cents)} (Primary)` : "Managed by variants"} />
             <Summary label="Stock" value={hasVariants ? "Managed by variants" : values.track_inventory ? String(values.stock_quantity || 0) : "Not tracked"} />
-            <Summary label="Images" value={`${values.featured_image ? 1 : 0} featured, ${values.gallery_images.length} gallery`} />
+            <Summary label="Images" value={`${values.featured_image ? 1 : 0} featured, ${(values.gallery_images || []).length} gallery`} />
             <Summary label="Variants" value={hasVariants ? `${values.variants.length} total (${activeVariants.length} active)` : "None (Single product)"} />
           </div>
         </div>
@@ -597,13 +600,20 @@ export function PublishSection({ form, options }: SectionProps) {
           <p className="text-sm font-bold">Validation Readiness</p>
           <div className="mt-3 space-y-2">
             {checks.map((check) => (
-              <div key={check.label} className="flex items-center justify-between gap-3 text-sm">
-                <span className="flex items-center gap-1.5">
-                  <CheckCircle2 className={`h-4 w-4 ${check.complete ? "text-emerald-600" : "text-muted-foreground"}`} />
-                  {check.label}
+              <button
+                key={check.label}
+                type="button"
+                className="flex w-full items-center justify-between gap-3 rounded-md p-1.5 text-left text-sm transition hover:bg-muted/60"
+                onClick={() => onNavigateStep?.(check.info.stepIndex)}
+              >
+                <span className="flex items-center gap-1.5 truncate">
+                  <CheckCircle2 className={`h-4 w-4 shrink-0 ${check.info.isValid ? "text-emerald-600" : "text-amber-600"}`} />
+                  <span className="truncate">{check.label}</span>
                 </span>
-                <span className={check.complete ? "font-semibold text-emerald-600 text-xs" : "font-semibold text-amber-600 text-xs"}>{check.complete ? "Ready" : "Needs review"}</span>
-              </div>
+                <span className={check.info.isValid ? "shrink-0 text-xs font-semibold text-emerald-600" : "shrink-0 text-xs font-semibold text-amber-600"}>
+                  {check.info.isValid ? "Ready" : "Needs review"}
+                </span>
+              </button>
             ))}
           </div>
           <div className="mt-5 space-y-3">

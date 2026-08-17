@@ -87,13 +87,13 @@ export const productWizardSchema = z.object({
   category_id: z.string().min(1, "Category is required."),
   subcategory_id: z.string().optional(),
   tags: z.array(z.string()),
-  short_description: z.string().trim().min(10, "Add a short description (minimum 10 characters)."),
-  description: z.string().optional(),
+  short_description: z.string().optional().or(z.literal("")),
+  description: z.string().optional().or(z.literal("")),
   product_type: z.enum(["physical", "digital"]),
   pricing_mode: z.enum(["global", "variant"]),
   base_price_cents: z.union([z.coerce.number().min(0, "Sell price cannot be negative."), z.literal("")]),
-  compare_at_price_cents: z.union([z.coerce.number().min(0), z.literal("")]).optional(),
-  cost_price_cents: z.union([z.coerce.number().min(0), z.literal("")]).optional(),
+  compare_at_price_cents: z.union([z.coerce.number().min(0, "Compare price cannot be negative."), z.literal("")]).optional(),
+  cost_price_cents: z.union([z.coerce.number().min(0, "Cost price cannot be negative."), z.literal("")]).optional(),
   currency: z.string().trim().optional(),
   track_inventory: z.boolean(),
   stock_quantity: integerInput(0),
@@ -110,16 +110,18 @@ export const productWizardSchema = z.object({
   is_flash_sale: z.boolean(),
   free_shipping: z.boolean(),
 }).superRefine((values, ctx) => {
-  if (values.pricing_mode === "global" && values.base_price_cents === "") {
+  if (values.pricing_mode === "global" && (values.base_price_cents === "" || values.base_price_cents === undefined || values.base_price_cents === null)) {
     ctx.addIssue({ code: "custom", path: ["base_price_cents"], message: "Sell price is required for global product pricing." });
   }
-  if (values.variants.length === 0 && values.track_inventory && values.stock_quantity === "") {
+  if (values.variants.length === 0 && values.track_inventory && (values.stock_quantity === "" || values.stock_quantity === undefined || values.stock_quantity === null)) {
     ctx.addIssue({ code: "custom", path: ["stock_quantity"], message: "Stock quantity is required when inventory is tracked." });
   }
   if (
     values.pricing_mode === "global"
     && values.base_price_cents !== ""
     && values.compare_at_price_cents !== ""
+    && values.compare_at_price_cents !== undefined
+    && values.compare_at_price_cents !== null
     && Number(values.compare_at_price_cents) < Number(values.base_price_cents)
   ) {
     ctx.addIssue({ code: "custom", path: ["compare_at_price_cents"], message: "Regular price must be greater than or equal to the sell price." });
@@ -130,17 +132,17 @@ export const productWizardSchema = z.object({
 
   values.variants.forEach((variant, index) => {
     const item = variant as ProductVariantDraft;
-    const key = [...item.attribute_values].sort((a, b) => a - b).join(":");
-    if (variantKeys.has(key)) {
+    const key = [...(item.attribute_values || [])].sort((a, b) => a - b).join(":");
+    if (key && variantKeys.has(key)) {
       ctx.addIssue({ code: "custom", path: ["variants", index, "attribute_values"], message: "Duplicate variant combinations are not allowed." });
     }
-    variantKeys.add(key);
+    if (key) variantKeys.add(key);
 
     if (item.is_primary) {
       primaryCount++;
     }
 
-    const sku = item.sku.trim().toUpperCase();
+    const sku = (item.sku || "").trim().toUpperCase();
     if (sku && variantSkus.has(sku)) {
       ctx.addIssue({ code: "custom", path: ["variants", index, "sku"], message: "Variant SKUs must be unique." });
     }
@@ -149,17 +151,19 @@ export const productWizardSchema = z.object({
     if (
       values.pricing_mode === "variant"
       && item.status === "active"
-      && (item.price_cents === undefined || item.price_cents === null)
+      && (item.price_cents === undefined || item.price_cents === null || (typeof item.price_cents === "string" && item.price_cents === ""))
     ) {
       ctx.addIssue({ code: "custom", path: ["variants", index, "price_cents"], message: "Active variants require a sell price." });
     }
-    if (item.status === "active" && item.track_inventory && item.stock_quantity === "") {
+    if (item.status === "active" && item.track_inventory && (item.stock_quantity === "" || item.stock_quantity === undefined || item.stock_quantity === null)) {
       ctx.addIssue({ code: "custom", path: ["variants", index, "stock_quantity"], message: "Stock is required when variant inventory is tracked." });
     }
     if (
       values.pricing_mode === "variant"
       && item.price_cents !== undefined
+      && item.price_cents !== null
       && item.compare_at_price_cents !== undefined
+      && item.compare_at_price_cents !== null
       && Number(item.compare_at_price_cents) < Number(item.price_cents)
     ) {
       ctx.addIssue({ code: "custom", path: ["variants", index, "compare_at_price_cents"], message: "Regular price must be greater than or equal to the sell price." });
@@ -175,13 +179,75 @@ export const productWizardSchema = z.object({
   }
 });
 
-export const stepFields: Record<ProductWizardStepId, Array<keyof ProductWizardValues | string>> = {
+export const stepFields: Record<ProductWizardStepId, Array<keyof ProductWizardValues>> = {
   basic: ["name", "brand_id", "category_id", "subcategory_id", "short_description", "description", "tags"],
   pricing: ["pricing_mode", "base_price_cents", "compare_at_price_cents", "cost_price_cents", "stock_quantity", "low_stock_threshold", "track_inventory"],
   variants: ["attribute_values", "variants"],
   media: ["featured_image", "gallery_images"],
   publish: ["status", "published_at", "is_featured", "is_new", "is_best_seller", "is_flash_sale", "free_shipping"],
 };
+
+export function getStepForField(path: string | readonly (string | number | symbol)[] | (string | number | symbol)[]): ProductWizardStepId {
+  const rootKey = Array.isArray(path) ? String(path[0]) : typeof path === "string" ? path.split(".")[0] : String(path);
+  for (const [stepId, fields] of Object.entries(stepFields)) {
+    if (fields.includes(rootKey as keyof ProductWizardValues)) {
+      return stepId as ProductWizardStepId;
+    }
+  }
+  return "basic";
+}
+
+export type StepReadinessInfo = {
+  isValid: boolean;
+  errors: string[];
+  stepIndex: number;
+};
+
+export function computeValidationReadiness(values: ProductWizardValues): Record<ProductWizardStepId, StepReadinessInfo> {
+  const result = productWizardSchema.safeParse(values);
+  const stepErrors: Record<ProductWizardStepId, string[]> = {
+    basic: [],
+    pricing: [],
+    variants: [],
+    media: [],
+    publish: [],
+  };
+
+  if (!result.success) {
+    for (const issue of result.error.issues) {
+      const step = getStepForField(issue.path);
+      stepErrors[step].push(issue.message);
+    }
+  }
+
+  return {
+    basic: {
+      isValid: stepErrors.basic.length === 0,
+      errors: stepErrors.basic,
+      stepIndex: 0,
+    },
+    pricing: {
+      isValid: stepErrors.pricing.length === 0,
+      errors: stepErrors.pricing,
+      stepIndex: 1,
+    },
+    variants: {
+      isValid: stepErrors.variants.length === 0,
+      errors: stepErrors.variants,
+      stepIndex: 2,
+    },
+    media: {
+      isValid: stepErrors.media.length === 0,
+      errors: stepErrors.media,
+      stepIndex: 3,
+    },
+    publish: {
+      isValid: stepErrors.publish.length === 0,
+      errors: stepErrors.publish,
+      stepIndex: 4,
+    },
+  };
+}
 
 export function emptyProductWizardValues(): ProductWizardValues {
   return {
