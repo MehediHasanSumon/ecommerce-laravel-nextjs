@@ -3,6 +3,7 @@
 namespace App\Services\Admin;
 
 use App\Models\Brand;
+use App\Models\CartItem;
 use App\Models\Category;
 use App\Models\Currency;
 use App\Models\Discount;
@@ -15,6 +16,7 @@ use App\Models\ProductReview;
 use App\Models\ProductVariant;
 use App\Models\Tag;
 use App\Models\User;
+use App\Models\WishlistItem;
 use App\Services\Admin\Concerns\BuildsManagementQueries;
 use App\Services\Admin\Settings\BrandSettingsService;
 use App\Services\Concerns\StoresPublicUploads;
@@ -93,7 +95,19 @@ class ProductModuleService
         $this->guardBrandModule($module);
 
         $affectedProductIds = $this->searchIndexer->affectedProductIds($module, [$id]);
-        $this->modelClass($module)::query()->findOrFail($id)->delete();
+
+        DB::transaction(function () use ($module, $id): void {
+            $record = $this->modelClass($module)::query()->findOrFail($id);
+
+            if ($module === 'products') {
+                ProductVariant::query()->where('product_id', $id)->delete();
+                CartItem::query()->where('product_id', $id)->delete();
+                WishlistItem::query()->where('product_id', $id)->delete();
+            }
+
+            $record->delete();
+        }, 3);
+
         $this->searchIndexer->indexMany($affectedProductIds);
 
         if ($module === 'categories') {
@@ -114,6 +128,13 @@ class ProductModuleService
             $productIds = $module === 'reviews'
                 ? ProductReview::query()->whereIn('id', $ids)->pluck('product_id')
                 : collect();
+
+            if ($module === 'products') {
+                ProductVariant::query()->whereIn('product_id', $ids)->delete();
+                CartItem::query()->whereIn('product_id', $ids)->delete();
+                WishlistItem::query()->whereIn('product_id', $ids)->delete();
+            }
+
             $deleted = $this->modelClass($module)::query()->whereIn('id', $ids)->delete();
 
             if ($module === 'reviews') {
@@ -413,7 +434,6 @@ class ProductModuleService
         $galleryImageFiles = $data['gallery_image_files'] ?? [];
         $features = $data['features'] ?? null;
         $specifications = $data['specifications'] ?? null;
-        $seo = $data['seo'] ?? null;
         $variants = $data['variants'] ?? [];
         unset(
             $data['tags'],
@@ -469,12 +489,6 @@ class ProductModuleService
         if ($specifications !== null) {
             $model->specifications()->delete();
             $model->specifications()->createMany($specifications);
-        }
-
-        if ($seo) {
-            $model->seo()->updateOrCreate(['product_id' => $model->id], $seo);
-        } else {
-            $model->seo()->delete();
         }
 
         $this->variantEngine->sync($model, $variants, $pricingMode);
@@ -612,7 +626,7 @@ class ProductModuleService
             $images = array_values(array_filter($images, fn ($image) => ! ($image['is_primary'] ?? false)));
             array_unshift($images, [
                 'url' => $path,
-                'alt_text' => $images[0]['alt_text'] ?? null,
+                'alt_text' => isset($images[0]) ? ($images[0]['alt_text'] ?? null) : null,
                 'type' => 'featured',
                 'sort_order' => 0,
                 'is_primary' => true,

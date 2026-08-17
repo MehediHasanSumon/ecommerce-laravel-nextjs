@@ -23,11 +23,16 @@ class SecuritySetting extends Model
             'max_contact_submissions' => 'integer',
             'max_invalid_auth_attempts' => 'integer',
             'max_payment_failures' => 'integer',
+            'failed_cod_threshold' => 'integer',
             'max_not_found_requests' => 'integer',
             'max_bot_requests' => 'integer',
             'time_window_minutes' => 'integer',
             'temporary_block_duration_minutes' => 'integer',
             'permanent_block_threshold' => 'integer',
+            'auto_block_critical_ips' => 'boolean',
+            'enable_checkout_security' => 'boolean',
+            'enable_cod_security' => 'boolean',
+            'enable_payment_security' => 'boolean',
         ];
     }
 

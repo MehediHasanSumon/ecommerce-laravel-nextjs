@@ -18,6 +18,7 @@ use App\Services\Orders\OrderCreator;
 use App\Services\Orders\OrderService;
 use App\Services\Payments\PaymentGatewayManager;
 use App\Services\Search\SearchAnalyticsService;
+use App\Services\Security\CheckoutSecurityService;
 use App\Services\Shipping\ShippingZoneMatcher;
 use App\Services\Sms\CheckoutOtpService;
 use Illuminate\Http\Request;
@@ -42,6 +43,7 @@ class CheckoutService
         private readonly SearchAnalyticsService $searchAnalytics,
         private readonly FraudAutomationService $fraudAutomation,
         private readonly MarketingEventService $marketingEvents,
+        private readonly CheckoutSecurityService $checkoutSecurity,
     ) {}
 
     public function place(Request $request, array $payload): array
@@ -59,17 +61,14 @@ class CheckoutService
         $fraudShipping = (bool) ($payload['same_as_billing'] ?? true)
             ? $fraudBilling
             : $this->fraudAddress($request, $payload, 'shipping');
-        $this->fraudAutomation->checkCheckout([
-            'phone' => $fraudBilling['phone'] ?? null,
-            'name' => $fraudBilling['full_name'] ?? null,
-            'email' => $fraudBilling['email'] ?? null,
-            'ip_address' => $request->ip(),
+
+        $securityEvaluation = $this->checkoutSecurity->evaluateCheckout($request, [
+            ...$payload,
             'billing_address' => $fraudBilling,
             'shipping_address' => $fraudShipping,
-            'customer_id' => $request->user() ? "registered-{$request->user()->id}" : null,
-        ], $payload['payment_method'], $request->user());
+        ], $request->user());
 
-        [$cart, $order, $transaction, $session] = DB::transaction(function () use ($request, $payload, $paymentSetting): array {
+        [$cart, $order, $transaction, $session] = DB::transaction(function () use ($request, $payload, $paymentSetting, $securityEvaluation): array {
             $cart = $this->cartService->get($request, strictCouponValidation: true);
             $cart->load(['items.product', 'items.variant', 'coupon']);
 
@@ -139,6 +138,13 @@ class CheckoutService
                 'client_ip' => $request->ip(),
                 'user_agent' => substr((string) $request->userAgent(), 0, 2000),
                 'marketing_consent_status' => $this->marketingEvents->consent($request),
+                'latest_fraud_check_id' => $securityEvaluation['fraud_check']?->id,
+                'fraud_status' => $securityEvaluation['fraud_status'] ?? 'safe',
+                'fraud_score' => $securityEvaluation['risk_score'] ?? null,
+                'fraud_checked_at' => now(),
+                'fraud_flagged' => (bool) ($securityEvaluation['fraud_flagged'] ?? false),
+                'fraud_hold' => (bool) ($securityEvaluation['fraud_hold'] ?? false),
+                'fraud_cod_blocked' => false,
                 'placed_at' => now(),
             ], $cart->items->map(fn ($item): array => [
                 'product_id' => $item->product_id,

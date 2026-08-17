@@ -34,9 +34,7 @@ class MonitorSuspiciousActivity
         $status = $response->getStatusCode();
         $events = [];
 
-        if (str_starts_with($path, 'api/') && ! str_starts_with($path, 'api/admin/')) {
-            $events[] = 'api_request';
-        }
+        // Auth abuse tracking
         if ($path === 'api/auth/login' && $status >= 400) {
             $events[] = 'failed_login';
         }
@@ -49,20 +47,14 @@ class MonitorSuspiciousActivity
         if ($path === 'api/auth/register') {
             $events[] = 'registration';
         }
-        if (str_contains($path, 'checkout')) {
-            $events[] = 'checkout';
-        }
         if ($path === 'api/contact-messages' && $request->isMethod('post')) {
             $events[] = 'contact_submission';
         }
-        if (in_array($status, [401, 403], true)) {
+        if (in_array($status, [401, 403], true) && ! str_starts_with($path, 'api/auth/')) {
             $events[] = 'invalid_auth';
         }
         if ($status === 404) {
             $events[] = 'not_found';
-        }
-        if (str_contains($path, 'payment') && $status >= 400) {
-            $events[] = 'payment_failure';
         }
         if (UserAgentMetadata::from($request->userAgent())['is_bot']) {
             $events[] = 'bot_request';

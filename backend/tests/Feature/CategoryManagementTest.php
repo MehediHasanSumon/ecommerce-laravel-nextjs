@@ -18,7 +18,10 @@ function categoryManagementAdminToken(): string
 
 function categoryImageUpload(): UploadedFile
 {
-    return UploadedFile::fake()->image('bags.png', 64, 64);
+    return UploadedFile::fake()->createWithContent(
+        'bags.png',
+        base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==')
+    );
 }
 
 it('creates categories with a raster icon in home grid and navbar dropdown mode', function (): void {

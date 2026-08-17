@@ -56,13 +56,6 @@ export type ProductWizardValues = {
   gallery_images: ProductMediaItem[];
   attribute_values: number[];
   variants: ProductVariantDraft[];
-  seo: {
-    custom_enabled: boolean;
-    meta_title: string;
-    meta_description: string;
-    canonical_url: string;
-    og_image_url: string;
-  };
   status: "draft" | "active" | "archived";
   published_at: string;
   is_featured: boolean;
@@ -74,15 +67,14 @@ export type ProductWizardValues = {
 
 export const productWizardSteps = [
   { id: "basic", title: "Basic Information" },
+  { id: "pricing", title: "Pricing & Inventory" },
+  { id: "variants", title: "Variants" },
   { id: "media", title: "Images & Media" },
-  { id: "variants", title: "Pricing" },
-  { id: "seo", title: "SEO" },
   { id: "publish", title: "Publish" },
 ] as const;
 
 export type ProductWizardStepId = (typeof productWizardSteps)[number]["id"];
 
-const optionalUrl = z.string().trim().optional().or(z.literal(""));
 const integerInput = (min: number) => z.preprocess((value) => {
   if (value === "" || value === null || value === undefined) return "";
   const number = Number(value);
@@ -95,11 +87,11 @@ export const productWizardSchema = z.object({
   category_id: z.string().min(1, "Category is required."),
   subcategory_id: z.string().optional(),
   tags: z.array(z.string()),
-  short_description: z.string().trim().min(10, "Add a short description."),
+  short_description: z.string().trim().min(10, "Add a short description (minimum 10 characters)."),
   description: z.string().optional(),
   product_type: z.enum(["physical", "digital"]),
   pricing_mode: z.enum(["global", "variant"]),
-  base_price_cents: z.union([z.coerce.number().min(0, "Regular price cannot be negative."), z.literal("")]),
+  base_price_cents: z.union([z.coerce.number().min(0, "Sell price cannot be negative."), z.literal("")]),
   compare_at_price_cents: z.union([z.coerce.number().min(0), z.literal("")]).optional(),
   cost_price_cents: z.union([z.coerce.number().min(0), z.literal("")]).optional(),
   currency: z.string().trim().optional(),
@@ -110,13 +102,6 @@ export const productWizardSchema = z.object({
   gallery_images: z.array(z.any()).max(10, "Upload up to 10 gallery images."),
   attribute_values: z.array(z.number()),
   variants: z.array(z.any()),
-  seo: z.object({
-    custom_enabled: z.boolean(),
-    meta_title: z.string().max(255, "Meta title must be 255 characters or fewer.").optional(),
-    meta_description: z.string().optional(),
-    canonical_url: optionalUrl,
-    og_image_url: z.string().optional(),
-  }),
   status: z.enum(["draft", "active", "archived"]),
   published_at: z.string().optional(),
   is_featured: z.boolean(),
@@ -141,6 +126,8 @@ export const productWizardSchema = z.object({
   }
   const variantKeys = new Set<string>();
   const variantSkus = new Set<string>();
+  let primaryCount = 0;
+
   values.variants.forEach((variant, index) => {
     const item = variant as ProductVariantDraft;
     const key = [...item.attribute_values].sort((a, b) => a - b).join(":");
@@ -148,11 +135,17 @@ export const productWizardSchema = z.object({
       ctx.addIssue({ code: "custom", path: ["variants", index, "attribute_values"], message: "Duplicate variant combinations are not allowed." });
     }
     variantKeys.add(key);
+
+    if (item.is_primary) {
+      primaryCount++;
+    }
+
     const sku = item.sku.trim().toUpperCase();
     if (sku && variantSkus.has(sku)) {
       ctx.addIssue({ code: "custom", path: ["variants", index, "sku"], message: "Variant SKUs must be unique." });
     }
     if (sku) variantSkus.add(sku);
+
     if (
       values.pricing_mode === "variant"
       && item.status === "active"
@@ -165,25 +158,29 @@ export const productWizardSchema = z.object({
     }
     if (
       values.pricing_mode === "variant"
-      &&
-      item.price_cents !== undefined
+      && item.price_cents !== undefined
       && item.compare_at_price_cents !== undefined
       && Number(item.compare_at_price_cents) < Number(item.price_cents)
     ) {
       ctx.addIssue({ code: "custom", path: ["variants", index, "compare_at_price_cents"], message: "Regular price must be greater than or equal to the sell price." });
     }
   });
+
+  if (values.variants.length > 0 && primaryCount === 0) {
+    ctx.addIssue({ code: "custom", path: ["variants"], message: "A product with variants must have one primary variant." });
+  }
+
   if (values.pricing_mode === "variant" && values.variants.length === 0) {
     ctx.addIssue({ code: "custom", path: ["variants"], message: "Variant pricing requires at least one variant." });
   }
 });
 
 export const stepFields: Record<ProductWizardStepId, Array<keyof ProductWizardValues | string>> = {
-  basic: ["name", "brand_id", "category_id", "subcategory_id", "short_description"],
+  basic: ["name", "brand_id", "category_id", "subcategory_id", "short_description", "description", "tags"],
+  pricing: ["pricing_mode", "base_price_cents", "compare_at_price_cents", "cost_price_cents", "stock_quantity", "low_stock_threshold", "track_inventory"],
+  variants: ["attribute_values", "variants"],
   media: ["featured_image", "gallery_images"],
-  variants: ["pricing_mode", "base_price_cents", "compare_at_price_cents", "cost_price_cents", "stock_quantity", "low_stock_threshold", "track_inventory", "attribute_values", "variants"],
-  seo: ["seo.custom_enabled", "seo.meta_title", "seo.meta_description", "seo.canonical_url", "seo.og_image_url"],
-  publish: ["status", "published_at"],
+  publish: ["status", "published_at", "is_featured", "is_new", "is_best_seller", "is_flash_sale", "free_shipping"],
 };
 
 export function emptyProductWizardValues(): ProductWizardValues {
@@ -208,13 +205,6 @@ export function emptyProductWizardValues(): ProductWizardValues {
     gallery_images: [],
     attribute_values: [],
     variants: [],
-    seo: {
-      custom_enabled: false,
-      meta_title: "",
-      meta_description: "",
-      canonical_url: "",
-      og_image_url: "",
-    },
     status: "draft",
     published_at: "",
     is_featured: false,
@@ -313,18 +303,6 @@ export function valuesFromProduct(record?: ProductRecord | null, options?: Produ
         attribute_values: Array.isArray(item.attribute_values) ? item.attribute_values.map((value) => Number((value as { id: number }).id)) : [],
       };
     }) : [],
-    seo: {
-      custom_enabled: Boolean(
-        String((record.seo as Record<string, unknown> | null)?.meta_title ?? "").trim()
-        || String((record.seo as Record<string, unknown> | null)?.meta_description ?? "").trim()
-        || String((record.seo as Record<string, unknown> | null)?.canonical_url ?? "").trim()
-        || String((record.seo as Record<string, unknown> | null)?.og_image_url ?? "").trim()
-      ),
-      meta_title: String((record.seo as Record<string, unknown> | null)?.meta_title ?? ""),
-      meta_description: String((record.seo as Record<string, unknown> | null)?.meta_description ?? ""),
-      canonical_url: String((record.seo as Record<string, unknown> | null)?.canonical_url ?? ""),
-      og_image_url: String((record.seo as Record<string, unknown> | null)?.og_image_url ?? ""),
-    },
     status: record.status === "active" || record.status === "archived" ? record.status : "draft",
     published_at: typeof record.published_at === "string" ? record.published_at.slice(0, 10) : "",
     is_featured: Boolean(record.is_featured),
@@ -367,13 +345,13 @@ export function productPayloadFromValues(values: ProductWizardValues, publish: b
   if (values.featured_image && !values.featured_image.file) {
     const path = storagePath(values.featured_image);
     if (path) {
-    images.push({
-      url: path,
-      alt_text: values.featured_image.alt_text,
-      type: "featured",
-      sort_order: 0,
-      is_primary: true,
-    });
+      images.push({
+        url: path,
+        alt_text: values.featured_image.alt_text,
+        type: "featured",
+        sort_order: 0,
+        is_primary: true,
+      });
     }
   }
   values.gallery_images.forEach((image, index) => {
@@ -388,6 +366,7 @@ export function productPayloadFromValues(values: ProductWizardValues, publish: b
       is_primary: false,
     });
   });
+
   const variants = values.variants.map((variant) => {
     const usesVariantPricing = values.pricing_mode === "variant";
 
@@ -399,6 +378,7 @@ export function productPayloadFromValues(values: ProductWizardValues, publish: b
       stock_quantity: optionalNumber(variant.stock_quantity),
       track_inventory: variant.track_inventory,
       status: variant.status,
+      is_primary: Boolean(variant.is_primary),
       attribute_values: variant.attribute_values,
     };
   });
@@ -428,12 +408,6 @@ export function productPayloadFromValues(values: ProductWizardValues, publish: b
     images,
     featured_image_file: values.featured_image?.file,
     gallery_image_files: values.gallery_images.map((image) => image.file).filter(Boolean),
-    seo: values.seo.custom_enabled ? {
-      meta_title: values.seo.meta_title || null,
-      meta_description: values.seo.meta_description || null,
-      canonical_url: values.seo.canonical_url || null,
-      og_image_url: values.seo.og_image_url || null,
-    } : null,
     variants,
   };
 

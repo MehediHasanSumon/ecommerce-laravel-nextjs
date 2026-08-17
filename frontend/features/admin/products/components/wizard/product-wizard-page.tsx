@@ -8,6 +8,7 @@ import { useForm } from "react-hook-form";
 import type { FieldErrors, Resolver } from "react-hook-form";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import type { ProductOptions, ProductRecord } from "@/features/admin/products/types";
 import { productManagementService } from "@/features/admin/products/services/product-management-service";
 import { toAppError } from "@/lib/errors";
@@ -18,8 +19,8 @@ import { ProductFormLayout } from "@/features/admin/products/components/wizard/p
 import {
   BasicInfoSection,
   MediaSection,
+  PricingInventorySection,
   PublishSection,
-  SeoSection,
   VariantSection,
 } from "@/features/admin/products/components/wizard/product-wizard-sections";
 import {
@@ -120,6 +121,7 @@ export function ProductWizardPage({ mode, productId }: { mode: ProductWizardMode
   const [loading, setLoading] = useState(mode === "edit");
   const [activeStep, setActiveStep] = useState(0);
   const [initialProduct, setInitialProduct] = useState<ProductRecord | null>(null);
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const draftKey = useMemo(() => `product-wizard-${mode}-${productId ?? "new"}`, [mode, productId]);
   const form = useForm<ProductWizardValues>({
     resolver: zodResolver(productWizardSchema) as Resolver<ProductWizardValues>,
@@ -205,6 +207,14 @@ export function ProductWizardPage({ mode, productId }: { mode: ProductWizardMode
     toast.success("Product draft saved.");
   }
 
+  function handleBack() {
+    if (form.formState.isDirty) {
+      setShowLeaveConfirm(true);
+    } else {
+      router.push(routePaths.adminProducts);
+    }
+  }
+
   async function submit(publish: boolean) {
     form.clearErrors();
     const valid = await form.trigger();
@@ -245,31 +255,45 @@ export function ProductWizardPage({ mode, productId }: { mode: ProductWizardMode
   }
 
   return (
-    <ProductFormLayout
-      title={title}
-      description="Build complete catalog records through focused steps with validation, media handling, variants, SEO, and publish controls."
-      activeStep={activeStep}
-      isSubmitting={form.formState.isSubmitting}
-      submitLabel={mode === "edit" ? "Update Product" : "Publish Product"}
-      onStepClick={goToStep}
-      onPrevious={() => setActiveStep((current) => Math.max(current - 1, 0))}
-      onNext={next}
-      onSaveDraft={saveDraft}
-      onSubmit={() => void submit(true)}
-    >
-      <ErrorSummary errors={form.formState.errors} />
-      <div className="mt-4">
-        {currentStepId === "basic" ? <BasicInfoSection form={form} options={options} /> : null}
-        {currentStepId === "media" ? <MediaSection form={form} options={options} /> : null}
-        {currentStepId === "variants" ? <VariantSection form={form} options={options} /> : null}
-        {currentStepId === "seo" ? <SeoSection form={form} options={options} /> : null}
-        {currentStepId === "publish" ? <PublishSection form={form} options={options} /> : null}
-      </div>
-      {currentStepId === "publish" ? (
-        <div className="mt-5 flex flex-wrap justify-end gap-2">
-          <Button type="button" variant="secondary" onClick={() => void submit(false)} isLoading={form.formState.isSubmitting}>Save as Draft</Button>
+    <>
+      <ProductFormLayout
+        title={title}
+        description="Build complete catalog records through focused steps with validation, pricing, variants, media handling, and publish controls."
+        activeStep={activeStep}
+        isSubmitting={form.formState.isSubmitting}
+        submitLabel={mode === "edit" ? "Update Product" : "Publish Product"}
+        onStepClick={goToStep}
+        onPrevious={() => setActiveStep((current) => Math.max(current - 1, 0))}
+        onNext={next}
+        onSaveDraft={saveDraft}
+        onSubmit={() => void submit(true)}
+        onBack={handleBack}
+      >
+        <ErrorSummary errors={form.formState.errors} />
+        <div className="mt-4">
+          {currentStepId === "basic" ? <BasicInfoSection form={form} options={options} /> : null}
+          {currentStepId === "pricing" ? <PricingInventorySection form={form} options={options} /> : null}
+          {currentStepId === "variants" ? <VariantSection form={form} options={options} /> : null}
+          {currentStepId === "media" ? <MediaSection form={form} options={options} /> : null}
+          {currentStepId === "publish" ? <PublishSection form={form} options={options} /> : null}
         </div>
-      ) : null}
-    </ProductFormLayout>
+        {currentStepId === "publish" ? (
+          <div className="mt-5 flex flex-wrap justify-end gap-2">
+            <Button type="button" variant="secondary" onClick={() => void submit(false)} isLoading={form.formState.isSubmitting}>Save as Draft</Button>
+          </div>
+        ) : null}
+      </ProductFormLayout>
+
+      <DeleteConfirmationDialog
+        open={showLeaveConfirm}
+        title="Unsaved Changes"
+        message="You have unsaved changes in this product form. Are you sure you want to leave? Any unsaved edits will be discarded."
+        onClose={() => setShowLeaveConfirm(false)}
+        onConfirm={() => {
+          setShowLeaveConfirm(false);
+          router.push(routePaths.adminProducts);
+        }}
+      />
+    </>
   );
 }

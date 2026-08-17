@@ -36,11 +36,11 @@ function productImagePayload(array $overrides = []): array
 it('stores uploaded product images as storage paths and returns normalized image objects', function (): void {
     Storage::fake('public');
 
-    $response = $this
-        ->withToken(accessTokenWithPermissions(['can_create_product']))
-        ->post('/api/admin/product-management/products', productImagePayload([
-            'featured_image_file' => UploadedFile::fake()->image('featured.jpg', 800, 800),
-        ]), ['Accept' => 'application/json']);
+        $response = $this
+            ->withToken(accessTokenWithPermissions(['can_create_product']))
+            ->post('/api/admin/product-management/products', productImagePayload([
+                'featured_image_file' => UploadedFile::fake()->createWithContent('featured.gif', base64_decode('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7')),
+            ]), ['Accept' => 'application/json']);
 
     $response->assertCreated();
     $payload = $response->json('data.item.images.0');

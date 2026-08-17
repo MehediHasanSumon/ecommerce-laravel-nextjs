@@ -103,7 +103,7 @@ it('refreshes block cache and enforces API blocks while whitelist bypasses', fun
     $this->withServerVariables(['REMOTE_ADDR' => $block->ip_address])
         ->getJson('/api/settings/navigation')
         ->assertForbidden()
-        ->assertJsonPath('message', 'Your IP address has been blocked.');
+        ->assertJsonPath('message', 'Your request could not be completed at this time. Please contact support if you believe this is an error.');
 
     IpAccessRule::query()->create(['ip_address' => '198.51.100.40/32', 'rule_type' => 'whitelist']);
     Cache::flush();

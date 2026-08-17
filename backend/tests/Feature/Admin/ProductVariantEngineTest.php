@@ -271,3 +271,29 @@ it('requires product view permission for admin product options', function (): vo
         ->getJson('/api/admin/product-options')
         ->assertOk();
 });
+
+it('honors explicitly selected primary variant and reassigns primary when deleted', function (): void {
+    $product = variantProduct();
+    [$red, $blue] = variantAttribute('Color', ['Red', 'Blue']);
+    $engine = app(ProductVariantEngine::class);
+
+    $engine->sync($product, [
+        ['attribute_values' => [$red->id], 'status' => 'active', 'is_primary' => false, 'price_cents' => 10000],
+        ['attribute_values' => [$blue->id], 'status' => 'active', 'is_primary' => true, 'price_cents' => 12000],
+    ]);
+
+    $variants = $product->variants()->orderBy('id')->get();
+    expect($variants->where('is_primary', true))->toHaveCount(1)
+        ->and((bool) $variants[1]->is_primary)->toBeTrue()
+        ->and((bool) $variants[0]->is_primary)->toBeFalse();
+
+    // Now sync removing the blue variant (which was primary)
+    $engine->sync($product, [
+        ['attribute_values' => [$red->id], 'status' => 'active', 'price_cents' => 10000],
+    ]);
+
+    $remaining = $product->variants()->whereNull('deleted_at')->get();
+    expect($remaining)->toHaveCount(1)
+        ->and((bool) $remaining->first()->is_primary)->toBeTrue();
+});
+

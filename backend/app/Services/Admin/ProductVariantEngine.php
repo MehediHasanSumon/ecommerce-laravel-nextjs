@@ -77,7 +77,10 @@ class ProductVariantEngine
             ->values();
 
         $seen = [];
-        $primaryVariantId = null;
+        $explicitPrimaryVariantId = null;
+        $firstActiveVariantId = null;
+        $firstVariantId = null;
+
         foreach ($normalizedVariants as $normalizedVariant) {
             $variantData = $normalizedVariant['data'];
             $combination = $normalizedVariant['combination'];
@@ -99,8 +102,16 @@ class ProductVariantEngine
             );
             $existing[$key] = $variant;
 
-            if ($primaryVariantId === null && $variant->status === 'active') {
-                $primaryVariantId = (int) $variant->id;
+            if ($firstVariantId === null) {
+                $firstVariantId = (int) $variant->id;
+            }
+
+            if ($firstActiveVariantId === null && $variant->status === 'active') {
+                $firstActiveVariantId = (int) $variant->id;
+            }
+
+            if (! empty($variantData['is_primary'])) {
+                $explicitPrimaryVariantId = (int) $variant->id;
             }
         }
 
@@ -113,10 +124,13 @@ class ProductVariantEngine
             ->all();
 
         if ($removeIds !== []) {
+            $product->variants()->whereIn('id', $removeIds)->update(['is_primary' => null]);
             $product->variants()->whereIn('id', $removeIds)->delete();
         }
 
-        $product->variants()->whereNotNull('is_primary')->update(['is_primary' => null]);
+        $primaryVariantId = $explicitPrimaryVariantId ?? $firstActiveVariantId ?? $firstVariantId;
+
+        $product->variants()->withTrashed()->whereNotNull('is_primary')->update(['is_primary' => null]);
         if ($primaryVariantId !== null) {
             $product->variants()->whereKey($primaryVariantId)->update(['is_primary' => true]);
         }

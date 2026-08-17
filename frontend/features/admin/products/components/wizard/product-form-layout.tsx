@@ -21,6 +21,7 @@ export function ProductFormLayout({
   onNext,
   onSaveDraft,
   onSubmit,
+  onBack,
 }: {
   title: string;
   description: string;
@@ -33,6 +34,7 @@ export function ProductFormLayout({
   onNext: () => void;
   onSaveDraft: () => void;
   onSubmit: () => void;
+  onBack?: () => void;
 }) {
   const isLastStep = activeStep === productWizardSteps.length - 1;
 
@@ -54,9 +56,13 @@ export function ProductFormLayout({
           </div>
           <div className="flex flex-wrap gap-2">
             <Button type="button" variant="secondary" size="sm" icon={<Save className="h-4 w-4" />} onClick={onSaveDraft}>Save Draft</Button>
-            <Link href={routePaths.adminProducts}>
-              <Button type="button" variant="ghost" size="sm">Back to Products</Button>
-            </Link>
+            {onBack ? (
+              <Button type="button" variant="ghost" size="sm" onClick={onBack}>Back to Products</Button>
+            ) : (
+              <Link href={routePaths.adminProducts}>
+                <Button type="button" variant="ghost" size="sm">Back to Products</Button>
+              </Link>
+            )}
           </div>
         </div>
       </section>

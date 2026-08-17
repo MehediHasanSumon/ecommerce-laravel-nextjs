@@ -8,6 +8,7 @@ use App\Services\Checkout\CheckoutService;
 use App\Services\Orders\OrderService;
 use App\Services\Payments\PaymentGatewayManager;
 use App\Services\Payments\PaymentLogger;
+use App\Services\Security\CheckoutSecurityService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
@@ -18,6 +19,7 @@ class PaymentCallbackController extends Controller
         private readonly CheckoutService $checkout,
         private readonly PaymentLogger $logger,
         private readonly OrderService $orders,
+        private readonly CheckoutSecurityService $checkoutSecurity,
     ) {}
 
     public function callback(Request $request, string $gateway): RedirectResponse
@@ -31,10 +33,14 @@ class PaymentCallbackController extends Controller
 
         if ($result->status === 'paid' && $transaction) {
             $this->checkout->markPaid($transaction->fresh());
+            $this->checkoutSecurity->recordPaymentSuccess($request, $transaction->fresh()->order);
         } elseif ($transaction) {
             $finalStatus = $request->route('result') === 'cancel' ? 'cancelled' : 'failed';
             $transaction->fresh()->update(['status' => $finalStatus]);
             $this->orders->syncPayment($transaction->fresh()->order, $transaction->fresh(), $finalStatus, $transaction->fresh()->failure_message);
+            if ($finalStatus === 'failed') {
+                $this->checkoutSecurity->recordPaymentFailure($request, $transaction->fresh()->order, $gateway, $transaction->fresh()->failure_message);
+            }
         }
 
         return redirect()->away($this->frontendUrl($finalStatus, $transaction));

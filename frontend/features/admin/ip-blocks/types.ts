@@ -75,11 +75,16 @@ export type SecuritySettings = {
   max_contact_submissions: number;
   max_invalid_auth_attempts: number;
   max_payment_failures: number;
+  failed_cod_threshold: number;
   max_not_found_requests: number;
   max_bot_requests: number;
   time_window_minutes: number;
   temporary_block_duration_minutes: number;
   permanent_block_threshold: number;
+  auto_block_critical_ips: boolean;
+  enable_checkout_security: boolean;
+  enable_cod_security: boolean;
+  enable_payment_security: boolean;
 };
 
 export type SecuritySettingsPayload = SecuritySettings & {

@@ -1,8 +1,9 @@
 "use client";
 
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { CheckCircle2, ChevronDown, ChevronRight, Star, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { UseFormReturn } from "react-hook-form";
+import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import type { ProductOptions } from "@/features/admin/products/types";
@@ -68,26 +69,103 @@ export function BasicInfoSection({ form, options }: SectionProps) {
   );
 }
 
-export function MediaSection({ form }: SectionProps) {
+export function PricingInventorySection({ form }: SectionProps) {
+  const errors = form.formState.errors;
+  const pricingMode = useFieldValue(form, "pricing_mode");
+  const trackInventory = useFieldValue(form, "track_inventory");
+  const variants = useFieldValue(form, "variants");
+  const hasVariants = variants.length > 0;
+
   return (
-    <div className="space-y-6">
-      <SectionHeader title="Images & Media" description="Upload the primary product image and sortable gallery assets with alt text." />
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-        <ProductImageUploader value={useFieldValue(form, "featured_image")} onChange={(image) => form.setValue("featured_image", image, { shouldDirty: true })} />
-        <GalleryUploader values={useFieldValue(form, "gallery_images")} onChange={(images) => form.setValue("gallery_images", images, { shouldDirty: true, shouldValidate: true })} />
-      </div>
+    <div className="space-y-5">
+      <SectionHeader
+        title="Pricing & Inventory"
+        description="Set product-level base pricing and inventory tracking defaults."
+      />
+
+      {hasVariants && pricingMode === "variant" ? (
+        <div className="rounded-lg border border-primary/20 bg-primary/5 p-4">
+          <p className="text-sm font-semibold text-foreground">Independent Variant Pricing Active</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            This product has {variants.length} variant(s) with independent pricing configured in the next step. To use global product pricing instead, clear the individual variant prices in the Variants step.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <FieldGrid>
+            <Input
+              label="Sell Price"
+              type="number"
+              min={0}
+              step="0.01"
+              placeholder="0.00"
+              {...form.register("base_price_cents")}
+              error={errors.base_price_cents?.message}
+            />
+            <Input
+              label="Regular (Compare-At) Price"
+              type="number"
+              min={0}
+              step="0.01"
+              placeholder="0.00"
+              {...form.register("compare_at_price_cents")}
+              error={errors.compare_at_price_cents?.message}
+            />
+            <Input
+              label="Cost Price"
+              type="number"
+              min={0}
+              step="0.01"
+              placeholder="0.00"
+              {...form.register("cost_price_cents")}
+              error={errors.cost_price_cents?.message}
+            />
+          </FieldGrid>
+
+          {!hasVariants ? (
+            <div className="space-y-4 rounded-lg border border-border bg-card p-4">
+              <ToggleField
+                label="Track Inventory"
+                description="Automatically track and deduct stock when orders are placed."
+                checked={trackInventory}
+                onChange={(checked) => form.setValue("track_inventory", checked, { shouldDirty: true, shouldValidate: true })}
+              />
+              {trackInventory ? (
+                <FieldGrid>
+                  <Input
+                    label="Stock Quantity"
+                    type="number"
+                    min={0}
+                    {...form.register("stock_quantity")}
+                    error={errors.stock_quantity?.message}
+                  />
+                  <Input
+                    label="Low Stock Alert Threshold"
+                    type="number"
+                    min={0}
+                    {...form.register("low_stock_threshold")}
+                    error={errors.low_stock_threshold?.message}
+                  />
+                </FieldGrid>
+              ) : null}
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Inventory for this product will be tracked per variant in the Variants step.
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
 export function VariantSection({ form, options }: SectionProps) {
-  const errors = form.formState.errors;
   const variants = useFieldValue(form, "variants");
   const pricingMode = useFieldValue(form, "pricing_mode");
   const globalSellPrice = useFieldValue(form, "base_price_cents");
   const globalRegularPrice = useFieldValue(form, "compare_at_price_cents");
   const globalCostPrice = useFieldValue(form, "cost_price_cents");
-  const trackInventory = useFieldValue(form, "track_inventory");
   const selectedAttributes = useFieldValue(form, "attribute_values");
   const [attributeSearch, setAttributeSearch] = useState("");
   const [attributeOptions, setAttributeOptions] = useState(options.attribute_values);
@@ -207,12 +285,18 @@ export function VariantSection({ form, options }: SectionProps) {
         attribute_values: combination,
       };
 
-      return { ...generatedVariant, is_primary: index === 0 };
+      const hasPrimary = variants.some((v) => v.is_primary);
+      const isPrimary = existing ? Boolean(existing.is_primary) : (!hasPrimary && index === 0);
+
+      return { ...generatedVariant, is_primary: isPrimary };
     });
 
     const currentKeys = variants.map((variant) => variantKey(variant.attribute_values)).join("|");
     const nextKeys = generated.map((variant) => variantKey(variant.attribute_values)).join("|");
     if (currentKeys !== nextKeys || variants.length !== generated.length) {
+      if (generated.length > 0 && !generated.some((v) => v.is_primary)) {
+        generated[0].is_primary = true;
+      }
       form.clearErrors("variants");
       form.setValue("variants", generated, { shouldDirty: true, shouldValidate: false });
       setOpenVariantIds((ids) => ids.filter((id) => generated.some((variant) => variant.id === id)));
@@ -240,20 +324,37 @@ export function VariantSection({ form, options }: SectionProps) {
     }
   }, [form, globalCostPrice, globalRegularPrice, globalSellPrice, pricingMode, variants.length]);
 
-  function withPrimaryVariant(items: ProductVariantDraft[]) {
-    const firstActiveIndex = items.findIndex((variant) => variant.status === "active");
-    return items.map((variant, index) => ({
+  function setPrimaryVariant(id: string) {
+    form.clearErrors("variants");
+    const nextVariants = variants.map((variant) => ({
       ...variant,
-      is_primary: firstActiveIndex >= 0 && index === firstActiveIndex,
+      is_primary: variant.id === id,
     }));
+    form.setValue("variants", nextVariants, { shouldDirty: true, shouldValidate: false });
   }
 
   function updateVariant(id: string, patch: Partial<ProductVariantDraft>) {
     form.clearErrors("variants");
-    const nextVariants = withPrimaryVariant(
-      variants.map((variant) => variant.id === id ? { ...variant, ...patch } : variant),
-    );
+    let nextVariants = variants.map((variant) => variant.id === id ? { ...variant, ...patch } : variant);
+    if (!nextVariants.some((v) => v.is_primary)) {
+      const firstActive = nextVariants.find((v) => v.status === "active") ?? nextVariants[0];
+      if (firstActive) {
+        nextVariants = nextVariants.map((v) => ({ ...v, is_primary: v.id === firstActive.id }));
+      }
+    }
     form.setValue("variants", nextVariants, { shouldDirty: true, shouldValidate: false });
+  }
+
+  function removeVariant(id: string) {
+    form.clearErrors("variants");
+    const filtered = variants.filter((variant) => variant.id !== id);
+    if (filtered.length > 0 && !filtered.some((v) => v.is_primary)) {
+      const firstActive = filtered.find((v) => v.status === "active") ?? filtered[0];
+      if (firstActive) {
+        firstActive.is_primary = true;
+      }
+    }
+    form.setValue("variants", filtered, { shouldDirty: true, shouldValidate: false });
   }
 
   function updateVariantPricing(
@@ -273,19 +374,17 @@ export function VariantSection({ form, options }: SectionProps) {
       globalPricingFallback.current = inherited;
       variantPricingFallbackInitialized.current = true;
 
-      const nextVariants = withPrimaryVariant(variants.map((variant) => ({
+      const nextVariants = variants.map((variant) => ({
         ...variant,
         ...inherited,
         ...(variant.id === id ? { [field]: value } : {}),
-      })));
+      }));
       form.setValue("pricing_mode", "variant", { shouldDirty: true, shouldValidate: false });
       form.setValue("variants", nextVariants, { shouldDirty: true, shouldValidate: false });
       return;
     }
 
-    const nextVariants = withPrimaryVariant(
-      variants.map((variant) => variant.id === id ? { ...variant, [field]: value } : variant),
-    );
+    const nextVariants = variants.map((variant) => variant.id === id ? { ...variant, [field]: value } : variant);
     const hasSpecificPricing = nextVariants.some((variant) => (
       variant.price_cents !== undefined
       || variant.compare_at_price_cents !== undefined
@@ -316,45 +415,26 @@ export function VariantSection({ form, options }: SectionProps) {
   return (
     <div className="space-y-5">
       <SectionHeader
-        title="Pricing"
-        description={pricingMode === "global"
-          ? "Product pricing is inherited by every generated variant."
-          : "Pricing is managed independently for each sellable variant."}
+        title="Product Variants"
+        description="Select defining attributes to generate sellable variants. Designate a Primary Variant to serve as the default storefront selection."
       />
-      {pricingMode === "global" ? (
-        <div className="space-y-4">
-          <FieldGrid>
-            <Input label="Sell Price" type="number" min={0} step="0.01" {...form.register("base_price_cents")} error={errors.base_price_cents?.message} />
-            <Input label="Regular Price" type="number" min={0} step="0.01" {...form.register("compare_at_price_cents")} error={errors.compare_at_price_cents?.message} />
-            <Input label="Cost Price" type="number" min={0} step="0.01" {...form.register("cost_price_cents")} error={errors.cost_price_cents?.message} />
-          </FieldGrid>
-          {!variants.length ? (
-            <>
-              <ToggleField label="Track Inventory" description="Deduct stock when orders are placed." checked={trackInventory} onChange={(checked) => form.setValue("track_inventory", checked, { shouldDirty: true, shouldValidate: true })} />
-              {trackInventory ? (
-                <FieldGrid>
-                  <Input label="Stock Quantity" type="number" min={0} {...form.register("stock_quantity")} error={errors.stock_quantity?.message} />
-                  <Input label="Low Stock Alert" type="number" min={0} {...form.register("low_stock_threshold")} error={errors.low_stock_threshold?.message} />
-                </FieldGrid>
-              ) : null}
-            </>
-          ) : null}
-        </div>
-      ) : null}
+
       <div className="rounded-lg border border-border bg-background">
         <div className="border-b border-border p-3">
           <input
             className="h-10 w-full rounded-lg border border-border bg-muted px-3 text-sm outline-none transition focus:border-primary focus:bg-background"
             value={attributeSearch}
             onChange={(event) => setAttributeSearch(event.target.value)}
-            placeholder="Search..."
+            placeholder="Search attributes & options (e.g., Color, Size)..."
           />
         </div>
         <div className="max-h-80 space-y-4 overflow-y-auto p-3">
-          {loadingAttributes ? <p className="text-sm text-muted-foreground">Searching...</p> : groupedAttributes.length ? groupedAttributes.map((group) => (
+          {loadingAttributes ? (
+            <p className="text-sm text-muted-foreground">Searching attributes...</p>
+          ) : groupedAttributes.length ? groupedAttributes.map((group) => (
             <div key={group.id} className="space-y-2">
               <div className="flex items-center justify-between gap-3">
-                <p className="text-sm font-bold">{group.name}</p>
+                <p className="text-sm font-bold">{group.name} {group.isVariantDefining ? <span className="text-xs font-normal text-primary">(Variant Defining)</span> : null}</p>
                 <span className="text-xs text-muted-foreground">{group.values.filter((value) => selectedAttributes.includes(Number(value.id))).length} selected</span>
               </div>
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -362,7 +442,7 @@ export function VariantSection({ form, options }: SectionProps) {
                   const id = Number(value.id);
                   const checked = selectedAttributes.includes(id);
                   return (
-                    <label key={value.id} className="flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm hover:bg-muted">
+                    <label key={value.id} className="flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm hover:bg-muted cursor-pointer transition">
                       <input type="checkbox" checked={checked} onChange={(event) => toggleAttributeValue(id, event.target.checked)} className="h-4 w-4 rounded border-border" />
                       <span>{value.name}</span>
                     </label>
@@ -370,19 +450,31 @@ export function VariantSection({ form, options }: SectionProps) {
                 })}
               </div>
             </div>
-          )) : <p className="text-sm text-muted-foreground">No attribute values available.</p>}
+          )) : (
+            <p className="text-sm text-muted-foreground">No attribute values available.</p>
+          )}
         </div>
       </div>
+
       <div className="space-y-3">
         {variants.length ? (
-          <p className="text-xs text-muted-foreground">
-            {pricingMode === "global"
-              ? "Variant prices shown below are inherited. Editing any price switches all variants to independent pricing."
-              : "Each variant price is independent. Clear every variant price to restore global product pricing."}
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-muted-foreground">
+              {pricingMode === "global"
+                ? "Variant prices shown below are inherited from Global Pricing. Editing any price switches to independent variant pricing."
+                : "Independent variant pricing is active. Clear all variant prices to restore global pricing."}
+            </p>
+            <span className="text-xs font-medium text-muted-foreground">
+              {variants.length} variant(s) generated
+            </span>
+          </div>
         ) : null}
+
         {variants.length ? variants.map((variant, index) => (
-          <div key={variant.id} className="rounded-lg border border-border bg-background">
+          <div
+            key={variant.id}
+            className={`rounded-lg border transition ${variant.is_primary ? "border-primary/50 bg-primary/[0.02]" : "border-border bg-background"}`}
+          >
             <div className="flex items-center gap-3 p-4">
               <input
                 type="checkbox"
@@ -394,22 +486,54 @@ export function VariantSection({ form, options }: SectionProps) {
               <button type="button" className="flex min-w-0 flex-1 items-center gap-3 text-left" onClick={() => toggleAccordion(variant.id)}>
                 {openVariantIds.includes(variant.id) ? <ChevronDown className="h-4 w-4 shrink-0" /> : <ChevronRight className="h-4 w-4 shrink-0" />}
                 <span className="min-w-0">
-                  <span className="block truncate text-sm font-bold">
-                    Variant: {variantName(variant.attribute_values) || index + 1}{variant.is_primary ? " (Primary)" : ""}
+                  <span className="flex items-center gap-2 text-sm font-bold">
+                    <span>{variantName(variant.attribute_values) || `Variant ${index + 1}`}</span>
+                    {variant.is_primary ? (
+                      <span className="inline-flex items-center gap-1 rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                        <Star className="h-3 w-3 fill-primary text-primary" />
+                        Primary Default
+                      </span>
+                    ) : null}
                   </span>
-                  <span className="mt-0.5 block truncate text-xs text-muted-foreground">{variant.attribute_values.map((id) => valuesById.get(id)?.name ?? id).join(" / ")}</span>
+                  <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                    SKU: {variant.sku || "Auto-generated"} &bull; {pricingMode === "variant" && variant.price_cents !== undefined ? formatCurrency(variant.price_cents) : "Inherited price"}
+                  </span>
                 </span>
               </button>
+
+              <div className="flex items-center gap-2">
+                {!variant.is_primary && variant.status === "active" ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs"
+                    onClick={() => setPrimaryVariant(variant.id)}
+                  >
+                    Set as Primary
+                  </Button>
+                ) : null}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                  onClick={() => removeVariant(variant.id)}
+                  aria-label="Remove variant"
+                  icon={<Trash2 className="h-4 w-4" />}
+                />
+              </div>
             </div>
+
             {openVariantIds.includes(variant.id) ? (
               <div className="border-t border-border p-4">
                 <div className="grid gap-3 md:grid-cols-3">
                   <Input label="SKU" placeholder="Auto-generated if blank" value={variant.sku} onChange={(event) => updateVariant(variant.id, { sku: event.target.value })} />
                   <Input label="Sell Price" type="number" min={0} step="0.01" placeholder="Enter sell price" value={pricingMode === "global" ? globalSellPrice : variant.price_cents ?? ""} onChange={(event) => updateVariantPricing(variant.id, "price_cents", event.target.value)} />
-                  <Input label="Regular Price" type="number" min={0} step="0.01" placeholder="Enter regular price" value={pricingMode === "global" ? globalRegularPrice : variant.compare_at_price_cents ?? ""} onChange={(event) => updateVariantPricing(variant.id, "compare_at_price_cents", event.target.value)} />
-                  <Input label="Cost Price" type="number" min={0} step="0.01" placeholder="Enter price" value={pricingMode === "global" ? globalCostPrice : variant.cost_price_cents ?? ""} onChange={(event) => updateVariantPricing(variant.id, "cost_price_cents", event.target.value)} />
+                  <Input label="Regular (Compare-At) Price" type="number" min={0} step="0.01" placeholder="Enter regular price" value={pricingMode === "global" ? globalRegularPrice : variant.compare_at_price_cents ?? ""} onChange={(event) => updateVariantPricing(variant.id, "compare_at_price_cents", event.target.value)} />
+                  <Input label="Cost Price" type="number" min={0} step="0.01" placeholder="Enter cost price" value={pricingMode === "global" ? globalCostPrice : variant.cost_price_cents ?? ""} onChange={(event) => updateVariantPricing(variant.id, "cost_price_cents", event.target.value)} />
                   <SelectField label="Track Inventory" value={String(variant.track_inventory)} placeholder="Select inventory behavior" options={[{ id: "true", name: "Track inventory" }, { id: "false", name: "Do not track" }]} onChange={(value) => updateVariant(variant.id, { track_inventory: value === "true" })} />
-                  <Input label="Quantity" type="number" min={0} placeholder="Enter quantity" value={variant.stock_quantity ?? ""} onChange={(event) => updateVariant(variant.id, { stock_quantity: event.target.value ? Number(event.target.value) : "" })} />
+                  <Input label="Stock Quantity" type="number" min={0} placeholder="Enter quantity" value={variant.stock_quantity ?? ""} onChange={(event) => updateVariant(variant.id, { stock_quantity: event.target.value ? Number(event.target.value) : "" })} />
                   <SelectField label="Status" value={variant.status} placeholder="Select status" options={[{ id: "active", name: "Active" }, { id: "inactive", name: "Inactive" }]} onChange={(value) => updateVariant(variant.id, { status: value as ProductVariantDraft["status"] })} />
                 </div>
               </div>
@@ -417,8 +541,8 @@ export function VariantSection({ form, options }: SectionProps) {
           </div>
         )) : (
           <div className="rounded-lg border border-dashed border-border bg-muted/40 p-6 text-center">
-            <p className="text-sm font-semibold">No variants yet</p>
-            <p className="mt-1 text-xs text-muted-foreground">Select one or more attribute values to generate variant combinations.</p>
+            <p className="text-sm font-semibold">No variants defined</p>
+            <p className="mt-1 text-xs text-muted-foreground">Select one or more attribute values above to generate variant combinations.</p>
           </div>
         )}
       </div>
@@ -426,28 +550,14 @@ export function VariantSection({ form, options }: SectionProps) {
   );
 }
 
-export function SeoSection({ form }: SectionProps) {
-  const errors = form.formState.errors.seo;
-  const customSeo = useFieldValue(form, "seo").custom_enabled;
+export function MediaSection({ form }: SectionProps) {
   return (
-    <div className="space-y-5">
-      <SectionHeader title="SEO" description="Search metadata is generated automatically unless custom SEO is enabled." />
-      <ToggleField
-        label="Enable Custom SEO"
-        description="Override the automatic title, description, canonical URL, or social image."
-        checked={customSeo}
-        onChange={(checked) => form.setValue("seo.custom_enabled", checked, { shouldDirty: true })}
-      />
-      {customSeo ? (
-        <>
-          <FieldGrid>
-            <Input label="Meta Title" {...form.register("seo.meta_title")} error={errors?.meta_title?.message} />
-            <Input label="Canonical URL" {...form.register("seo.canonical_url")} error={errors?.canonical_url?.message} />
-            <Input label="Open Graph Image" {...form.register("seo.og_image_url")} />
-          </FieldGrid>
-          <TextAreaField label="Meta Description" rows={4} {...form.register("seo.meta_description")} error={errors?.meta_description?.message} />
-        </>
-      ) : null}
+    <div className="space-y-6">
+      <SectionHeader title="Images & Media" description="Upload the primary product image and sortable gallery assets with alt text." />
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+        <ProductImageUploader value={useFieldValue(form, "featured_image")} onChange={(image) => form.setValue("featured_image", image, { shouldDirty: true })} />
+        <GalleryUploader values={useFieldValue(form, "gallery_images")} onChange={(images) => form.setValue("gallery_images", images, { shouldDirty: true, shouldValidate: true })} />
+      </div>
     </div>
   );
 }
@@ -457,36 +567,42 @@ export function PublishSection({ form, options }: SectionProps) {
   const hasVariants = values.variants.length > 0;
   const activeVariants = values.variants.filter((variant) => variant.status === "active");
   const usesGlobalPricing = values.pricing_mode === "global";
+  const primaryVariant = values.variants.find((v) => v.is_primary);
+
   const checks = [
     { label: "Basic information", complete: Boolean(values.name && values.category_id && values.short_description) },
-    { label: "Pricing", complete: usesGlobalPricing ? values.base_price_cents !== "" : activeVariants.length > 0 && activeVariants.every((variant) => variant.price_cents !== undefined) },
+    { label: "Pricing", complete: usesGlobalPricing ? values.base_price_cents !== "" : activeVariants.length > 0 && activeVariants.every((variant) => variant.price_cents !== undefined && variant.price_cents !== null) },
     { label: "Inventory", complete: hasVariants ? activeVariants.every((variant) => !variant.track_inventory || variant.stock_quantity !== "") : !values.track_inventory || values.stock_quantity !== "" },
-    { label: "Media", complete: Boolean(values.featured_image || values.gallery_images.length) },
-    { label: "SEO", complete: true },
+    { label: "Primary variant", complete: hasVariants ? Boolean(primaryVariant) : true },
+    { label: "Media assets", complete: Boolean(values.featured_image || values.gallery_images.length) },
   ];
 
   return (
     <div className="space-y-5">
-      <SectionHeader title="Publish" description="Review the product summary, validation checks, and publication state." />
+      <SectionHeader title="Publish & Merchandising" description="Review the product summary, validation checks, and publication state." />
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="rounded-lg border border-border bg-background p-4">
           <h3 className="text-base font-bold">{values.name || "Untitled product"}</h3>
           <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
             <Summary label="Brand" value={optionName(options, "brands", values.brand_id)} />
             <Summary label="Category" value={optionName(options, "categories", values.subcategory_id || values.category_id)} />
-            <Summary label="Sell Price" value={usesGlobalPricing ? formatCurrency(Number(values.base_price_cents || 0)) : "Managed by sellable SKU"} />
-            <Summary label="Stock" value={hasVariants ? "Managed by sellable SKU" : values.track_inventory ? String(values.stock_quantity || 0) : "Not tracked"} />
+            <Summary label="Pricing Mode" value={usesGlobalPricing ? "Global Product Pricing" : "Independent Variant Pricing"} />
+            <Summary label="Sell Price" value={usesGlobalPricing ? formatCurrency(Number(values.base_price_cents || 0)) : primaryVariant?.price_cents !== undefined ? `${formatCurrency(primaryVariant.price_cents)} (Primary)` : "Managed by variants"} />
+            <Summary label="Stock" value={hasVariants ? "Managed by variants" : values.track_inventory ? String(values.stock_quantity || 0) : "Not tracked"} />
             <Summary label="Images" value={`${values.featured_image ? 1 : 0} featured, ${values.gallery_images.length} gallery`} />
-            <Summary label="Variants" value={String(values.variants.length)} />
+            <Summary label="Variants" value={hasVariants ? `${values.variants.length} total (${activeVariants.length} active)` : "None (Single product)"} />
           </div>
         </div>
         <div className="rounded-lg border border-border bg-background p-4">
-          <p className="text-sm font-bold">Validation Check</p>
+          <p className="text-sm font-bold">Validation Readiness</p>
           <div className="mt-3 space-y-2">
             {checks.map((check) => (
               <div key={check.label} className="flex items-center justify-between gap-3 text-sm">
-                <span>{check.label}</span>
-                <span className={check.complete ? "font-semibold text-emerald-600" : "font-semibold text-amber-600"}>{check.complete ? "Ready" : "Needs review"}</span>
+                <span className="flex items-center gap-1.5">
+                  <CheckCircle2 className={`h-4 w-4 ${check.complete ? "text-emerald-600" : "text-muted-foreground"}`} />
+                  {check.label}
+                </span>
+                <span className={check.complete ? "font-semibold text-emerald-600 text-xs" : "font-semibold text-amber-600 text-xs"}>{check.complete ? "Ready" : "Needs review"}</span>
               </div>
             ))}
           </div>
@@ -501,7 +617,7 @@ export function PublishSection({ form, options }: SectionProps) {
         <ToggleField label="New Arrival" checked={useFieldValue(form, "is_new")} onChange={(checked) => form.setValue("is_new", checked, { shouldDirty: true })} />
         <ToggleField label="Best Seller" checked={useFieldValue(form, "is_best_seller")} onChange={(checked) => form.setValue("is_best_seller", checked, { shouldDirty: true })} />
         <ToggleField label="Flash Sale" checked={useFieldValue(form, "is_flash_sale")} onChange={(checked) => form.setValue("is_flash_sale", checked, { shouldDirty: true })} />
-        <ToggleField label="Free Shipping" description="Eligible for free shipping promotions." checked={useFieldValue(form, "free_shipping")} onChange={(checked) => form.setValue("free_shipping", checked, { shouldDirty: true })} />
+        <ToggleField label="Free Shipping" description="Eligible for free shipping." checked={useFieldValue(form, "free_shipping")} onChange={(checked) => form.setValue("free_shipping", checked, { shouldDirty: true })} />
       </div>
     </div>
   );
@@ -515,3 +631,4 @@ function Summary({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+

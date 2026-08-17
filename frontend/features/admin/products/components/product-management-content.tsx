@@ -1285,8 +1285,36 @@ export function ProductManagementContent({ module }: { module: ProductModule }) 
         onToggleAll={() => setSelected((current) => items.every((item) => current.includes(item.id)) ? [] : items.map((item) => item.id))}
         onCreate={() => module === "products" ? router.push(routePaths.adminProductCreate) : module === "collections" ? router.push(`${routePaths.adminCollections}/create`) : setDrawer({ open: true, mode: "create", item: null })}
         onEdit={(item) => module === "products" ? router.push(`${routePaths.adminProducts}/${item.id}/edit`) : module === "collections" ? router.push(`${routePaths.adminCollections}/${item.id}/edit`) : setDrawer({ open: true, mode: "edit", item })}
-        onDelete={(item) => confirmDelete({ title: "Confirm Deletion", onConfirm: async () => { await productManagementService.delete(module, item.id); toast.success("Record deleted."); await load(); } })}
-        onBulkDelete={() => confirmDelete({ title: "Confirm Deletion", onConfirm: async () => { await productManagementService.bulkDelete(module, selected); setSelected([]); toast.success("Selected records deleted."); await load(); } })}
+        onDelete={(item) => {
+          const name = String(item.name ?? item.title ?? item.value ?? "this item");
+          const message = module === "products"
+            ? `Are you sure you want to delete "${name}"? Active variants, catalog links, and storefront listings will be removed. Historical order records will remain safe and intact.`
+            : `Are you sure you want to delete "${name}"? This action cannot be undone.`;
+          confirmDelete({
+            title: module === "products" ? `Delete Product: ${name}` : "Confirm Deletion",
+            message,
+            onConfirm: async () => {
+              await productManagementService.delete(module, item.id);
+              toast.success(`${config.title.replace(" Management", "")} deleted successfully.`);
+              await load();
+            },
+          });
+        }}
+        onBulkDelete={() => {
+          const message = module === "products"
+            ? `Are you sure you want to delete ${selected.length} selected product(s)? Active variants and storefront listings will be removed. Historical order records will remain safe and intact.`
+            : `Are you sure you want to delete ${selected.length} selected record(s)? This action cannot be undone.`;
+          confirmDelete({
+            title: "Confirm Bulk Deletion",
+            message,
+            onConfirm: async () => {
+              await productManagementService.bulkDelete(module, selected);
+              setSelected([]);
+              toast.success(`Selected ${config.title.replace(" Management", "").toLowerCase()} record(s) deleted.`);
+              await load();
+            },
+          });
+        }}
         onBulkStatus={module === "reviews" || module === "comments" ? async (status) => {
           await productManagementService.bulkStatus(module, selected, status);
           setSelected([]);
@@ -1365,6 +1393,21 @@ function ManagementPage({
   onReorder?: (items: ProductRecord[]) => void;
 }) {
   const [searchInput, setSearchInput] = useState(query.search);
+
+  useEffect(() => {
+    setSearchInput(query.search);
+  }, [query.search]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (searchInput !== query.search) {
+        onSearch(searchInput);
+      }
+    }, 350);
+
+    return () => window.clearTimeout(timer);
+  }, [searchInput, onSearch, query.search]);
+
   const [draggedId, setDraggedId] = useState<number | null>(null);
   const [dropId, setDropId] = useState<number | null>(null);
   const allSelected = data.length > 0 && data.every((item) => selected.includes(item.id));

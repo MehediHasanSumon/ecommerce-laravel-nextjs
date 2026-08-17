@@ -26,7 +26,7 @@ class EnforceIpBlock
         }
 
         if ($request->is('api/*') || $request->expectsJson()) {
-            return ApiResponse::error('Your IP address has been blocked.', 403);
+            return ApiResponse::error('Your request could not be completed at this time. Please contact support if you believe this is an error.', 403);
         }
 
         return response()->view('errors.ip-blocked', status: 403);
