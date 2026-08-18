@@ -82,18 +82,68 @@ function normalizeCategorySelection(values: ProductWizardValues, options: Produc
   return values;
 }
 
-function mergeSavedDraft(baseValues: ProductWizardValues, saved: string | null, mode: ProductWizardMode): ProductWizardValues {
-  if (!saved) return baseValues;
+type StoredDraft = {
+  savedAt: number;
+  values: Partial<ProductWizardValues>;
+};
 
-  const parsed = JSON.parse(saved) as Partial<ProductWizardValues>;
+function getStoredDraft(saved: string | null): StoredDraft | null {
+  if (!saved) return null;
+  try {
+    const parsed = JSON.parse(saved);
+    if (parsed && typeof parsed === "object") {
+      if ("savedAt" in parsed && "values" in parsed && typeof parsed.values === "object") {
+        return parsed as StoredDraft;
+      }
+      return { savedAt: 0, values: parsed as Partial<ProductWizardValues> };
+    }
+  } catch {
+    // Malformed JSON
+  }
+  return null;
+}
+
+function mergeSavedDraft(
+  baseValues: ProductWizardValues,
+  saved: string | null,
+  mode: ProductWizardMode,
+  recordUpdatedAt?: string | null,
+  draftKey?: string,
+): ProductWizardValues {
+  const draft = getStoredDraft(saved);
+  if (!draft) return baseValues;
+
+  const now = Date.now();
+  const maxAgeMs = 24 * 60 * 60 * 1000; // 24 hours
+
+  if (draft.savedAt > 0 && now - draft.savedAt > maxAgeMs) {
+    if (typeof window !== "undefined" && draftKey) {
+      window.localStorage.removeItem(draftKey);
+    }
+    return baseValues;
+  }
+
+  if (mode === "edit") {
+    if (recordUpdatedAt) {
+      const recordTime = new Date(recordUpdatedAt).getTime();
+      if (!Number.isNaN(recordTime) && recordTime > draft.savedAt) {
+        if (typeof window !== "undefined" && draftKey) {
+          window.localStorage.removeItem(draftKey);
+        }
+        return baseValues;
+      }
+    } else if (draft.savedAt === 0) {
+      if (typeof window !== "undefined" && draftKey) {
+        window.localStorage.removeItem(draftKey);
+      }
+      return baseValues;
+    }
+  }
+
+  const parsed = { ...draft.values };
   if (mode === "edit") {
     delete parsed.featured_image;
     delete parsed.gallery_images;
-    delete parsed.base_price_cents;
-    delete parsed.compare_at_price_cents;
-    delete parsed.cost_price_cents;
-    delete parsed.pricing_mode;
-    delete parsed.variants;
   }
 
   return { ...baseValues, ...parsed };
@@ -143,7 +193,8 @@ export function ProductWizardPage({ mode, productId }: { mode: ProductWizardMode
       const loadedOptions = optionResponse.data.options ?? emptyOptions;
       const baseValues = valuesFromProduct(record, loadedOptions);
       const saved = typeof window !== "undefined" ? window.localStorage.getItem(draftKey) : null;
-      form.reset(normalizeCategorySelection(mergeSavedDraft(baseValues, saved, mode), loadedOptions));
+      const merged = mergeSavedDraft(baseValues, saved, mode, record?.updated_at ? String(record.updated_at) : null, draftKey);
+      form.reset(normalizeCategorySelection(merged, loadedOptions));
     } catch (error) {
       toast.error(toAppError(error).message);
     } finally {
@@ -164,8 +215,13 @@ export function ProductWizardPage({ mode, productId }: { mode: ProductWizardMode
   useEffect(() => {
     // eslint-disable-next-line react-hooks/incompatible-library
     const subscription = form.watch((values) => {
+      if (!form.formState.isDirty) return;
       try {
-        window.localStorage.setItem(draftKey, JSON.stringify(stripFileValues(values as ProductWizardValues)));
+        const payload: StoredDraft = {
+          savedAt: Date.now(),
+          values: stripFileValues(values as ProductWizardValues),
+        };
+        window.localStorage.setItem(draftKey, JSON.stringify(payload));
       } catch {
         // Draft persistence is best effort.
       }
@@ -221,7 +277,11 @@ export function ProductWizardPage({ mode, productId }: { mode: ProductWizardMode
   }
 
   function saveDraft() {
-    window.localStorage.setItem(draftKey, JSON.stringify(stripFileValues(form.getValues())));
+    const payload: StoredDraft = {
+      savedAt: Date.now(),
+      values: stripFileValues(form.getValues()),
+    };
+    window.localStorage.setItem(draftKey, JSON.stringify(payload));
     toast.success("Product draft saved.");
   }
 

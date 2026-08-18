@@ -387,23 +387,24 @@ function amountToCents(value: number | "" | undefined) {
   return value === "" || value === undefined ? null : Math.round(Number(value) * 100);
 }
 
-function storagePath(image: ProductMediaItem) {
+function storagePath(image: ProductMediaItem): string | null {
   const source = image.path || image.url;
   if (!source || source.startsWith("blob:") || source.startsWith("data:")) return null;
+
+  if (image.path && !image.path.startsWith("blob:") && !image.path.startsWith("http://") && !image.path.startsWith("https://")) {
+    return image.path.replace(/^\/?storage\//, "");
+  }
+
   try {
     const parsed = new URL(source);
     const storageIndex = parsed.pathname.indexOf("/storage/");
     if (storageIndex >= 0) {
       return parsed.pathname.slice(storageIndex + "/storage/".length);
     }
-    return null;
+    return source;
   } catch {
-    // Relative storage path.
+    return source.replace(/^\/?storage\//, "");
   }
-
-  const path = source.replace(/^\/?storage\//, "");
-
-  return path.includes(":") ? null : path;
 }
 
 export function productPayloadFromValues(values: ProductWizardValues, publish: boolean, includeBrand = true): ProductModulePayload {
@@ -460,6 +461,7 @@ export function productPayloadFromValues(values: ProductWizardValues, publish: b
     base_price_cents: values.pricing_mode === "global" ? amountToCents(values.base_price_cents) : null,
     compare_at_price_cents: values.pricing_mode === "global" ? amountToCents(values.compare_at_price_cents) : null,
     cost_price_cents: values.pricing_mode === "global" ? amountToCents(values.cost_price_cents) : null,
+    currency: values.currency || selectCurrencySettings(useSettingsStore.getState()).currency,
     track_inventory: variants.length ? false : values.track_inventory,
     stock_quantity: variants.length ? null : optionalNumber(values.stock_quantity),
     low_stock_threshold: variants.length ? null : optionalNumber(values.low_stock_threshold),

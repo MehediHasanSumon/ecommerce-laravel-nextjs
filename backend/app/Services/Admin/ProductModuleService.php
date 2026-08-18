@@ -486,11 +486,41 @@ class ProductModuleService
         $this->syncProductAttributeValues($model, $attributeValues);
         $images = $this->productImagesFromUploads($images, $featuredImageFile, $galleryImageFiles);
         $newImagePaths = collect($images)->pluck('url')->map(fn (?string $path): ?string => PublicStorageImage::path($path))->filter()->values()->all();
-        $model->images()->delete();
-        $model->images()->createMany($images);
+
+        // Safe Diff-Based Image Synchronization
+        $existingImageRecords = $model->images()->get()->keyBy('url');
+        $keptImageIds = [];
+
+        foreach ($images as $imgData) {
+            $existing = $existingImageRecords->get($imgData['url']);
+            if ($existing) {
+                $existing->update([
+                    'alt_text' => $imgData['alt_text'] ?? null,
+                    'type' => $imgData['type'] ?? 'gallery',
+                    'sort_order' => $imgData['sort_order'] ?? 0,
+                    'is_primary' => (bool) ($imgData['is_primary'] ?? false),
+                ]);
+                $keptImageIds[] = $existing->id;
+            } else {
+                $created = $model->images()->create($imgData);
+                $keptImageIds[] = $created->id;
+            }
+        }
+
+        $model->images()->whereNotIn('id', $keptImageIds)->delete();
+
         collect($oldImagePaths)
             ->diff($newImagePaths)
-            ->each(fn (string $path) => $this->deletePublicUpload($path));
+            ->each(function (string $path): void {
+                if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+                    return;
+                }
+                $stillUsed = ProductImage::query()->where('url', $path)->exists();
+                if (! $stillUsed) {
+                    $this->deletePublicUpload($path);
+                }
+            });
+
         if ($features !== null) {
             $model->features()->delete();
             $model->features()->createMany($features);
@@ -571,12 +601,22 @@ class ProductModuleService
     private function resolveProductTags(array $tags): array
     {
         return collect($tags)
-            ->flatMap(fn ($tag) => is_string($tag) ? explode(',', $tag) : [$tag])
-            ->map(fn ($tag) => is_string($tag) ? trim($tag) : $tag)
+            ->flatMap(fn ($tag) => is_string($tag) && str_contains($tag, ',') ? explode(',', $tag) : [$tag])
+            ->map(function ($tag) {
+                if (is_array($tag)) {
+                    if (isset($tag['id']) && is_numeric($tag['id'])) {
+                        return (int) $tag['id'];
+                    }
+
+                    return isset($tag['name']) ? (string) $tag['name'] : null;
+                }
+
+                return is_string($tag) ? trim($tag) : $tag;
+            })
             ->filter(fn ($tag) => filled($tag))
             ->map(function ($tag): ?int {
-                if (is_numeric($tag)) {
-                    $existing = Tag::query()->find((int) $tag);
+                if (is_int($tag)) {
+                    $existing = Tag::query()->find($tag);
                     if ($existing) {
                         return (int) $existing->id;
                     }
@@ -594,6 +634,13 @@ class ProductModuleService
 
                 if ($existing) {
                     return (int) $existing->id;
+                }
+
+                if (is_numeric($tag)) {
+                    $byId = Tag::query()->find((int) $tag);
+                    if ($byId) {
+                        return (int) $byId->id;
+                    }
                 }
 
                 return (int) Tag::query()->create([

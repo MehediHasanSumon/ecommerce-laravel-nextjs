@@ -140,10 +140,15 @@ class ProductVariantEngine
             }
         }
 
+        $survivingIds = $product->variants()->whereNull('deleted_at')->pluck('id')->all();
+        if ($explicitPrimaryVariantId && ! in_array($explicitPrimaryVariantId, $survivingIds, true)) {
+            $explicitPrimaryVariantId = null;
+        }
+
         $primaryVariantId = $explicitPrimaryVariantId ?? $firstActiveVariantId ?? $firstVariantId;
 
         $product->variants()->withTrashed()->whereNotNull('is_primary')->update(['is_primary' => null]);
-        if ($primaryVariantId !== null) {
+        if ($primaryVariantId !== null && in_array($primaryVariantId, $survivingIds, true)) {
             $product->variants()->whereKey($primaryVariantId)->update(['is_primary' => true]);
         }
     }

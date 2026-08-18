@@ -10,6 +10,7 @@ use App\Models\PaymentTransaction;
 use App\Models\Product;
 use App\Models\ProductCollection;
 use App\Models\ProductReview;
+use App\Models\ProductVariant;
 use App\Models\Settings\CompanySetting;
 use App\Models\Settings\PaymentGatewaySetting;
 use App\Models\User;
@@ -299,8 +300,9 @@ class DashboardAnalyticsService
 
     private function lowStockProducts(bool $outOnly): array
     {
-        return Product::query()
+        $simpleProducts = Product::query()
             ->where('track_inventory', true)
+            ->whereDoesntHave('variants')
             ->when($outOnly, fn ($query) => $query->whereRaw('COALESCE(stock_quantity, 0) <= 0'), fn ($query) => $query->whereRaw('COALESCE(stock_quantity, 0) <= COALESCE(low_stock_threshold, 0)')->whereRaw('COALESCE(stock_quantity, 0) > 0'))
             ->orderByRaw('COALESCE(stock_quantity, 0) asc')
             ->limit(8)
@@ -312,7 +314,30 @@ class DashboardAnalyticsService
                 'current_stock' => (int) ($product->stock_quantity ?? 0),
                 'minimum_stock' => (int) ($product->low_stock_threshold ?? 0),
                 'status' => $product->status,
-            ])
+            ]);
+
+        $variantProducts = ProductVariant::query()
+            ->where('track_inventory', true)
+            ->where('status', 'active')
+            ->whereHas('product', fn ($query) => $query->whereNull('deleted_at'))
+            ->with(['product:id,name,status'])
+            ->when($outOnly, fn ($query) => $query->whereRaw('COALESCE(stock_quantity, 0) <= 0'), fn ($query) => $query->whereRaw('COALESCE(stock_quantity, 0) <= 5')->whereRaw('COALESCE(stock_quantity, 0) > 0'))
+            ->orderByRaw('COALESCE(stock_quantity, 0) asc')
+            ->limit(8)
+            ->get(['id', 'product_id', 'sku', 'stock_quantity', 'status'])
+            ->map(fn (ProductVariant $variant) => [
+                'id' => $variant->product_id,
+                'name' => ($variant->product?->name ?? 'Product').' ('.$variant->sku.')',
+                'sku' => $variant->sku,
+                'current_stock' => (int) ($variant->stock_quantity ?? 0),
+                'minimum_stock' => 5,
+                'status' => $variant->product?->status ?? 'active',
+            ]);
+
+        return $simpleProducts->concat($variantProducts)
+            ->sortBy('current_stock')
+            ->take(8)
+            ->values()
             ->all();
     }
 
@@ -369,10 +394,23 @@ class DashboardAnalyticsService
 
     private function notifications(): array
     {
+        $lowStockSimple = Product::query()
+            ->where('track_inventory', true)
+            ->whereDoesntHave('variants')
+            ->whereRaw('COALESCE(stock_quantity, 0) <= COALESCE(low_stock_threshold, 0)')
+            ->count();
+
+        $lowStockVariants = ProductVariant::query()
+            ->where('track_inventory', true)
+            ->where('status', 'active')
+            ->whereHas('product', fn ($query) => $query->whereNull('deleted_at'))
+            ->whereRaw('COALESCE(stock_quantity, 0) <= 5')
+            ->count();
+
         return [
             ['key' => 'pending_orders', 'label' => 'Pending Orders', 'value' => Order::query()->where('status', 'pending')->count()],
             ['key' => 'pending_reviews', 'label' => 'Pending Reviews', 'value' => ProductReview::query()->where('status', 'pending')->count()],
-            ['key' => 'low_stock', 'label' => 'Low Stock Alerts', 'value' => Product::query()->where('track_inventory', true)->whereRaw('COALESCE(stock_quantity, 0) <= COALESCE(low_stock_threshold, 0)')->count()],
+            ['key' => 'low_stock', 'label' => 'Low Stock Alerts', 'value' => $lowStockSimple + $lowStockVariants],
             ['key' => 'failed_payments', 'label' => 'Failed Payments', 'value' => PaymentTransaction::query()->where('status', 'failed')->count()],
             ['key' => 'expired_collections', 'label' => 'Expired Collections', 'value' => ProductCollection::query()->whereNotNull('ends_at')->where('ends_at', '<', now())->count()],
         ];
@@ -455,7 +493,20 @@ class DashboardAnalyticsService
 
     private function outOfStockCount(): int
     {
-        return Product::query()->where('track_inventory', true)->whereRaw('COALESCE(stock_quantity, 0) <= 0')->count();
+        $simpleOutOfStock = Product::query()
+            ->where('track_inventory', true)
+            ->whereDoesntHave('variants')
+            ->whereRaw('COALESCE(stock_quantity, 0) <= 0')
+            ->count();
+
+        $variantOutOfStock = ProductVariant::query()
+            ->where('track_inventory', true)
+            ->where('status', 'active')
+            ->whereHas('product', fn ($query) => $query->whereNull('deleted_at'))
+            ->whereRaw('COALESCE(stock_quantity, 0) <= 0')
+            ->count();
+
+        return $simpleOutOfStock + $variantOutOfStock;
     }
 
     private function money(int|string|null $cents): float

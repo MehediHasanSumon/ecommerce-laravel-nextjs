@@ -25,26 +25,22 @@ class PublicStorageImage
 
         if (str_starts_with($lower, 'http://') || str_starts_with($lower, 'https://')) {
             $path = parse_url($value, PHP_URL_PATH);
-            if (! is_string($path)) {
-                return null;
+            if (is_string($path)) {
+                $storageIndex = strpos($path, '/storage/');
+                if ($storageIndex !== false) {
+                    $value = substr($path, $storageIndex + strlen('/storage/'));
+                } else {
+                    return filter_var($value, FILTER_VALIDATE_URL) ? $value : null;
+                }
+            } else {
+                return filter_var($value, FILTER_VALIDATE_URL) ? $value : null;
             }
-
-            $storageIndex = strpos($path, '/storage/');
-            if ($storageIndex === false) {
-                return null;
-            }
-
-            $value = substr($path, $storageIndex + strlen('/storage/'));
         }
 
         $value = preg_replace('#^/+storage/+|^storage/+#', '', $value) ?? '';
         $value = ltrim($value, '/');
 
-        if ($value === '' || str_contains($value, '..') || str_contains($value, ':')) {
-            return null;
-        }
-
-        if (! preg_match('#^[A-Za-z0-9][A-Za-z0-9._/\-]*$#', $value)) {
+        if ($value === '' || str_contains($value, '..')) {
             return null;
         }
 
@@ -53,6 +49,15 @@ class PublicStorageImage
 
     public static function url(?string $value): ?string
     {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        $lower = strtolower(trim($value));
+        if (str_starts_with($lower, 'http://') || str_starts_with($lower, 'https://')) {
+            return $value;
+        }
+
         $path = self::path($value);
 
         return $path ? Storage::disk('public')->url($path) : null;
@@ -65,7 +70,7 @@ class PublicStorageImage
         return [
             'id' => $image->id,
             'path' => $path,
-            'url' => self::url($path),
+            'url' => self::url($path ?: $image->url),
             'alt_text' => $image->alt_text,
             'type' => $image->type,
             'sort_order' => $image->sort_order,

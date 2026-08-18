@@ -44,13 +44,12 @@ export function BasicInfoSection({ form, options }: SectionProps) {
   const subcategoryId = useFieldValue(form, "subcategory_id");
   const subcategories = options.categories.filter((category) => category.parent_id && String(category.parent_id) === String(categoryId));
   const parentCategories = options.categories.filter((category) => !category.parent_id);
-
   useEffect(() => {
-    if (!subcategoryId) return;
+    if (!subcategoryId || !options.categories.length) return;
     if (!subcategories.some((category) => String(category.id) === String(subcategoryId))) {
       form.setValue("subcategory_id", "", { shouldDirty: true, shouldValidate: true });
     }
-  }, [form, subcategories, subcategoryId]);
+  }, [form, options.categories.length, subcategories, subcategoryId]);
 
   return (
     <div className="space-y-5">
@@ -60,7 +59,17 @@ export function BasicInfoSection({ form, options }: SectionProps) {
         {brandsEnabled ? (
           <SelectField label="Brand" value={brandId} placeholder="Select brand" options={[{ id: "", name: "No brand" }, ...options.brands]} onChange={(value) => form.setValue("brand_id", value, { shouldDirty: true })} />
         ) : null}
-        <SelectField label="Category" value={categoryId} placeholder="Select category" options={parentCategories.length ? parentCategories : options.categories} error={errors.category_id?.message} onChange={(value) => form.setValue("category_id", value, { shouldDirty: true, shouldValidate: true })} />
+        <SelectField
+          label="Category"
+          value={categoryId}
+          placeholder="Select category"
+          options={parentCategories.length ? parentCategories : options.categories}
+          error={errors.category_id?.message}
+          onChange={(value) => {
+            form.setValue("category_id", value, { shouldDirty: true, shouldValidate: true });
+            form.setValue("subcategory_id", "", { shouldDirty: true, shouldValidate: true });
+          }}
+        />
         <SelectField label="Subcategory" value={subcategoryId} placeholder="Select subcategory" options={[{ id: "", name: "No subcategory" }, ...subcategories]} onChange={(value) => form.setValue("subcategory_id", value, { shouldDirty: true })} />
       </FieldGrid>
       <TextAreaField label="Short Description" rows={3} {...form.register("short_description")} error={errors.short_description?.message} />

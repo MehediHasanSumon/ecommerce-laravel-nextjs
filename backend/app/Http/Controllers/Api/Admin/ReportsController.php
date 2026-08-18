@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\PaymentTransaction;
 use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Models\Settings\CompanySetting;
 use App\Models\Settings\ShippingMethod;
 use App\Models\User;
@@ -263,30 +264,68 @@ class ReportsController extends Controller
 
     private function inventory(int $limit): array
     {
-        $products = Product::query()
+        $simpleProducts = Product::query()
             ->where('track_inventory', true)
-            ->select('name', 'sku', 'stock_quantity', 'low_stock_threshold', 'status')
+            ->whereDoesntHave('variants')
+            ->select('id', 'name', 'sku', 'stock_quantity', 'low_stock_threshold', 'status')
             ->orderByRaw('COALESCE(stock_quantity, 0) asc')
             ->limit($limit)
-            ->get();
-        $lowStock = Product::query()
+            ->get()
+            ->map(fn ($p) => [
+                'name' => $p->name,
+                'sku' => $p->sku ?: 'No SKU',
+                'stock_quantity' => (int) ($p->stock_quantity ?? 0),
+                'status' => $p->status,
+            ]);
+
+        $variantProducts = ProductVariant::query()
             ->where('track_inventory', true)
+            ->where('status', 'active')
+            ->whereHas('product', fn ($query) => $query->whereNull('deleted_at'))
+            ->with(['product:id,name,status'])
+            ->orderByRaw('COALESCE(stock_quantity, 0) asc')
+            ->limit($limit)
+            ->get()
+            ->map(fn ($v) => [
+                'name' => ($v->product?->name ?? 'Product').' ('.$v->sku.')',
+                'sku' => $v->sku ?: 'No SKU',
+                'stock_quantity' => (int) ($v->stock_quantity ?? 0),
+                'status' => $v->product?->status ?? 'active',
+            ]);
+
+        $combined = $simpleProducts->concat($variantProducts)->sortBy('stock_quantity')->take($limit)->values();
+
+        $lowStockSimple = Product::query()
+            ->where('track_inventory', true)
+            ->whereDoesntHave('variants')
             ->whereRaw('COALESCE(stock_quantity, 0) <= COALESCE(low_stock_threshold, 0)')
             ->count();
+        $lowStockVariants = ProductVariant::query()
+            ->where('track_inventory', true)
+            ->where('status', 'active')
+            ->whereHas('product', fn ($query) => $query->whereNull('deleted_at'))
+            ->whereRaw('COALESCE(stock_quantity, 0) <= 5')
+            ->count();
+
+        $outStockSimple = Product::query()->where('track_inventory', true)->whereDoesntHave('variants')->whereRaw('COALESCE(stock_quantity, 0) <= 0')->count();
+        $outStockVariants = ProductVariant::query()->where('track_inventory', true)->where('status', 'active')->whereHas('product', fn ($query) => $query->whereNull('deleted_at'))->whereRaw('COALESCE(stock_quantity, 0) <= 0')->count();
+
+        $trackedSimple = Product::query()->where('track_inventory', true)->whereDoesntHave('variants')->count();
+        $trackedVariants = ProductVariant::query()->where('track_inventory', true)->where('status', 'active')->whereHas('product', fn ($query) => $query->whereNull('deleted_at'))->count();
 
         return [
             'summary' => [
-                ['label' => 'Tracked Products', 'value' => Product::query()->where('track_inventory', true)->count(), 'format' => 'number'],
-                ['label' => 'Low Stock', 'value' => $lowStock, 'format' => 'number'],
-                ['label' => 'Out of Stock', 'value' => Product::query()->where('track_inventory', true)->whereRaw('COALESCE(stock_quantity, 0) <= 0')->count(), 'format' => 'number'],
+                ['label' => 'Tracked Inventory Items', 'value' => $trackedSimple + $trackedVariants, 'format' => 'number'],
+                ['label' => 'Low Stock', 'value' => $lowStockSimple + $lowStockVariants, 'format' => 'number'],
+                ['label' => 'Out of Stock', 'value' => $outStockSimple + $outStockVariants, 'format' => 'number'],
                 ['label' => 'Active Products', 'value' => Product::query()->where('status', 'active')->count(), 'format' => 'number'],
             ],
-            'series' => $products->map(fn ($product) => ['label' => $product->name, 'value' => (int) ($product->stock_quantity ?? 0)]),
-            'rows' => $products->map(fn ($product) => [
-                'label' => $product->name,
-                'secondary' => $product->sku ?: 'No SKU',
-                'status' => $product->status,
-                'amount' => (string) ($product->stock_quantity ?? 0).' in stock',
+            'series' => $combined->map(fn ($item) => ['label' => $item['name'], 'value' => $item['stock_quantity']]),
+            'rows' => $combined->map(fn ($item) => [
+                'label' => $item['name'],
+                'secondary' => $item['sku'],
+                'status' => $item['status'],
+                'amount' => (string) $item['stock_quantity'].' in stock',
             ]),
         ];
     }
