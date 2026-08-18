@@ -299,9 +299,15 @@ export default function CartPage() {
                     <span className="text-muted-foreground">Estimated Tax</span>
                     <span className="font-medium">{formatPrice(tax)}</span>
                   </div>
+                  {(cart.summary?.itemDiscount ?? 0) > 0 ? (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Promotional Discount</span>
+                      <span className="font-medium text-emerald-600">-{formatPrice(cart.summary?.itemDiscount ?? 0)}</span>
+                    </div>
+                  ) : null}
                   {hasCoupon && couponDiscount > 0 ? (
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Discount</span>
+                      <span className="text-muted-foreground">Coupon ({cart.couponCode})</span>
                       <span className="font-medium text-emerald-600">-{formatPrice(couponDiscount)}</span>
                     </div>
                   ) : null}

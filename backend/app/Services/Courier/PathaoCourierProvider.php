@@ -308,15 +308,44 @@ class PathaoCourierProvider extends AbstractCourierProvider
     {
         $needles = collect($values)
             ->filter()
-            ->map(fn ($value): string => Str::of((string) $value)->ascii()->lower()->squish()->toString());
+            ->map(fn ($value): string => Str::of((string) $value)->ascii()->lower()->squish()->toString())
+            ->filter(fn (string $needle): bool => mb_strlen($needle) >= 2);
 
-        return collect($items)->first(function (array $item) use ($needles, $nameKeys): bool {
+        if ($needles->isEmpty()) {
+            return [];
+        }
+
+        $collection = collect($items);
+
+        // 1. Exact match first
+        $exactMatch = $collection->first(function (array $item) use ($needles, $nameKeys): bool {
             $name = collect($nameKeys)->map(fn ($key) => data_get($item, $key))->filter()->first();
             $normalized = Str::of((string) $name)->ascii()->lower()->squish()->toString();
 
-            return $needles->contains(fn (string $needle): bool => $needle !== '' && (
-                $normalized === $needle || str_contains($normalized, $needle) || str_contains($needle, $normalized)
-            ));
+            return $needles->contains(fn (string $needle): bool => $normalized === $needle);
+        });
+
+        if ($exactMatch) {
+            return $exactMatch;
+        }
+
+        // 2. Word-boundary match to prevent false substring collisions
+        return $collection->first(function (array $item) use ($needles, $nameKeys): bool {
+            $name = collect($nameKeys)->map(fn ($key) => data_get($item, $key))->filter()->first();
+            $normalized = Str::of((string) $name)->ascii()->lower()->squish()->toString();
+
+            if (mb_strlen($normalized) < 3) {
+                return false;
+            }
+
+            return $needles->contains(function (string $needle) use ($normalized): bool {
+                if (mb_strlen($needle) < 3) {
+                    return false;
+                }
+
+                return preg_match('/\b'.preg_quote($normalized, '/').'\b/i', $needle) === 1
+                    || preg_match('/\b'.preg_quote($needle, '/').'\b/i', $normalized) === 1;
+            });
         }, []) ?: [];
     }
 

@@ -67,6 +67,10 @@ class AamarPayService implements PaymentGatewayInterface
 
     public function verify(PaymentTransaction $transaction, PaymentGatewaySetting $setting, array $payload = []): PaymentResult
     {
+        if ($transaction->status === 'paid') {
+            return new PaymentResult('paid', null, (array) ($transaction->verification_payload ?? []));
+        }
+
         $requestId = $payload['mer_txnid']
             ?? $payload['merTxnid']
             ?? $payload['tran_id']

@@ -125,6 +125,11 @@ class OrderService
             $order->update(['delivery_notes' => $data['delivery_notes']]);
         }
 
+        if (isset($data['status']) && in_array($data['status'], ['cancelled', 'failed'], true)) {
+            app(OrderCreator::class)->releaseItems($order);
+            app(\App\Services\Commerce\CouponService::class)->reverseRedemption($order);
+        }
+
         return $this->findAdmin($order->id);
     }
 

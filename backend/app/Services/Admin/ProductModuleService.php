@@ -108,7 +108,11 @@ class ProductModuleService
             $record->delete();
         }, 3);
 
-        $this->searchIndexer->indexMany($affectedProductIds);
+        if (count($affectedProductIds) > 5) {
+            \App\Jobs\ReindexProductSearch::dispatch($affectedProductIds);
+        } else {
+            $this->searchIndexer->indexMany($affectedProductIds);
+        }
 
         if ($module === 'categories') {
             $this->clearCategoryCaches();
@@ -151,7 +155,12 @@ class ProductModuleService
             $this->clearHomePageCache();
         }
         $this->clearSeoCaches($module);
-        $this->searchIndexer->indexMany($affectedProductIds);
+
+        if (count($affectedProductIds) > 5) {
+            \App\Jobs\ReindexProductSearch::dispatch($affectedProductIds);
+        } else {
+            $this->searchIndexer->indexMany($affectedProductIds);
+        }
 
         return $deleted;
     }

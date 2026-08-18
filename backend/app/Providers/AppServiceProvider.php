@@ -110,5 +110,24 @@ class AppServiceProvider extends ServiceProvider
             Limit::perMinute(10)->by(hash('sha256', (string) $request->input('challenge_id').'|'.$request->ip())),
             Limit::perHour(100)->by($request->ip()),
         ]);
+
+        RateLimiter::for('checkout-place', fn (Request $request) => [
+            Limit::perMinute(10)->by($request->user()?->id ? 'user:'.$request->user()->id : 'ip:'.$request->ip()),
+            Limit::perHour(120)->by($request->ip()),
+        ]);
+
+        RateLimiter::for('contact-submit', fn (Request $request) => [
+            Limit::perMinute(5)->by($request->ip()),
+            Limit::perHour(30)->by($request->ip()),
+        ]);
+
+        RateLimiter::for('newsletter-subscribe', fn (Request $request) => [
+            Limit::perMinute(5)->by($request->ip()),
+            Limit::perHour(30)->by($request->ip()),
+        ]);
+
+        RateLimiter::for('payment-callback', fn (Request $request) => [
+            Limit::perMinute(60)->by($request->ip()),
+        ]);
     }
 }

@@ -56,6 +56,10 @@ class BkashService implements PaymentGatewayInterface
 
     public function verify(PaymentTransaction $transaction, PaymentGatewaySetting $setting, array $payload = []): PaymentResult
     {
+        if ($transaction->status === 'paid') {
+            return new PaymentResult('paid', null, (array) ($transaction->verification_payload ?? []));
+        }
+
         $paymentId = $payload['paymentID'] ?? $transaction->gateway_payment_id;
         abort_unless($paymentId, 422, 'bKash payment id is missing.');
 
@@ -84,7 +88,14 @@ class BkashService implements PaymentGatewayInterface
 
     public function handleCallback(Request $request, PaymentGatewaySetting $setting): PaymentResult
     {
-        $transaction = PaymentTransaction::query()->where('gateway_payment_id', $request->input('paymentID'))->firstOrFail();
+        $paymentId = $request->input('paymentID');
+        abort_unless(! empty($paymentId), 400, 'Invalid bKash payment ID.');
+
+        $transaction = PaymentTransaction::query()
+            ->where('gateway', 'bkash')
+            ->where('gateway_payment_id', $paymentId)
+            ->firstOrFail();
+
         if ($request->input('status') === 'cancel' || $request->input('status') === 'failure') {
             $transaction->update(['status' => 'failed', 'failed_at' => now(), 'failure_message' => 'bKash '.$request->input('status')]);
 

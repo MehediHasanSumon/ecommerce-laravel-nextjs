@@ -175,13 +175,30 @@ class CouponService
         }
     }
 
-    public function reverseRedemption(Cart $cart): void
+    public function reverseRedemption(Cart|Order $subject): void
     {
-        if (! $cart->coupon_discount_id) {
+        $couponId = null;
+        $userId = null;
+
+        if ($subject instanceof Cart) {
+            $couponId = $subject->coupon_discount_id;
+            $userId = $subject->user_id;
+        } elseif ($subject instanceof Order) {
+            $userId = $subject->user_id;
+            if (! empty($subject->coupon_code)) {
+                $coupon = Discount::query()->where('code', $subject->coupon_code)->first();
+                $couponId = $coupon?->id;
+            } elseif ($subject->cart_id) {
+                $subject->loadMissing('cart');
+                $couponId = $subject->cart?->coupon_discount_id;
+            }
+        }
+
+        if (! $couponId) {
             return;
         }
 
-        $coupon = Discount::query()->lockForUpdate()->find($cart->coupon_discount_id);
+        $coupon = Discount::query()->lockForUpdate()->find($couponId);
         if (! $coupon) {
             return;
         }
@@ -190,11 +207,11 @@ class CouponService
             $coupon->decrement('total_used');
         }
 
-        if (! $cart->user_id) {
+        if (! $userId) {
             return;
         }
 
-        $usage = $coupon->usages()->where('user_id', $cart->user_id)->lockForUpdate()->first();
+        $usage = $coupon->usages()->where('user_id', $userId)->lockForUpdate()->first();
         if ($usage && $usage->usage_count > 0) {
             $usage->decrement('usage_count');
         }
@@ -226,21 +243,40 @@ class CouponService
             throw ValidationException::withMessages(['code' => 'Add products to the cart before applying a coupon.']);
         }
 
-        if ($coupon->first_order_only && $cart->user_id) {
-            $hasPreviousCompletedFlow = Order::query()
-                ->where('user_id', $cart->user_id)
-                ->whereNotIn('status', ['cancelled', 'failed'])
-                ->exists();
+        if ($coupon->first_order_only) {
+            $hasPreviousOrder = false;
+            if ($cart->user_id) {
+                $hasPreviousOrder = Order::query()
+                    ->where('user_id', $cart->user_id)
+                    ->whereNotIn('status', ['cancelled', 'failed'])
+                    ->exists();
+            } elseif ($cart->guest_token) {
+                $hasPreviousOrder = Order::query()
+                    ->where('guest_token', $cart->guest_token)
+                    ->whereNotIn('status', ['cancelled', 'failed'])
+                    ->exists();
+            }
 
-            if ($hasPreviousCompletedFlow) {
+            if ($hasPreviousOrder) {
                 throw ValidationException::withMessages(['code' => 'This coupon is available for first orders only.']);
             }
         }
 
-        if ($coupon->usage_per_customer !== null && $cart->user_id) {
-            $usedCount = (int) optional($coupon->usages->firstWhere('user_id', $cart->user_id))->usage_count;
-            if ($usedCount >= (int) $coupon->usage_per_customer) {
-                throw ValidationException::withMessages(['code' => 'You have already used this coupon the maximum number of times.']);
+        if ($coupon->usage_per_customer !== null) {
+            if ($cart->user_id) {
+                $usedCount = (int) optional($coupon->usages->firstWhere('user_id', $cart->user_id))->usage_count;
+                if ($usedCount >= (int) $coupon->usage_per_customer) {
+                    throw ValidationException::withMessages(['code' => 'You have already used this coupon the maximum number of times.']);
+                }
+            } elseif ($cart->guest_token) {
+                $guestOrderCount = Order::query()
+                    ->where('guest_token', $cart->guest_token)
+                    ->where('coupon_code', $coupon->code)
+                    ->whereNotIn('status', ['cancelled', 'failed'])
+                    ->count();
+                if ($guestOrderCount >= (int) $coupon->usage_per_customer) {
+                    throw ValidationException::withMessages(['code' => 'You have already used this coupon the maximum number of times.']);
+                }
             }
         }
 

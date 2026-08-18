@@ -162,6 +162,8 @@ class CartService
             }
 
             $guestCart->delete();
+            $userCart->load(['items.product', 'items.variant']);
+            $this->refreshItems($userCart);
         });
 
         return $this->get($request);

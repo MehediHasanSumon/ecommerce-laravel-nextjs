@@ -125,7 +125,19 @@ class ProductVariantEngine
 
         if ($removeIds !== []) {
             $product->variants()->whereIn('id', $removeIds)->update(['is_primary' => null]);
-            $product->variants()->whereIn('id', $removeIds)->delete();
+            $variantsToDelete = $product->variants()->whereIn('id', $removeIds)->get();
+            foreach ($variantsToDelete as $toDelete) {
+                $hasOrders = \App\Models\OrderItem::query()->where('product_variant_id', $toDelete->id)->exists();
+                if (! $hasOrders) {
+                    $toDelete->forceDelete();
+                } else {
+                    $toDelete->update([
+                        'sku' => $toDelete->sku ? $toDelete->sku.'-deleted-'.$toDelete->id : null,
+                        'combination_key' => $toDelete->combination_key.'-deleted-'.$toDelete->id,
+                    ]);
+                    $toDelete->delete();
+                }
+            }
         }
 
         $primaryVariantId = $explicitPrimaryVariantId ?? $firstActiveVariantId ?? $firstVariantId;

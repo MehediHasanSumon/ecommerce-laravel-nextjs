@@ -51,6 +51,10 @@ class NagadService implements PaymentGatewayInterface
 
     public function verify(PaymentTransaction $transaction, PaymentGatewaySetting $setting, array $payload = []): PaymentResult
     {
+        if ($transaction->status === 'paid') {
+            return new PaymentResult('paid', null, (array) ($transaction->verification_payload ?? []));
+        }
+
         $paymentRef = $payload['payment_ref_id'] ?? $payload['paymentReferenceId'] ?? $transaction->gateway_payment_id;
         abort_unless($paymentRef, 422, 'Nagad payment reference is missing.');
 
@@ -74,7 +78,21 @@ class NagadService implements PaymentGatewayInterface
     public function handleCallback(Request $request, PaymentGatewaySetting $setting): PaymentResult
     {
         $key = $request->input('order_id') ?? $request->input('orderId');
-        $transaction = PaymentTransaction::query()->where('transaction_key', $key)->orWhere('gateway_payment_id', $request->input('payment_ref_id'))->firstOrFail();
+        $paymentRef = $request->input('payment_ref_id') ?? $request->input('paymentReferenceId');
+
+        abort_unless($key || $paymentRef, 400, 'Invalid Nagad callback parameters.');
+
+        $transaction = PaymentTransaction::query()
+            ->where('gateway', 'nagad')
+            ->where(function ($q) use ($key, $paymentRef) {
+                if ($key) {
+                    $q->orWhere('transaction_key', $key);
+                }
+                if ($paymentRef) {
+                    $q->orWhere('gateway_payment_id', $paymentRef);
+                }
+            })
+            ->firstOrFail();
 
         return $this->verify($transaction, $setting, $request->all());
     }

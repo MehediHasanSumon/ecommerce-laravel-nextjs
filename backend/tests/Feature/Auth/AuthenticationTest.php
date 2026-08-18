@@ -2,7 +2,15 @@
 
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
 use Laravel\Sanctum\PersonalAccessToken;
+
+beforeEach(function () {
+    $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class);
+    $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequestsWithRedis::class);
+    RateLimiter::clear('auth-register:127.0.0.1');
+    RateLimiter::clear('auth-login:127.0.0.1');
+});
 
 it('registers a user with normalized input and returns http only auth cookies', function () {
     $response = $this->postJson('/api/auth/register', [

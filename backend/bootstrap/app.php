@@ -47,10 +47,13 @@ return Application::configure(basePath: dirname(__DIR__))
         SyncCourierShipments::class,
     ])
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->trustProxies(at: env('TRUSTED_PROXIES', '*'));
         $middleware->prepend(HandleCors::class);
 
         $middleware->encryptCookies(except: [
-            env('AUTH_ACCESS_COOKIE_NAME', 'auth_access_token'),
+            'auth_access_token',
+            'auth_refresh_token',
+            ...(env('AUTH_ACCESS_COOKIE_NAME') ? [env('AUTH_ACCESS_COOKIE_NAME')] : []),
         ]);
 
         $middleware->api(prepend: [

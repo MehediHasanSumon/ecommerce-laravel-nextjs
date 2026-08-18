@@ -174,6 +174,7 @@ class ProductCatalogController extends Controller
     public function show(Request $request, string $slug): JsonResponse
     {
         $settings = $this->storeSettings->get();
+        $brandsEnabled = $this->brandSettings->enabled();
         $product = Product::query()
             ->where('slug', $slug)
             ->where('status', 'active')
@@ -209,6 +210,33 @@ class ProductCatalogController extends Controller
                     ->limit(16),
             ])
             ->firstOrFail();
+
+        $similarProducts = \Illuminate\Support\Facades\Cache::remember(
+            "product.{$product->id}.similar",
+            now()->addMinutes(10),
+            function () use ($product, $brandsEnabled) {
+                $relatedIds = $product->relatedProducts->pluck('id')->push($product->id)->all();
+
+                return Product::query()
+                    ->where('status', 'active')
+                    ->where('id', '!=', $product->id)
+                    ->whereNotIn('id', $relatedIds)
+                    ->where(function ($query) use ($product, $brandsEnabled): void {
+                        $query->where('category_id', $product->category_id);
+
+                        if ($brandsEnabled && $product->brand_id) {
+                            $query->orWhere('brand_id', $product->brand_id);
+                        }
+                    })
+                    ->withSellableVariantMetrics()
+                    ->with(['brand:id,name,slug', 'category:id,name,slug', 'images:id,product_id,url,is_primary,sort_order', 'tags:id,name'])
+                    ->orderByDesc('is_featured')
+                    ->latest('published_at')
+                    ->limit(4)
+                    ->get();
+            }
+        );
+        $product->setRelation('similarProducts', $similarProducts);
 
         return ApiResponse::success(ProductDetailResource::make($product)->resolve());
     }

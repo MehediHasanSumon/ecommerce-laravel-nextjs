@@ -98,12 +98,12 @@ Route::middleware(['auth.cookie.optional:access', 'throttle:product-feedback'])-
     Route::post('/products/{product:slug}/comments', [ProductCatalogController::class, 'storeComment']);
 });
 Route::get('/shipping-methods', [ShippingMethodController::class, 'index'])->middleware('throttle:public-settings');
-Route::post('/contact-messages', [ContactMessageController::class, 'store'])->middleware('throttle:public-settings');
-Route::post('/newsletter/subscribe', [NewsletterSubscriptionController::class, 'store'])->middleware('throttle:public-settings');
+Route::post('/contact-messages', [ContactMessageController::class, 'store'])->middleware('throttle:contact-submit');
+Route::post('/newsletter/subscribe', [NewsletterSubscriptionController::class, 'store'])->middleware('throttle:newsletter-subscribe');
 Route::post('/order-tracking', [OrderTrackingController::class, 'show'])->middleware('throttle:order-tracking');
 Route::post('/courier-webhooks/pathao', [CourierWebhookController::class, 'pathao'])->middleware('throttle:courier-webhook');
-Route::match(['get', 'post'], '/payments/{gateway}/callback/{result?}', [PaymentCallbackController::class, 'callback'])->name('payments.callback');
-Route::post('/payments/{gateway}/webhook', [PaymentCallbackController::class, 'webhook'])->name('payments.webhook');
+Route::match(['get', 'post'], '/payments/{gateway}/callback/{result?}', [PaymentCallbackController::class, 'callback'])->middleware('throttle:payment-callback')->name('payments.callback');
+Route::post('/payments/{gateway}/webhook', [PaymentCallbackController::class, 'webhook'])->middleware('throttle:payment-callback')->name('payments.webhook');
 Route::middleware(['auth.cookie.optional:access', 'throttle:public-settings'])->group(function (): void {
     Route::get('/cart', [CartController::class, 'show']);
     Route::post('/cart/items', [CartController::class, 'store']);
@@ -117,7 +117,7 @@ Route::middleware(['auth.cookie.optional:access', 'throttle:public-settings'])->
     Route::get('/payment/result', [OrderController::class, 'paymentResult']);
     Route::get('/payment/invoice', [OrderController::class, 'paymentInvoice']);
     Route::get('/checkout/payment-methods', [CheckoutController::class, 'paymentMethods']);
-    Route::post('/checkout/place-order', [CheckoutController::class, 'place']);
+    Route::post('/checkout/place-order', [CheckoutController::class, 'place'])->middleware('throttle:checkout-place');
     Route::get('/checkout/mobile-verification', [CheckoutOtpController::class, 'requirements']);
     Route::post('/checkout/mobile-verification/send', [CheckoutOtpController::class, 'send'])->middleware('throttle:checkout-otp');
     Route::post('/checkout/mobile-verification/verify', [CheckoutOtpController::class, 'verify'])->middleware('throttle:checkout-otp-verify');

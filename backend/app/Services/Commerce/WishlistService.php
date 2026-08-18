@@ -24,6 +24,8 @@ class WishlistService
                     'category:id,name,slug',
                     'images:id,product_id,url,is_primary,sort_order',
                     'tags:id,name',
+                    'collections:id',
+                    'primaryActiveVariant',
                 ]),
         ]);
     }

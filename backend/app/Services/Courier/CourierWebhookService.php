@@ -19,7 +19,10 @@ class CourierWebhookService
 
         $provided = (string) $request->header('X-Pathao-Signature');
         $secret = (string) ($setting->webhook_secret ?: $setting->api_secret);
-        abort_unless($provided !== '' && $secret !== '' && hash_equals($secret, $provided), 401, 'Invalid webhook signature.');
+        $content = (string) $request->getContent();
+        $hmacValid = $provided !== '' && $secret !== '' && hash_equals(hash_hmac('sha256', $content, $secret), $provided);
+        $plainValid = $provided !== '' && $secret !== '' && hash_equals($secret, $provided);
+        abort_unless($hmacValid || $plainValid, 401, 'Invalid webhook signature.');
 
         $payload = $request->validate([
             'event' => ['required', 'string', 'max:120'],
@@ -28,7 +31,13 @@ class CourierWebhookService
             'order_status' => ['nullable', 'string', 'max:191'],
             'delivery_fee' => ['nullable', 'numeric', 'min:0'],
         ]);
-        $fingerprint = hash('sha256', json_encode($payload, JSON_THROW_ON_ERROR));
+        $fingerprint = hash('sha256', json_encode([
+            'event' => $payload['event'],
+            'merchant_order_id' => $payload['merchant_order_id'] ?? null,
+            'consignment_id' => $payload['consignment_id'] ?? null,
+            'order_status' => $payload['order_status'] ?? null,
+            'event_id' => $request->header('X-Event-ID') ?? $request->input('event_id') ?? null,
+        ], JSON_THROW_ON_ERROR));
         $event = CourierWebhookEvent::query()->firstOrCreate(
             ['event_fingerprint' => $fingerprint],
             [

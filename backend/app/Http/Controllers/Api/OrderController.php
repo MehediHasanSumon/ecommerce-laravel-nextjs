@@ -57,7 +57,7 @@ class OrderController extends Controller
         $this->orders->updateStatuses($visibleOrder, [
             'status' => 'cancelled',
             'payment_status' => 'cancelled',
-            'shipping_status' => 'returned',
+            'shipping_status' => 'cancelled',
             'note' => 'Cancelled by customer.',
         ], $request->user()?->id);
 

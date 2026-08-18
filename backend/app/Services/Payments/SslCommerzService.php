@@ -75,6 +75,10 @@ class SslCommerzService implements PaymentGatewayInterface
 
     public function verify(PaymentTransaction $transaction, PaymentGatewaySetting $setting, array $payload = []): PaymentResult
     {
+        if ($transaction->status === 'paid') {
+            return new PaymentResult('paid', null, (array) ($transaction->verification_payload ?? []));
+        }
+
         $valId = $payload['val_id'] ?? null;
         abort_unless($valId, 422, 'SSLCommerz validation id is missing.');
 

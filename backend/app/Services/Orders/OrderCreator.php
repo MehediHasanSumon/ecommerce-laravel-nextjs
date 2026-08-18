@@ -35,7 +35,12 @@ class OrderCreator
                 'source' => $order->source,
             ], $actorId);
 
-            foreach ($items as $item) {
+            // Deterministic lock sorting to prevent database deadlocks under concurrency
+            $sortedItems = collect($items)->sortBy(function (array $item): string {
+                return sprintf('%010d-%010d', (int) $item['product_id'], (int) ($item['product_variant_id'] ?? 0));
+            })->values()->all();
+
+            foreach ($sortedItems as $item) {
                 $this->decrementInventory($item);
                 $order->items()->create([
                     'product_id' => $item['product_id'],
@@ -56,24 +61,36 @@ class OrderCreator
             DB::afterCommit(function () use ($order): void {
                 $this->orders->queueOrderPlacedNotifications($order->fresh());
                 $this->fraudAutomation->queueOrder($order->fresh(), 'order_created');
-                $order->items()->whereNotNull('product_id')->distinct()->pluck('product_id')
-                    ->each(fn ($productId) => $this->searchIndexer->index((int) $productId));
+                $productIds = $order->items()->whereNotNull('product_id')->distinct()->pluck('product_id')->map(fn ($id) => (int) $id)->all();
+                if (! empty($productIds)) {
+                    \App\Jobs\ReindexProductSearch::dispatch($productIds);
+                }
             });
 
             return $order->fresh('items');
-        });
+        }, 3);
     }
 
     public function releaseItems(Order $order): void
     {
+        if ($order->inventory_released_at !== null) {
+            return;
+        }
+
         $order->loadMissing('items');
-        foreach ($order->items as $item) {
+        $sortedItems = $order->items->sortBy(function ($item): string {
+            return sprintf('%010d-%010d', (int) $item->product_id, (int) ($item->product_variant_id ?? 0));
+        });
+
+        foreach ($sortedItems as $item) {
             $this->restoreInventory([
                 'product_id' => $item->product_id,
                 'product_variant_id' => $item->product_variant_id,
                 'quantity' => $item->quantity,
             ]);
         }
+
+        $order->update(['inventory_released_at' => now()]);
     }
 
     public function replaceItems(Order $order, array $items): void

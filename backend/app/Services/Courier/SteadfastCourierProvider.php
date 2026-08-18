@@ -120,11 +120,15 @@ class SteadfastCourierProvider extends AbstractCourierProvider
 
     private function normalizeStatus(string $status): string
     {
-        return match ($status) {
+        $normalized = strtolower(trim($status));
+
+        return match ($normalized) {
             'delivered' => 'delivered',
             'cancelled', 'cancelled_approval_pending' => 'cancelled',
+            'return', 'returned' => 'returned',
             'partial_delivered', 'partial_delivered_approval_pending', 'unknown', 'unknown_approval_pending' => 'failed_delivery',
-            'hold', 'in_review', 'delivered_approval_pending' => 'in_transit',
+            'picked_up' => 'picked',
+            'hold', 'in_review', 'delivered_approval_pending', 'in_transit' => 'in_transit',
             default => 'pending',
         };
     }

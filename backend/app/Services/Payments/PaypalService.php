@@ -61,6 +61,10 @@ class PaypalService implements PaymentGatewayInterface
 
     public function verify(PaymentTransaction $transaction, PaymentGatewaySetting $setting, array $payload = []): PaymentResult
     {
+        if ($transaction->status === 'paid') {
+            return new PaymentResult('paid', null, (array) ($transaction->verification_payload ?? []));
+        }
+
         $orderId = $payload['token'] ?? $transaction->gateway_payment_id;
         abort_unless($orderId, 422, 'PayPal order id is missing.');
         $response = $this->http()->withToken($this->token($setting))->post($this->baseUrl($setting).'/v2/checkout/orders/'.$orderId.'/capture')->json();

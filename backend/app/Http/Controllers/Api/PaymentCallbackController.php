@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\PaymentTransaction;
 use App\Services\Checkout\CheckoutService;
+use App\Services\Commerce\CouponService;
+use App\Services\Orders\OrderCreator;
 use App\Services\Orders\OrderService;
 use App\Services\Payments\PaymentGatewayManager;
 use App\Services\Payments\PaymentLogger;
@@ -19,6 +21,8 @@ class PaymentCallbackController extends Controller
         private readonly CheckoutService $checkout,
         private readonly PaymentLogger $logger,
         private readonly OrderService $orders,
+        private readonly OrderCreator $orderCreator,
+        private readonly CouponService $coupons,
         private readonly CheckoutSecurityService $checkoutSecurity,
     ) {}
 
@@ -36,10 +40,21 @@ class PaymentCallbackController extends Controller
             $this->checkoutSecurity->recordPaymentSuccess($request, $transaction->fresh()->order);
         } elseif ($transaction) {
             $finalStatus = $request->route('result') === 'cancel' ? 'cancelled' : 'failed';
-            $transaction->fresh()->update(['status' => $finalStatus]);
-            $this->orders->syncPayment($transaction->fresh()->order, $transaction->fresh(), $finalStatus, $transaction->fresh()->failure_message);
-            if ($finalStatus === 'failed') {
-                $this->checkoutSecurity->recordPaymentFailure($request, $transaction->fresh()->order, $gateway, $transaction->fresh()->failure_message);
+            $freshTx = $transaction->fresh();
+            $freshTx->update(['status' => $finalStatus]);
+            $order = $freshTx->order;
+            if ($order) {
+                $this->orders->syncPayment($order, $freshTx, $finalStatus, $freshTx->failure_message);
+                if ($finalStatus === 'cancelled' || $finalStatus === 'failed') {
+                    $this->orderCreator->releaseItems($order);
+                    $this->coupons->reverseRedemption($order);
+                    if ($finalStatus === 'cancelled') {
+                        $order->update(['status' => 'cancelled']);
+                    }
+                }
+                if ($finalStatus === 'failed') {
+                    $this->checkoutSecurity->recordPaymentFailure($request, $order, $gateway, $freshTx->failure_message);
+                }
             }
         }
 
@@ -62,6 +77,21 @@ class PaymentCallbackController extends Controller
 
     private function findTransaction(string $gateway, Request $request): ?PaymentTransaction
     {
+        $identifiers = array_filter([
+            $request->input('tran_id'),
+            $request->input('session_id'),
+            $request->input('transaction'),
+            $request->input('paymentID'),
+            $request->input('mer_txnid') ?? $request->input('merTxnid') ?? $request->input('request_id'),
+            $request->input('order_id') ?? $request->input('orderId'),
+            $request->input('payment_ref_id') ?? $request->input('paymentReferenceId'),
+            $request->input('val_id'),
+        ]);
+
+        if (empty($identifiers)) {
+            return null;
+        }
+
         return PaymentTransaction::query()
             ->where('gateway', $gateway)
             ->where(function ($query) use ($request): void {
@@ -71,7 +101,8 @@ class PaymentCallbackController extends Controller
                     ->when($request->input('paymentID'), fn ($q, $value) => $q->orWhere('gateway_payment_id', $value))
                     ->when($request->input('mer_txnid') ?? $request->input('merTxnid') ?? $request->input('request_id'), fn ($q, $value) => $q->orWhere('gateway_payment_id', $value)->orWhere('transaction_key', $value))
                     ->when($request->input('order_id') ?? $request->input('orderId'), fn ($q, $value) => $q->orWhere('transaction_key', $value))
-                    ->when($request->input('payment_ref_id') ?? $request->input('paymentReferenceId'), fn ($q, $value) => $q->orWhere('gateway_payment_id', $value));
+                    ->when($request->input('payment_ref_id') ?? $request->input('paymentReferenceId'), fn ($q, $value) => $q->orWhere('gateway_payment_id', $value))
+                    ->when($request->input('val_id'), fn ($q, $value) => $q->orWhere('gateway_transaction_id', $value));
             })
             ->first();
     }

@@ -34,26 +34,26 @@ class MonitorSuspiciousActivity
         $status = $response->getStatusCode();
         $events = [];
 
-        // Auth abuse tracking
+        // Auth abuse tracking - only failed attempts contribute to abuse scoring
         if ($path === 'api/auth/login' && $status >= 400) {
             $events[] = 'failed_login';
         }
-        if (in_array($path, ['api/auth/forgot-password', 'api/auth/reset-password'], true)) {
+        if (in_array($path, ['api/auth/forgot-password', 'api/auth/reset-password'], true) && $status >= 400) {
             $events[] = 'password_reset';
         }
-        if (str_contains($path, 'mobile-verification')) {
+        if (str_contains($path, 'mobile-verification') && $status >= 400) {
             $events[] = 'otp';
         }
-        if ($path === 'api/auth/register') {
+        if ($path === 'api/auth/register' && $status >= 400) {
             $events[] = 'registration';
         }
-        if ($path === 'api/contact-messages' && $request->isMethod('post')) {
+        if ($path === 'api/contact-messages' && $request->isMethod('post') && $status >= 400) {
             $events[] = 'contact_submission';
         }
         if (in_array($status, [401, 403], true) && ! str_starts_with($path, 'api/auth/')) {
             $events[] = 'invalid_auth';
         }
-        if ($status === 404) {
+        if ($status === 404 && str_starts_with($path, 'api/')) {
             $events[] = 'not_found';
         }
         if (UserAgentMetadata::from($request->userAgent())['is_bot']) {

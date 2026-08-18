@@ -29,6 +29,7 @@ class Order extends Model
             'fraud_hold' => 'boolean',
             'fraud_cod_blocked' => 'boolean',
             'fraud_approved_at' => 'datetime',
+            'inventory_released_at' => 'datetime',
         ];
     }
 

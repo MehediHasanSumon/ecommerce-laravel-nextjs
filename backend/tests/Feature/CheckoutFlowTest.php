@@ -361,3 +361,90 @@ it('rejects paypal checkout when company currency is unsupported instead of cras
     ])->assertStatus(422)
         ->assertJsonPath('message', 'PayPal does not support BDT. Please use a PayPal-supported company currency such as USD.');
 });
+
+it('restores inventory and reverses coupon redemption on payment cancellation callback', function (): void {
+    $user = User::factory()->create();
+    $token = checkoutUserToken($user);
+    $product = checkoutProduct(['stock_quantity' => 10]);
+    $shipping = checkoutShippingMethod();
+    $gatewaySetting = PaymentGatewaySetting::query()->create([
+        'gateway' => 'bkash',
+        'enabled' => true,
+        'sandbox_mode' => true,
+        'public_key' => 'bkash-user',
+        'secret_key' => 'bkash-secret',
+        'api_key' => 'bkash-api-key',
+        'merchant_id' => 'bkash-merchant',
+        'display_order' => 0,
+    ]);
+
+    $coupon = \App\Models\Discount::query()->create([
+        'name' => 'SAVE10',
+        'code' => 'SAVE10',
+        'type' => 'fixed_cart',
+        'value' => 1000,
+        'status' => 'active',
+        'total_used' => 0,
+        'starts_at' => now()->subDay(),
+        'ends_at' => now()->addDays(5),
+    ]);
+
+    $this->withToken($token)->postJson('/api/cart/items', [
+        'product_id' => $product->id,
+        'quantity' => 2,
+    ])->assertOk();
+
+    $this->withToken($token)->postJson('/api/cart/coupon', ['code' => 'SAVE10'])->assertOk();
+
+    \Illuminate\Support\Facades\Http::fake([
+        '*/tokenized/checkout/create' => \Illuminate\Support\Facades\Http::response([
+            'bkashURL' => 'https://sandbox.bkash.com/pay',
+            'paymentID' => 'BKASH_PAY_12345',
+        ]),
+        '*/tokenized/checkout/token/grant' => \Illuminate\Support\Facades\Http::response([
+            'id_token' => 'mock-id-token',
+        ]),
+    ]);
+
+    $orderResponse = $this->withToken($token)->postJson('/api/checkout/place-order', [
+        'billing_address' => [
+            'fullName' => 'Ada Lovelace',
+            'phone' => '+8801700000000',
+            'country' => 'Bangladesh',
+            'state' => 'Dhaka',
+            'district' => 'Dhaka',
+            'city' => 'Dhaka',
+            'addressLine' => 'House 12, Road 8',
+        ],
+        'same_as_billing' => true,
+        'shipping_method_id' => $shipping->id,
+        'payment_method' => 'bkash',
+    ])->assertCreated();
+
+    // Verify stock was decremented from 10 to 8 and coupon was used
+    expect($product->fresh()->stock_quantity)->toBe(8);
+    expect($coupon->fresh()->total_used)->toBe(1);
+
+    $orderNumber = $orderResponse->json('data.order.orderNumber');
+    $order = Order::query()->where('order_number', $orderNumber)->firstOrFail();
+    $transaction = PaymentTransaction::query()->where('order_id', $order->id)->firstOrFail();
+
+    // Customer cancels at bKash payment gateway
+    $callbackResponse = $this->get('/api/payments/bkash/callback/cancel?paymentID=BKASH_PAY_12345&status=cancel');
+    $callbackResponse->assertRedirect();
+
+    // Verify stock is restored to 10 and coupon total_used reversed to 0
+    expect($product->fresh()->stock_quantity)->toBe(10);
+    expect($coupon->fresh()->total_used)->toBe(0);
+    expect($order->fresh()->status)->toBe('cancelled');
+    expect($order->fresh()->inventory_released_at)->not->toBeNull();
+
+    // Verify idempotency: calling releaseItems a second time does not double restore
+    app(\App\Services\Orders\OrderCreator::class)->releaseItems($order->fresh());
+    expect($product->fresh()->stock_quantity)->toBe(10);
+});
+
+it('rejects unscoped payment callbacks with no transaction identifiers', function (): void {
+    $response = $this->get('/api/payments/bkash/callback/cancel');
+    $response->assertStatus(400);
+});
