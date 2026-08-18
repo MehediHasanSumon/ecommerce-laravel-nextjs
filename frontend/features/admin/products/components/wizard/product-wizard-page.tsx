@@ -312,7 +312,7 @@ export function ProductWizardPage({ mode, productId }: { mode: ProductWizardMode
         onSubmit={() => void submit(true)}
         onBack={handleBack}
       >
-        <ErrorSummary errors={form.formState.errors} onNavigateStep={(step) => setActiveStep(step)} />
+        <ErrorSummary errors={form.formState.errors} />
         <div className="mt-4">
           {currentStepId === "basic" ? <BasicInfoSection form={form} options={options} /> : null}
           {currentStepId === "pricing" ? <PricingInventorySection form={form} options={options} /> : null}
