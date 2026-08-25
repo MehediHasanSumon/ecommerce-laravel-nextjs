@@ -6,13 +6,14 @@ type InputProps = InputHTMLAttributes<HTMLInputElement> & {
   error?: string;
   leftIcon?: ReactNode;
   rightIcon?: ReactNode;
+  containerClassName?: string;
 };
 
-export function Input({ label, error, id, className, leftIcon, rightIcon, ...props }: InputProps) {
+export function Input({ label, error, id, className, containerClassName, leftIcon, rightIcon, ...props }: InputProps) {
   const inputId = id ?? props.name;
 
   return (
-    <div className="block space-y-2.5">
+    <div className={cn("w-full space-y-2.5", containerClassName)}>
       {label ? (
         <label className="block text-sm font-medium tracking-tight text-foreground" htmlFor={inputId}>
           {label}

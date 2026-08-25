@@ -441,6 +441,10 @@ export const selectCurrencySettings = (state: SettingsState): RuntimeCurrencySet
     thousands_separator: stringValue(theme.thousands_separator) || stringValue(company.thousands_separator) || defaultCurrencySettings.thousands_separator,
   };
 };
+export const selectCurrencySymbol = (state: SettingsState): string => {
+  return selectCurrencySettings(state).currency_symbol || "৳";
+};
+
 export const selectCurrencyFingerprint = (state: SettingsState): string => {
   const settings = selectCurrencySettings(state);
 

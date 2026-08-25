@@ -14,11 +14,13 @@ use App\Models\ProductCollection;
 use App\Models\ProductComment;
 use App\Models\ProductReview;
 use App\Models\ProductVariant;
+use App\Models\Settings\CompanySetting;
 use App\Models\Tag;
 use App\Models\User;
 use App\Models\WishlistItem;
 use App\Services\Admin\Concerns\BuildsManagementQueries;
 use App\Services\Admin\Settings\BrandSettingsService;
+use App\Services\Admin\Settings\SeoSettingsService;
 use App\Services\Concerns\StoresPublicUploads;
 use App\Services\ProductReviewMetricsService;
 use App\Services\Search\ProductSearchIndexer;
@@ -531,11 +533,65 @@ class ProductModuleService
         }
 
         $this->variantEngine->sync($model, $variants, $pricingMode);
+        $this->syncProductSeo($model);
         DB::afterCommit(fn () => $this->searchIndexer->index((int) $model->id));
         $this->clearHomePageCache();
         $this->clearSeoCaches('products');
 
         return $this->find('products', $model->id);
+    }
+
+    private function syncProductSeo(Product $model): void
+    {
+        $model->loadMissing(['brand:id,name', 'category:id,name', 'tags:id,name', 'images:id,product_id,url,is_primary,sort_order']);
+
+        $company = CompanySetting::query()->first();
+        $seoSettings = app(SeoSettingsService::class)->get();
+        $siteName = $seoSettings->site_title ?: ($company?->name ?: config('app.name', 'Store'));
+
+        // Meta Title
+        $metaTitle = "{$model->name} | {$siteName}";
+
+        // Meta Description
+        $plainDesc = trim(preg_replace('/\s+/u', ' ', strip_tags((string) $model->description)) ?? '');
+        if ($plainDesc !== '') {
+            $metaDescription = \Illuminate\Support\Str::limit($plainDesc, 155, '...');
+        } else {
+            $brandName = $model->brand?->name;
+            $catName = $model->category?->name;
+            $metaDescription = "Buy {$model->name}".($brandName ? " from {$brandName}" : '').($catName ? " in {$catName}" : '')." online at the best price from {$siteName}.";
+        }
+
+        // Meta Keywords
+        $keywords = collect([
+            $model->name,
+            $model->brand?->name,
+            $model->category?->name,
+            ...$model->tags->pluck('name')->all(),
+        ])
+            ->filter()
+            ->flatMap(fn ($part) => preg_split('/[,\s|]+/', \Illuminate\Support\Str::lower(strip_tags((string) $part))) ?: [])
+            ->map(fn ($word) => trim((string) $word, " \t\n\r\0\x0B.-_"))
+            ->filter(fn ($word) => \Illuminate\Support\Str::length($word) > 2)
+            ->unique()
+            ->take(12)
+            ->values()
+            ->implode(', ');
+
+        // Primary OG image
+        $primaryImage = $model->images->firstWhere('is_primary', true)?->url
+            ?: $model->images->sortBy('sort_order')->first()?->url;
+
+        $model->seo()->updateOrCreate(
+            ['product_id' => $model->id],
+            [
+                'meta_title' => $metaTitle,
+                'meta_description' => $metaDescription,
+                'meta_keywords' => $keywords ?: null,
+                'og_image_url' => $primaryImage ?: null,
+                'canonical_url' => "/products/{$model->slug}",
+            ]
+        );
     }
 
     private function applySlug(string $module, Model $model, array &$data): void

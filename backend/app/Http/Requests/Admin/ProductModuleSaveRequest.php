@@ -122,16 +122,7 @@ class ProductModuleSaveRequest extends FormRequest
             $variants = (array) $this->input('variants', []);
             $pricingMode = $this->input('pricing_mode');
             if (! in_array($pricingMode, [Product::PRICING_MODE_GLOBAL, Product::PRICING_MODE_VARIANT], true)) {
-                $hasVariantPricing = collect($variants)->contains(function ($variant): bool {
-                    if (! is_array($variant)) {
-                        return false;
-                    }
-
-                    return collect(['price_cents', 'compare_at_price_cents', 'cost_price_cents'])
-                        ->contains(fn (string $field): bool => $this->hasValue($variant[$field] ?? null));
-                });
-
-                $pricingMode = $variants !== [] && $hasVariantPricing && ! $this->hasValue($this->input('base_price_cents'))
+                $pricingMode = $variants !== []
                     ? Product::PRICING_MODE_VARIANT
                     : Product::PRICING_MODE_GLOBAL;
             }
@@ -139,6 +130,8 @@ class ProductModuleSaveRequest extends FormRequest
             $this->merge([
                 'currency' => strtoupper((string) ($this->input('currency') ?: $this->companyCurrency())),
                 'pricing_mode' => $pricingMode,
+                'product_type' => $this->input('product_type') ?: 'physical',
+                'track_inventory' => $this->has('track_inventory') ? filter_var($this->input('track_inventory'), FILTER_VALIDATE_BOOL) : true,
             ]);
         }
 
@@ -565,14 +558,14 @@ class ProductModuleSaveRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'short_description' => ['nullable', 'string'],
             'description' => ['nullable', 'string'],
-            'product_type' => ['required', Rule::in(['physical', 'digital'])],
+            'product_type' => ['nullable', Rule::in(['physical', 'digital'])],
             'status' => ['required', Rule::in(['draft', 'active', 'archived'])],
-            'pricing_mode' => ['required', Rule::in([Product::PRICING_MODE_GLOBAL, Product::PRICING_MODE_VARIANT])],
+            'pricing_mode' => ['nullable', Rule::in([Product::PRICING_MODE_GLOBAL, Product::PRICING_MODE_VARIANT])],
             'base_price_cents' => ['nullable', 'integer', 'min:0'],
             'compare_at_price_cents' => ['nullable', 'integer', 'min:0'],
             'cost_price_cents' => ['nullable', 'integer', 'min:0'],
-            'currency' => ['required', 'string', 'size:3'],
-            'track_inventory' => ['boolean'],
+            'currency' => ['nullable', 'string', 'size:3'],
+            'track_inventory' => ['nullable', 'boolean'],
             'stock_quantity' => ['nullable', 'integer', 'min:0'],
             'low_stock_threshold' => ['nullable', 'integer', 'min:0'],
             'is_featured' => ['boolean'],
@@ -604,13 +597,13 @@ class ProductModuleSaveRequest extends FormRequest
             'specifications.*.value' => ['required_with:specifications', 'string'],
             'specifications.*.sort_order' => ['nullable', 'integer', 'min:0'],
             'variants' => ['nullable', 'array'],
-            'variants.*.sku' => ['nullable', 'string', 'max:100', 'regex:/^[A-Za-z0-9][A-Za-z0-9._-]*$/'],
+            'variants.*.sku' => ['nullable', 'string', 'max:100'],
             'variants.*.price_cents' => ['nullable', 'integer', 'min:0'],
             'variants.*.compare_at_price_cents' => ['nullable', 'integer', 'min:0'],
             'variants.*.cost_price_cents' => ['nullable', 'integer', 'min:0'],
             'variants.*.stock_quantity' => ['nullable', 'integer', 'min:0'],
-            'variants.*.track_inventory' => ['required_with:variants', 'boolean'],
-            'variants.*.status' => ['required_with:variants', Rule::in(['active', 'inactive'])],
+            'variants.*.track_inventory' => ['nullable', 'boolean'],
+            'variants.*.status' => ['nullable', Rule::in(['active', 'inactive'])],
             'variants.*.is_primary' => ['nullable', 'boolean'],
             'variants.*.attribute_values' => ['required_with:variants', 'array', 'min:1'],
             'variants.*.attribute_values.*' => ['integer', 'exists:attribute_values,id'],
