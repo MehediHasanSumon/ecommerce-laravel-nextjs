@@ -2,6 +2,20 @@ export type HeroMode = "simple" | "advanced";
 export type HeroDevice = "desktop" | "tablet" | "mobile";
 export type HeroElementType = "heading" | "subheading" | "paragraph" | "button" | "image" | "shape";
 
+export type HeroDeviceContent = {
+  background_image?: string;
+  title?: string;
+  subtitle?: string;
+  description?: string;
+  primary_button_text?: string;
+  primary_button_url?: string;
+  secondary_button_text?: string;
+  secondary_button_url?: string;
+  text_alignment?: "left" | "center" | "right";
+  overlay?: boolean;
+  overlay_opacity?: number;
+};
+
 export type HeroSettings = {
   enabled: boolean;
   mode: HeroMode;
@@ -58,6 +72,10 @@ export type HeroSlide = {
   status: boolean;
   sort_order: number;
   elements: HeroSlideElement[];
+  /** Simple mode: enable per-device content tabs (desktop/tablet/mobile) */
+  enable_device_content?: boolean;
+  /** Simple mode: device-specific content overrides with fallback to flat fields */
+  device_content?: Record<HeroDevice, HeroDeviceContent>;
 };
 
 export type HeroSectionPayload = {
@@ -79,6 +97,19 @@ export const defaultHeroSettings: HeroSettings = {
 };
 
 export function createBlankSlide(sortOrder = 0): HeroSlide {
+  const emptyDeviceContent: HeroDeviceContent = {
+    background_image: "",
+    title: "",
+    subtitle: "",
+    description: "",
+    primary_button_text: "",
+    primary_button_url: "",
+    secondary_button_text: "",
+    secondary_button_url: "",
+    text_alignment: "left",
+    overlay: true,
+    overlay_opacity: 80,
+  };
   return {
     name: `Hero Slide ${sortOrder + 1}`,
     background_image: "",
@@ -105,6 +136,12 @@ export function createBlankSlide(sortOrder = 0): HeroSlide {
     status: true,
     sort_order: sortOrder,
     elements: [],
+    enable_device_content: false,
+    device_content: {
+      desktop: { ...emptyDeviceContent },
+      tablet: { ...emptyDeviceContent },
+      mobile: { ...emptyDeviceContent },
+    },
   };
 }
 

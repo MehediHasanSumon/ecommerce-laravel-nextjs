@@ -26,7 +26,7 @@ import { ProductListing } from '@/components/product/ProductListing';
 import { ProductGridSkeleton } from '@/components/skeleton';
 import { useCountdown } from '@/hooks/useCountdown';
 import { fetchHomePageSections, type HomePageSections } from '@/services/catalog-service';
-import type { HeroDevice, HeroSectionPayload, HeroSlide, HeroSlideElement } from '@/features/admin/hero-section/types';
+import type { HeroDevice, HeroDeviceContent, HeroSectionPayload, HeroSlide, HeroSlideElement } from '@/features/admin/hero-section/types';
 import { cn } from '@/utils/cn';
 import {
   selectCategoryDisplaySettings,
@@ -55,6 +55,7 @@ function HeroSlider({
   const simpleMode = settings?.mode !== 'advanced';
   const activeSlides = settings?.enabled === false ? [] : slides;
   const loop = settings?.infinite_loop ?? true;
+  const device = useHeroDevice();
   const previous = () => setCurrent((c) => previousIndex(c, activeSlides.length, loop));
   const next = () => setCurrent((c) => nextIndex(c, activeSlides.length, loop));
 
@@ -123,35 +124,36 @@ function HeroSlider({
 
   if (activeSlides.length > 0) {
     const slide = activeSlides[current] ?? activeSlides[0];
-    const image = slide.mobile_image || slide.background_image;
-    const alignClass = slide.text_alignment === 'center' ? 'mx-auto text-center' : slide.text_alignment === 'right' ? 'ml-auto text-right' : '';
+    const content = resolveSimpleSlideContent(slide, device);
+    const image = content.background_image || slide.background_image;
+    const alignClass = content.text_alignment === 'center' ? 'mx-auto text-center' : content.text_alignment === 'right' ? 'ml-auto text-right' : '';
     return (
       <div {...interactionProps} className="relative h-[440px] overflow-hidden rounded-2xl sm:h-[480px] md:h-[560px] lg:h-[620px]">
-        {image ? <Image src={image} alt={slide.title || slide.name || 'Hero slide'} fill unoptimized className="object-cover" priority={!settings?.lazy_load_images} loading={settings?.lazy_load_images ? 'lazy' : undefined} /> : null}
-        {slide.overlay ? <div className="absolute inset-0 bg-gradient-to-r from-slate-950 to-slate-800" style={{ opacity: slide.overlay_opacity / 100 }} /> : null}
+        {image ? <Image src={image} alt={content.title || slide.name || 'Hero slide'} fill unoptimized className="object-cover" priority={!settings?.lazy_load_images} loading={settings?.lazy_load_images ? 'lazy' : undefined} /> : null}
+        {content.overlay ? <div className="absolute inset-0 bg-gradient-to-r from-slate-950 to-slate-800" style={{ opacity: (content.overlay_opacity ?? 80) / 100 }} /> : null}
         <div className="absolute inset-0 flex items-center">
           <div className="mx-auto w-full max-w-7xl px-5 sm:px-8 md:px-12">
             <div className={`max-w-xl ${alignClass}`}>
-              {slide.subtitle ? (
+              {content.subtitle ? (
                 <span className="text-sm font-bold uppercase tracking-widest mb-4 block text-primary">
-                  {slide.subtitle}
+                  {content.subtitle}
                 </span>
               ) : null}
-              {slide.title ? (
+              {content.title ? (
                 <h1 suppressHydrationWarning className="mb-4 whitespace-pre-line text-3xl font-extrabold leading-tight text-white sm:text-4xl md:mb-5 md:text-5xl lg:text-6xl">
-                  {slide.title}
+                  {content.title}
                 </h1>
               ) : null}
-              {slide.description ? <p className="mb-6 max-w-sm text-sm leading-relaxed text-white/80 sm:text-base md:mb-8 md:text-lg">{slide.description}</p> : null}
-              <div className={`flex flex-wrap gap-3 ${slide.text_alignment === 'center' ? 'justify-center' : slide.text_alignment === 'right' ? 'justify-end' : ''}`}>
-                {slide.primary_button_text ? (
-                  <Link href={slide.primary_button_url || '/shop'} className="inline-flex items-center gap-2 px-6 py-3 bg-white text-slate-900 rounded-xl font-bold text-sm hover:bg-white/90 transition-colors shadow-lg">
-                    {slide.primary_button_text} <ArrowRight size={15} />
+              {content.description ? <p className="mb-6 max-w-sm text-sm leading-relaxed text-white/80 sm:text-base md:mb-8 md:text-lg">{content.description}</p> : null}
+              <div className={`flex flex-wrap gap-3 ${content.text_alignment === 'center' ? 'justify-center' : content.text_alignment === 'right' ? 'justify-end' : ''}`}>
+                {content.primary_button_text ? (
+                  <Link href={content.primary_button_url || '/shop'} className="inline-flex items-center gap-2 px-6 py-3 bg-white text-slate-900 rounded-xl font-bold text-sm hover:bg-white/90 transition-colors shadow-lg">
+                    {content.primary_button_text} <ArrowRight size={15} />
                   </Link>
                 ) : null}
-                {slide.secondary_button_text ? (
-                  <Link href={slide.secondary_button_url || '/shop'} className="inline-flex items-center gap-2 px-6 py-3 bg-white/15 text-white rounded-xl font-bold text-sm hover:bg-white/25 transition-colors">
-                    {slide.secondary_button_text}
+                {content.secondary_button_text ? (
+                  <Link href={content.secondary_button_url || '/shop'} className="inline-flex items-center gap-2 px-6 py-3 bg-white/15 text-white rounded-xl font-bold text-sm hover:bg-white/25 transition-colors">
+                    {content.secondary_button_text}
                   </Link>
                 ) : null}
               </div>
@@ -172,6 +174,7 @@ function HeroSlider({
     );
   }
 
+
   return null;
 }
 
@@ -185,6 +188,45 @@ function nextIndex(current: number, length: number, loop: boolean) {
   if (length <= 1) return 0;
   if (current >= length - 1) return loop ? 0 : length - 1;
   return current + 1;
+}
+
+/**
+ * Resolves per-device content for Simple Mode slides.
+ * Fallback chain: device_content[device] → flat slide fields.
+ */
+function resolveSimpleSlideContent(slide: HeroSlide, device: HeroDevice): HeroDeviceContent {
+  const base: HeroDeviceContent = {
+    background_image: slide.background_image,
+    title: slide.title,
+    subtitle: slide.subtitle,
+    description: slide.description,
+    primary_button_text: slide.primary_button_text,
+    primary_button_url: slide.primary_button_url,
+    secondary_button_text: slide.secondary_button_text,
+    secondary_button_url: slide.secondary_button_url,
+    text_alignment: slide.text_alignment,
+    overlay: slide.overlay,
+    overlay_opacity: slide.overlay_opacity,
+  };
+
+  if (!slide.enable_device_content || !slide.device_content) return base;
+
+  const dc = slide.device_content[device];
+  // Fall back desktop image if mobile/tablet image is empty
+  const desktopDc = slide.device_content.desktop;
+  return {
+    background_image: dc?.background_image || desktopDc?.background_image || base.background_image,
+    title: dc?.title ?? base.title,
+    subtitle: dc?.subtitle ?? base.subtitle,
+    description: dc?.description ?? base.description,
+    primary_button_text: dc?.primary_button_text ?? base.primary_button_text,
+    primary_button_url: dc?.primary_button_url ?? base.primary_button_url,
+    secondary_button_text: dc?.secondary_button_text ?? base.secondary_button_text,
+    secondary_button_url: dc?.secondary_button_url ?? base.secondary_button_url,
+    text_alignment: dc?.text_alignment ?? base.text_alignment,
+    overlay: dc?.overlay ?? base.overlay,
+    overlay_opacity: dc?.overlay_opacity ?? base.overlay_opacity,
+  };
 }
 
 function HeroControls({

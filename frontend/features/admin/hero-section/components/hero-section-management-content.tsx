@@ -56,6 +56,7 @@ import {
   createElement,
   defaultHeroSettings,
   type HeroDevice,
+  type HeroDeviceContent,
   type HeroElementBox,
   type HeroElementType,
   type HeroSettings,
@@ -496,39 +497,222 @@ function SlideBasics({ slide, onChange }: { slide: HeroSlide; onChange: (slide: 
 }
 
 function SimpleSlideFields({ slide, onChange }: { slide: HeroSlide; onChange: (slide: HeroSlide) => void }) {
+  const [activeDevice, setActiveDevice] = useState<HeroDevice>("desktop");
+  const enableDeviceContent = slide.enable_device_content ?? false;
+
+  function ensureDeviceContent(s: HeroSlide): Required<HeroSlide>["device_content"] {
+    const fallback = {
+      background_image: s.background_image ?? "",
+      title: s.title ?? "",
+      subtitle: s.subtitle ?? "",
+      description: s.description ?? "",
+      primary_button_text: s.primary_button_text ?? "",
+      primary_button_url: s.primary_button_url ?? "",
+      secondary_button_text: s.secondary_button_text ?? "",
+      secondary_button_url: s.secondary_button_url ?? "",
+      text_alignment: s.text_alignment ?? "left",
+      overlay: s.overlay ?? true,
+      overlay_opacity: s.overlay_opacity ?? 80,
+    };
+    return {
+      desktop: { ...fallback, ...(s.device_content?.desktop ?? {}) },
+      tablet: { ...fallback, ...(s.device_content?.tablet ?? {}) },
+      mobile: { ...fallback, ...(s.device_content?.mobile ?? {}) },
+    };
+  }
+
+  function toggleDeviceContent(enabled: boolean) {
+    if (enabled) {
+      // Seed device_content from current flat fields so nothing is lost
+      const seeded = ensureDeviceContent(slide);
+      onChange({ ...slide, enable_device_content: true, device_content: seeded });
+    } else {
+      onChange({ ...slide, enable_device_content: false });
+    }
+  }
+
+  function updateDeviceField(device: HeroDevice, patch: Partial<HeroDeviceContent>) {
+    const current = ensureDeviceContent(slide);
+    onChange({
+      ...slide,
+      device_content: {
+        ...current,
+        [device]: { ...current[device], ...patch },
+      },
+    });
+  }
+
+  const deviceContent = enableDeviceContent ? ensureDeviceContent(slide) : null;
+  const dc = deviceContent ? deviceContent[activeDevice] : null;
+
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 md:grid-cols-2">
-        <ImagePicker label="Background Image" value={slide.background_image ?? ""} onChange={(background_image) => onChange({ ...slide, background_image })} />
-        <ImagePicker label="Mobile Image" value={slide.mobile_image ?? ""} onChange={(mobile_image) => onChange({ ...slide, mobile_image })} />
+      {/* Per-device content toggle */}
+      <div className="flex items-center justify-between rounded-lg border border-border bg-muted/40 px-4 py-3">
+        <div>
+          <p className="text-sm font-semibold">Per-device content</p>
+          <p className="text-xs text-muted-foreground">Set different images, text &amp; buttons for Desktop, Tablet, and Mobile</p>
+        </div>
+        <ToggleSwitch
+          label=""
+          checked={enableDeviceContent}
+          onChange={toggleDeviceContent}
+        />
       </div>
-      <FormGrid>
-        <TextInput label="Title" value={slide.title ?? ""} onChange={(event) => onChange({ ...slide, title: event.target.value })} />
-        <TextInput label="Subtitle" value={slide.subtitle ?? ""} onChange={(event) => onChange({ ...slide, subtitle: event.target.value })} />
-      </FormGrid>
-      <TextareaInput label="Description" value={slide.description ?? ""} onChange={(event) => onChange({ ...slide, description: event.target.value })} />
-      <FormGrid>
-        <TextInput label="Primary Button" value={slide.primary_button_text ?? ""} onChange={(event) => onChange({ ...slide, primary_button_text: event.target.value })} />
-        <TextInput label="Primary Button URL" value={slide.primary_button_url ?? ""} onChange={(event) => onChange({ ...slide, primary_button_url: event.target.value })} />
-        <TextInput label="Secondary Button" value={slide.secondary_button_text ?? ""} onChange={(event) => onChange({ ...slide, secondary_button_text: event.target.value })} />
-        <TextInput label="Secondary Button URL" value={slide.secondary_button_url ?? ""} onChange={(event) => onChange({ ...slide, secondary_button_url: event.target.value })} />
-        <label className="space-y-2">
-          <span className="text-sm font-semibold">Text Alignment</span>
-          <Select value={slide.text_alignment} onValueChange={(text_alignment) => onChange({ ...slide, text_alignment: text_alignment as HeroSlide["text_alignment"] })}>
-            <SelectTrigger className="h-11 rounded-lg"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="left">Left</SelectItem>
-              <SelectItem value="center">Center</SelectItem>
-              <SelectItem value="right">Right</SelectItem>
-            </SelectContent>
-          </Select>
-        </label>
-        <TextInput label="Overlay Opacity" type="number" min={0} max={100} value={slide.overlay_opacity} onChange={(event) => onChange({ ...slide, overlay_opacity: Number(event.target.value || 0) })} />
-        <ToggleSwitch label="Overlay" checked={slide.overlay} onChange={(overlay) => onChange({ ...slide, overlay })} />
-      </FormGrid>
+
+      {!enableDeviceContent ? (
+        /* ── Legacy flat fields (unchanged behaviour) ── */
+        <>
+          <div className="grid gap-3 md:grid-cols-2">
+            <ImagePicker label="Background Image" value={slide.background_image ?? ""} onChange={(background_image) => onChange({ ...slide, background_image })} />
+            <ImagePicker label="Mobile Image" value={slide.mobile_image ?? ""} onChange={(mobile_image) => onChange({ ...slide, mobile_image })} />
+          </div>
+          <FormGrid>
+            <TextInput label="Title" value={slide.title ?? ""} onChange={(event) => onChange({ ...slide, title: event.target.value })} />
+            <TextInput label="Subtitle" value={slide.subtitle ?? ""} onChange={(event) => onChange({ ...slide, subtitle: event.target.value })} />
+          </FormGrid>
+          <TextareaInput label="Description" value={slide.description ?? ""} onChange={(event) => onChange({ ...slide, description: event.target.value })} />
+          <FormGrid>
+            <TextInput label="Primary Button" value={slide.primary_button_text ?? ""} onChange={(event) => onChange({ ...slide, primary_button_text: event.target.value })} />
+            <TextInput label="Primary Button URL" value={slide.primary_button_url ?? ""} onChange={(event) => onChange({ ...slide, primary_button_url: event.target.value })} />
+            <TextInput label="Secondary Button" value={slide.secondary_button_text ?? ""} onChange={(event) => onChange({ ...slide, secondary_button_text: event.target.value })} />
+            <TextInput label="Secondary Button URL" value={slide.secondary_button_url ?? ""} onChange={(event) => onChange({ ...slide, secondary_button_url: event.target.value })} />
+            <label className="space-y-2">
+              <span className="text-sm font-semibold">Text Alignment</span>
+              <Select value={slide.text_alignment} onValueChange={(text_alignment) => onChange({ ...slide, text_alignment: text_alignment as HeroSlide["text_alignment"] })}>
+                <SelectTrigger className="h-11 rounded-lg"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="left">Left</SelectItem>
+                  <SelectItem value="center">Center</SelectItem>
+                  <SelectItem value="right">Right</SelectItem>
+                </SelectContent>
+              </Select>
+            </label>
+            <TextInput label="Overlay Opacity" type="number" min={0} max={100} value={slide.overlay_opacity} onChange={(event) => onChange({ ...slide, overlay_opacity: Number(event.target.value || 0) })} />
+            <ToggleSwitch label="Overlay" checked={slide.overlay} onChange={(overlay) => onChange({ ...slide, overlay })} />
+          </FormGrid>
+        </>
+      ) : (
+        /* ── Per-device tabbed editor ── */
+        <div className="space-y-4">
+          {/* Device tab bar */}
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-background p-2">
+            {devices.map(({ key, icon: Icon, label }) => (
+              <Button
+                key={key}
+                type="button"
+                size="sm"
+                variant={activeDevice === key ? "primary" : "secondary"}
+                icon={<Icon className="h-4 w-4" />}
+                onClick={() => setActiveDevice(key)}
+              >
+                {label}
+              </Button>
+            ))}
+            <span className="ml-2 text-xs text-muted-foreground">
+              {activeDevice === "desktop" ? "≥1024px" : activeDevice === "tablet" ? "640–1023px" : "<640px"}
+            </span>
+          </div>
+
+          {/* Per-device content fields */}
+          {dc ? (
+            <div className="space-y-4 rounded-lg border border-border bg-muted/20 p-4">
+              <div className="grid gap-3 md:grid-cols-2">
+                <ImagePicker
+                  label={`Background Image (${activeDevice})`}
+                  value={dc.background_image ?? ""}
+                  onChange={(background_image) => updateDeviceField(activeDevice, { background_image })}
+                />
+                {activeDevice !== "desktop" && (
+                  <div className="flex items-start gap-2 rounded-lg border border-dashed border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+                    <Monitor className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>If left empty, falls back to the Desktop image</span>
+                  </div>
+                )}
+              </div>
+              <FormGrid>
+                <TextInput
+                  label="Title"
+                  value={dc.title ?? ""}
+                  onChange={(event) => updateDeviceField(activeDevice, { title: event.target.value })}
+                />
+                <TextInput
+                  label="Subtitle"
+                  value={dc.subtitle ?? ""}
+                  onChange={(event) => updateDeviceField(activeDevice, { subtitle: event.target.value })}
+                />
+              </FormGrid>
+              <TextareaInput
+                label="Description"
+                value={dc.description ?? ""}
+                onChange={(event) => updateDeviceField(activeDevice, { description: event.target.value })}
+              />
+              <FormGrid>
+                <TextInput
+                  label="Primary Button"
+                  value={dc.primary_button_text ?? ""}
+                  onChange={(event) => updateDeviceField(activeDevice, { primary_button_text: event.target.value })}
+                />
+                <TextInput
+                  label="Primary Button URL"
+                  value={dc.primary_button_url ?? ""}
+                  onChange={(event) => updateDeviceField(activeDevice, { primary_button_url: event.target.value })}
+                />
+                <TextInput
+                  label="Secondary Button"
+                  value={dc.secondary_button_text ?? ""}
+                  onChange={(event) => updateDeviceField(activeDevice, { secondary_button_text: event.target.value })}
+                />
+                <TextInput
+                  label="Secondary Button URL"
+                  value={dc.secondary_button_url ?? ""}
+                  onChange={(event) => updateDeviceField(activeDevice, { secondary_button_url: event.target.value })}
+                />
+                <label className="space-y-2">
+                  <span className="text-sm font-semibold">Text Alignment</span>
+                  <Select
+                    value={dc.text_alignment ?? "left"}
+                    onValueChange={(text_alignment) => updateDeviceField(activeDevice, { text_alignment: text_alignment as "left" | "center" | "right" })}
+                  >
+                    <SelectTrigger className="h-11 rounded-lg"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="left">Left</SelectItem>
+                      <SelectItem value="center">Center</SelectItem>
+                      <SelectItem value="right">Right</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </label>
+                <TextInput
+                  label="Overlay Opacity"
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={dc.overlay_opacity ?? 80}
+                  onChange={(event) => updateDeviceField(activeDevice, { overlay_opacity: Number(event.target.value || 0) })}
+                />
+                <ToggleSwitch
+                  label="Overlay"
+                  checked={dc.overlay ?? true}
+                  onChange={(overlay) => updateDeviceField(activeDevice, { overlay })}
+                />
+              </FormGrid>
+            </div>
+          ) : null}
+
+          {/* Global canvas colour (shared across devices) */}
+          <div className="rounded-lg border border-border bg-muted/20 p-4">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Shared across all devices</p>
+            <FormGrid>
+              <TextInput label="Overlay Colour (hex)" value={slide.background_color ?? ""} onChange={(event) => onChange({ ...slide, background_color: event.target.value })} />
+              <TextInput label="Background Gradient" value={slide.background_gradient ?? ""} onChange={(event) => onChange({ ...slide, background_gradient: event.target.value })} />
+            </FormGrid>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
 
 function CanvasBuilder({ slide, canEdit, onChange }: { slide: HeroSlide; canEdit: boolean; onChange: (slide: HeroSlide) => void }) {
   const [device, setDevice] = useState<HeroDevice>("desktop");
