@@ -30,6 +30,22 @@ it('registers a user with normalized input and returns http only auth cookies', 
     expect(Hash::check('Str0ng!Passw0rd', User::first()->password))->toBeTrue();
 });
 
+it('registers a user with a valid phone number', function () {
+    $response = $this->postJson('/api/auth/register', [
+        'name' => 'John Doe',
+        'email' => 'john@example.test',
+        'phone' => '01712345678',
+        'password' => 'Str0ng!Passw0rd',
+        'password_confirmation' => 'Str0ng!Passw0rd',
+    ]);
+
+    $response->assertCreated()
+        ->assertJsonPath('success', true)
+        ->assertJsonPath('data.user.phone', '01712345678');
+
+    $this->assertDatabaseHas('users', ['email' => 'john@example.test', 'phone' => '01712345678']);
+});
+
 it('rejects invalid registration payloads', function (array $payload, string $field) {
     $response = $this->postJson('/api/auth/register', $payload);
 

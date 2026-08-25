@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
-import { ArrowRight, Check, Eye, EyeOff, Lock, Mail, User } from "lucide-react";
+import { ArrowRight, Check, Eye, EyeOff, Lock, Mail, Phone, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert } from "@/components/ui/alert";
@@ -29,7 +29,7 @@ export function RegisterForm() {
 
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
-    defaultValues: { name: "", email: "", password: "", password_confirmation: "" },
+    defaultValues: { name: "", email: "", phone: "", password: "", password_confirmation: "" },
   });
 
   const password = useWatch({ control: form.control, name: "password" }) ?? "";
@@ -79,6 +79,17 @@ export function RegisterForm() {
         leftIcon={<Mail className="h-4 w-4" />}
         placeholder="Enter email"
         {...form.register("email")}
+      />
+
+      <Input
+        label="Phone number (optional)"
+        type="tel"
+        autoComplete="tel"
+        disabled={isLoading}
+        error={form.formState.errors.phone?.message}
+        leftIcon={<Phone className="h-4 w-4" />}
+        placeholder="01700000000"
+        {...form.register("phone")}
       />
 
       <Input

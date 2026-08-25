@@ -24,6 +24,7 @@ class AuthService
         $user = User::query()->create([
             'name' => $data['name'],
             'email' => $data['email'],
+            'phone' => $data['phone'] ?? null,
             'password' => $data['password'],
         ]);
 
@@ -222,6 +223,7 @@ class AuthService
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
+            'phone' => $user instanceof User ? $user->phone : ($user->phone ?? null),
             'avatar' => $user instanceof User ? $this->avatarUrl($user->avatar) : null,
             'roles' => $roles,
         ];

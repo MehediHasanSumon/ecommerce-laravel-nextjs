@@ -2,6 +2,7 @@ export type User = {
   id: number;
   name: string;
   email: string;
+  phone?: string | null;
   avatar?: string | null;
   roles: string[];
   permissions?: string[];
@@ -35,6 +36,7 @@ export type LoginPayload = {
 export type RegisterPayload = {
   name: string;
   email: string;
+  phone?: string | null;
   password: string;
   password_confirmation: string;
 };

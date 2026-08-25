@@ -18,6 +18,21 @@ const emailSchema = z
   .email("Enter a valid email address.")
   .transform(normalizeEmail);
 
+const phoneSchema = z
+  .string()
+  .trim()
+  .max(40, "Phone number is too long.")
+  .optional()
+  .refine(
+    (val) => {
+      if (!val || val === "") return true;
+      return /^(?:\+?88)?01[3-9]\d{8}$/.test(val) || /^[\d\s+\-()]{6,25}$/.test(val);
+    },
+    {
+      message: "Enter a valid mobile number (e.g. 01700000000).",
+    },
+  );
+
 const loginIdentifierSchema = z
   .string()
   .trim()
@@ -53,6 +68,7 @@ export const registerSchema = z
       )
       .transform(normalizeName),
     email: emailSchema,
+    phone: phoneSchema,
     password: passwordSchema,
     password_confirmation: z.string().min(1, "Confirm your password."),
   })
