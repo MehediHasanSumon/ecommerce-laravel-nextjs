@@ -10,11 +10,12 @@ class OrderResource extends JsonResource
     public function toArray(Request $request): array
     {
         $billingAddress = (array) ($this->billing_address ?? []);
-        $customer = $this->user ?: $this->guestCustomer;
+        $customer = $this->customer ?: $this->user;
 
         return [
             'id' => (string) $this->id,
             'orderNumber' => $this->order_number,
+            'customerId' => $this->customer_id,
             'status' => $this->status,
             'paymentStatus' => $this->payment_status,
             'shippingStatus' => $this->shipping_status ?? 'pending',
@@ -23,10 +24,11 @@ class OrderResource extends JsonResource
             'currency' => $this->currency,
             'customer' => [
                 'id' => $customer?->id,
-                'type' => $this->user_id ? 'registered' : 'guest',
-                'name' => $customer?->name ?? ($billingAddress['full_name'] ?? 'Guest Customer'),
+                'name' => $customer?->name ?? ($billingAddress['full_name'] ?? 'Customer'),
                 'email' => $customer?->email ?? ($billingAddress['email'] ?? null),
-                'phone' => $customer?->phone ?? ($billingAddress['phone'] ?? null),
+                'mobile' => $customer?->mobile ?? ($customer?->phone ?? ($billingAddress['phone'] ?? null)),
+                'phone' => $customer?->mobile ?? ($customer?->phone ?? ($billingAddress['phone'] ?? null)),
+                'address' => $customer?->address ?? ($billingAddress['address_line'] ?? null),
             ],
             'itemsCount' => $this->items_count ?? $this->items?->count(),
             'summary' => [

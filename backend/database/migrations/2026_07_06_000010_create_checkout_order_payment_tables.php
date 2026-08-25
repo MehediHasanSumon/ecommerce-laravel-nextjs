@@ -35,27 +35,21 @@ return new class extends Migration
             $table->index(['user_id', 'duplicate_fingerprint']);
         });
 
-        Schema::create('guest_customers', function (Blueprint $table): void {
+        Schema::create('customers', function (Blueprint $table): void {
             $table->id();
-            $table->foreignId('linked_user_id')->nullable()->constrained('users')->nullOnDelete()->cascadeOnUpdate();
             $table->string('name');
+            $table->string('mobile', 40)->unique()->index();
             $table->string('email')->nullable()->index();
-            $table->string('phone', 40)->index();
-            $table->json('billing_address')->nullable();
-            $table->json('shipping_address')->nullable();
+            $table->text('address')->nullable();
             $table->string('status', 24)->default('active')->index();
-            $table->text('notes')->nullable();
-            $table->timestamp('last_order_at')->nullable()->index();
             $table->timestamps();
-
-            $table->index(['email', 'phone']);
         });
 
         Schema::create('orders', function (Blueprint $table): void {
             $table->id();
             $table->string('order_number', 40)->unique();
             $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete()->cascadeOnUpdate();
-            $table->foreignId('guest_customer_id')->nullable()->constrained('guest_customers')->nullOnDelete()->cascadeOnUpdate();
+            $table->foreignId('customer_id')->nullable()->constrained('customers')->nullOnDelete()->cascadeOnUpdate();
             $table->foreignId('cart_id')->nullable()->constrained()->nullOnDelete()->cascadeOnUpdate();
             $table->string('guest_token', 120)->nullable()->index();
             $table->string('status', 40)->default('pending')->index();
@@ -94,7 +88,7 @@ return new class extends Migration
             $table->index(['payment_status', 'placed_at'], 'orders_payment_status_placed_index');
             $table->index(['status', 'placed_at'], 'orders_status_placed_index');
             $table->index(['user_id', 'placed_at'], 'orders_user_placed_index');
-            $table->index(['guest_customer_id', 'placed_at'], 'orders_guest_customer_placed_index');
+            $table->index(['customer_id', 'placed_at'], 'orders_customer_placed_index');
         });
 
         Schema::create('order_items', function (Blueprint $table): void {
@@ -224,7 +218,7 @@ return new class extends Migration
         Schema::dropIfExists('order_status_histories');
         Schema::dropIfExists('order_items');
         Schema::dropIfExists('orders');
-        Schema::dropIfExists('guest_customers');
+        Schema::dropIfExists('customers');
         Schema::dropIfExists('customer_addresses');
     }
 };

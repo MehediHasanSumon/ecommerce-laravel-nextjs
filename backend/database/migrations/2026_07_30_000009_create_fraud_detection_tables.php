@@ -33,7 +33,7 @@ return new class extends Migration
             $table->uuid('public_id')->unique();
             $table->foreignId('order_id')->nullable()->constrained()->nullOnDelete()->cascadeOnUpdate();
             $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete()->cascadeOnUpdate();
-            $table->foreignId('guest_customer_id')->nullable()->constrained()->nullOnDelete()->cascadeOnUpdate();
+            $table->foreignId('customer_id')->nullable()->constrained()->nullOnDelete()->cascadeOnUpdate();
             $table->foreignId('triggered_by')->nullable()->constrained('users')->nullOnDelete()->cascadeOnUpdate();
             $table->foreignId('cached_from_id')->nullable()->constrained('fraud_checks')->nullOnDelete()->cascadeOnUpdate();
             $table->string('subject_type', 30)->index();
@@ -67,7 +67,7 @@ return new class extends Migration
             $table->index(['risk_level', 'checked_at']);
             $table->index(['order_id', 'checked_at']);
             $table->index(['user_id', 'checked_at']);
-            $table->index(['guest_customer_id', 'checked_at']);
+            $table->index(['customer_id', 'checked_at']);
         });
 
         Schema::create('fraud_provider_results', function (Blueprint $table): void {
@@ -116,7 +116,7 @@ return new class extends Migration
         });
 
         Schema::table('orders', function (Blueprint $table): void {
-            $table->foreignId('latest_fraud_check_id')->nullable()->after('guest_customer_id')->constrained('fraud_checks')->nullOnDelete()->cascadeOnUpdate();
+            $table->foreignId('latest_fraud_check_id')->nullable()->after('customer_id')->constrained('fraud_checks')->nullOnDelete()->cascadeOnUpdate();
             $table->string('fraud_status', 20)->default('unchecked')->after('shipping_status')->index();
             $table->unsignedTinyInteger('fraud_score')->nullable()->after('fraud_status')->index();
             $table->timestamp('fraud_checked_at')->nullable()->after('fraud_score')->index();

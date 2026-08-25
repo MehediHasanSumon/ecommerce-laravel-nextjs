@@ -33,14 +33,19 @@ class Order extends Model
         ];
     }
 
-    public function user(): BelongsTo
+    public function customer(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(Customer::class);
     }
 
     public function guestCustomer(): BelongsTo
     {
-        return $this->belongsTo(GuestCustomer::class);
+        return $this->belongsTo(Customer::class, 'customer_id');
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 
     public function cart(): BelongsTo

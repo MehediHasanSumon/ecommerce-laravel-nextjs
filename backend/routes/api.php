@@ -194,9 +194,7 @@ Route::prefix('admin')
 
         Route::delete('/users/bulk', [UserManagementController::class, 'bulkDestroy']);
         Route::apiResource('users', UserManagementController::class);
-        Route::get('/customers', [CustomerManagementController::class, 'index']);
-        Route::get('/customers/{customer}', [CustomerManagementController::class, 'show']);
-        Route::put('/guest-customers/{guestCustomer}', [CustomerManagementController::class, 'update']);
+        Route::apiResource('customers', CustomerManagementController::class);
 
         Route::delete('/blogs/bulk', [BlogManagementController::class, 'bulkDestroy']);
         Route::apiResource('blogs', BlogManagementController::class);

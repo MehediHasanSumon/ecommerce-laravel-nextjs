@@ -2,7 +2,7 @@
 
 namespace App\Services\Admin;
 
-use App\Models\GuestCustomer;
+use App\Models\Customer;
 use App\Models\Order;
 use App\Models\PaymentTransaction;
 use App\Models\Product;
@@ -11,11 +11,11 @@ use App\Models\Settings\ShippingMethod;
 use App\Models\User;
 use App\Services\Checkout\AddressData;
 use App\Services\Commerce\ProductSelectionService;
-use App\Services\Customers\GuestCustomerService;
 use App\Services\Fraud\FraudAutomationService;
 use App\Services\Orders\OrderCreator;
 use App\Services\Orders\OrderService;
 use App\Services\Payments\PaymentGatewayManager;
+use App\Support\CustomerPhoneNormalizer;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -24,7 +24,6 @@ class AdminOrderCreationService
 {
     public function __construct(
         private readonly ProductSelectionService $selections,
-        private readonly GuestCustomerService $guestCustomers,
         private readonly OrderCreator $creator,
         private readonly OrderService $orders,
         private readonly PaymentGatewayManager $payments,
@@ -34,16 +33,11 @@ class AdminOrderCreationService
     public function options(): array
     {
         return [
-            'registered_customers' => User::query()
-                ->whereHas('roles', fn ($query) => $query->where('name', 'user'))
-                ->orderBy('name')
-                ->limit(250)
-                ->get(['id', 'name', 'email', 'phone']),
-            'guest_customers' => GuestCustomer::query()
+            'customers' => Customer::query()
                 ->where('status', 'active')
                 ->orderBy('name')
                 ->limit(250)
-                ->get(['id', 'name', 'email', 'phone', 'billing_address', 'shipping_address']),
+                ->get(['id', 'name', 'email', 'mobile', 'address']),
             'shipping_methods' => ShippingMethod::query()
                 ->where('status', true)
                 ->orderBy('display_order')
@@ -113,28 +107,11 @@ class AdminOrderCreationService
 
     public function create(array $data, int $actorId): Order
     {
-        $fraudBilling = AddressData::snapshot(AddressData::normalize($data['billing_address']));
-        $fraudShipping = AddressData::snapshot(AddressData::normalize($data['shipping_address']));
-        $fraudUser = $data['customer_type'] === 'registered'
-            ? User::query()->findOrFail($data['user_id'])
-            : null;
-        $fraudGuest = $data['customer_type'] === 'guest'
-            ? GuestCustomer::query()->findOrFail($data['guest_customer_id'])
-            : null;
-        $this->fraudAutomation->checkOrderCreation([
-            'phone' => $fraudBilling['phone'] ?? $fraudUser?->phone ?? $fraudGuest?->phone,
-            'name' => $fraudBilling['full_name'] ?? $fraudUser?->name ?? $fraudGuest?->name,
-            'email' => $fraudBilling['email'] ?? $fraudUser?->email ?? $fraudGuest?->email,
-            'billing_address' => $fraudBilling,
-            'shipping_address' => $fraudShipping,
-            'customer_id' => $fraudUser ? "registered-{$fraudUser->id}" : ($fraudGuest ? "guest-{$fraudGuest->id}" : null),
-        ], $data['payment_method'], $fraudUser, $fraudGuest, 'admin_order_creation', $actorId);
+        $billing = AddressData::snapshot(AddressData::normalize($data['billing_address']));
+        $shipping = AddressData::snapshot(AddressData::normalize($data['shipping_address']));
+        $customerId = $this->resolveCustomer($data, $billing, $shipping);
 
-        return DB::transaction(function () use ($data, $actorId): Order {
-            $billing = AddressData::snapshot(AddressData::normalize($data['billing_address']));
-            $shipping = AddressData::snapshot(AddressData::normalize($data['shipping_address']));
-            [$userId, $guestId] = $this->resolveCustomer($data, $billing, $shipping);
-
+        return DB::transaction(function () use ($data, $actorId, $billing, $shipping, $customerId): Order {
             $items = collect($data['items'])->map(function (array $item): array {
                 $selection = $this->selections->resolveCartSelection([
                     'product_id' => $item['product_id'],
@@ -143,40 +120,58 @@ class AdminOrderCreationService
                 ]);
                 if (! $selection['variant'] && $selection['product']->variants->where('status', 'active')->isNotEmpty()) {
                     throw ValidationException::withMessages([
-                        'items' => ["Select a variant for {$selection['product']->name}."],
+                        'items' => ["Please select a variant for {$selection['product']->name}."],
                     ]);
                 }
-                $unitPrice = array_key_exists('unit_price', $item) && $item['unit_price'] !== null
+
+                $customUnitPrice = isset($item['unit_price']) && $item['unit_price'] !== ''
                     ? $this->money($item['unit_price'])
-                    : (int) $selection['unit_price_cents'];
-                $discount = min($unitPrice * $selection['quantity'], $this->money($item['discount'] ?? 0));
+                    : (int) $selection['product']->effectivePriceCents($selection['variant']);
+                $itemDiscount = isset($item['discount']) && $item['discount'] !== ''
+                    ? $this->money($item['discount'])
+                    : 0;
 
                 return [
                     'product_id' => $selection['product']->id,
                     'product_variant_id' => $selection['variant']?->id,
                     'product_name' => $selection['product']->name,
                     'sku' => $selection['variant']?->sku ?: $selection['product']->sku,
-                    'quantity' => $selection['quantity'],
-                    'unit_price_cents' => $unitPrice,
-                    'discounted_price_cents' => $discount > 0 ? max(0, $unitPrice - intdiv($discount, $selection['quantity'])) : null,
-                    'line_subtotal_cents' => $unitPrice * $selection['quantity'],
-                    'line_discount_cents' => $discount,
-                    'selection_snapshot' => $selection['selection_snapshot'],
-                    'pricing_snapshot' => $selection['pricing_snapshot'],
-                    'tax_snapshot' => $selection['tax_snapshot'],
+                    'quantity' => (int) $item['quantity'],
+                    'unit_price_cents' => $customUnitPrice,
+                    'discounted_price_cents' => max(0, $customUnitPrice - $itemDiscount),
+                    'line_subtotal_cents' => $customUnitPrice * (int) $item['quantity'],
+                    'line_discount_cents' => $itemDiscount * (int) $item['quantity'],
+                    'selection_snapshot' => [
+                        'product_title' => $selection['product']->name,
+                        'variant_title' => $selection['variant']?->attributeValues->map(fn ($v) => $v->value)->implode(', '),
+                        'attributes' => $selection['variant']?->attributeValues->mapWithKeys(fn ($v) => [$v->attribute?->name ?? 'Attribute' => $v->value])->all() ?? [],
+                        'thumbnail_url' => $selection['variant']?->imageUrl() ?: $selection['product']->imageUrl(),
+                    ],
+                    'pricing_snapshot' => [
+                        'base_price_cents' => (int) ($selection['variant']?->price_cents ?? $selection['product']->price_cents),
+                        'sale_price_cents' => $customUnitPrice,
+                    ],
+                    'tax_snapshot' => [],
                 ];
-            })->all();
+            })->values()->all();
 
-            $subtotal = (int) collect($items)->sum('line_subtotal_cents');
-            $itemDiscount = (int) collect($items)->sum('line_discount_cents');
-            $couponDiscount = $this->money($data['coupon_discount'] ?? 0);
-            $additionalDiscount = $this->money($data['additional_discount'] ?? 0);
-            $shippingCharge = $this->money($data['shipping_charge'] ?? 0);
-            $tax = $this->money($data['tax'] ?? 0);
-            $total = max(0, $subtotal - $itemDiscount - $couponDiscount - $additionalDiscount + $shippingCharge + $tax);
+            $subtotal = collect($items)->sum(fn ($item) => (int) $item['line_subtotal_cents']);
+            $itemDiscount = collect($items)->sum(fn ($item) => (int) $item['line_discount_cents']);
             $shippingMethod = ! empty($data['shipping_method_id'])
-                ? ShippingMethod::query()->where('status', true)->findOrFail($data['shipping_method_id'])
+                ? ShippingMethod::query()->find($data['shipping_method_id'])
                 : null;
+            $shippingCharge = isset($data['shipping_charge']) && $data['shipping_charge'] !== ''
+                ? $this->money($data['shipping_charge'])
+                : (int) ($shippingMethod?->rate_cents ?? 0);
+            $tax = isset($data['tax']) && $data['tax'] !== '' ? $this->money($data['tax']) : 0;
+            $couponDiscount = isset($data['coupon_discount']) && $data['coupon_discount'] !== ''
+                ? $this->money($data['coupon_discount'])
+                : 0;
+            $additionalDiscount = isset($data['additional_discount']) && $data['additional_discount'] !== ''
+                ? $this->money($data['additional_discount'])
+                : 0;
+            $total = max(0, $subtotal - $itemDiscount - $couponDiscount - $additionalDiscount + $shippingCharge + $tax);
+
             $this->payments->setting($data['payment_method']);
             $summary = [
                 'subtotal_cents' => $subtotal,
@@ -189,8 +184,8 @@ class AdminOrderCreationService
             ];
 
             $order = $this->creator->create([
-                'user_id' => $userId,
-                'guest_customer_id' => $guestId,
+                'user_id' => $data['user_id'] ?? null,
+                'customer_id' => $customerId,
                 'source' => 'admin',
                 'status' => $data['status'],
                 'payment_status' => $data['payment_status'],
@@ -206,172 +201,165 @@ class AdminOrderCreationService
                 'tax_cents' => $tax,
                 'total_cents' => $total,
                 'coupon_code' => $data['coupon_code'] ?? null,
-                'coupon_snapshot' => $data['coupon_code'] ? ['code' => $data['coupon_code'], 'discount_cents' => $couponDiscount] : null,
+                'coupon_snapshot' => ! empty($data['coupon_code']) ? ['code' => $data['coupon_code'], 'discount_cents' => $couponDiscount] : null,
                 'billing_address' => $billing,
                 'shipping_address' => $shipping,
                 'summary_snapshot' => $summary,
-                'admin_notes' => $data['admin_notes'] ?? null,
                 'customer_notes' => $data['customer_notes'] ?? null,
-                'delivery_notes' => $data['delivery_notes'] ?? null,
+                'admin_notes' => $data['admin_notes'] ?? null,
                 'placed_at' => now(),
             ], $items, $actorId);
 
-            $transaction = PaymentTransaction::query()->create([
-                'transaction_key' => (string) Str::uuid(),
-                'order_id' => $order->id,
-                'gateway' => $data['payment_method'],
-                'status' => $data['payment_status'] === 'paid' ? 'paid' : 'initiated',
-                'amount_cents' => $total,
-                'currency' => $order->currency,
-                'paid_at' => $data['payment_status'] === 'paid' ? now() : null,
-            ]);
-            $this->orders->record($order, 'payment', $data['payment_status'], null, 'Payment '.$data['payment_status'], null, [
-                'gateway' => $transaction->gateway,
-                'source' => 'admin',
-            ], $actorId);
+            if ($order->payment_status === 'paid') {
+                $order->transactions()->create([
+                    'public_id' => (string) Str::uuid(),
+                    'gateway' => $order->payment_method,
+                    'status' => 'completed',
+                    'amount_cents' => $order->total_cents,
+                    'currency' => $order->currency,
+                    'payload' => ['created_by' => $actorId, 'note' => 'Marked paid at order creation'],
+                    'created_at' => now(),
+                ]);
+            }
 
-            return $this->orders->findAdmin($order->id);
+            return $order;
         });
     }
 
-    public function update(Order $order, array $data, int $actorId): Order
+    public function fullUpdate(Order $order, array $data, int $actorId): Order
     {
         return DB::transaction(function () use ($order, $data, $actorId): Order {
             $billing = AddressData::snapshot(AddressData::normalize($data['billing_address']));
             $shipping = AddressData::snapshot(AddressData::normalize($data['shipping_address']));
-            [$userId, $guestId] = $this->resolveCustomer($data, $billing, $shipping);
-            $this->creator->releaseItems($order);
-            $items = $this->prepareItems($data['items']);
-            $financials = $this->financials($data, $items);
+            $customerId = $this->resolveCustomer($data, $billing, $shipping);
+
+            $items = collect($data['items'])->map(function (array $item): array {
+                $selection = $this->selections->resolveCartSelection([
+                    'product_id' => $item['product_id'],
+                    'product_variant_id' => $item['product_variant_id'] ?? null,
+                    'quantity' => $item['quantity'],
+                ]);
+
+                $customUnitPrice = isset($item['unit_price']) && $item['unit_price'] !== ''
+                    ? $this->money($item['unit_price'])
+                    : (int) $selection['product']->effectivePriceCents($selection['variant']);
+                $itemDiscount = isset($item['discount']) && $item['discount'] !== ''
+                    ? $this->money($item['discount'])
+                    : 0;
+
+                return [
+                    'product_id' => $selection['product']->id,
+                    'product_variant_id' => $selection['variant']?->id,
+                    'product_name' => $selection['product']->name,
+                    'sku' => $selection['variant']?->sku ?: $selection['product']->sku,
+                    'quantity' => (int) $item['quantity'],
+                    'unit_price_cents' => $customUnitPrice,
+                    'discounted_price_cents' => max(0, $customUnitPrice - $itemDiscount),
+                    'line_subtotal_cents' => $customUnitPrice * (int) $item['quantity'],
+                    'line_discount_cents' => $itemDiscount * (int) $item['quantity'],
+                    'selection_snapshot' => [
+                        'product_title' => $selection['product']->name,
+                        'variant_title' => $selection['variant']?->attributeValues->map(fn ($v) => $v->value)->implode(', '),
+                        'attributes' => $selection['variant']?->attributeValues->mapWithKeys(fn ($v) => [$v->attribute?->name ?? 'Attribute' => $v->value])->all() ?? [],
+                        'thumbnail_url' => $selection['variant']?->imageUrl() ?: $selection['product']->imageUrl(),
+                    ],
+                    'pricing_snapshot' => [
+                        'base_price_cents' => (int) ($selection['variant']?->price_cents ?? $selection['product']->price_cents),
+                        'sale_price_cents' => $customUnitPrice,
+                    ],
+                    'tax_snapshot' => [],
+                ];
+            })->values()->all();
+
+            $subtotal = collect($items)->sum(fn ($item) => (int) $item['line_subtotal_cents']);
+            $itemDiscount = collect($items)->sum(fn ($item) => (int) $item['line_discount_cents']);
             $shippingMethod = ! empty($data['shipping_method_id'])
-                ? ShippingMethod::query()->where('status', true)->findOrFail($data['shipping_method_id'])
+                ? ShippingMethod::query()->find($data['shipping_method_id'])
                 : null;
-            $this->payments->setting($data['payment_method']);
-            $previousStatus = $order->status;
+            $shippingCharge = isset($data['shipping_charge']) && $data['shipping_charge'] !== ''
+                ? $this->money($data['shipping_charge'])
+                : (int) ($shippingMethod?->rate_cents ?? 0);
+            $tax = isset($data['tax']) && $data['tax'] !== '' ? $this->money($data['tax']) : 0;
+            $couponDiscount = isset($data['coupon_discount']) && $data['coupon_discount'] !== ''
+                ? $this->money($data['coupon_discount'])
+                : 0;
+            $additionalDiscount = isset($data['additional_discount']) && $data['additional_discount'] !== ''
+                ? $this->money($data['additional_discount'])
+                : 0;
+            $total = max(0, $subtotal - $itemDiscount - $couponDiscount - $additionalDiscount + $shippingCharge + $tax);
 
             $this->creator->replaceItems($order, $items);
+
+            $summary = [
+                'subtotal_cents' => $subtotal,
+                'item_discount_cents' => $itemDiscount,
+                'coupon_discount_cents' => $couponDiscount,
+                'additional_discount_cents' => $additionalDiscount,
+                'shipping_cents' => $shippingCharge,
+                'tax_cents' => $tax,
+                'total_cents' => $total,
+            ];
+
             $order->update([
-                'user_id' => $userId,
-                'guest_customer_id' => $guestId,
+                'user_id' => $data['user_id'] ?? $order->user_id,
+                'customer_id' => $customerId ?: $order->customer_id,
                 'status' => $data['status'],
                 'payment_status' => $data['payment_status'],
                 'payment_method' => $data['payment_method'],
                 'shipping_method_id' => $shippingMethod?->id,
                 'shipping_zone_id' => $shippingMethod?->shipping_zone_id,
                 'shipping_method_name' => $shippingMethod?->name,
-                'subtotal_cents' => $financials['subtotal'],
-                'item_discount_cents' => $financials['item_discount'],
-                'coupon_discount_cents' => $financials['coupon_discount'] + $financials['additional_discount'],
-                'shipping_cents' => $financials['shipping'],
-                'tax_cents' => $financials['tax'],
-                'total_cents' => $financials['total'],
+                'subtotal_cents' => $subtotal,
+                'item_discount_cents' => $itemDiscount,
+                'coupon_discount_cents' => $couponDiscount + $additionalDiscount,
+                'shipping_cents' => $shippingCharge,
+                'tax_cents' => $tax,
+                'total_cents' => $total,
                 'coupon_code' => $data['coupon_code'] ?? null,
-                'coupon_snapshot' => ! empty($data['coupon_code']) ? ['code' => $data['coupon_code'], 'discount_cents' => $financials['coupon_discount']] : null,
+                'coupon_snapshot' => ! empty($data['coupon_code']) ? ['code' => $data['coupon_code'], 'discount_cents' => $couponDiscount] : null,
                 'billing_address' => $billing,
                 'shipping_address' => $shipping,
-                'summary_snapshot' => $financials['summary'],
-                'admin_notes' => $data['admin_notes'] ?? null,
+                'summary_snapshot' => $summary,
                 'customer_notes' => $data['customer_notes'] ?? null,
-                'delivery_notes' => $data['delivery_notes'] ?? null,
+                'admin_notes' => $data['admin_notes'] ?? null,
             ]);
-            $order->transactions()->latest()->first()?->update([
-                'gateway' => $data['payment_method'],
-                'status' => $data['payment_status'] === 'paid' ? 'paid' : 'initiated',
-                'amount_cents' => $financials['total'],
-                'paid_at' => $data['payment_status'] === 'paid' ? now() : null,
-            ]);
-            $this->orders->record($order->fresh(), 'order', $data['status'], $previousStatus, 'Order updated', 'Full order updated from admin.', ['source' => 'admin'], $actorId);
 
-            return $this->orders->findAdmin($order->id);
+            $this->orders->record($order, 'order', $order->status, null, 'Order updated via admin full edit', null, [], $actorId);
+
+            return $order->fresh(['items', 'customer']);
         });
     }
 
-    private function prepareItems(array $data): array
+    private function resolveCustomer(array $data, array $billing, array $shipping): ?int
     {
-        return collect($data)->map(function (array $item): array {
-            $selection = $this->selections->resolveCartSelection([
-                'product_id' => $item['product_id'],
-                'product_variant_id' => $item['product_variant_id'] ?? null,
-                'quantity' => $item['quantity'],
-            ]);
-            if (! $selection['variant'] && $selection['product']->variants->where('status', 'active')->isNotEmpty()) {
-                throw ValidationException::withMessages(['items' => ["Select a variant for {$selection['product']->name}."]]);
-            }
-            $unitPrice = array_key_exists('unit_price', $item) && $item['unit_price'] !== null ? $this->money($item['unit_price']) : (int) $selection['unit_price_cents'];
-            $discount = min($unitPrice * $selection['quantity'], $this->money($item['discount'] ?? 0));
+        if (! empty($data['customer_id'])) {
+            $customer = Customer::query()->where('status', 'active')->findOrFail((int) $data['customer_id']);
 
-            return [
-                'product_id' => $selection['product']->id,
-                'product_variant_id' => $selection['variant']?->id,
-                'product_name' => $selection['product']->name,
-                'sku' => $selection['variant']?->sku ?: $selection['product']->sku,
-                'quantity' => $selection['quantity'],
-                'unit_price_cents' => $unitPrice,
-                'discounted_price_cents' => $discount > 0 ? max(0, $unitPrice - intdiv($discount, $selection['quantity'])) : null,
-                'line_subtotal_cents' => $unitPrice * $selection['quantity'],
-                'line_discount_cents' => $discount,
-                'selection_snapshot' => $selection['selection_snapshot'],
-                'pricing_snapshot' => $selection['pricing_snapshot'],
-                'tax_snapshot' => $selection['tax_snapshot'],
-            ];
-        })->all();
-    }
-
-    private function financials(array $data, array $items): array
-    {
-        $subtotal = (int) collect($items)->sum('line_subtotal_cents');
-        $itemDiscount = (int) collect($items)->sum('line_discount_cents');
-        $couponDiscount = $this->money($data['coupon_discount'] ?? 0);
-        $additionalDiscount = $this->money($data['additional_discount'] ?? 0);
-        $shipping = $this->money($data['shipping_charge'] ?? 0);
-        $tax = $this->money($data['tax'] ?? 0);
-        $total = max(0, $subtotal - $itemDiscount - $couponDiscount - $additionalDiscount + $shipping + $tax);
-
-        return compact('subtotal', 'itemDiscount', 'couponDiscount', 'additionalDiscount', 'shipping', 'tax', 'total') + [
-            'item_discount' => $itemDiscount,
-            'coupon_discount' => $couponDiscount,
-            'additional_discount' => $additionalDiscount,
-            'summary' => [
-                'subtotal_cents' => $subtotal,
-                'item_discount_cents' => $itemDiscount,
-                'coupon_discount_cents' => $couponDiscount,
-                'additional_discount_cents' => $additionalDiscount,
-                'shipping_cents' => $shipping,
-                'tax_cents' => $tax,
-                'total_cents' => $total,
-            ],
-        ];
-    }
-
-    private function resolveCustomer(array $data, array $billing, array $shipping): array
-    {
-        if ($data['customer_type'] === 'registered') {
-            $user = User::query()
-                ->whereHas('roles', fn ($query) => $query->where('name', 'user'))
-                ->findOrFail($data['user_id']);
-
-            return [$user->id, null];
+            return $customer->id;
         }
 
-        if ($data['customer_type'] === 'guest') {
-            $guest = GuestCustomer::query()->where('status', 'active')->findOrFail($data['guest_customer_id']);
-            $guest->update([
-                'billing_address' => $billing,
-                'shipping_address' => $shipping,
-                'last_order_at' => now(),
-            ]);
+        $phone = CustomerPhoneNormalizer::normalize(
+            $data['customer']['mobile'] ?? $data['customer']['phone'] ?? $billing['phone'] ?? $shipping['phone'] ?? ''
+        );
+        $name = trim((string) ($data['customer']['name'] ?? $billing['full_name'] ?? $shipping['full_name'] ?? 'Customer'));
+        $email = trim((string) ($data['customer']['email'] ?? $billing['email'] ?? $shipping['email'] ?? '')) ?: null;
+        $address = trim((string) ($data['customer']['address'] ?? $shipping['address_line'] ?? $billing['address_line'] ?? '')) ?: null;
 
-            return [null, $guest->id];
+        if ($phone !== '') {
+            $customer = Customer::query()->firstOrCreate(
+                ['mobile' => $phone],
+                [
+                    'name' => $name,
+                    'email' => $email,
+                    'address' => $address,
+                    'status' => 'active',
+                ]
+            );
+
+            return $customer->id;
         }
 
-        $guestBilling = array_replace($billing, array_filter([
-            'full_name' => $data['customer']['name'] ?? null,
-            'email' => $data['customer']['email'] ?? null,
-            'phone' => $data['customer']['phone'] ?? null,
-        ], fn ($value) => $value !== null && trim((string) $value) !== ''));
-        $guest = $this->guestCustomers->resolve($guestBilling, $shipping, $data['customer_notes'] ?? null);
-
-        return [null, $guest->id];
+        return null;
     }
 
     private function money(mixed $value): int

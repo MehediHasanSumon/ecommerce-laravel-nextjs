@@ -5,13 +5,14 @@ namespace App\Services\Checkout;
 use App\Models\Cart;
 use App\Models\CheckoutSession;
 use App\Models\CustomerAddress;
+use App\Models\Customer;
 use App\Models\PaymentTransaction;
 use App\Models\Settings\CompanySetting;
 use App\Models\Settings\ShippingMethod;
 use App\Services\Admin\Settings\StoreSettingsService;
 use App\Services\Commerce\CartService;
 use App\Services\Commerce\CouponService;
-use App\Services\Customers\GuestCustomerService;
+use App\Support\CustomerPhoneNormalizer;
 use App\Services\Fraud\FraudAutomationService;
 use App\Services\Marketing\MarketingEventService;
 use App\Services\Orders\OrderCreator;
@@ -36,7 +37,6 @@ class CheckoutService
         private readonly OrderService $orders,
         private readonly ShippingZoneMatcher $shippingZones,
         private readonly CustomerAddressService $customerAddresses,
-        private readonly GuestCustomerService $guestCustomers,
         private readonly OrderCreator $orderCreator,
         private readonly StoreSettingsService $storeSettings,
         private readonly CheckoutOtpService $checkoutOtp,
@@ -106,13 +106,37 @@ class CheckoutService
                 throw ValidationException::withMessages(['shipping_method_id' => ['The selected shipping method requires a higher order amount.']]);
             }
             $currency = $this->currency();
-            $guestCustomer = $request->user()
-                ? null
-                : $this->guestCustomers->resolve($billingAddress, $shippingAddress);
+            $customerPhone = CustomerPhoneNormalizer::normalize($billingAddress['phone'] ?? $shippingAddress['phone'] ?? '');
+            $customerName = trim((string) ($billingAddress['full_name'] ?? $shippingAddress['full_name'] ?? 'Customer'));
+            $customerEmail = trim((string) ($billingAddress['email'] ?? $shippingAddress['email'] ?? '')) ?: null;
+            $customerAddress = trim((string) ($shippingAddress['address_line'] ?? $billingAddress['address_line'] ?? '')) ?: null;
+
+            $customer = Customer::query()->firstOrCreate(
+                ['mobile' => $customerPhone],
+                [
+                    'name' => $customerName,
+                    'email' => $customerEmail,
+                    'address' => $customerAddress,
+                    'status' => 'active',
+                ]
+            );
+
+            if (! $customer->wasRecentlyCreated) {
+                $updates = [];
+                if (empty($customer->email) && $customerEmail) {
+                    $updates['email'] = $customerEmail;
+                }
+                if (empty($customer->address) && $customerAddress) {
+                    $updates['address'] = $customerAddress;
+                }
+                if (! empty($updates)) {
+                    $customer->update($updates);
+                }
+            }
 
             $order = $this->orderCreator->create([
                 'user_id' => $request->user()?->id,
-                'guest_customer_id' => $guestCustomer?->id,
+                'customer_id' => $customer->id,
                 'cart_id' => $cart->id,
                 'guest_token' => $cart->guest_token,
                 'source' => 'storefront',

@@ -2,8 +2,6 @@
 
 namespace App\Services;
 
-use App\Models\GuestCustomer;
-use App\Models\Order;
 use App\Models\User;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Contracts\Auth\Authenticatable;
@@ -29,7 +27,6 @@ class AuthService
         ]);
 
         $this->ensureCustomerRole($user);
-        $this->linkGuestHistory($user);
 
         Log::info('auth.registered', ['user_id' => $user->id, 'email' => $user->email]);
 
@@ -247,24 +244,6 @@ class AuthService
         }
     }
 
-    private function linkGuestHistory(User $user): void
-    {
-        $guestIds = GuestCustomer::query()
-            ->whereNull('linked_user_id')
-            ->whereNotNull('email')
-            ->whereRaw('lower(email) = ?', [mb_strtolower($user->email)])
-            ->pluck('id');
-
-        if ($guestIds->isEmpty()) {
-            return;
-        }
-
-        GuestCustomer::query()->whereIn('id', $guestIds)->update(['linked_user_id' => $user->id]);
-        Order::query()
-            ->whereNull('user_id')
-            ->whereIn('guest_customer_id', $guestIds)
-            ->update(['user_id' => $user->id]);
-    }
 
     private function avatarUrl(?string $avatar): ?string
     {

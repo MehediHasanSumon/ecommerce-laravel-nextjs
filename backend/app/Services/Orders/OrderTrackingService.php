@@ -24,7 +24,7 @@ class OrderTrackingService
             ->where('order_number', $orderNumber)
             ->with([
                 'user:id,name,phone',
-                'guestCustomer:id,name,phone',
+                'customer:id,name,mobile',
                 'shippingMethod:id,estimated_days_min,estimated_days_max',
                 'items.product:id,name,slug',
                 'items.product.images:id,product_id,url,is_primary,sort_order',
@@ -52,7 +52,7 @@ class OrderTrackingService
         $phones = [
             $order->shipping_address['phone'] ?? null,
             $order->billing_address['phone'] ?? null,
-            $order->guestCustomer?->phone,
+            $order->customer?->mobile,
             $order->user?->phone,
         ];
 
@@ -96,8 +96,8 @@ class OrderTrackingService
             'shippingStatus' => $order->shipping_status ?? 'pending',
             'paymentMethod' => $order->payment_method,
             'customer' => [
-                'name' => $order->user?->name ?? $order->guestCustomer?->name ?? ($billing['full_name'] ?? 'Customer'),
-                'phone' => $billing['phone'] ?? $shipping['phone'] ?? null,
+                'name' => $order->customer?->name ?? $order->user?->name ?? ($billing['full_name'] ?? 'Customer'),
+                'phone' => $order->customer?->mobile ?? ($billing['phone'] ?? $shipping['phone'] ?? null),
             ],
             'shipping' => [
                 'recipientName' => $shipping['full_name'] ?? null,

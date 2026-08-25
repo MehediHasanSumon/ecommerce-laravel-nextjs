@@ -34,9 +34,14 @@ class FraudCheck extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class);
+    }
+
     public function guestCustomer(): BelongsTo
     {
-        return $this->belongsTo(GuestCustomer::class);
+        return $this->belongsTo(Customer::class, 'customer_id');
     }
 
     public function actor(): BelongsTo

@@ -16,12 +16,15 @@ class CreateOrderRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'customer_type' => ['required', Rule::in(['registered', 'guest', 'new_guest'])],
-            'user_id' => ['nullable', 'required_if:customer_type,registered', 'integer', 'exists:users,id'],
-            'guest_customer_id' => ['nullable', 'required_if:customer_type,guest', 'integer', 'exists:guest_customers,id'],
-            'customer.name' => ['required_if:customer_type,new_guest', 'nullable', 'string', 'max:255'],
+            'customer_type' => ['nullable', 'string', 'max:50'],
+            'customer_id' => ['nullable', 'integer', 'exists:customers,id'],
+            'user_id' => ['nullable', 'integer', 'exists:users,id'],
+            'guest_customer_id' => ['nullable'],
+            'customer.name' => ['nullable', 'string', 'max:255'],
+            'customer.mobile' => ['nullable', 'string', 'max:40'],
+            'customer.phone' => ['nullable', 'string', 'max:40'],
             'customer.email' => ['nullable', 'email', 'max:255'],
-            'customer.phone' => ['required_if:customer_type,new_guest', 'nullable', 'string', 'max:40'],
+            'customer.address' => ['nullable', 'string', 'max:1000'],
             'billing_address' => ['required', 'array'],
             'shipping_address' => ['required', 'array'],
             'billing_address.full_name' => ['required', 'string', 'max:255'],

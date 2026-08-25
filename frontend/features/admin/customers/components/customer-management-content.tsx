@@ -2,18 +2,31 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
+  ArrowLeft,
+  Calendar,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  ChevronsUpDown,
   Eye,
+  Mail,
+  MapPin,
+  Pencil,
+  Phone,
+  Plus,
   RefreshCw,
   Search,
-  Save,
-  ShieldCheck,
+  ShoppingBag,
+  Trash2,
+  User,
+  X,
+  XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -23,873 +36,960 @@ import {
 } from "@/components/ui/select";
 import {
   customerManagementService,
+  type CreateCustomerPayload,
   type CustomerDetail,
   type CustomerListItem,
   type CustomerStatus,
+  type UpdateCustomerPayload,
 } from "@/features/admin/customers/services/customer-management-service";
-import {
-  FraudCheckModal,
-  FraudRiskBadge,
-} from "@/features/admin/fraud/components/fraud-check-modal";
-import { fraudService } from "@/features/admin/fraud/services/fraud-service";
-import type { FraudCheck } from "@/features/admin/fraud/types";
 import type { PaginationMeta } from "@/features/admin/shared/types";
-import { toAppError } from "@/lib/errors";
+import { flattenValidationErrors, toAppError } from "@/lib/errors";
 import { hasPermission } from "@/lib/permissions";
-import { useAuthStore } from "@/store/auth-store";
-import { formatPrice } from "@/utils/format";
 import { cn } from "@/utils/cn";
+import { formatPrice } from "@/utils/format";
 
 const pageSizes = [10, 20, 50, 100];
-const statuses = ["active", "inactive", "blocked"] as const;
 
-function dateLabel(value?: string | null) {
+function formatDate(value?: string | null) {
   return value
     ? new Intl.DateTimeFormat("en", { dateStyle: "medium" }).format(new Date(value))
-    : "Not set";
+    : "—";
 }
 
-function title(value: string) {
-  return value
-    .replaceAll("_", " ")
-    .replace(/\b\w/g, (character) => character.toUpperCase());
+function getInitials(name: string) {
+  const parts = name.trim().split(" ");
+  if (parts.length >= 2) {
+    return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  }
+  return name.slice(0, 2).toUpperCase() || "CU";
 }
 
 export function CustomerManagementContent() {
   const [customers, setCustomers] = useState<CustomerListItem[]>([]);
   const [pagination, setPagination] = useState<PaginationMeta | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [appliedSearch, setAppliedSearch] = useState("");
-  const [type, setType] = useState("");
-  const [status, setStatus] = useState("");
-  const [sort, setSort] = useState("created_at");
-  const [direction, setDirection] = useState<"asc" | "desc">("desc");
-  const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState(20);
-  const [fraudStatus, setFraudStatus] = useState("");
-  const [fraudChecked, setFraudChecked] = useState("");
-  const [fraudProvider, setFraudProvider] = useState("");
-  const [selected, setSelected] = useState<string[]>([]);
-  const [fraudTarget, setFraudTarget] = useState<CustomerListItem | null>(null);
-  useAuthStore((state) => state.user?.permissions);
-  const canCheckFraud = hasPermission("can_create_fraud_check");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  // Filters
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [pageSize, setPageSize] = useState<number>(20);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+
+  // Modals state
+  const [detailCustomer, setDetailCustomer] = useState<CustomerDetail | null>(null);
+  const [isDetailLoading, setIsDetailLoading] = useState(false);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+
+  // Add / Edit Modal state
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [formMode, setFormMode] = useState<"create" | "edit">("create");
+  const [editingCustomer, setEditingCustomer] = useState<CustomerListItem | null>(null);
+  const [formData, setFormData] = useState<{
+    name: string;
+    mobile: string;
+    email: string;
+    address: string;
+    status: CustomerStatus;
+  }>({
+    name: "",
+    mobile: "",
+    email: "",
+    address: "",
+    status: "active",
+  });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Delete modal state
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [deletingCustomer, setDeletingCustomer] = useState<CustomerListItem | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const canView = hasPermission("can_view_customer");
+  const canCreate = hasPermission("can_create_customer");
+  const canEdit = hasPermission("can_edit_customer");
+  const canDelete = hasPermission("can_delete_customer");
+
+  const loadCustomers = useCallback(
+    async (refresh = false) => {
+      if (!canView) {
+        setIsLoading(false);
+        return;
+      }
+
+      if (refresh) {
+        setIsRefreshing(true);
+      } else {
+        setIsLoading(true);
+      }
+
+      try {
+        const response = await customerManagementService.list({
+          search: search.trim() || undefined,
+          status: statusFilter === "all" ? undefined : statusFilter,
+          per_page: pageSize,
+          page: currentPage,
+        });
+
+        setCustomers(response.data.customers);
+        setPagination(response.meta?.pagination ?? null);
+      } catch (error) {
+        toast.error(toAppError(error).message);
+      } finally {
+        setIsLoading(false);
+        setIsRefreshing(false);
+      }
+    },
+    [canView, search, statusFilter, pageSize, currentPage],
+  );
+
+  useEffect(() => {
+    loadCustomers();
+  }, [loadCustomers]);
+
+  // Load single customer detail for Drawer
+  async function openDetailModal(id: number) {
+    setIsDetailOpen(true);
+    setIsDetailLoading(true);
     try {
-      const response = await customerManagementService.list({
-        search: appliedSearch,
-        type,
-        status,
-        fraud_status: fraudStatus,
-        fraud_checked: fraudChecked,
-        fraud_provider: fraudProvider,
-        sort,
-        direction,
-        page,
-        per_page: perPage,
-      });
-      setCustomers(response.data.customers);
-      setPagination(response.meta.pagination ?? null);
-      setSelected([]);
+      const response = await customerManagementService.show(id);
+      setDetailCustomer(response.data.customer);
+    } catch (error) {
+      toast.error(toAppError(error).message);
+      setIsDetailOpen(false);
+    } finally {
+      setIsDetailLoading(false);
+    }
+  }
+
+  // Open Add modal
+  function openCreateModal() {
+    setFormMode("create");
+    setEditingCustomer(null);
+    setFormData({
+      name: "",
+      mobile: "",
+      email: "",
+      address: "",
+      status: "active",
+    });
+    setFormErrors({});
+    setIsFormOpen(true);
+  }
+
+  // Open Edit modal
+  function openEditModal(customer: CustomerListItem) {
+    setFormMode("edit");
+    setEditingCustomer(customer);
+    setFormData({
+      name: customer.name,
+      mobile: customer.mobile,
+      email: customer.email || "",
+      address: customer.address || "",
+      status: customer.status,
+    });
+    setFormErrors({});
+    setIsFormOpen(true);
+  }
+
+  // Save Customer (Create or Update)
+  async function handleSaveCustomer(e: React.FormEvent) {
+    e.preventDefault();
+    setFormErrors({});
+
+    const errors: Record<string, string> = {};
+    if (!formData.name.trim()) {
+      errors.name = "Customer name is required.";
+    }
+    if (!formData.mobile.trim()) {
+      errors.mobile = "Mobile number is required.";
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      if (formMode === "create") {
+        const payload: CreateCustomerPayload = {
+          name: formData.name.trim(),
+          mobile: formData.mobile.trim(),
+          email: formData.email.trim() || null,
+          address: formData.address.trim() || null,
+          status: formData.status,
+        };
+        await customerManagementService.create(payload);
+        toast.success("Customer created successfully.");
+      } else if (editingCustomer) {
+        const payload: UpdateCustomerPayload = {
+          name: formData.name.trim(),
+          mobile: formData.mobile.trim(),
+          email: formData.email.trim() || null,
+          address: formData.address.trim() || null,
+          status: formData.status,
+        };
+        await customerManagementService.update(editingCustomer.id, payload);
+        toast.success("Customer updated successfully.");
+      }
+
+      setIsFormOpen(false);
+      loadCustomers(true);
+    } catch (error) {
+      const appErr = toAppError(error);
+      if (appErr.validationErrors) {
+        setFormErrors(flattenValidationErrors(appErr.validationErrors));
+      }
+      toast.error(appErr.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  // Open delete confirm
+  function openDeleteDialog(customer: CustomerListItem) {
+    setDeletingCustomer(customer);
+    setIsDeleteOpen(true);
+  }
+
+  // Confirm delete
+  async function handleConfirmDelete() {
+    if (!deletingCustomer) return;
+    setIsDeleting(true);
+    try {
+      await customerManagementService.delete(deletingCustomer.id);
+      toast.success("Customer deleted successfully.");
+      setIsDeleteOpen(false);
+      setDeletingCustomer(null);
+      loadCustomers(true);
     } catch (error) {
       toast.error(toAppError(error).message);
     } finally {
-      setLoading(false);
-    }
-  }, [
-    appliedSearch,
-    direction,
-    fraudChecked,
-    fraudProvider,
-    fraudStatus,
-    page,
-    perPage,
-    sort,
-    status,
-    type,
-  ]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  function sortBy(key: string) {
-    setDirection(sort === key && direction === "asc" ? "desc" : "asc");
-    setSort(key);
-    setPage(1);
-  }
-
-  const allSelected =
-    customers.length > 0 && customers.every((customer) => selected.includes(customer.id));
-
-  async function bulkCheck(bypassCache: boolean) {
-    const subjects = customers
-      .filter((customer) => selected.includes(customer.id))
-      .map((customer) => ({ type: customer.type, id: customer.record_id }));
-    try {
-      const response = await fraudService.bulk(subjects, bypassCache);
-      toast.success(response.message || `${response.data.queued} fraud checks queued.`);
-    } catch (error) {
-      toast.error(toAppError(error).message);
-    }
-  }
-
-  async function clearSelectedCache() {
-    const selectedCustomers = customers.filter((customer) =>
-      selected.includes(customer.id),
-    );
-    try {
-      const response = await fraudService.clearCache({
-        user_ids: selectedCustomers
-          .filter((customer) => customer.type === "registered")
-          .map((customer) => customer.record_id),
-        guest_customer_ids: selectedCustomers
-          .filter((customer) => customer.type === "guest")
-          .map((customer) => customer.record_id),
-      });
-      toast.success(
-        response.message || `${response.data.cleared} cached results cleared.`,
-      );
-    } catch (error) {
-      toast.error(toAppError(error).message);
+      setIsDeleting(false);
     }
   }
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-        <span>Dashboard</span>
-        <ChevronRight className="h-4 w-4" />
-        <span className="font-medium text-foreground">Customer Management</span>
-      </div>
-      <section className="rounded-lg border border-border bg-card p-4">
-        <h1 className="text-2xl font-extrabold tracking-tight">Customer Management</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Manage registered and guest customers, order history, spending, and account
-          status.
-        </p>
-      </section>
-      <section className="rounded-lg border border-border bg-card p-3">
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[1fr_150px_150px_150px_150px_150px_auto]">
-          <div className="flex items-center gap-2 rounded-lg border border-border bg-background px-3">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  setAppliedSearch(search);
-                  setPage(1);
-                }
-              }}
-              placeholder="Search name, email, or phone"
-              className="h-10 min-w-0 flex-1 bg-transparent text-sm outline-none"
-            />
-          </div>
-          <FilterSelect
-            value={type}
-            placeholder="All customer types"
-            values={["registered", "guest"]}
-            onChange={(value) => {
-              setType(value);
-              setPage(1);
-            }}
-          />
-          <FilterSelect
-            value={status}
-            placeholder="All statuses"
-            values={[...statuses]}
-            onChange={(value) => {
-              setStatus(value);
-              setPage(1);
-            }}
-          />
-          <FilterSelect
-            value={fraudStatus}
-            placeholder="All fraud levels"
-            values={["safe", "low", "medium", "high", "critical"]}
-            onChange={(value) => {
-              setFraudStatus(value);
-              setPage(1);
-            }}
-          />
-          <FilterSelect
-            value={fraudChecked}
-            placeholder="Fraud check status"
-            values={["checked", "unchecked"]}
-            onChange={(value) => {
-              setFraudChecked(value);
-              setPage(1);
-            }}
-          />
-          <FilterSelect
-            value={fraudProvider}
-            placeholder="All fraud providers"
-            values={["fraudpeek", "fraud_bd", "fraudbd"]}
-            onChange={(value) => {
-              setFraudProvider(value);
-              setPage(1);
-            }}
-          />
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Customers</h1>
+          <p className="text-sm text-muted-foreground">
+            Manage buyer profiles, contact information, and account status.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
           <Button
+            variant="secondary"
             size="sm"
-            icon={<Search className="h-4 w-4" />}
-            onClick={() => {
-              setAppliedSearch(search);
-              setPage(1);
+            onClick={() => loadCustomers(true)}
+            disabled={isRefreshing || isLoading}
+            icon={<RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />}
+          >
+            Refresh
+          </Button>
+          {canCreate && (
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={openCreateModal}
+              icon={<Plus className="h-4 w-4" />}
+            >
+              Add Customer
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Toolbar */}
+      <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
+        {/* Search */}
+        <div className="relative flex-1 sm:max-w-md">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setCurrentPage(1);
+            }}
+            placeholder="Search customer name or mobile number..."
+            className="pl-9"
+          />
+        </div>
+
+        {/* Status Dropdown */}
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-medium text-muted-foreground">Status:</span>
+          <Select
+            value={statusFilter}
+            onValueChange={(val) => {
+              setStatusFilter(val);
+              setCurrentPage(1);
             }}
           >
-            Search
-          </Button>
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="All Statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="inactive">Inactive</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-      </section>
-      {selected.length && canCheckFraud ? (
-        <section className="flex flex-col gap-3 rounded-lg border border-border bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm font-semibold">{selected.length} selected</p>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              size="sm"
-              variant="secondary"
-              icon={<ShieldCheck className="h-4 w-4" />}
-              onClick={() => void bulkCheck(false)}
-            >
-              Bulk Check
-            </Button>
-            <Button
-              size="sm"
-              variant="secondary"
-              icon={<RefreshCw className="h-4 w-4" />}
-              onClick={() => void bulkCheck(true)}
-            >
-              Bulk Refresh
-            </Button>
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => void clearSelectedCache()}
-            >
-              Clear Cache
-            </Button>
-          </div>
-        </section>
-      ) : null}
-      <section className="overflow-hidden rounded-lg border border-border bg-card">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[1280px] text-left text-sm">
-            <thead className="bg-muted text-xs uppercase text-muted-foreground">
+      </div>
+
+      {/* Customer Table */}
+      <div className="overflow-hidden rounded-lg border border-border bg-card">
+        <table className="w-full text-left text-sm">
+          <thead className="border-b border-border bg-muted/40 text-xs font-semibold uppercase text-muted-foreground">
+            <tr>
+              <th className="px-4 py-3">Customer</th>
+              <th className="px-4 py-3">Mobile Number</th>
+              <th className="px-4 py-3">Address</th>
+              <th className="px-4 py-3">Due</th>
+              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {isLoading ? (
               <tr>
-                <th className="w-12 px-4 py-3">
-                  <input
-                    type="checkbox"
-                    checked={allSelected}
-                    onChange={() =>
-                      setSelected(
-                        allSelected ? [] : customers.map((customer) => customer.id),
-                      )
-                    }
-                    aria-label="Select all customers"
-                  />
-                </th>
-                <SortHead label="Customer" field="name" active={sort} onSort={sortBy} />
-                <SortHead label="Email" field="email" active={sort} onSort={sortBy} />
-                <SortHead label="Phone" field="phone" active={sort} onSort={sortBy} />
-                <th className="px-4 py-3">Type</th>
-                <SortHead
-                  label="Orders"
-                  field="total_orders"
-                  active={sort}
-                  onSort={sortBy}
-                />
-                <SortHead
-                  label="Spending"
-                  field="total_spending"
-                  active={sort}
-                  onSort={sortBy}
-                />
-                <SortHead
-                  label="Last Order"
-                  field="last_order_at"
-                  active={sort}
-                  onSort={sortBy}
-                />
-                <SortHead
-                  label="Fraud"
-                  field="fraud_score"
-                  active={sort}
-                  onSort={sortBy}
-                />
-                <SortHead label="Status" field="status" active={sort} onSort={sortBy} />
-                <SortHead
-                  label="Created"
-                  field="created_at"
-                  active={sort}
-                  onSort={sortBy}
-                />
-                <th className="px-4 py-3 text-right">Actions</th>
+                <td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">
+                  <div className="inline-flex items-center gap-2">
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    <span>Loading customers...</span>
+                  </div>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                Array.from({ length: 6 }).map((_, row) => (
-                  <tr key={row} className="border-t border-border">
-                    {Array.from({ length: 12 }).map((__, cell) => (
-                      <td key={cell} className="px-4 py-4">
-                        <div className="h-5 animate-pulse rounded bg-muted" />
-                      </td>
-                    ))}
-                  </tr>
-                ))
-              ) : customers.length ? (
-                customers.map((customer) => (
-                  <tr
-                    key={customer.id}
-                    className="border-t border-border hover:bg-muted/40"
-                  >
-                    <td className="px-4 py-3">
-                      <input
-                        type="checkbox"
-                        checked={selected.includes(customer.id)}
-                        onChange={() =>
-                          setSelected((current) =>
-                            current.includes(customer.id)
-                              ? current.filter((id) => id !== customer.id)
-                              : [...current, customer.id],
-                          )
-                        }
-                        aria-label={`Select ${customer.name}`}
-                      />
-                    </td>
-                    <td className="px-4 py-3 font-semibold">{customer.name}</td>
-                    <td className="px-4 py-3">{customer.email ?? "-"}</td>
-                    <td className="px-4 py-3">{customer.phone ?? "-"}</td>
-                    <td className="px-4 py-3">
-                      <span className="rounded-full border border-border px-2 py-1 text-xs font-semibold">
-                        {title(customer.type)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">{customer.total_orders}</td>
-                    <td className="px-4 py-3 font-semibold">
-                      {formatPrice(customer.total_spending)}
-                    </td>
-                    <td className="px-4 py-3">{dateLabel(customer.last_order_at)}</td>
-                    <td className="px-4 py-3">
-                      <FraudRiskBadge
-                        level={customer.fraud_status}
-                        score={customer.fraud_score}
-                      />
-                    </td>
-                    <td className="px-4 py-3">{title(customer.status)}</td>
-                    <td className="px-4 py-3">{dateLabel(customer.created_at)}</td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="inline-flex gap-1">
-                        <Link href={`/admin/customers/${customer.id}`}>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            icon={<Eye className="h-4 w-4" />}
-                            aria-label={`View ${customer.name}`}
-                            title="View customer"
-                          />
-                        </Link>
-                        {canCheckFraud ? (
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            icon={<ShieldCheck className="h-4 w-4" />}
-                            aria-label={`Check fraud for ${customer.name}`}
-                            title="Fraud check"
-                            onClick={() => setFraudTarget(customer)}
-                          />
-                        ) : null}
+            ) : customers.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <User className="h-8 w-8 text-muted-foreground/50" />
+                    <p className="font-medium text-foreground">No customers found</p>
+                    <p className="text-xs">Try adjusting your search or status filter.</p>
+                  </div>
+                </td>
+              </tr>
+            ) : (
+              customers.map((customer) => (
+                <tr key={customer.id} className="transition-colors hover:bg-muted/30">
+                  {/* Customer (Avatar + Name + Email) */}
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                        {getInitials(customer.name)}
                       </div>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={12} className="h-48 text-center">
-                    <p className="font-semibold">No customers found</p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Try changing the search or filters.
-                    </p>
+                      <div className="min-w-0">
+                        <button
+                          type="button"
+                          onClick={() => openDetailModal(customer.id)}
+                          className="font-medium text-foreground hover:text-primary hover:underline text-left block truncate"
+                        >
+                          {customer.name}
+                        </button>
+                        {customer.email && (
+                          <span className="text-xs text-muted-foreground truncate block">
+                            {customer.email}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </td>
+
+                  {/* Mobile Number */}
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1.5 text-foreground font-mono text-xs">
+                      <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span>{customer.mobile}</span>
+                    </div>
+                  </td>
+
+                  {/* Address */}
+                  <td className="px-4 py-3 text-muted-foreground max-w-[200px] truncate text-xs">
+                    {customer.address || "—"}
+                  </td>
+
+                  {/* Due */}
+                  <td className="px-4 py-3">
+                    <span
+                      className={cn(
+                        "font-medium text-xs",
+                        customer.due > 0
+                          ? "text-destructive font-semibold"
+                          : "text-muted-foreground",
+                      )}
+                    >
+                      {formatPrice(customer.due)}
+                    </span>
+                  </td>
+
+                  {/* Status */}
+                  <td className="px-4 py-3">
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
+                        customer.status === "active"
+                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                          : "bg-muted text-muted-foreground",
+                      )}
+                    >
+                      {customer.status === "active" ? (
+                        <CheckCircle2 className="h-3 w-3" />
+                      ) : (
+                        <XCircle className="h-3 w-3" />
+                      )}
+                      <span className="capitalize">{customer.status}</span>
+                    </span>
+                  </td>
+
+                  {/* Actions */}
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                        title="View Customer"
+                        onClick={() => openDetailModal(customer.id)}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      {canEdit && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                          title="Edit Customer"
+                          onClick={() => openEditModal(customer)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {canDelete && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          title="Delete Customer"
+                          onClick={() => openDeleteDialog(customer)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                   </td>
                 </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-        <div className="flex flex-col gap-3 border-t border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-muted-foreground">
-            Total Records:{" "}
-            <span className="font-semibold text-foreground">
-              {pagination?.total ?? 0}
-            </span>
-          </p>
-          <div className="flex flex-wrap items-center gap-2">
-            <Select
-              value={String(perPage)}
-              onValueChange={(value) => {
-                setPerPage(Number(value));
-                setPage(1);
-              }}
-            >
-              <SelectTrigger className="h-9 w-[110px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {pageSizes.map((size) => (
-                  <SelectItem key={size} value={String(size)}>
-                    {size} / page
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              size="sm"
-              variant="secondary"
-              icon={<ChevronLeft className="h-4 w-4" />}
-              disabled={page <= 1}
-              onClick={() => setPage(page - 1)}
-            >
-              Previous
-            </Button>
-            <span className="text-sm font-semibold">
-              {page} / {pagination?.last_page ?? 1}
-            </span>
-            <Button
-              size="sm"
-              variant="secondary"
-              icon={<ChevronRight className="h-4 w-4" />}
-              disabled={page >= (pagination?.last_page ?? 1)}
-              onClick={() => setPage(page + 1)}
-            >
-              Next
-            </Button>
+              ))
+            )}
+          </tbody>
+        </table>
+
+        {/* Pagination */}
+        {pagination && pagination.total > 0 && (
+          <div className="flex flex-col items-center justify-between gap-3 border-t border-border px-4 py-3 sm:flex-row text-xs text-muted-foreground">
+            <div>
+              Showing <span className="font-medium text-foreground">{pagination.from || 1}</span> to{" "}
+              <span className="font-medium text-foreground">{pagination.to || customers.length}</span> of{" "}
+              <span className="font-medium text-foreground">{pagination.total}</span> customers
+            </div>
+
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-1.5">
+                <span>Per page:</span>
+                <Select
+                  value={String(pageSize)}
+                  onValueChange={(val) => {
+                    setPageSize(Number(val));
+                    setCurrentPage(1);
+                  }}
+                >
+                  <SelectTrigger className="h-7 w-[70px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {pageSizes.map((size) => (
+                      <SelectItem key={size} value={String(size)}>
+                        {size}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  className="h-7 w-7"
+                  disabled={currentPage <= 1}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                </Button>
+                <span className="px-2 font-medium text-foreground">
+                  {currentPage} / {pagination.last_page}
+                </span>
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  className="h-7 w-7"
+                  disabled={currentPage >= pagination.last_page}
+                  onClick={() => setCurrentPage((p) => Math.min(pagination.last_page, p + 1))}
+                >
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ADD / EDIT CUSTOMER MODAL */}
+      {isFormOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs"
+            onClick={() => !isSubmitting && setIsFormOpen(false)}
+          />
+          <div className="relative w-full max-w-lg rounded-lg border border-border bg-card p-6 shadow-xl z-10">
+            <div className="flex items-center justify-between pb-4 border-b border-border">
+              <h2 className="text-lg font-semibold text-foreground">
+                {formMode === "create" ? "Add New Customer" : "Edit Customer"}
+              </h2>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground"
+                onClick={() => !isSubmitting && setIsFormOpen(false)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <form onSubmit={handleSaveCustomer} className="mt-4 space-y-4">
+              {/* Name */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-foreground">
+                  Full Name <span className="text-destructive">*</span>
+                </label>
+                <Input
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="e.g. Rahim Ahmed"
+                  required
+                />
+                {formErrors.name && (
+                  <p className="text-xs text-destructive">{formErrors.name}</p>
+                )}
+              </div>
+
+              {/* Mobile */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-foreground">
+                  Mobile Number <span className="text-destructive">*</span>
+                </label>
+                <Input
+                  value={formData.mobile}
+                  onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
+                  placeholder="e.g. 01711000000"
+                  required
+                />
+                {formErrors.mobile && (
+                  <p className="text-xs text-destructive">{formErrors.mobile}</p>
+                )}
+              </div>
+
+              {/* Email */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-foreground">
+                  Email Address <span className="text-muted-foreground">(Optional)</span>
+                </label>
+                <Input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  placeholder="e.g. rahim@example.com"
+                />
+                {formErrors.email && (
+                  <p className="text-xs text-destructive">{formErrors.email}</p>
+                )}
+              </div>
+
+              {/* Address */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-foreground">
+                  Address <span className="text-muted-foreground">(Optional)</span>
+                </label>
+                <textarea
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  placeholder="e.g. House 14, Road 5, Dhanmondi, Dhaka"
+                  rows={2}
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+                {formErrors.address && (
+                  <p className="text-xs text-destructive">{formErrors.address}</p>
+                )}
+              </div>
+
+              {/* Status */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-foreground">Status</label>
+                <Select
+                  value={formData.status}
+                  onValueChange={(val) => setFormData({ ...formData, status: val as CustomerStatus })}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center justify-end gap-2 pt-4 border-t border-border">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setIsFormOpen(false)}
+                  disabled={isSubmitting}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="sm"
+                  isLoading={isSubmitting}
+                >
+                  {formMode === "create" ? "Save Customer" : "Update Customer"}
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
-      </section>
-      <FraudCheckModal
-        open={Boolean(fraudTarget)}
-        onClose={() => setFraudTarget(null)}
-        initial={
-          fraudTarget
-            ? {
-                customer_id: fraudTarget.id,
-                phone: fraudTarget.phone,
-                name: fraudTarget.name,
-                email: fraudTarget.email,
-              }
-            : undefined
-        }
-        onCompleted={() => void load()}
+      )}
+
+      {/* VIEW CUSTOMER DRAWER / MODAL */}
+      {isDetailOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs"
+            onClick={() => setIsDetailOpen(false)}
+          />
+          <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-lg border border-border bg-card p-6 shadow-xl z-10">
+            <div className="flex items-center justify-between pb-4 border-b border-border">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
+                  {detailCustomer ? getInitials(detailCustomer.name) : "CU"}
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-foreground">
+                    {detailCustomer?.name || "Customer Details"}
+                  </h2>
+                  <p className="text-xs text-muted-foreground">
+                    Mobile: {detailCustomer?.mobile}
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground"
+                onClick={() => setIsDetailOpen(false)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {isDetailLoading ? (
+              <div className="py-16 text-center text-muted-foreground">
+                <RefreshCw className="mx-auto h-6 w-6 animate-spin" />
+                <p className="mt-2 text-xs">Loading customer profile...</p>
+              </div>
+            ) : detailCustomer ? (
+              <div className="mt-6 space-y-6">
+                {/* Metric cards */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="rounded-lg border border-border bg-muted/20 p-3 text-center">
+                    <p className="text-xs text-muted-foreground">Total Orders</p>
+                    <p className="mt-1 text-lg font-bold text-foreground">
+                      {detailCustomer.total_orders}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-border bg-muted/20 p-3 text-center">
+                    <p className="text-xs text-muted-foreground">Lifetime Spent</p>
+                    <p className="mt-1 text-lg font-bold text-foreground">
+                      {formatPrice(detailCustomer.total_spent)}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-border bg-muted/20 p-3 text-center">
+                    <p className="text-xs text-muted-foreground">Current Due</p>
+                    <p
+                      className={cn(
+                        "mt-1 text-lg font-bold",
+                        detailCustomer.due > 0 ? "text-destructive" : "text-foreground",
+                      )}
+                    >
+                      {formatPrice(detailCustomer.due)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Profile Information */}
+                <div className="rounded-lg border border-border bg-muted/10 p-4 space-y-2 text-xs">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <span className="text-muted-foreground block">Email:</span>
+                      <span className="font-medium text-foreground">
+                        {detailCustomer.email || "—"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block">Status:</span>
+                      <span className="font-medium capitalize text-foreground">
+                        {detailCustomer.status}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="pt-2 border-t border-border">
+                    <span className="text-muted-foreground block">Address:</span>
+                    <span className="font-medium text-foreground">
+                      {detailCustomer.address || "—"}
+                    </span>
+                  </div>
+                  <div className="pt-2 border-t border-border">
+                    <span className="text-muted-foreground block">Customer Since:</span>
+                    <span className="font-medium text-foreground">
+                      {formatDate(detailCustomer.created_at)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Order History */}
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-1.5">
+                    <ShoppingBag className="h-4 w-4 text-primary" />
+                    <span>Order History ({detailCustomer.orders?.length || 0})</span>
+                  </h3>
+
+                  {!detailCustomer.orders || detailCustomer.orders.length === 0 ? (
+                    <p className="text-xs text-muted-foreground py-4 text-center border rounded-lg">
+                      No orders placed yet.
+                    </p>
+                  ) : (
+                    <div className="overflow-hidden rounded-lg border border-border">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-muted/40 text-muted-foreground font-semibold">
+                          <tr>
+                            <th className="px-3 py-2">Order #</th>
+                            <th className="px-3 py-2">Date</th>
+                            <th className="px-3 py-2">Total</th>
+                            <th className="px-3 py-2">Payment</th>
+                            <th className="px-3 py-2">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                          {detailCustomer.orders.map((order) => (
+                            <tr key={order.id} className="hover:bg-muted/20">
+                              <td className="px-3 py-2 font-mono">
+                                <Link
+                                  href={`/admin/orders/${order.id}`}
+                                  className="text-primary hover:underline"
+                                >
+                                  {order.orderNumber}
+                                </Link>
+                              </td>
+                              <td className="px-3 py-2 text-muted-foreground">
+                                {formatDate(order.placedAt)}
+                              </td>
+                              <td className="px-3 py-2 font-medium">
+                                {formatPrice(order.summary?.total ?? 0)}
+                              </td>
+                              <td className="px-3 py-2 capitalize text-muted-foreground">
+                                {order.paymentStatus}
+                              </td>
+                              <td className="px-3 py-2 capitalize font-medium">
+                                {order.status}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      )}
+
+      {/* DELETE CONFIRMATION DIALOG */}
+      <DeleteConfirmationDialog
+        open={isDeleteOpen}
+        title="Delete Customer"
+        message={`Are you sure you want to delete customer '${deletingCustomer?.name}'? Customers with orders cannot be deleted.`}
+        isProcessing={isDeleting}
+        onClose={() => setIsDeleteOpen(false)}
+        onConfirm={handleConfirmDelete}
       />
     </div>
   );
 }
 
 export function CustomerDetailContent({ customerId }: { customerId: string }) {
+  const router = useRouter();
   const [customer, setCustomer] = useState<CustomerDetail | null>(null);
-  const [status, setStatus] = useState<CustomerStatus>("active");
-  const [notes, setNotes] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [fraudModalOpen, setFraudModalOpen] = useState(false);
-  const [selectedFraudCheck, setSelectedFraudCheck] = useState<FraudCheck | null>(null);
-  useAuthStore((state) => state.user?.permissions);
-  const canEdit = hasPermission("can_edit_customer");
-  const canCheckFraud = hasPermission("can_create_fraud_check");
-  const canViewFraud = hasPermission("can_view_fraud_check");
+  const [isLoading, setIsLoading] = useState(true);
 
-  const load = useCallback(async () => {
-    try {
-      const response = await customerManagementService.show(customerId);
-      setCustomer(response.data.customer);
-      setStatus(response.data.customer.status);
-      setNotes(response.data.customer.notes ?? "");
-    } catch (error) {
-      toast.error(toAppError(error).message);
-    }
-  }, [customerId]);
   useEffect(() => {
-    void load();
-  }, [load]);
-
-  async function viewFraudCheck(checkId: string) {
-    try {
-      const response = await fraudService.show(checkId);
-      setSelectedFraudCheck(response.data.check);
-      setFraudModalOpen(true);
-    } catch (error) {
-      toast.error(toAppError(error).message);
+    async function load() {
+      setIsLoading(true);
+      try {
+        const response = await customerManagementService.show(customerId);
+        setCustomer(response.data.customer);
+      } catch (error) {
+        toast.error(toAppError(error).message);
+      } finally {
+        setIsLoading(false);
+      }
     }
+    load();
+  }, [customerId]);
+
+  if (isLoading) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
   }
 
-  if (!customer) return <div className="h-64 animate-pulse rounded-lg bg-muted" />;
-  const guestRecordId =
-    customer.type === "guest" ? Number(customer.id.replace("guest-", "")) : null;
+  if (!customer) {
+    return (
+      <div className="space-y-4">
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => router.push("/admin/customers")}
+          icon={<ArrowLeft className="h-4 w-4" />}
+        >
+          Back to Customers
+        </Button>
+        <div className="rounded-lg border border-border p-8 text-center">
+          <p className="text-sm text-muted-foreground">Customer not found.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="space-y-6">
+      <div className="flex items-center gap-3">
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => router.push("/admin/customers")}
+          icon={<ArrowLeft className="h-4 w-4" />}
+        >
+          Back
+        </Button>
         <div>
-          <h1 className="text-2xl font-bold">{customer.name}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {title(customer.type)} customer · Created {dateLabel(customer.created_at)}
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">{customer.name}</h1>
+          <p className="text-xs text-muted-foreground font-mono">Mobile: {customer.mobile}</p>
+        </div>
+      </div>
+
+      {/* Metric Cards */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="rounded-lg border border-border bg-card p-4 text-center">
+          <p className="text-xs text-muted-foreground">Total Orders</p>
+          <p className="mt-1 text-2xl font-bold text-foreground">{customer.total_orders}</p>
+        </div>
+        <div className="rounded-lg border border-border bg-card p-4 text-center">
+          <p className="text-xs text-muted-foreground">Lifetime Spent</p>
+          <p className="mt-1 text-2xl font-bold text-foreground">{formatPrice(customer.total_spent)}</p>
+        </div>
+        <div className="rounded-lg border border-border bg-card p-4 text-center">
+          <p className="text-xs text-muted-foreground">Current Due</p>
+          <p className={cn("mt-1 text-2xl font-bold", customer.due > 0 ? "text-destructive" : "text-foreground")}>
+            {formatPrice(customer.due)}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {canCheckFraud ? (
-            <Button
-              size="sm"
-              icon={<ShieldCheck className="h-4 w-4" />}
-              onClick={() => {
-                setSelectedFraudCheck(null);
-                setFraudModalOpen(true);
-              }}
-            >
-              Fraud Check
-            </Button>
-          ) : null}
-          <Link href="/admin/customers">
-            <Button size="sm" variant="secondary">
-              Back to Customers
-            </Button>
-          </Link>
-        </div>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric label="Total Orders" value={String(customer.total_orders)} />
-        <Metric
-          label="Lifetime Spending"
-          value={formatPrice(customer.lifetime_spending)}
-        />
-        <Metric label="Last Order" value={dateLabel(customer.last_order_at)} />
-        <Metric
-          label="Fraud Score"
-          value={
-            customer.fraud.risk_score === null
-              ? "Unchecked"
-              : `${customer.fraud.risk_score}/100`
-          }
-        />
-      </div>
-      <Panel title="Fraud Status">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="space-y-2">
-            <FraudRiskBadge
-              level={customer.fraud.status}
-              score={customer.fraud.risk_score}
-            />
-            <p className="text-sm text-muted-foreground">
-              Last checked: {dateLabel(customer.fraud.last_checked_at)} Â· Total checks:{" "}
-              {customer.fraud.total_checks}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Providers:{" "}
-              {customer.fraud.providers.length
-                ? customer.fraud.providers.map(title).join(", ")
-                : "None"}
-            </p>
+
+      {/* Details Card */}
+      <div className="rounded-lg border border-border bg-card p-5 space-y-3 text-sm">
+        <h2 className="font-semibold text-foreground">Customer Profile</h2>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 text-xs">
+          <div>
+            <span className="text-muted-foreground block">Email:</span>
+            <span className="font-medium text-foreground">{customer.email || "—"}</span>
           </div>
-          {canCheckFraud ? (
-            <Button
-              size="sm"
-              variant="secondary"
-              icon={<RefreshCw className="h-4 w-4" />}
-              onClick={() => {
-                setSelectedFraudCheck(null);
-                setFraudModalOpen(true);
-              }}
-            >
-              {customer.fraud.total_checks ? "Check Again" : "Run Check"}
-            </Button>
-          ) : null}
+          <div>
+            <span className="text-muted-foreground block">Status:</span>
+            <span className="font-medium capitalize text-foreground">{customer.status}</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground block">Address:</span>
+            <span className="font-medium text-foreground">{customer.address || "—"}</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground block">Customer Since:</span>
+            <span className="font-medium text-foreground">{formatDate(customer.created_at)}</span>
+          </div>
         </div>
-        {customer.fraud.history.length ? (
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[720px] text-left text-sm">
-              <thead className="text-xs uppercase text-muted-foreground">
+      </div>
+
+      {/* Orders */}
+      <div className="rounded-lg border border-border bg-card p-5">
+        <h2 className="font-semibold text-foreground mb-4">Orders ({customer.orders?.length || 0})</h2>
+        {!customer.orders || customer.orders.length === 0 ? (
+          <p className="text-xs text-muted-foreground text-center py-6">No orders found for this customer.</p>
+        ) : (
+          <div className="overflow-hidden rounded-lg border border-border">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-muted/40 text-muted-foreground font-semibold">
                 <tr>
-                  <th className="py-2">Risk</th>
-                  <th>Providers</th>
-                  <th>Trigger</th>
-                  <th>Status</th>
-                  <th>Checked</th>
-                  <th className="text-right">Action</th>
+                  <th className="px-4 py-3">Order #</th>
+                  <th className="px-4 py-3">Date</th>
+                  <th className="px-4 py-3">Total</th>
+                  <th className="px-4 py-3">Payment</th>
+                  <th className="px-4 py-3">Status</th>
                 </tr>
               </thead>
-              <tbody>
-                {customer.fraud.history.map((check) => (
-                  <tr key={check.id} className="border-t border-border">
-                    <td className="py-3">
-                      <FraudRiskBadge level={check.risk_level} score={check.risk_score} />
+              <tbody className="divide-y divide-border">
+                {customer.orders.map((order) => (
+                  <tr key={order.id} className="hover:bg-muted/20">
+                    <td className="px-4 py-3 font-mono">
+                      <Link href={`/admin/orders/${order.id}`} className="text-primary hover:underline">
+                        {order.orderNumber}
+                      </Link>
                     </td>
-                    <td>{check.providers.map(title).join(", ") || "-"}</td>
-                    <td>{title(check.trigger)}</td>
-                    <td>{title(check.status)}</td>
-                    <td>{dateLabel(check.checked_at)}</td>
-                    <td className="text-right">
-                      {canViewFraud ? (
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          icon={<Eye className="h-4 w-4" />}
-                          aria-label="View fraud check"
-                          title="View fraud check"
-                          onClick={() => void viewFraudCheck(check.id)}
-                        />
-                      ) : null}
-                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">{formatDate(order.placedAt)}</td>
+                    <td className="px-4 py-3 font-medium">{formatPrice(order.summary?.total ?? 0)}</td>
+                    <td className="px-4 py-3 capitalize text-muted-foreground">{order.paymentStatus}</td>
+                    <td className="px-4 py-3 capitalize font-medium">{order.status}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        ) : (
-          <p className="mt-4 text-sm text-muted-foreground">
-            No fraud checks have been run for this customer.
-          </p>
         )}
-      </Panel>
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Panel title="Basic Information">
-          <Info label="Name" value={customer.name} />
-          <Info label="Email" value={customer.email} />
-          <Info label="Phone" value={customer.phone} />
-          <Info label="Status" value={title(customer.status)} />
-        </Panel>
-        <AddressPanel title="Billing Information" address={customer.billing_address} />
-        <AddressPanel title="Shipping Information" address={customer.shipping_address} />
-        {customer.type === "guest" ? (
-          <Panel title="Guest Customer Management">
-            <div className="space-y-3">
-              <FilterSelect
-                value={status}
-                placeholder="Status"
-                values={[...statuses]}
-                onChange={(value) => setStatus(value as CustomerStatus)}
-              />
-              <textarea
-                rows={5}
-                value={notes}
-                onChange={(event) => setNotes(event.target.value)}
-                placeholder="Internal customer notes"
-                className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
-              />
-              <Button
-                size="sm"
-                icon={<Save className="h-4 w-4" />}
-                disabled={!canEdit}
-                isLoading={saving}
-                onClick={async () => {
-                  if (!guestRecordId) return;
-                  setSaving(true);
-                  try {
-                    const response = await customerManagementService.updateGuest(
-                      guestRecordId,
-                      { status, notes: notes.trim() || null },
-                    );
-                    setCustomer(response.data.customer);
-                    toast.success("Guest customer updated.");
-                  } catch (error) {
-                    toast.error(toAppError(error).message);
-                  } finally {
-                    setSaving(false);
-                  }
-                }}
-              >
-                Save Customer
-              </Button>
-            </div>
-          </Panel>
-        ) : null}
       </div>
-      <Panel title="Order History">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] text-sm">
-            <thead className="text-left text-xs uppercase text-muted-foreground">
-              <tr>
-                <th className="py-2">Order</th>
-                <th>Status</th>
-                <th>Payment</th>
-                <th>Total</th>
-                <th>Date</th>
-                <th className="text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {customer.orders.length ? (
-                customer.orders.map((order) => (
-                  <tr key={order.id} className="border-t border-border">
-                    <td className="py-3 font-semibold">{order.orderNumber}</td>
-                    <td>{title(order.status)}</td>
-                    <td>{title(order.paymentStatus)}</td>
-                    <td>{formatPrice(order.summary.total)}</td>
-                    <td>{dateLabel(order.placedAt)}</td>
-                    <td className="text-right">
-                      <Link href={`/admin/orders/${order.orderNumber}`}>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          icon={<Eye className="h-4 w-4" />}
-                          aria-label={`View ${order.orderNumber}`}
-                        />
-                      </Link>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={6} className="py-12 text-center text-muted-foreground">
-                    No orders found.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </Panel>
-      <FraudCheckModal
-        open={fraudModalOpen}
-        onClose={() => {
-          setFraudModalOpen(false);
-          setSelectedFraudCheck(null);
-        }}
-        existing={selectedFraudCheck}
-        initial={{
-          customer_id: customer.id,
-          phone: customer.phone,
-          name: customer.name,
-          email: customer.email,
-          billing_address: customer.billing_address?.address_line,
-          shipping_address: customer.shipping_address?.address_line,
-        }}
-        onCompleted={() => void load()}
-      />
     </div>
-  );
-}
-
-function FilterSelect({
-  value,
-  placeholder,
-  values,
-  onChange,
-}: {
-  value: string;
-  placeholder: string;
-  values: string[];
-  onChange: (value: string) => void;
-}) {
-  return (
-    <Select
-      value={value || "all"}
-      onValueChange={(next) => onChange(next === "all" ? "" : next)}
-    >
-      <SelectTrigger className="h-10 rounded-lg">
-        <SelectValue placeholder={placeholder} />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="all">{placeholder}</SelectItem>
-        {values.map((item) => (
-          <SelectItem key={item} value={item}>
-            {title(item)}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-}
-function SortHead({
-  label,
-  field,
-  active,
-  onSort,
-}: {
-  label: string;
-  field: string;
-  active: string;
-  onSort: (field: string) => void;
-}) {
-  return (
-    <th className="px-4 py-3">
-      <button
-        type="button"
-        onClick={() => onSort(field)}
-        className="inline-flex items-center gap-1 font-bold"
-      >
-        {label}
-        <ChevronsUpDown
-          className={cn("h-3.5 w-3.5", active === field && "text-foreground")}
-        />
-      </button>
-    </th>
-  );
-}
-function Panel({
-  title: heading,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="rounded-lg border border-border bg-card p-5">
-      <h2 className="mb-4 font-bold">{heading}</h2>
-      {children}
-    </section>
-  );
-}
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <section className="rounded-lg border border-border bg-card p-4">
-      <p className="text-sm text-muted-foreground">{label}</p>
-      <p className="mt-1 text-xl font-bold">{value}</p>
-    </section>
-  );
-}
-function Info({ label, value }: { label: string; value?: string | null }) {
-  return (
-    <div className="flex justify-between gap-4 border-b border-border py-2 text-sm last:border-0">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="break-words text-right font-medium">{value || "Not set"}</span>
-    </div>
-  );
-}
-function AddressPanel({
-  title: heading,
-  address,
-}: {
-  title: string;
-  address: Record<string, string | null> | null;
-}) {
-  return (
-    <Panel title={heading}>
-      {address ? (
-        <div className="space-y-1 text-sm">
-          <p className="font-semibold">{address.full_name}</p>
-          <p className="text-muted-foreground">
-            {address.phone}
-            {address.email ? ` · ${address.email}` : ""}
-          </p>
-          <p className="pt-2 text-muted-foreground">
-            {[
-              address.address_line,
-              address.area,
-              address.city,
-              address.district,
-              address.state,
-              address.postal_code,
-              address.country,
-            ]
-              .filter(Boolean)
-              .join(", ")}
-          </p>
-        </div>
-      ) : (
-        <p className="text-sm text-muted-foreground">No address saved.</p>
-      )}
-    </Panel>
   );
 }

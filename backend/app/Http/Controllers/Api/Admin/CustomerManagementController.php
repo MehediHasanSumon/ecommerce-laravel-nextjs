@@ -3,8 +3,12 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\StoreCustomerRequest;
+use App\Http\Requests\Admin\UpdateCustomerRequest;
+use App\Http\Resources\Admin\CustomerDetailResource;
+use App\Http\Resources\Admin\CustomerResource;
 use App\Http\Responses\ApiResponse;
-use App\Models\GuestCustomer;
+use App\Models\Customer;
 use App\Services\Admin\CustomerManagementService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,7 +24,9 @@ class CustomerManagementController extends Controller implements HasMiddleware
     {
         return [
             new Middleware('permission:can_view_customer', only: ['index', 'show']),
+            new Middleware('permission:can_create_customer', only: ['store']),
             new Middleware('permission:can_edit_customer', only: ['update']),
+            new Middleware('permission:can_delete_customer', only: ['destroy']),
         ];
     }
 
@@ -28,48 +34,66 @@ class CustomerManagementController extends Controller implements HasMiddleware
     {
         $filters = $request->validate([
             'search' => ['nullable', 'string', 'max:120'],
-            'type' => ['nullable', Rule::in(['registered', 'guest'])],
-            'status' => ['nullable', Rule::in(['active', 'inactive', 'blocked'])],
-            'fraud_status' => ['nullable', Rule::in(['safe', 'low', 'medium', 'high', 'critical'])],
-            'fraud_checked' => ['nullable', Rule::in(['checked', 'unchecked'])],
-            'fraud_provider' => ['nullable', Rule::in(['fraudpeek', 'fraud_bd', 'fraudbd'])],
-            'sort' => ['nullable', 'string'],
+            'status' => ['nullable', Rule::in(['active', 'inactive'])],
+            'sort' => ['nullable', 'string', Rule::in(['name', 'mobile', 'status', 'created_at', 'orders_count'])],
             'direction' => ['nullable', Rule::in(['asc', 'desc'])],
             'page' => ['nullable', 'integer', 'min:1'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
-        $customers = $this->customers->paginate($filters);
+
+        $paginator = $this->customers->paginate($filters);
 
         return ApiResponse::success(
-            ['customers' => $customers->items()],
+            ['customers' => CustomerResource::collection($paginator->items())],
             'Customers retrieved successfully.',
             200,
             ['pagination' => [
-                'current_page' => $customers->currentPage(),
-                'last_page' => $customers->lastPage(),
-                'per_page' => $customers->perPage(),
-                'total' => $customers->total(),
-                'from' => $customers->firstItem(),
-                'to' => $customers->lastItem(),
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+                'from' => $paginator->firstItem(),
+                'to' => $paginator->lastItem(),
             ]],
         );
     }
 
-    public function show(string $customer): JsonResponse
+    public function store(StoreCustomerRequest $request): JsonResponse
     {
-        return ApiResponse::success(['customer' => $this->customers->find($customer)]);
-    }
-
-    public function update(Request $request, GuestCustomer $guestCustomer): JsonResponse
-    {
-        $data = $request->validate([
-            'status' => ['sometimes', Rule::in(['active', 'inactive', 'blocked'])],
-            'notes' => ['nullable', 'string', 'max:5000'],
-        ]);
+        $customer = $this->customers->create($request->validated());
 
         return ApiResponse::success(
-            ['customer' => $this->customers->updateGuest($guestCustomer, $data)],
-            'Guest customer updated successfully.',
+            ['customer' => CustomerResource::make($customer)],
+            'Customer created successfully.',
+            201,
+        );
+    }
+
+    public function show(Customer $customer): JsonResponse
+    {
+        return ApiResponse::success(
+            ['customer' => CustomerDetailResource::make($customer)],
+            'Customer details retrieved successfully.',
+        );
+    }
+
+    public function update(UpdateCustomerRequest $request, Customer $customer): JsonResponse
+    {
+        $updated = $this->customers->update($customer, $request->validated());
+
+        return ApiResponse::success(
+            ['customer' => CustomerResource::make($updated)],
+            'Customer updated successfully.',
+        );
+    }
+
+    public function destroy(Customer $customer): JsonResponse
+    {
+        $this->customers->delete($customer);
+
+        return ApiResponse::success(
+            [],
+            'Customer deleted successfully.',
         );
     }
 }

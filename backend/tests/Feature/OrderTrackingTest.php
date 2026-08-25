@@ -67,19 +67,19 @@ it('tracks registered customer orders using order id and mobile number', functio
         ->assertJsonMissingPath('data.order.userId');
 });
 
-it('tracks guest customer orders with the same public experience', function (): void {
-    $guest = GuestCustomer::query()->create([
-        'name' => 'Guest Customer',
-        'phone' => '01712345678',
+it('tracks customer orders with the same public experience', function (): void {
+    $customer = \App\Models\Customer::query()->create([
+        'name' => 'John Buyer',
+        'mobile' => '01712345678',
         'status' => 'active',
     ]);
-    trackingOrder(['guest_customer_id' => $guest->id]);
+    trackingOrder(['customer_id' => $customer->id]);
 
     $this->postJson('/api/order-tracking', [
         'order_id' => 'ORD-20260716-TRACK123',
         'mobile_number' => '01712345678',
     ])->assertOk()
-        ->assertJsonPath('data.order.customer.name', 'Guest Customer')
+        ->assertJsonPath('data.order.customer.name', 'John Buyer')
         ->assertJsonPath('data.order.items.0.name', 'Tracked Product');
 });
 
