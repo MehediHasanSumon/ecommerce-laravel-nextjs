@@ -9,6 +9,9 @@ const nextConfig: NextConfig = {
   deploymentId: process.env.DEPLOYMENT_VERSION,
   poweredByHeader: false,
   compress: true,
+  experimental: {
+    authInterrupts: true,
+  },
   async headers() {
     return [
       {
