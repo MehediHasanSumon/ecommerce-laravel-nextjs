@@ -6,13 +6,11 @@ use App\Models\Blog;
 use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Order;
-use App\Models\PaymentTransaction;
 use App\Models\Product;
 use App\Models\ProductCollection;
 use App\Models\ProductReview;
 use App\Models\ProductVariant;
 use App\Models\Settings\CompanySetting;
-use App\Models\Settings\PaymentGatewaySetting;
 use App\Models\User;
 use App\Models\WishlistItem;
 use App\Services\Admin\Settings\BrandSettingsService;
@@ -58,22 +56,10 @@ class DashboardAnalyticsService
                 'brand_enabled' => app(BrandSettingsService::class)->enabled(),
                 'cards' => $cards,
                 'security' => $security,
-                'sales' => [
-                    'series' => $this->dailyOrderSeries($from, $to),
-                    'summary' => [
-                        'revenue' => $this->money((clone $paidOrders)->sum('total_cents')),
-                        'orders' => (clone $orders)->count(),
-                        'average_order_value' => $this->money($this->averageOrderValue($paidOrders)),
-                    ],
-                ],
                 'charts' => [
-                    'revenue' => $this->dailyRevenueSeries($from, $to),
-                    'orders' => $this->dailyOrderSeries($from, $to),
-                    'payment_methods' => $this->paymentMethods($from, $to),
                     'collections' => $this->revenueByCollection($orderIds),
                 ],
                 'tables' => [
-                    'best_selling_products' => $this->bestSellingProducts($orderIds),
                     'top_categories' => $this->topCategories($orderIds),
                     'top_brands' => app(BrandSettingsService::class)->enabled() ? $this->topBrands($orderIds) : [],
                     'recent_orders' => $this->recentOrders(),
@@ -83,7 +69,6 @@ class DashboardAnalyticsService
                     'recent_reviews' => $this->recentReviews(),
                     'activity' => $this->activityTimeline(),
                 ],
-                'notifications' => $this->notifications(),
                 'reports' => $this->reports($paidOrders),
             ];
         });
@@ -159,50 +144,6 @@ class DashboardAnalyticsService
         ];
     }
 
-    private function dailyRevenueSeries(CarbonImmutable $from, CarbonImmutable $to): array
-    {
-        return $this->dailySeries($from, $to, 'SUM(total_cents)', fn ($row) => $this->money($row->amount));
-    }
-
-    private function dailyOrderSeries(CarbonImmutable $from, CarbonImmutable $to): array
-    {
-        return $this->dailySeries($from, $to, 'COUNT(*)', fn ($row) => (int) $row->amount, includeCancelled: true);
-    }
-
-    private function dailySeries(CarbonImmutable $from, CarbonImmutable $to, string $aggregate, callable $value, bool $includeCancelled = false): array
-    {
-        $rows = Order::query()
-            ->whereBetween('placed_at', [$from, $to])
-            ->when(! $includeCancelled, fn ($query) => $query->where('payment_status', 'paid'))
-            ->select(DB::raw('DATE(placed_at) as day'), DB::raw("{$aggregate} as amount"))
-            ->groupBy(DB::raw('DATE(placed_at)'))
-            ->pluck('amount', 'day');
-
-        $series = [];
-        for ($day = $from; $day->lessThanOrEqualTo($to); $day = $day->addDay()) {
-            $date = $day->toDateString();
-            $series[] = ['label' => $date, 'value' => $value((object) ['amount' => $rows[$date] ?? 0])];
-        }
-
-        return $series;
-    }
-
-    private function paymentMethods(CarbonImmutable $from, CarbonImmutable $to): array
-    {
-        $enabled = PaymentGatewaySetting::query()->where('enabled', true)->pluck('gateway')->all();
-
-        return PaymentTransaction::query()
-            ->where('status', 'paid')
-            ->whereIn('gateway', $enabled)
-            ->whereBetween('created_at', [$from, $to])
-            ->select('gateway', DB::raw('SUM(amount_cents) as amount'), DB::raw('COUNT(*) as count'))
-            ->groupBy('gateway')
-            ->orderByDesc('amount')
-            ->get()
-            ->map(fn ($row) => ['label' => $this->label((string) $row->gateway), 'value' => $this->money($row->amount), 'count' => (int) $row->count])
-            ->all();
-    }
-
     private function revenueByCollection($orderIds): array
     {
         if ($orderIds->isEmpty()) {
@@ -219,27 +160,6 @@ class DashboardAnalyticsService
             ->limit(10)
             ->get()
             ->map(fn ($row) => ['label' => $row->name, 'value' => $this->money($row->revenue), 'quantity' => (int) $row->quantity])
-            ->all();
-    }
-
-    private function bestSellingProducts($orderIds): array
-    {
-        return $this->itemsBase($orderIds)
-            ->leftJoin('products', 'products.id', '=', 'order_items.product_id')
-            ->leftJoin('product_images', fn ($join) => $join->on('product_images.product_id', '=', 'products.id')->where('product_images.is_primary', true))
-            ->select('order_items.product_id', 'order_items.product_name', 'order_items.sku', 'product_images.url as image', DB::raw('SUM(order_items.quantity) as sold_quantity'), DB::raw('SUM(order_items.line_subtotal_cents - order_items.line_discount_cents) as revenue'))
-            ->groupBy('order_items.product_id', 'order_items.product_name', 'order_items.sku', 'product_images.url')
-            ->orderByDesc('sold_quantity')
-            ->limit(10)
-            ->get()
-            ->map(fn ($row) => [
-                'id' => $row->product_id,
-                'name' => $row->product_name,
-                'sku' => $row->sku,
-                'image' => $this->assetUrl($row->image),
-                'sold_quantity' => (int) $row->sold_quantity,
-                'revenue' => $this->money($row->revenue),
-            ])
             ->all();
     }
 
@@ -392,30 +312,6 @@ class DashboardAnalyticsService
             ->all();
     }
 
-    private function notifications(): array
-    {
-        $lowStockSimple = Product::query()
-            ->where('track_inventory', true)
-            ->whereDoesntHave('variants')
-            ->whereRaw('COALESCE(stock_quantity, 0) <= COALESCE(low_stock_threshold, 0)')
-            ->count();
-
-        $lowStockVariants = ProductVariant::query()
-            ->where('track_inventory', true)
-            ->where('status', 'active')
-            ->whereHas('product', fn ($query) => $query->whereNull('deleted_at'))
-            ->whereRaw('COALESCE(stock_quantity, 0) <= 5')
-            ->count();
-
-        return [
-            ['key' => 'pending_orders', 'label' => 'Pending Orders', 'value' => Order::query()->where('status', 'pending')->count()],
-            ['key' => 'pending_reviews', 'label' => 'Pending Reviews', 'value' => ProductReview::query()->where('status', 'pending')->count()],
-            ['key' => 'low_stock', 'label' => 'Low Stock Alerts', 'value' => $lowStockSimple + $lowStockVariants],
-            ['key' => 'failed_payments', 'label' => 'Failed Payments', 'value' => PaymentTransaction::query()->where('status', 'failed')->count()],
-            ['key' => 'expired_collections', 'label' => 'Expired Collections', 'value' => ProductCollection::query()->whereNotNull('ends_at')->where('ends_at', '<', now())->count()],
-        ];
-    }
-
     private function reports($paidOrders): array
     {
         $discount = (clone $paidOrders)->sum('item_discount_cents') + (clone $paidOrders)->sum('coupon_discount_cents');
@@ -470,16 +366,6 @@ class DashboardAnalyticsService
     private function paidOrdersFor($from, $to)
     {
         return $this->ordersBetween($from, $to)->where('payment_status', 'paid');
-    }
-
-    private function averageOrderValue($query): int
-    {
-        $count = (clone $query)->count();
-        if ($count === 0) {
-            return 0;
-        }
-
-        return (int) round((clone $query)->sum('total_cents') / $count);
     }
 
     private function percentageChange(int|float $value, int|float $previous): float

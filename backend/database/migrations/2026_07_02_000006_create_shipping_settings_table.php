@@ -26,7 +26,7 @@ return new class extends Migration
             $table->foreignId('shipping_zone_id')->nullable()->constrained('shipping_zones')->nullOnDelete()->cascadeOnUpdate();
             $table->string('name');
             $table->string('code')->unique();
-            $table->string('slug')->unique();
+            $table->string('slug')->nullable()->unique();
             $table->text('description')->nullable();
             $table->string('delivery_type')->nullable();
             $table->string('estimated_delivery_time')->nullable();

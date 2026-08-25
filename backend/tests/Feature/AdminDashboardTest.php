@@ -58,9 +58,6 @@ it('serves live admin dashboard analytics from persisted data', function () {
     $this->withToken(dashboardAdminToken())
         ->getJson('/api/admin/dashboard?preset=today')
         ->assertOk()
-        ->assertJsonPath('data.dashboard.sales.summary.revenue', 52)
-        ->assertJsonPath('data.dashboard.sales.summary.orders', 1)
-        ->assertJsonPath('data.dashboard.tables.best_selling_products.0.name', 'Dashboard Product')
         ->assertJsonPath('data.dashboard.tables.low_stock_products.0.name', 'Dashboard Product')
-        ->assertJsonPath('data.dashboard.notifications.0.value', 1);
+        ->assertJsonPath('data.dashboard.tables.recent_orders.0.order_number', 'ORD-DASH-001');
 });

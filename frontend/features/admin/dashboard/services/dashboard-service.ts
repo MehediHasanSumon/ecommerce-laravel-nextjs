@@ -52,18 +52,10 @@ export type DashboardData = {
     top_countries: Array<{ country: string; total: number }>;
     top_reasons: Array<{ reason: string; total: number }>;
   };
-  sales: {
-    series: DashboardPoint[];
-    summary: { revenue: number; orders: number; average_order_value: number };
-  };
   charts: {
-    revenue: DashboardPoint[];
-    orders: DashboardPoint[];
-    payment_methods: DashboardPoint[];
     collections: DashboardPoint[];
   };
   tables: {
-    best_selling_products: Array<{ id: number | null; name: string; sku: string | null; image: string | null; sold_quantity: number; revenue: number }>;
     top_categories: Array<{ name: string; sold_quantity: number; revenue: number }>;
     top_brands: Array<{ name: string; sales: number; revenue: number }>;
     recent_orders: Array<{ id: string; order_number: string; customer: string; payment_method: string; payment_status: string; order_status: string; total: number; date: string | null }>;
@@ -73,7 +65,6 @@ export type DashboardData = {
     recent_reviews: Array<{ id: number; product: string; customer: string; rating: number; review: string; status: string; date: string | null }>;
     activity: Array<{ type: string; title: string; description: string; date: string | null }>;
   };
-  notifications: Array<{ key: string; label: string; value: number }>;
   reports: Array<{ label: string; value: number; format: "money" | "number" }>;
 };
 

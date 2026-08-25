@@ -1,7 +1,5 @@
 <?php
 
-use App\Console\Commands\ImportDemoAssets;
-use App\Console\Commands\ImportProductImages;
 use App\Console\Commands\InstallApplication;
 use App\Console\Commands\MaintainIpBlocking;
 use App\Console\Commands\RebuildProductSearchIndex;
@@ -39,8 +37,6 @@ return Application::configure(basePath: dirname(__DIR__))
     ])
     ->withCommands([
         InstallApplication::class,
-        ImportDemoAssets::class,
-        ImportProductImages::class,
         SyncCollectionSchedules::class,
         MaintainIpBlocking::class,
         RebuildProductSearchIndex::class,

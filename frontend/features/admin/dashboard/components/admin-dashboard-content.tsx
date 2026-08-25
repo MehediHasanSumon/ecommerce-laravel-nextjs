@@ -8,7 +8,6 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   BarChart3,
-  Bell,
   BookOpen,
   CalendarDays,
   CreditCard,
@@ -213,45 +212,6 @@ export function AdminDashboardContent() {
 
       {dashboard ? (
         <>
-          <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
-            <ChartPanel
-              title="Sales Analytics"
-              subtitle={`${dashboard.sales.summary.orders} orders · ${formatCurrency(dashboard.sales.summary.revenue)} revenue · ${formatCurrency(dashboard.sales.summary.average_order_value)} AOV`}
-            >
-              <AreaChart data={dashboard.sales.series} />
-            </ChartPanel>
-            <ChartPanel
-              title="Revenue by Payment Method"
-              subtitle="Only enabled gateways are included."
-            >
-              <DonutChart data={dashboard.charts.payment_methods} />
-            </ChartPanel>
-          </div>
-
-          <div className="grid gap-4 xl:grid-cols-2">
-            <ChartPanel
-              title="Revenue Trend"
-              subtitle="Paid order revenue over the selected period."
-            >
-              <BarChart data={dashboard.charts.revenue} money />
-            </ChartPanel>
-            <ChartPanel
-              title="Orders Trend"
-              subtitle="Daily order volume over the selected period."
-            >
-              <BarChart data={dashboard.charts.orders} />
-            </ChartPanel>
-          </div>
-
-          <div className="grid gap-4 xl:grid-cols-3">
-            <TablePanel title="Best Selling Products" className="xl:col-span-2">
-              <BestProducts rows={dashboard.tables.best_selling_products} />
-            </TablePanel>
-            <TablePanel title="Notifications">
-              <NotificationList rows={dashboard.notifications} />
-            </TablePanel>
-          </div>
-
           {dashboard.security ? (
             <div className="grid gap-4 xl:grid-cols-2">
               <TablePanel title="Top Blocked Countries">
@@ -385,26 +345,6 @@ function MetricCard({ card }: { card: DashboardCard }) {
   );
 }
 
-function ChartPanel({
-  title,
-  subtitle,
-  children,
-}: {
-  title: string;
-  subtitle: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <Card className="rounded-lg p-4">
-      <div className="mb-4">
-        <h2 className="text-base font-bold">{title}</h2>
-        <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
-      </div>
-      {children}
-    </Card>
-  );
-}
-
 function TablePanel({
   title,
   children,
@@ -419,170 +359,6 @@ function TablePanel({
       <h2 className="mb-4 text-base font-bold">{title}</h2>
       {children}
     </Card>
-  );
-}
-
-function AreaChart({ data }: { data: DashboardPoint[] }) {
-  const points = chartPoints(data);
-  if (!points.length) return <EmptyState />;
-  const path = points
-    .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
-    .join(" ");
-  const area = `${path} L 100 100 L 0 100 Z`;
-
-  return (
-    <svg viewBox="0 0 100 100" className="h-64 w-full overflow-visible">
-      <path d={area} className="fill-primary/10" />
-      <path
-        d={path}
-        className="fill-none stroke-primary"
-        strokeWidth="2.5"
-        vectorEffect="non-scaling-stroke"
-      />
-    </svg>
-  );
-}
-
-function BarChart({ data, money = false }: { data: DashboardPoint[]; money?: boolean }) {
-  const max = Math.max(...data.map((item) => item.value), 0);
-  if (!data.length || max === 0) return <EmptyState />;
-
-  return (
-    <div className="flex h-64 items-end gap-1.5">
-      {data.map((item) => (
-        <div
-          key={item.label}
-          className="group flex min-w-0 flex-1 flex-col items-center gap-2"
-        >
-          <div
-            className="relative w-full rounded-t bg-primary/80 transition-colors group-hover:bg-primary"
-            style={{ height: `${Math.max(4, (item.value / max) * 100)}%` }}
-          />
-          <span className="hidden max-w-16 truncate text-[10px] text-muted-foreground sm:block">
-            {item.label.slice(5)}
-          </span>
-          <span className="sr-only">
-            {money ? formatCurrency(item.value) : item.value}
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function DonutChart({ data }: { data: DashboardPoint[] }) {
-  const total = data.reduce((sum, item) => sum + item.value, 0);
-  if (!data.length || total === 0) return <EmptyState />;
-  const colors = [
-    "stroke-primary",
-    "stroke-emerald-500",
-    "stroke-amber-500",
-    "stroke-rose-500",
-    "stroke-sky-500",
-    "stroke-violet-500",
-  ];
-  const segments = data.map((item, index) => {
-    const previous = data
-      .slice(0, index)
-      .reduce((sum, current) => sum + (current.value / total) * 100, 0);
-    const dash = (item.value / total) * 100;
-
-    return { item, dash, offset: 25 - previous };
-  });
-
-  return (
-    <div className="grid gap-4 sm:grid-cols-[180px_1fr] sm:items-center">
-      <svg viewBox="0 0 42 42" className="mx-auto h-44 w-44 -rotate-90">
-        <circle
-          cx="21"
-          cy="21"
-          r="15.915"
-          className="fill-none stroke-muted"
-          strokeWidth="6"
-        />
-        {segments.map(({ item, dash, offset }, index) => (
-          <circle
-            key={item.label}
-            cx="21"
-            cy="21"
-            r="15.915"
-            className={cn("fill-none", colors[index % colors.length])}
-            strokeWidth="6"
-            strokeDasharray={`${dash} ${100 - dash}`}
-            strokeDashoffset={offset}
-          />
-        ))}
-      </svg>
-      <div className="space-y-2">
-        {data.map((item, index) => (
-          <div
-            key={item.label}
-            className="flex items-center justify-between gap-2 text-sm"
-          >
-            <span className="flex min-w-0 items-center gap-2">
-              <span
-                className={cn(
-                  "h-2.5 w-2.5 rounded-full",
-                  [
-                    "bg-primary",
-                    "bg-emerald-500",
-                    "bg-amber-500",
-                    "bg-rose-500",
-                    "bg-sky-500",
-                    "bg-violet-500",
-                  ][index % 6],
-                )}
-              />
-              <span className="truncate">{item.label}</span>
-            </span>
-            <span className="font-semibold">{formatCurrency(item.value)}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function chartPoints(data: DashboardPoint[]) {
-  const max = Math.max(...data.map((item) => item.value), 0);
-  if (!data.length || max === 0) return [];
-  return data.map((item, index) => ({
-    x: data.length === 1 ? 50 : (index / (data.length - 1)) * 100,
-    y: 100 - (item.value / max) * 90,
-  }));
-}
-
-function BestProducts({
-  rows,
-}: {
-  rows: DashboardData["tables"]["best_selling_products"];
-}) {
-  if (!rows.length) return <EmptyState />;
-  return (
-    <div className="space-y-3">
-      {rows.map((row) => (
-        <div key={`${row.id}-${row.name}`} className="flex items-center gap-3">
-          <div className="relative h-11 w-11 overflow-hidden rounded-lg bg-muted">
-            {row.image ? (
-              <Image
-                src={row.image}
-                alt={row.name}
-                fill
-                unoptimized
-                className="object-cover"
-              />
-            ) : null}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold">{row.name}</p>
-            <p className="text-xs text-muted-foreground">
-              {row.sku || "No SKU"} · {row.sold_quantity} sold
-            </p>
-          </div>
-          <span className="text-sm font-bold">{formatCurrency(row.revenue)}</span>
-        </div>
-      ))}
-    </div>
   );
 }
 
@@ -639,23 +415,6 @@ function StockRows({ rows }: { rows: DashboardData["tables"]["low_stock_products
   );
 }
 
-function NotificationList({ rows }: { rows: DashboardData["notifications"] }) {
-  return (
-    <div className="space-y-3">
-      {rows.map((row) => (
-        <div key={row.key} className="flex items-center justify-between gap-3">
-          <span className="flex items-center gap-2 text-sm">
-            <Bell className="h-4 w-4 text-primary" />
-            {row.label}
-          </span>
-          <span className="rounded-lg bg-muted px-2 py-1 text-xs font-bold">
-            {row.value}
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 function QuickActions({ onFraudCheck }: { onFraudCheck?: () => void }) {
   return (
