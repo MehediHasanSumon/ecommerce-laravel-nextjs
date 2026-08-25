@@ -20,25 +20,17 @@ beforeEach(function (): void {
     Cache::flush();
     SecuritySetting::query()->updateOrCreate(['scope' => 'global'], [
         'auto_blocking_enabled' => true,
-        'max_failed_login_attempts' => 5,
-        'max_password_reset_attempts' => 5,
-        'max_otp_attempts' => 8,
-        'max_registration_attempts' => 5,
-        'max_api_requests' => 600,
-        'max_checkout_requests' => 20,
-        'max_contact_submissions' => 10,
-        'max_invalid_auth_attempts' => 20,
-        'max_payment_failures' => 3,
-        'failed_cod_threshold' => 3,
-        'max_not_found_requests' => 40,
-        'max_bot_requests' => 120,
-        'time_window_minutes' => 10,
-        'temporary_block_duration_minutes' => 30,
-        'permanent_block_threshold' => 3,
-        'auto_block_critical_ips' => false,
         'enable_checkout_security' => true,
         'enable_cod_security' => true,
         'enable_payment_security' => true,
+        'auto_block_critical_ips' => false,
+        'max_failed_login_attempts' => 5,
+        'max_password_reset_attempts' => 5,
+        'max_payment_failures' => 3,
+        'failed_cod_threshold' => 3,
+        'time_window_minutes' => 10,
+        'temporary_block_duration_minutes' => 30,
+        'permanent_block_threshold' => 3,
     ]);
 
     PaymentGatewaySetting::query()->updateOrCreate(

@@ -73,17 +73,17 @@ class SecurityAbuseService
     private function threshold(string $event, object $settings): int
     {
         return (int) match ($event) {
-            'failed_login' => $settings->max_failed_login_attempts,
-            'password_reset' => $settings->max_password_reset_attempts,
-            'otp' => $settings->max_otp_attempts,
-            'registration' => $settings->max_registration_attempts,
-            'api_request' => $settings->max_api_requests,
-            'checkout' => $settings->max_checkout_requests,
-            'contact_submission' => $settings->max_contact_submissions,
-            'invalid_auth' => $settings->max_invalid_auth_attempts,
-            'payment_failure' => $settings->max_payment_failures,
-            'not_found' => $settings->max_not_found_requests,
-            'bot_request' => $settings->max_bot_requests,
+            'failed_login' => $settings->max_failed_login_attempts ?? 5,
+            'password_reset' => $settings->max_password_reset_attempts ?? 5,
+            'payment_failure' => $settings->max_payment_failures ?? 8,
+            'otp' => 8,
+            'registration' => 5,
+            'api_request' => 600,
+            'checkout' => 20,
+            'contact_submission' => 10,
+            'invalid_auth' => 20,
+            'not_found' => 40,
+            'bot_request' => 120,
             default => 0,
         };
     }

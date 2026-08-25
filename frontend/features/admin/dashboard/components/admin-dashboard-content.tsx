@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -8,19 +7,14 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   BarChart3,
-  BookOpen,
   CalendarDays,
-  CreditCard,
   DollarSign,
   Layers3,
   Package,
   PackagePlus,
   RefreshCw,
-  ShoppingBag,
   ShoppingCart,
-  ShieldAlert,
   ShieldCheck,
-  Star,
   Tags,
   Truck,
   UsersRound,
@@ -42,13 +36,11 @@ import {
   dashboardService,
   type DashboardCard,
   type DashboardData,
-  type DashboardPoint,
   type DashboardPreset,
 } from "@/features/admin/dashboard/services/dashboard-service";
 import { FraudCheckModal } from "@/features/admin/fraud/components/fraud-check-modal";
 import { toAppError } from "@/lib/errors";
 import { hasPermission } from "@/lib/permissions";
-import { useAuthStore } from "@/store/auth-store";
 import { formatCurrency, formatShortDate } from "@/utils/format";
 import { cn } from "@/utils/cn";
 
@@ -69,69 +61,39 @@ const cardIcons: Record<string, LucideIcon> = {
   orders: ShoppingCart,
   customers: UsersRound,
   products: Package,
-  collections: ShoppingBag,
-  brands: Tags,
-  categories: Layers3,
-  blogs: BookOpen,
-  wishlist: Star,
-  reviews: Star,
-  ip_blocks: ShieldAlert,
-  automatic_ip_blocks: AlertTriangle,
+  collections: Layers3,
+  categories: Tags,
 };
 
 const quickActions = [
-  { label: "Create Product", href: routePaths.adminProductCreate, icon: PackagePlus },
-  {
-    label: "Create Collection",
-    href: routePaths.adminCollections + "/create",
-    icon: ShoppingBag,
-  },
-  { label: "Create Coupon", href: routePaths.adminDiscounts, icon: Tags },
-  { label: "Add Blog", href: routePaths.adminBlogs, icon: BookOpen },
-  { label: "View Orders", href: routePaths.adminOrders, icon: ShoppingCart },
-  { label: "Manage Customers", href: routePaths.dashboardUsers, icon: UsersRound },
-  {
-    label: "Shipping Management",
-    href: routePaths.adminSettingsShippingMethods,
-    icon: Truck,
-  },
-  { label: "Payment Settings", href: routePaths.adminSettingsPayment, icon: CreditCard },
+  { label: "Add Product", href: `${routePaths.adminProducts}/create`, icon: PackagePlus },
+  { label: "Manage Orders", href: routePaths.adminOrders, icon: ShoppingCart },
+  { label: "Courier Shipments", href: routePaths.adminShipments, icon: Truck },
 ];
 
-function valueLabel(value: number, format: "money" | "number") {
-  return format === "money"
-    ? formatCurrency(value)
-    : new Intl.NumberFormat("en").format(value);
-}
-
-function dateLabel(value: string | null) {
-  return value ? formatShortDate(value) : "Not set";
-}
-
-function statusLabel(value: string) {
-  return value.replaceAll("_", " ").replace(/\b\w/g, (char) => char.toUpperCase());
-}
-
 export function AdminDashboardContent() {
-  const [preset, setPreset] = useState<DashboardPreset>("last_30_days");
+  const [preset, setPreset] = useState<DashboardPreset>("today");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [fraudModalOpen, setFraudModalOpen] = useState(false);
-  useAuthStore((state) => state.user?.permissions);
-  const canCheckFraud = hasPermission("can_create_fraud_check");
+  const canCheckFraud = hasPermission("can_view_fraud_check");
 
   const load = useCallback(
-    async (quiet = false) => {
-      if (!quiet) setLoading(true);
-      setRefreshing(quiet);
+    async (isManualRefresh = false) => {
+      if (isManualRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+
       try {
         const response = await dashboardService.show({
           preset,
-          date_from: preset === "custom" ? dateFrom : undefined,
-          date_to: preset === "custom" ? dateTo : undefined,
+          date_from: preset === "custom" ? dateFrom || undefined : undefined,
+          date_to: preset === "custom" ? dateTo || undefined : undefined,
         });
         setDashboard(response.data.dashboard);
       } catch (error) {
@@ -141,12 +103,13 @@ export function AdminDashboardContent() {
         setRefreshing(false);
       }
     },
-    [dateFrom, dateTo, preset],
+    [preset, dateFrom, dateTo],
   );
 
   useEffect(() => {
     void load();
   }, [load]);
+
   useEffect(() => {
     const timer = window.setInterval(() => void load(true), 60000);
     return () => window.clearInterval(timer);
@@ -202,86 +165,27 @@ export function AdminDashboardContent() {
         </div>
       </section>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {loading && !dashboard
-          ? Array.from({ length: 10 }).map((_, index) => (
+          ? Array.from({ length: 6 }).map((_, index) => (
               <Card key={index} className="h-40 animate-pulse bg-muted" />
             ))
-          : dashboard?.cards.map((card) => <MetricCard key={card.key} card={card} />)}
+          : dashboard?.cards
+              .filter((card) => card.key in cardIcons)
+              .map((card) => <MetricCard key={card.key} card={card} />)}
       </div>
 
       {dashboard ? (
-        <>
-          {dashboard.security ? (
-            <div className="grid gap-4 xl:grid-cols-2">
-              <TablePanel title="Top Blocked Countries">
-                <SecurityRankedRows
-                  rows={dashboard.security.top_countries.map((row) => ({
-                    label: row.country,
-                    value: row.total,
-                  }))}
-                />
-              </TablePanel>
-              <TablePanel title="Top Block Reasons">
-                <SecurityRankedRows
-                  rows={dashboard.security.top_reasons.map((row) => ({
-                    label: row.reason,
-                    value: row.total,
-                  }))}
-                />
-              </TablePanel>
-            </div>
-          ) : null}
-
-          <div className="grid gap-4 xl:grid-cols-3">
-            <TablePanel title="Recent Orders" className="xl:col-span-2">
-              <RecentOrders rows={dashboard.tables.recent_orders} />
-            </TablePanel>
-            <TablePanel title="Quick Actions">
-              <QuickActions
-                onFraudCheck={canCheckFraud ? () => setFraudModalOpen(true) : undefined}
-              />
-            </TablePanel>
-          </div>
-
-          <div className="grid gap-4 xl:grid-cols-3">
-            <TablePanel title="Low Stock Products">
-              <StockRows rows={dashboard.tables.low_stock_products} />
-            </TablePanel>
-            <TablePanel title="Out of Stock Products">
-              <StockRows rows={dashboard.tables.out_of_stock_products} />
-            </TablePanel>
-            <TablePanel title="Reports Summary">
-              <ReportRows rows={dashboard.reports} />
-            </TablePanel>
-          </div>
-
-          <div className="grid gap-4 xl:grid-cols-3">
-            <TablePanel title="Top Categories">
-              <TopCategories rows={dashboard.tables.top_categories} />
-            </TablePanel>
-            {dashboard.brand_enabled ? (
-              <TablePanel title="Top Brands">
-                <TopBrands rows={dashboard.tables.top_brands} />
-              </TablePanel>
-            ) : null}
-            <TablePanel title="Revenue by Collection">
-              <RankedChart rows={dashboard.charts.collections} />
-            </TablePanel>
-          </div>
-
-          <div className="grid gap-4 xl:grid-cols-3">
-            <TablePanel title="Latest Customers">
-              <Customers rows={dashboard.tables.latest_customers} />
-            </TablePanel>
-            <TablePanel title="Recent Reviews">
-              <Reviews rows={dashboard.tables.recent_reviews} />
-            </TablePanel>
-            <TablePanel title="Latest Activities">
-              <Activity rows={dashboard.tables.activity} />
-            </TablePanel>
-          </div>
-        </>
+        <div className="grid gap-4 xl:grid-cols-3">
+          <TablePanel title="Recent Orders" className="xl:col-span-2">
+            <RecentOrders rows={dashboard.tables.recent_orders} />
+          </TablePanel>
+          <TablePanel title="Quick Actions">
+            <QuickActions
+              onFraudCheck={canCheckFraud ? () => setFraudModalOpen(true) : undefined}
+            />
+          </TablePanel>
+        </div>
       ) : null}
       <FraudCheckModal open={fraudModalOpen} onClose={() => setFraudModalOpen(false)} />
     </div>
@@ -325,15 +229,18 @@ function MetricCard({ card }: { card: DashboardCard }) {
                 : "text-muted-foreground"
           }
         >
-          {Math.abs(card.change_percent).toFixed(1)}%
+          {card.change_percent > 0 ? `+${card.change_percent}%` : `${card.change_percent}%`}
         </span>
         <span className="text-muted-foreground">vs previous period</span>
       </div>
-      {card.details.length ? (
-        <div className="mt-3 grid gap-1.5 text-xs text-muted-foreground">
-          {card.details.slice(0, 4).map((detail) => (
-            <div key={detail.label} className="flex items-center justify-between gap-2">
-              <span className="truncate">{detail.label}</span>
+      {card.details?.length ? (
+        <div className="mt-4 space-y-1 border-t border-border pt-3">
+          {card.details.map((detail) => (
+            <div
+              key={detail.label}
+              className="flex items-center justify-between text-xs text-muted-foreground"
+            >
+              <span>{detail.label}</span>
               <span className="font-semibold text-foreground">
                 {valueLabel(detail.value, detail.format)}
               </span>
@@ -394,28 +301,6 @@ function RecentOrders({ rows }: { rows: DashboardData["tables"]["recent_orders"]
   );
 }
 
-function StockRows({ rows }: { rows: DashboardData["tables"]["low_stock_products"] }) {
-  if (!rows.length) return <EmptyState />;
-  return (
-    <div className="space-y-3">
-      {rows.map((row) => (
-        <div key={row.id} className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold">{row.name}</p>
-            <p className="text-xs text-muted-foreground">
-              {row.sku || "No SKU"} · min {row.minimum_stock}
-            </p>
-          </div>
-          <span className="rounded-lg bg-muted px-2 py-1 text-xs font-bold">
-            {row.current_stock}
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-
 function QuickActions({ onFraudCheck }: { onFraudCheck?: () => void }) {
   return (
     <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
@@ -446,170 +331,6 @@ function QuickActions({ onFraudCheck }: { onFraudCheck?: () => void }) {
   );
 }
 
-function ReportRows({ rows }: { rows: DashboardData["reports"] }) {
-  return (
-    <div className="space-y-2">
-      {rows.map((row) => (
-        <div key={row.label} className="flex items-center justify-between gap-2 text-sm">
-          <span className="text-muted-foreground">{row.label}</span>
-          <span className="font-bold">{valueLabel(row.value, row.format)}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function TopCategories({ rows }: { rows: DashboardData["tables"]["top_categories"] }) {
-  if (!rows.length) return <EmptyState />;
-  return (
-    <div className="space-y-3">
-      {rows.map((row) => (
-        <div key={row.name} className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-sm font-semibold">{row.name}</p>
-            <p className="text-xs text-muted-foreground">{row.sold_quantity} sold</p>
-          </div>
-          <span className="font-bold">{formatCurrency(row.revenue)}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function TopBrands({ rows }: { rows: DashboardData["tables"]["top_brands"] }) {
-  if (!rows.length) return <EmptyState />;
-  return (
-    <div className="space-y-3">
-      {rows.map((row) => (
-        <div key={row.name} className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-sm font-semibold">{row.name}</p>
-            <p className="text-xs text-muted-foreground">{row.sales} sales</p>
-          </div>
-          <span className="font-bold">{formatCurrency(row.revenue)}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function RankedChart({ rows }: { rows: DashboardPoint[] }) {
-  if (!rows.length) return <EmptyState />;
-  const max = Math.max(...rows.map((row) => row.value), 0);
-  return (
-    <div className="space-y-3">
-      {rows.map((row) => (
-        <div key={row.label}>
-          <div className="mb-1 flex justify-between gap-3 text-sm">
-            <span className="truncate font-semibold">{row.label}</span>
-            <span>{formatCurrency(row.value)}</span>
-          </div>
-          <div className="h-2 rounded-full bg-muted">
-            <div
-              className="h-2 rounded-full bg-primary"
-              style={{ width: `${max ? (row.value / max) * 100 : 0}%` }}
-            />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function SecurityRankedRows({ rows }: { rows: Array<{ label: string; value: number }> }) {
-  if (!rows.length)
-    return (
-      <p className="py-8 text-center text-sm text-muted-foreground">
-        No security data yet.
-      </p>
-    );
-  const maximum = Math.max(...rows.map((row) => row.value), 1);
-  return (
-    <div className="space-y-3">
-      {rows.map((row) => (
-        <div key={row.label}>
-          <div className="flex items-center justify-between gap-3 text-sm">
-            <span className="font-medium">{row.label}</span>
-            <span className="font-bold">{row.value}</span>
-          </div>
-          <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-muted">
-            <div
-              className="h-full bg-primary"
-              style={{ width: `${Math.max(4, (row.value / maximum) * 100)}%` }}
-            />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function Customers({ rows }: { rows: DashboardData["tables"]["latest_customers"] }) {
-  if (!rows.length) return <EmptyState />;
-  return (
-    <div className="space-y-3">
-      {rows.map((row) => (
-        <div key={row.id} className="flex items-center gap-3">
-          <Image
-            src={row.avatar}
-            alt={row.name}
-            width={34}
-            height={34}
-            unoptimized
-            className="rounded-full"
-          />
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold">{row.name}</p>
-            <p className="truncate text-xs text-muted-foreground">
-              {row.email} · {dateLabel(row.registered_at)}
-            </p>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function Reviews({ rows }: { rows: DashboardData["tables"]["recent_reviews"] }) {
-  if (!rows.length) return <EmptyState />;
-  return (
-    <div className="space-y-3">
-      {rows.map((row) => (
-        <div key={row.id}>
-          <div className="flex items-center justify-between gap-2">
-            <p className="truncate text-sm font-semibold">{row.product}</p>
-            <span className="flex items-center gap-1 text-xs font-bold">
-              <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-              {row.rating}
-            </span>
-          </div>
-          <p className="line-clamp-2 text-xs text-muted-foreground">{row.review}</p>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function Activity({ rows }: { rows: DashboardData["tables"]["activity"] }) {
-  if (!rows.length) return <EmptyState />;
-  return (
-    <div className="space-y-3">
-      {rows.map((row, index) => (
-        <div key={`${row.type}-${index}`} className="flex gap-3">
-          <span className="mt-1 h-2 w-2 rounded-full bg-primary" />
-          <div>
-            <p className="text-sm font-semibold">{row.title}</p>
-            <p className="text-xs text-muted-foreground">{row.description}</p>
-            <p className="mt-0.5 text-[11px] text-muted-foreground">
-              {dateLabel(row.date)}
-            </p>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function EmptyState() {
   return (
     <div className="flex min-h-32 items-center justify-center rounded-lg border border-dashed border-border text-sm text-muted-foreground">
@@ -617,4 +338,21 @@ function EmptyState() {
       No data available.
     </div>
   );
+}
+
+function valueLabel(value: number, format?: "money" | "number") {
+  return format === "money" ? formatCurrency(value) : value.toLocaleString();
+}
+
+function statusLabel(status: string) {
+  return (
+    <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-semibold capitalize">
+      {status.replace(/_/g, " ")}
+    </span>
+  );
+}
+
+function dateLabel(date: string | null) {
+  if (!date) return "-";
+  return formatShortDate(date);
 }

@@ -39,33 +39,20 @@ export type DashboardPoint = {
 
 export type DashboardData = {
   filters: { preset: DashboardPreset; date_from: string; date_to: string };
-  brand_enabled: boolean;
   currency: string;
   cards: DashboardCard[];
-  security?: {
-    blocked_today: number;
-    blocked_this_week: number;
-    blocked_this_month: number;
-    currently_blocked: number;
-    automatic_blocks: number;
-    manual_blocks: number;
-    top_countries: Array<{ country: string; total: number }>;
-    top_reasons: Array<{ reason: string; total: number }>;
-  };
-  charts: {
-    collections: DashboardPoint[];
-  };
   tables: {
-    top_categories: Array<{ name: string; sold_quantity: number; revenue: number }>;
-    top_brands: Array<{ name: string; sales: number; revenue: number }>;
-    recent_orders: Array<{ id: string; order_number: string; customer: string; payment_method: string; payment_status: string; order_status: string; total: number; date: string | null }>;
-    low_stock_products: Array<{ id: number; name: string; sku: string | null; current_stock: number; minimum_stock: number; status: string }>;
-    out_of_stock_products: Array<{ id: number; name: string; sku: string | null; current_stock: number; minimum_stock: number; status: string }>;
-    latest_customers: Array<{ id: number; name: string; email: string; avatar: string; registered_at: string | null }>;
-    recent_reviews: Array<{ id: number; product: string; customer: string; rating: number; review: string; status: string; date: string | null }>;
-    activity: Array<{ type: string; title: string; description: string; date: string | null }>;
+    recent_orders: Array<{
+      id: string;
+      order_number: string;
+      customer: string;
+      payment_method: string;
+      payment_status: string;
+      order_status: string;
+      total: number;
+      date: string | null;
+    }>;
   };
-  reports: Array<{ label: string; value: number; format: "money" | "number" }>;
 };
 
 class DashboardService extends AdminApiService {

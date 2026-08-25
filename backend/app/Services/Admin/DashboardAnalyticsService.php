@@ -2,22 +2,15 @@
 
 namespace App\Services\Admin;
 
-use App\Models\Blog;
-use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\ProductCollection;
-use App\Models\ProductReview;
 use App\Models\ProductVariant;
 use App\Models\Settings\CompanySetting;
 use App\Models\User;
-use App\Models\WishlistItem;
-use App\Services\Admin\Settings\BrandSettingsService;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 
 class DashboardAnalyticsService
 {
@@ -32,19 +25,7 @@ class DashboardAnalyticsService
 
         return Cache::remember($cacheKey, now()->addMinutes(2), function () use ($from, $to, $preset): array {
             $previous = $this->previousRange($from, $to);
-            $orders = $this->ordersBetween($from, $to);
-            $paidOrders = (clone $orders)->where('payment_status', 'paid');
-            $orderIds = (clone $orders)->pluck('id');
-            $security = app(IpBlockManagementService::class)->analytics();
             $cards = $this->cards($from, $to, $previous);
-            $cards[] = $this->card('ip_blocks', 'Currently Blocked', $security['currently_blocked'], 0, 'number', [
-                ['label' => 'Blocked Today', 'value' => $security['blocked_today'], 'format' => 'number'],
-                ['label' => 'This Week', 'value' => $security['blocked_this_week'], 'format' => 'number'],
-                ['label' => 'This Month', 'value' => $security['blocked_this_month'], 'format' => 'number'],
-            ]);
-            $cards[] = $this->card('automatic_ip_blocks', 'Automatic Blocks', $security['automatic_blocks'], 0, 'number', [
-                ['label' => 'Manual Blocks', 'value' => $security['manual_blocks'], 'format' => 'number'],
-            ]);
 
             return [
                 'filters' => [
@@ -53,23 +34,10 @@ class DashboardAnalyticsService
                     'date_to' => $to->toDateString(),
                 ],
                 'currency' => $this->currency(),
-                'brand_enabled' => app(BrandSettingsService::class)->enabled(),
                 'cards' => $cards,
-                'security' => $security,
-                'charts' => [
-                    'collections' => $this->revenueByCollection($orderIds),
-                ],
                 'tables' => [
-                    'top_categories' => $this->topCategories($orderIds),
-                    'top_brands' => app(BrandSettingsService::class)->enabled() ? $this->topBrands($orderIds) : [],
                     'recent_orders' => $this->recentOrders(),
-                    'low_stock_products' => $this->lowStockProducts(false),
-                    'out_of_stock_products' => $this->lowStockProducts(true),
-                    'latest_customers' => $this->latestCustomers(),
-                    'recent_reviews' => $this->recentReviews(),
-                    'activity' => $this->activityTimeline(),
                 ],
-                'reports' => $this->reports($paidOrders),
             ];
         });
     }
@@ -85,7 +53,7 @@ class DashboardAnalyticsService
         $scheduledCollections = ProductCollection::query()->whereNotNull('starts_at')->where('starts_at', '>', now())->count();
         $expiredCollections = ProductCollection::query()->whereNotNull('ends_at')->where('ends_at', '<', now())->count();
 
-        $cards = [
+        return [
             $this->card('revenue', 'Total Revenue', $this->money((clone $paidOrders)->sum('total_cents')), $this->money((clone $previousPaidOrders)->sum('total_cents')), 'money', [
                 ['label' => "Today's Revenue", 'value' => $this->money($this->paidOrdersFor(now()->startOfDay(), now()->endOfDay())->sum('total_cents')), 'format' => 'money'],
                 ['label' => 'Monthly Revenue', 'value' => $this->money($this->paidOrdersFor(now()->startOfMonth(), now()->endOfMonth())->sum('total_cents')), 'format' => 'money'],
@@ -113,19 +81,7 @@ class DashboardAnalyticsService
                 ['label' => 'Expired', 'value' => $expiredCollections, 'format' => 'number'],
             ]),
             $this->card('categories', 'Total Categories', Category::query()->count(), 0, 'number'),
-            $this->card('blogs', 'Total Blogs', Blog::query()->count(), 0, 'number'),
-            $this->card('wishlist', 'Wishlist Count', WishlistItem::query()->count(), 0, 'number'),
-            $this->card('reviews', 'Reviews', ProductReview::query()->count(), 0, 'number', [
-                ['label' => 'Pending', 'value' => ProductReview::query()->where('status', 'pending')->count(), 'format' => 'number'],
-                ['label' => 'Average Rating', 'value' => round((float) ProductReview::query()->avg('rating'), 2), 'format' => 'number'],
-            ]),
         ];
-
-        if (app(BrandSettingsService::class)->enabled()) {
-            $cards[] = $this->card('brands', 'Total Brands', Brand::query()->count(), 0, 'number');
-        }
-
-        return $cards;
     }
 
     private function card(string $key, string $title, int|float $value, int|float $previous, string $format, array $details = []): array
@@ -142,60 +98,6 @@ class DashboardAnalyticsService
             'trend' => $change > 0 ? 'up' : ($change < 0 ? 'down' : 'flat'),
             'details' => $details,
         ];
-    }
-
-    private function revenueByCollection($orderIds): array
-    {
-        if ($orderIds->isEmpty()) {
-            return [];
-        }
-
-        return DB::table('order_items')
-            ->join('product_collection_product', 'order_items.product_id', '=', 'product_collection_product.product_id')
-            ->join('collections', 'collections.id', '=', 'product_collection_product.product_collection_id')
-            ->whereIn('order_items.order_id', $orderIds)
-            ->select('collections.name', DB::raw('SUM(order_items.line_subtotal_cents - order_items.line_discount_cents) as revenue'), DB::raw('SUM(order_items.quantity) as quantity'))
-            ->groupBy('collections.id', 'collections.name')
-            ->orderByDesc('revenue')
-            ->limit(10)
-            ->get()
-            ->map(fn ($row) => ['label' => $row->name, 'value' => $this->money($row->revenue), 'quantity' => (int) $row->quantity])
-            ->all();
-    }
-
-    private function topCategories($orderIds): array
-    {
-        return $this->itemsBase($orderIds)
-            ->join('products', 'products.id', '=', 'order_items.product_id')
-            ->join('categories', 'categories.id', '=', 'products.category_id')
-            ->select('categories.name', DB::raw('SUM(order_items.quantity) as sold_quantity'), DB::raw('SUM(order_items.line_subtotal_cents - order_items.line_discount_cents) as revenue'))
-            ->groupBy('categories.id', 'categories.name')
-            ->orderByDesc('revenue')
-            ->limit(10)
-            ->get()
-            ->map(fn ($row) => ['name' => $row->name, 'sold_quantity' => (int) $row->sold_quantity, 'revenue' => $this->money($row->revenue)])
-            ->all();
-    }
-
-    private function topBrands($orderIds): array
-    {
-        return $this->itemsBase($orderIds)
-            ->join('products', 'products.id', '=', 'order_items.product_id')
-            ->join('brands', 'brands.id', '=', 'products.brand_id')
-            ->select('brands.name', DB::raw('SUM(order_items.quantity) as sales'), DB::raw('SUM(order_items.line_subtotal_cents - order_items.line_discount_cents) as revenue'))
-            ->groupBy('brands.id', 'brands.name')
-            ->orderByDesc('revenue')
-            ->limit(10)
-            ->get()
-            ->map(fn ($row) => ['name' => $row->name, 'sales' => (int) $row->sales, 'revenue' => $this->money($row->revenue)])
-            ->all();
-    }
-
-    private function itemsBase($orderIds)
-    {
-        return DB::table('order_items')
-            ->when($orderIds->isNotEmpty(), fn ($query) => $query->whereIn('order_items.order_id', $orderIds))
-            ->when($orderIds->isEmpty(), fn ($query) => $query->whereRaw('1 = 0'));
     }
 
     private function recentOrders(): array
@@ -216,115 +118,6 @@ class DashboardAnalyticsService
                 'date' => optional($order->placed_at ?: $order->created_at)->toISOString(),
             ])
             ->all();
-    }
-
-    private function lowStockProducts(bool $outOnly): array
-    {
-        $simpleProducts = Product::query()
-            ->where('track_inventory', true)
-            ->whereDoesntHave('variants')
-            ->when($outOnly, fn ($query) => $query->whereRaw('COALESCE(stock_quantity, 0) <= 0'), fn ($query) => $query->whereRaw('COALESCE(stock_quantity, 0) <= COALESCE(low_stock_threshold, 0)')->whereRaw('COALESCE(stock_quantity, 0) > 0'))
-            ->orderByRaw('COALESCE(stock_quantity, 0) asc')
-            ->limit(8)
-            ->get(['id', 'name', 'sku', 'stock_quantity', 'low_stock_threshold', 'status'])
-            ->map(fn (Product $product) => [
-                'id' => $product->id,
-                'name' => $product->name,
-                'sku' => $product->sku,
-                'current_stock' => (int) ($product->stock_quantity ?? 0),
-                'minimum_stock' => (int) ($product->low_stock_threshold ?? 0),
-                'status' => $product->status,
-            ]);
-
-        $variantProducts = ProductVariant::query()
-            ->where('track_inventory', true)
-            ->where('status', 'active')
-            ->whereHas('product', fn ($query) => $query->whereNull('deleted_at'))
-            ->with(['product:id,name,status'])
-            ->when($outOnly, fn ($query) => $query->whereRaw('COALESCE(stock_quantity, 0) <= 0'), fn ($query) => $query->whereRaw('COALESCE(stock_quantity, 0) <= 5')->whereRaw('COALESCE(stock_quantity, 0) > 0'))
-            ->orderByRaw('COALESCE(stock_quantity, 0) asc')
-            ->limit(8)
-            ->get(['id', 'product_id', 'sku', 'stock_quantity', 'status'])
-            ->map(fn (ProductVariant $variant) => [
-                'id' => $variant->product_id,
-                'name' => ($variant->product?->name ?? 'Product').' ('.$variant->sku.')',
-                'sku' => $variant->sku,
-                'current_stock' => (int) ($variant->stock_quantity ?? 0),
-                'minimum_stock' => 5,
-                'status' => $variant->product?->status ?? 'active',
-            ]);
-
-        return $simpleProducts->concat($variantProducts)
-            ->sortBy('current_stock')
-            ->take(8)
-            ->values()
-            ->all();
-    }
-
-    private function latestCustomers(): array
-    {
-        return User::query()
-            ->latest()
-            ->limit(8)
-            ->get(['id', 'name', 'email', 'avatar', 'created_at'])
-            ->map(fn (User $user) => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'avatar' => $this->assetUrl($user->avatar) ?: 'https://ui-avatars.com/api/?name='.urlencode($user->name).'&background=111827&color=fff',
-                'registered_at' => optional($user->created_at)->toISOString(),
-            ])
-            ->all();
-    }
-
-    private function recentReviews(): array
-    {
-        return ProductReview::query()
-            ->with(['product:id,name', 'user:id,name,email'])
-            ->latest()
-            ->limit(8)
-            ->get()
-            ->map(fn (ProductReview $review) => [
-                'id' => $review->id,
-                'product' => $review->product?->name ?: 'Deleted product',
-                'customer' => $review->user?->name ?: 'Guest',
-                'rating' => (int) $review->rating,
-                'review' => $review->comment,
-                'status' => $review->status,
-                'date' => optional($review->created_at)->toISOString(),
-            ])
-            ->all();
-    }
-
-    private function activityTimeline(): array
-    {
-        $orders = Order::query()->latest()->limit(6)->get(['order_number', 'status', 'payment_status', 'created_at'])
-            ->map(fn (Order $order) => ['type' => 'order', 'title' => 'New Order', 'description' => "{$order->order_number} is {$order->status}", 'date' => optional($order->created_at)->toISOString()]);
-        $products = Product::query()->latest()->limit(4)->get(['name', 'status', 'created_at'])
-            ->map(fn (Product $product) => ['type' => 'product', 'title' => 'Product Created', 'description' => "{$product->name} is {$product->status}", 'date' => optional($product->created_at)->toISOString()]);
-        $reviews = ProductReview::query()->latest()->limit(4)->get(['rating', 'status', 'created_at'])
-            ->map(fn (ProductReview $review) => ['type' => 'review', 'title' => 'Review Submitted', 'description' => "{$review->rating} star review is {$review->status}", 'date' => optional($review->created_at)->toISOString()]);
-
-        return $orders->concat($products)->concat($reviews)
-            ->sortByDesc('date')
-            ->take(12)
-            ->values()
-            ->all();
-    }
-
-    private function reports($paidOrders): array
-    {
-        $discount = (clone $paidOrders)->sum('item_discount_cents') + (clone $paidOrders)->sum('coupon_discount_cents');
-
-        return [
-            ['label' => 'Gross Revenue', 'value' => $this->money((clone $paidOrders)->sum('subtotal_cents')), 'format' => 'money'],
-            ['label' => 'Net Revenue', 'value' => $this->money((clone $paidOrders)->sum('total_cents')), 'format' => 'money'],
-            ['label' => 'Discounts', 'value' => $this->money($discount), 'format' => 'money'],
-            ['label' => 'Coupons Used', 'value' => (clone $paidOrders)->whereNotNull('coupon_code')->count(), 'format' => 'number'],
-            ['label' => 'Taxes Collected', 'value' => $this->money((clone $paidOrders)->sum('tax_cents')), 'format' => 'money'],
-            ['label' => 'Shipping Revenue', 'value' => $this->money((clone $paidOrders)->sum('shipping_cents')), 'format' => 'money'],
-            ['label' => 'Refund Amount', 'value' => $this->money((clone $paidOrders)->whereIn('payment_status', ['refunded', 'partially_refunded'])->sum('total_cents')), 'format' => 'money'],
-        ];
     }
 
     private function range(array $filters): array
@@ -408,22 +201,5 @@ class DashboardAnalyticsService
     private function label(string $value): string
     {
         return str($value)->replace(['_', '-'], ' ')->title()->toString();
-    }
-
-    private function assetUrl(?string $path): ?string
-    {
-        if (! $path) {
-            return null;
-        }
-
-        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
-            return $path;
-        }
-
-        if (str_starts_with($path, '/storage/') || str_starts_with($path, 'storage/')) {
-            return url($path);
-        }
-
-        return url(Storage::disk('public')->url($path));
     }
 }
