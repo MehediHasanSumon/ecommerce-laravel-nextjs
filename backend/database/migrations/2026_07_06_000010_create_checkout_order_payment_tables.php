@@ -115,6 +115,8 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index(['order_id', 'product_id']);
+            $table->index(['product_id', 'quantity'], 'order_items_product_qty_index');
+            $table->index('product_variant_id', 'order_items_variant_index');
         });
 
         Schema::create('order_status_histories', function (Blueprint $table): void {

@@ -174,6 +174,11 @@ class CheckoutOtpService
         $challenge?->update(['used_at' => now()]);
     }
 
+    public function consume(?SmsOtpChallenge $challenge): void
+    {
+        $this->markUsed($challenge);
+    }
+
     private function identity(Request $request): array
     {
         $guestToken = $request->header('X-Guest-Token');

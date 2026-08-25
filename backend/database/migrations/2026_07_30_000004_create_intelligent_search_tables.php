@@ -25,6 +25,16 @@ return new class extends Migration
             $table->timestamp('indexed_at')->nullable()->index();
         });
 
+        match (\Illuminate\Support\Facades\DB::getDriverName()) {
+            'mysql' => \Illuminate\Support\Facades\DB::statement(
+                'ALTER TABLE product_search_documents ADD FULLTEXT INDEX product_search_documents_fulltext (normalized_name, searchable_text)'
+            ),
+            'pgsql' => \Illuminate\Support\Facades\DB::statement(
+                "CREATE INDEX product_search_documents_fulltext ON product_search_documents USING GIN (to_tsvector('simple', searchable_text))"
+            ),
+            default => null,
+        };
+
         Schema::create('product_search_tokens', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('product_id')->constrained()->cascadeOnDelete()->cascadeOnUpdate();

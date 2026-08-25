@@ -21,8 +21,9 @@ return new class extends Migration
             $table->longText('description')->nullable();
             $table->string('product_type')->default('physical')->index();
             $table->string('status')->default('draft')->index();
+            $table->string('pricing_mode', 20)->default('global')->index();
             $table->string('sku', 100)->nullable()->unique();
-            $table->unsignedBigInteger('base_price_cents');
+            $table->unsignedBigInteger('base_price_cents')->nullable();
             $table->unsignedBigInteger('compare_at_price_cents')->nullable();
             $table->unsignedBigInteger('cost_price_cents')->nullable();
             $table->char('currency', 3)->default('USD');

@@ -50,14 +50,6 @@ return new class extends Migration
             $table->unique(['discount_id', 'brand_id']);
         });
 
-        Schema::create('discount_collection', function (Blueprint $table): void {
-            $table->foreignId('discount_id')->constrained()->cascadeOnDelete()->cascadeOnUpdate();
-            $table->foreignId('product_collection_id')->constrained('collections')->cascadeOnDelete()->cascadeOnUpdate();
-            $table->timestamps();
-
-            $table->primary(['discount_id', 'product_collection_id'], 'discount_collection_primary');
-        });
-
         Schema::create('discount_excluded_category', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('discount_id')->constrained()->cascadeOnDelete()->cascadeOnUpdate();
@@ -70,12 +62,14 @@ return new class extends Migration
         Schema::create('discount_user_usages', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('discount_id')->constrained()->cascadeOnDelete()->cascadeOnUpdate();
-            $table->foreignId('user_id')->constrained()->cascadeOnDelete()->cascadeOnUpdate();
-            $table->unsignedInteger('usage_count')->default(0);
+            $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete()->cascadeOnUpdate();
+            $table->string('guest_email')->nullable()->index();
+            $table->unsignedInteger('usage_count')->default(1);
             $table->timestamp('last_used_at')->nullable();
             $table->timestamps();
 
-            $table->unique(['discount_id', 'user_id']);
+            $table->index(['discount_id', 'user_id']);
+            $table->index(['discount_id', 'guest_email']);
         });
     }
 
@@ -86,7 +80,6 @@ return new class extends Migration
     {
         Schema::dropIfExists('discount_user_usages');
         Schema::dropIfExists('discount_excluded_category');
-        Schema::dropIfExists('discount_collection');
         Schema::dropIfExists('discount_brand');
         Schema::dropIfExists('discount_category');
         Schema::dropIfExists('discounts');

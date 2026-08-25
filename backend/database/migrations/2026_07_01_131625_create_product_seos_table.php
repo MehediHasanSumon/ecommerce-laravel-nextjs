@@ -16,6 +16,7 @@ return new class extends Migration
             $table->foreignId('product_id')->unique()->constrained()->cascadeOnDelete()->cascadeOnUpdate();
             $table->string('meta_title')->nullable();
             $table->text('meta_description')->nullable();
+            $table->text('meta_keywords')->nullable();
             $table->string('canonical_url')->nullable();
             $table->text('og_image_url')->nullable();
             $table->json('schema_json')->nullable();

@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('product_id')->constrained()->cascadeOnDelete()->cascadeOnUpdate();
             $table->foreignId('product_variant_id')->nullable()->constrained('product_variants')->nullOnDelete()->cascadeOnUpdate();
-            $table->foreignId('warehouse_id')->nullable()->constrained()->nullOnDelete()->cascadeOnUpdate();
+            $table->unsignedBigInteger('warehouse_id')->nullable();
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete()->cascadeOnUpdate();
             $table->string('type')->index();
             $table->integer('quantity');

@@ -41,6 +41,8 @@ return new class extends Migration
             $table->timestamps();
 
             $table->unique(['cart_id', 'item_key']);
+            $table->index('product_id', 'cart_items_product_index');
+            $table->index('product_variant_id', 'cart_items_variant_index');
         });
 
         Schema::create('wishlists', function (Blueprint $table) {
