@@ -56,7 +56,7 @@ it('rejects invalid registration payloads', function (array $payload, string $fi
 })->with([
     'missing name' => [['email' => 'a@example.test', 'password' => 'Str0ng!Passw0rd', 'password_confirmation' => 'Str0ng!Passw0rd'], 'name'],
     'invalid email' => [['name' => 'Ada', 'email' => 'not-an-email', 'password' => 'Str0ng!Passw0rd', 'password_confirmation' => 'Str0ng!Passw0rd'], 'email'],
-    'weak password' => [['name' => 'Ada', 'email' => 'ada@example.test', 'password' => 'password', 'password_confirmation' => 'password'], 'password'],
+    'weak password' => [['name' => 'Ada', 'email' => 'ada@example.test', 'password' => '12345', 'password_confirmation' => '12345'], 'password'],
     'mismatched confirmation' => [['name' => 'Ada', 'email' => 'ada@example.test', 'password' => 'Str0ng!Passw0rd', 'password_confirmation' => 'Different!123'], 'password'],
     'xss name' => [['name' => '<script>alert(1)</script>', 'email' => 'ada@example.test', 'password' => 'Str0ng!Passw0rd', 'password_confirmation' => 'Str0ng!Passw0rd'], 'name'],
 ]);

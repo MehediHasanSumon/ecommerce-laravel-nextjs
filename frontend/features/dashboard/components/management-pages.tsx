@@ -95,8 +95,8 @@ const userSchema = z.object({
   email_verified_at: z.string().optional(),
   roles: z.array(z.string()),
 }).superRefine((data, context) => {
-  if (data.password && data.password.length < 8) {
-    context.addIssue({ code: "custom", path: ["password"], message: "Password must be at least 8 characters." });
+  if (data.password && data.password.length < 6) {
+    context.addIssue({ code: "custom", path: ["password"], message: "Password must be at least 6 characters." });
   }
 
   if (data.password !== data.password_confirmation) {

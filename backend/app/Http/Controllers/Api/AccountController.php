@@ -103,7 +103,7 @@ class AccountController extends Controller
     {
         $data = $request->validate([
             'current_password' => ['required', 'string'],
-            'password' => ['required', 'confirmed', Password::min(8)],
+            'password' => ['required', 'confirmed', Password::min(6)],
         ]);
         abort_unless(Hash::check($data['current_password'], $request->user()->password), 422, 'Current password is incorrect.');
         $request->user()->update(['password' => $data['password']]);

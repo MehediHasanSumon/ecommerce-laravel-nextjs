@@ -27,7 +27,7 @@ class RegisterRequest extends FormRequest
             'name' => ['bail', 'required', 'string', 'min:2', 'max:120', 'regex:/^[\pL\pM\pN\s.\'-]+$/u'],
             'email' => ['bail', 'required', 'string', 'email:rfc', 'max:254', 'unique:users,email'],
             'phone' => ['bail', 'nullable', 'string', 'max:40', 'regex:/^(?:\+?88)?01[3-9]\d{8}$/'],
-            'password' => ['bail', 'required', 'string', 'confirmed', Password::min(12)->mixedCase()->numbers()->symbols()],
+            'password' => ['bail', 'required', 'string', 'confirmed', Password::min(6)],
         ];
     }
 

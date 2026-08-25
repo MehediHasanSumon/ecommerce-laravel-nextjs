@@ -4,12 +4,8 @@ import { normalizeEmail, normalizeName } from "@/utils/sanitize";
 const passwordSchema = z
   .string()
   .trim()
-  .min(12, "Password must be at least 12 characters.")
-  .max(128, "Password is too long.")
-  .regex(/[a-z]/, "Password needs one lowercase letter.")
-  .regex(/[A-Z]/, "Password needs one uppercase letter.")
-  .regex(/[0-9]/, "Password needs one number.")
-  .regex(/[^A-Za-z0-9]/, "Password needs one special character.");
+  .min(6, "Password must be at least 6 characters.")
+  .max(128, "Password is too long.");
 
 const emailSchema = z
   .string()

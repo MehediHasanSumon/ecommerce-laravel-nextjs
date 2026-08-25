@@ -117,7 +117,7 @@ export function RegisterForm() {
       {password ? (
         <div className="grid grid-cols-2 gap-2 rounded-2xl border border-border/70 bg-muted/35 p-3 text-xs">
           {[
-            ["At least 12 characters", password.length >= 12],
+            ["At least 6 characters", password.length >= 6],
             ["One uppercase letter", /[A-Z]/.test(password)],
             ["One number", /\d/.test(password)],
             ["One special character", /[^A-Za-z0-9]/.test(password)],

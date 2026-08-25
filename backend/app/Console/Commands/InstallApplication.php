@@ -260,7 +260,7 @@ class InstallApplication extends Command
                         'password' => [
                             'required',
                             'confirmed',
-                            Password::min(12)->mixedCase()->letters()->numbers()->symbols(),
+                            Password::min(6),
                         ],
                     ],
                 )->validate();
