@@ -1,4 +1,5 @@
 import { Skeleton, SkeletonText } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 
 export function ProductCardSkeleton() {
   return (
@@ -20,9 +21,15 @@ export function ProductCardSkeleton() {
   );
 }
 
-export function ProductGridSkeleton({ count = 8 }: { count?: number }) {
+export function ProductGridSkeleton({ count = 8, columns = 4 }: { count?: number; columns?: 2 | 3 | 4 }) {
+  const gridColsClass = columns === 4
+    ? 'grid-cols-1 min-[380px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-4'
+    : columns === 2
+    ? 'grid-cols-1 min-[380px]:grid-cols-2'
+    : 'grid-cols-1 min-[380px]:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3';
+
   return (
-    <div className="grid grid-cols-1 gap-3 min-[380px]:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-5 xl:grid-cols-4 xl:gap-6">
+    <div className={cn('grid gap-3.5 sm:gap-5 xl:gap-6', gridColsClass)}>
       {Array.from({ length: count }).map((_, i) => (
         <ProductCardSkeleton key={i} />
       ))}

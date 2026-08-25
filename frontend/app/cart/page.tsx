@@ -10,6 +10,7 @@ import { useCartStore } from '@/store/cartStore';
 import { useAuthStore } from '@/store/auth-store';
 import { selectBrandsEnabled, selectCurrencyFingerprint, useSettingsStore } from '@/store/settings-store';
 import { formatPrice } from '@/utils/format';
+import { cn } from '@/lib/utils';
 import {
   Trash2,
   Minus,
@@ -19,6 +20,8 @@ import {
   ShoppingCart,
   ChevronRight,
   RotateCcw,
+  Tag,
+  Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -46,6 +49,7 @@ export default function CartPage() {
   useSettingsStore(selectCurrencyFingerprint);
   const brandsEnabled = useSettingsStore(selectBrandsEnabled);
   const [mounted, setMounted] = useState(false);
+  const [couponInput, setCouponInput] = useState('');
   const initialize = useCartStore((s) => s.initialize);
   const cartInitialized = useCartStore((s) => s.initialized);
   const authInitialized = useAuthStore((s) => s.initialized);
@@ -75,10 +79,18 @@ export default function CartPage() {
   const getTax = useCartStore((s) => s.getTax);
   const getTotal = useCartStore((s) => s.getTotal);
   const cart = useCartStore((s) => s.cart);
+  const applyCoupon = useCartStore((s) => s.applyCoupon);
+  const removeCoupon = useCartStore((s) => s.removeCoupon);
+  const isCouponLoading = useCartStore((s) => s.isCouponLoading);
+  const couponMessage = useCartStore((s) => s.couponMessage);
+  const couponMessageType = useCartStore((s) => s.couponMessageType);
+
   const showInitialSkeleton = !mounted || !authInitialized || !cartInitialized;
   const handleRemove = (itemId: string, name: string) => {
     void removeItem(itemId);
-    toast(`${name} removed from cart`, { icon: '🗑️' });
+    toast.success(`${name} removed from cart`, {
+      icon: <Trash2 size={16} className="text-muted-foreground" />,
+    });
   };
 
   if (showInitialSkeleton) {
@@ -108,6 +120,27 @@ export default function CartPage() {
   const total = getTotal();
   const hasCoupon = Boolean(cart.couponCode);
   const couponDiscount = cart.summary?.couponDiscount ?? cart.coupon?.discount ?? 0;
+  const promoDiscount = cart.summary?.itemDiscount ?? 0;
+
+  // Calculate compare/original price discount across items
+  const productDiscount = items.reduce((sum, item) => {
+    if (item.product.originalPrice && item.product.originalPrice > item.product.price) {
+      return sum + ((item.product.originalPrice - item.product.price) * item.quantity);
+    }
+    if (item.discountTotal && item.discountTotal > 0) {
+      return sum + item.discountTotal;
+    }
+    return sum;
+  }, 0);
+
+  const rawSubtotal = items.reduce((sum, item) => {
+    const unitRegular = item.product.originalPrice && item.product.originalPrice > item.product.price
+      ? item.product.originalPrice
+      : (item.unitPrice ?? item.product.price);
+    return sum + (unitRegular * item.quantity);
+  }, 0);
+
+  const totalSavings = productDiscount + promoDiscount + couponDiscount;
 
   return (
     <div className="min-h-screen bg-background">
@@ -134,9 +167,11 @@ export default function CartPage() {
             <button
               onClick={() => {
                 void clearCart();
-                toast('Cart cleared');
+                toast.success('Cart cleared', {
+                  icon: <Trash2 size={16} className="text-muted-foreground" />,
+                });
               }}
-            className="flex w-fit items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-destructive"
+              className="flex w-fit items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-destructive"
             >
               <Trash2 size={14} /> Clear cart
             </button>
@@ -164,109 +199,126 @@ export default function CartPage() {
           <div className="grid gap-6 lg:grid-cols-3 lg:gap-8">
             {/* Cart Items */}
             <div className="lg:col-span-2 space-y-4">
-              {items.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-4 transition-shadow hover:shadow-sm sm:flex-row md:p-5"
-                >
-                  <Link
-                    href={`/products/${item.product.slug}`}
-                    className="relative h-40 w-full shrink-0 overflow-hidden rounded-xl bg-muted sm:h-24 sm:w-24"
+              {items.map((item) => {
+                const hasOriginalPrice = item.product.originalPrice && item.product.originalPrice > item.product.price;
+                return (
+                  <div
+                    key={item.id}
+                    className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-4 transition-shadow hover:shadow-sm sm:flex-row md:p-5"
                   >
-                    <Image
-                      src={resolveCartImage(item.selectedImage ?? item.product.thumbnail)}
-                      alt={item.product.name}
-                      fill
-                      unoptimized
-                      className="object-cover"
-                    />
-                  </Link>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        {brandsEnabled && item.product.brand ? <p className="text-xs text-muted-foreground mb-0.5">{item.product.brand}</p> : null}
-                        <Link
-                          href={`/products/${item.product.slug}`}
-                          className="font-semibold text-sm hover:text-primary transition-colors line-clamp-2"
+                    <Link
+                      href={`/products/${item.product.slug}`}
+                      className="relative h-40 w-full shrink-0 overflow-hidden rounded-xl bg-muted sm:h-24 sm:w-24"
+                    >
+                      <Image
+                        src={resolveCartImage(item.selectedImage ?? item.product.thumbnail)}
+                        alt={item.product.name}
+                        fill
+                        unoptimized
+                        className="object-cover"
+                      />
+                    </Link>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          {brandsEnabled && item.product.brand ? <p className="text-xs text-muted-foreground mb-0.5">{item.product.brand}</p> : null}
+                          <Link
+                            href={`/products/${item.product.slug}`}
+                            className="font-semibold text-sm hover:text-primary transition-colors line-clamp-2"
+                          >
+                            {item.product.name}
+                          </Link>
+                          {(item.selectedVariant || item.selectedColor || item.selectedSize || item.selectedAttributes?.length) && (
+                            <div className="flex flex-wrap gap-2 mt-1">
+                              {item.selectedVariant && (
+                                <span className="text-xs text-muted-foreground">
+                                  {item.selectedVariant}
+                                </span>
+                              )}
+                              {item.selectedColor && (
+                                <span className="text-xs text-muted-foreground capitalize">
+                                  Color: {item.selectedColor}
+                                </span>
+                              )}
+                              {item.selectedSize && (
+                                <span className="text-xs text-muted-foreground">
+                                  Size: {item.selectedSize}
+                                </span>
+                              )}
+                              {item.selectedAttributes?.map((attribute) => (
+                                <span
+                                  key={`${attribute.name}-${attribute.value}`}
+                                  className="text-xs text-muted-foreground"
+                                >
+                                  {attribute.name}: {attribute.label ?? attribute.value}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          {item.selectedSku && (
+                            <p className="mt-1 text-xs text-muted-foreground">SKU: {item.selectedSku}</p>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => handleRemove(item.id, item.product.name)}
+                          className="shrink-0 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                          aria-label={`Remove ${item.product.name}`}
                         >
-                          {item.product.name}
-                        </Link>
-                        {(item.selectedVariant || item.selectedColor || item.selectedSize || item.selectedAttributes?.length) && (
-                          <div className="flex flex-wrap gap-2 mt-1">
-                            {item.selectedVariant && (
-                              <span className="text-xs text-muted-foreground">
-                                {item.selectedVariant}
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                      <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex items-center border border-border rounded-xl overflow-hidden">
+                          <button
+                            onClick={() => void updateQuantity(item.id, item.quantity - 1)}
+                            className="flex h-9 w-9 items-center justify-center transition-colors hover:bg-muted"
+                            aria-label="Decrease quantity"
+                          >
+                            <Minus size={14} />
+                          </button>
+                          <span className="w-10 text-center text-sm font-semibold">
+                            {item.quantity}
+                          </span>
+                          <button
+                            onClick={() => void updateQuantity(item.id, item.quantity + 1)}
+                            className="flex h-9 w-9 items-center justify-center transition-colors hover:bg-muted"
+                            aria-label="Increase quantity"
+                          >
+                            <Plus size={14} />
+                          </button>
+                        </div>
+                        <div className="text-right">
+                          <div className="flex items-baseline justify-end gap-1.5">
+                            <span className="font-bold text-foreground">
+                              {formatPrice(item.subtotal ?? item.product.price * item.quantity)}
+                            </span>
+                            {hasOriginalPrice ? (
+                              <span className="text-xs text-muted-foreground line-through">
+                                {formatPrice(item.product.originalPrice! * item.quantity)}
                               </span>
-                            )}
-                            {item.selectedColor && (
-                              <span className="text-xs text-muted-foreground capitalize">
-                                Color: {item.selectedColor}
-                              </span>
-                            )}
-                            {item.selectedSize && (
-                              <span className="text-xs text-muted-foreground">
-                                Size: {item.selectedSize}
-                              </span>
-                            )}
-                            {item.selectedAttributes?.map((attribute) => (
-                              <span
-                                key={`${attribute.name}-${attribute.value}`}
-                                className="text-xs text-muted-foreground"
-                              >
-                                {attribute.name}: {attribute.label ?? attribute.value}
-                              </span>
-                            ))}
+                            ) : null}
                           </div>
-                        )}
-                        {item.selectedSku && (
-                          <p className="mt-1 text-xs text-muted-foreground">SKU: {item.selectedSku}</p>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => handleRemove(item.id, item.product.name)}
-                        className="shrink-0 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                        aria-label={`Remove ${item.product.name}`}
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
-                    <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                      <div className="flex items-center border border-border rounded-xl overflow-hidden">
-                        <button
-                          onClick={() => void updateQuantity(item.id, item.quantity - 1)}
-                          className="flex h-9 w-9 items-center justify-center transition-colors hover:bg-muted"
-                          aria-label="Decrease quantity"
-                        >
-                          <Minus size={14} />
-                        </button>
-                        <span className="w-10 text-center text-sm font-semibold">
-                          {item.quantity}
-                        </span>
-                        <button
-                          onClick={() => void updateQuantity(item.id, item.quantity + 1)}
-                          className="flex h-9 w-9 items-center justify-center transition-colors hover:bg-muted"
-                          aria-label="Increase quantity"
-                        >
-                          <Plus size={14} />
-                        </button>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-bold">
-                          {formatPrice(item.subtotal ?? item.product.price * item.quantity)}
-                        </p>
-                        {item.quantity > 1 && (
-                          <p className="text-xs text-muted-foreground">
-                            {formatPrice(item.discountedPrice ?? item.unitPrice ?? item.product.price)} each
-                          </p>
-                        )}
-                        {item.availability && !item.availability.inStock && (
-                          <p className="text-xs text-orange-500">Out of stock</p>
-                        )}
+                          <div className="flex items-center justify-end gap-1.5 mt-0.5">
+                            {item.quantity > 1 && (
+                              <p className="text-xs text-muted-foreground">
+                                {formatPrice(item.discountedPrice ?? item.unitPrice ?? item.product.price)} each
+                              </p>
+                            )}
+                            {item.product.discount ? (
+                              <span className="rounded bg-rose-100 px-1 py-0.5 text-[10px] font-bold text-rose-600 dark:bg-rose-950/50 dark:text-rose-400">
+                                -{item.product.discount}%
+                              </span>
+                            ) : null}
+                          </div>
+                          {item.availability && !item.availability.inStock && (
+                            <p className="text-xs text-orange-500 mt-1">Out of stock</p>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
 
               {/* Continue shopping */}
               <Link
@@ -287,34 +339,109 @@ export default function CartPage() {
                     <span className="text-muted-foreground">
                       Subtotal ({items.reduce((s, i) => s + i.quantity, 0)} items)
                     </span>
-                    <span className="font-medium">{formatPrice(subtotal)}</span>
+                    <span className="font-medium">{formatPrice(productDiscount > 0 ? rawSubtotal : subtotal)}</span>
                   </div>
+
+                  {productDiscount > 0 ? (
+                    <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
+                      <span>Product Discount</span>
+                      <span className="font-semibold">-{formatPrice(productDiscount)}</span>
+                    </div>
+                  ) : null}
+
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Shipping</span>
                     <span className="font-medium">
                       {shipping === 0 ? <span className="text-emerald-600">FREE</span> : formatPrice(shipping)}
                     </span>
                   </div>
+
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Estimated Tax</span>
                     <span className="font-medium">{formatPrice(tax)}</span>
                   </div>
-                  {(cart.summary?.itemDiscount ?? 0) > 0 ? (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Promotional Discount</span>
-                      <span className="font-medium text-emerald-600">-{formatPrice(cart.summary?.itemDiscount ?? 0)}</span>
+
+                  {promoDiscount > 0 ? (
+                    <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
+                      <span>Promotional Discount</span>
+                      <span className="font-semibold">-{formatPrice(promoDiscount)}</span>
                     </div>
                   ) : null}
+
                   {hasCoupon && couponDiscount > 0 ? (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Coupon ({cart.couponCode})</span>
-                      <span className="font-medium text-emerald-600">-{formatPrice(couponDiscount)}</span>
+                    <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
+                      <span>Coupon ({cart.couponCode})</span>
+                      <span className="font-semibold">-{formatPrice(couponDiscount)}</span>
                     </div>
                   ) : null}
+
+                  {/* Total Savings Highlight Banner */}
+                  {totalSavings > 0 ? (
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-2.5 dark:border-emerald-900/50 dark:bg-emerald-950/30">
+                      <div className="flex justify-between items-center text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                        <span>Total Savings</span>
+                        <span className="text-sm font-bold">-{formatPrice(totalSavings)}</span>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {/* Total Amount */}
                   <div className="border-t border-border pt-3 flex justify-between items-baseline">
                     <span className="font-bold text-base">Total</span>
-                    <span className="font-extrabold text-2xl">{formatPrice(total)}</span>
+                    <span className="font-extrabold text-2xl text-foreground">{formatPrice(total)}</span>
                   </div>
+                </div>
+
+                {/* Coupon Input Box */}
+                <div className="mt-5 border-t border-border pt-4">
+                  {hasCoupon ? (
+                    <div className="flex items-center justify-between rounded-xl bg-muted p-2.5 text-xs">
+                      <div className="flex items-center gap-1.5">
+                        <Tag size={13} className="text-primary" />
+                        <span className="font-medium text-foreground">Coupon: <strong className="uppercase">{cart.couponCode}</strong></span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => void removeCoupon()}
+                        className="text-xs font-semibold text-destructive hover:underline"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <form
+                      onSubmit={async (e) => {
+                        e.preventDefault();
+                        if (!couponInput.trim()) return;
+                        const ok = await applyCoupon(couponInput.trim());
+                        if (ok) {
+                          setCouponInput('');
+                          toast.success('Coupon applied successfully!');
+                        }
+                      }}
+                      className="flex gap-2"
+                    >
+                      <input
+                        type="text"
+                        placeholder="Promo / Coupon code"
+                        value={couponInput}
+                        onChange={(e) => setCouponInput(e.target.value)}
+                        className="h-10 flex-1 rounded-xl border border-border bg-background px-3 text-xs uppercase placeholder:normal-case placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                      />
+                      <button
+                        type="submit"
+                        disabled={isCouponLoading || !couponInput.trim()}
+                        className="h-10 rounded-xl bg-secondary px-3.5 text-xs font-semibold text-secondary-foreground transition-colors hover:bg-secondary/80 disabled:opacity-50"
+                      >
+                        {isCouponLoading ? <Loader2 size={13} className="animate-spin" /> : 'Apply'}
+                      </button>
+                    </form>
+                  )}
+                  {couponMessage && (
+                    <p className={cn("mt-1.5 text-xs", couponMessageType === 'error' ? "text-destructive" : "text-emerald-600")}>
+                      {couponMessage}
+                    </p>
+                  )}
                 </div>
 
                 <Link
@@ -343,4 +470,3 @@ export default function CartPage() {
     </div>
   );
 }
-

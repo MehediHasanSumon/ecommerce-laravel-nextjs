@@ -164,7 +164,7 @@ class FraudCheckService
                 'actor:id,name,email',
                 'order:id,order_number',
                 'user:id,name,email,phone',
-                'guestCustomer:id,name,email,phone',
+                'guestCustomer:id,name,email,mobile',
             ])
             ->where(fn (Builder $query) => $query->where('id', $check)->orWhere('public_id', $check))
             ->firstOrFail();
@@ -177,7 +177,7 @@ class FraudCheckService
                 'providerResults:id,fraud_check_id,provider,status,risk_score,risk_level,response_time_ms,error_message',
                 'order:id,order_number',
                 'user:id,name,email,phone',
-                'guestCustomer:id,name,email,phone',
+                'guestCustomer:id,name,email,mobile',
                 'actor:id,name',
             ])
             ->when($filters['search'] ?? null, function (Builder $query, string $search): void {
@@ -186,7 +186,7 @@ class FraudCheckService
                     ->where('subject_key', 'like', $escaped)
                     ->orWhereHas('order', fn (Builder $order) => $order->where('order_number', 'like', $escaped))
                     ->orWhereHas('user', fn (Builder $user) => $user->where('name', 'like', $escaped)->orWhere('email', 'like', $escaped)->orWhere('phone', 'like', $escaped))
-                    ->orWhereHas('guestCustomer', fn (Builder $guest) => $guest->where('name', 'like', $escaped)->orWhere('email', 'like', $escaped)->orWhere('phone', 'like', $escaped)));
+                    ->orWhereHas('guestCustomer', fn (Builder $guest) => $guest->where('name', 'like', $escaped)->orWhere('email', 'like', $escaped)->orWhere('mobile', 'like', $escaped)));
             })
             ->when($filters['risk_level'] ?? null, fn (Builder $query, string $level) => $query->where('risk_level', $level))
             ->when($filters['status'] ?? null, fn (Builder $query, string $status) => $query->where('status', $status))
@@ -221,7 +221,7 @@ class FraudCheckService
             'billing_address' => $billing,
             'shipping_address' => $shipping,
             'order_id' => $order->order_number,
-            'customer_id' => $order->user_id ? "registered-{$order->user_id}" : "guest-{$order->guest_customer_id}",
+            'customer_id' => $order->user_id ? "registered-{$order->user_id}" : "guest-".($order->customer_id ?? $order->guest_customer_id ?? 'unknown'),
         ];
     }
 

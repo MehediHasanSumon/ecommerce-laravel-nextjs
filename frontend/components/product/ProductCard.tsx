@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { Eye, Heart, Loader2, ShoppingCart, Star, Zap } from 'lucide-react';
+import { Eye, Heart, Loader2, ShoppingCart, Star } from 'lucide-react';
 import { toast } from 'sonner';
 import { useCartStore } from '@/store/cartStore';
 import { useWishlistStore } from '@/store/wishlistStore';
@@ -44,12 +44,9 @@ export function ProductCard({ product, className, layout = 'grid', onOpen }: Pro
   const brandsEnabled = useSettingsStore(selectBrandsEnabled);
   const cardSettings = useSettingsStore(selectProductCardSettings);
   const runtimeSettings = useSettingsStore((state) => state.settings);
-  const wishlistEnabled = (runtimeSettings?.module_settings.wishlist ?? true) && isAuthenticated;
-  const reviewsEnabled = runtimeSettings?.module_settings.reviews ?? true;
-  const requireLoginBeforeCheckout = Boolean(
-    runtimeSettings?.website_settings.require_login_before_checkout,
-  );
-  const [pendingAction, setPendingAction] = useState<'cart' | 'buy' | null>(null);
+  const wishlistEnabled = (runtimeSettings?.module_settings?.wishlist ?? true) && isAuthenticated;
+  const reviewsEnabled = runtimeSettings?.module_settings?.reviews ?? true;
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
   useSettingsStore(selectCurrencyFingerprint);
 
   const showRating = cardSettings.style === 'hover_review' && reviewsEnabled;
@@ -65,7 +62,7 @@ export function ProductCard({ product, className, layout = 'grid', onOpen }: Pro
     }
 
     try {
-      setPendingAction('cart');
+      setIsAddingToCart(true);
       await addItem(
         product.primaryVariantId
           ? { productId: Number(product.id), productVariantId: product.primaryVariantId, quantity: 1 }
@@ -79,37 +76,7 @@ export function ProductCard({ product, className, layout = 'grid', onOpen }: Pro
     } catch (error) {
       toast.error(toAppError(error).message);
     } finally {
-      setPendingAction(null);
-    }
-  }
-
-  async function handleBuyNow(event: React.MouseEvent) {
-    event.preventDefault();
-    event.stopPropagation();
-
-    if (product.requiresVariantSelection && !product.primaryVariantId) {
-      router.push(`/products/${product.slug}?buyNow=1`);
-      return;
-    }
-
-    try {
-      setPendingAction('buy');
-      await addItem(
-        product.primaryVariantId
-          ? { productId: Number(product.id), productVariantId: product.primaryVariantId, quantity: 1 }
-          : product,
-        1,
-      );
-      const checkoutPath = '/checkout';
-      router.push(
-        requireLoginBeforeCheckout && !isAuthenticated
-          ? `/login?redirect=${encodeURIComponent(checkoutPath)}`
-          : checkoutPath,
-      );
-    } catch (error) {
-      toast.error(toAppError(error).message);
-    } finally {
-      setPendingAction(null);
+      setIsAddingToCart(false);
     }
   }
 
@@ -126,27 +93,16 @@ export function ProductCard({ product, className, layout = 'grid', onOpen }: Pro
     toast(isInWishlist ? 'Removed from wishlist' : 'Added to wishlist');
   }
 
-  const purchaseButtons = (
-    <>
-      <button
-        type="button"
-        onClick={handleAddToCart}
-        disabled={pendingAction !== null}
-        className="inline-flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary px-2 py-2 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {pendingAction === 'cart' ? <Loader2 size={14} className="animate-spin" /> : <ShoppingCart size={14} />}
-        <span className="truncate">Add to Cart</span>
-      </button>
-      <button
-        type="button"
-        onClick={handleBuyNow}
-        disabled={pendingAction !== null}
-        className="inline-flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl border border-primary bg-background px-2 py-2 text-xs font-semibold text-primary transition-colors hover:bg-primary/5 disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {pendingAction === 'buy' ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
-        <span className="truncate">Buy Now</span>
-      </button>
-    </>
+  const purchaseButton = (
+    <button
+      type="button"
+      onClick={handleAddToCart}
+      disabled={isAddingToCart}
+      className="inline-flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow-xs transition-all hover:bg-primary/90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      {isAddingToCart ? <Loader2 size={14} className="animate-spin" /> : <ShoppingCart size={14} />}
+      <span className="truncate">Add to Cart</span>
+    </button>
   );
 
   if (layout === 'list') {
@@ -195,15 +151,15 @@ export function ProductCard({ product, className, layout = 'grid', onOpen }: Pro
               <span className="text-sm text-muted-foreground line-through">{formatPrice(product.originalPrice)}</span>
             ) : null}
           </div>
-          <div className="mt-auto flex min-w-0 flex-wrap gap-2 pt-3">
-            {purchaseButtons}
+          <div className="mt-auto flex min-w-0 items-center gap-2 pt-3">
+            {purchaseButton}
             {wishlistEnabled ? (
               <button
                 type="button"
                 onClick={handleToggleWishlist}
                 aria-label={isInWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
                 className={cn(
-                  'rounded-xl border border-border p-2 transition-colors hover:bg-muted',
+                  'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border transition-colors hover:bg-muted',
                   isInWishlist && 'border-rose-200 bg-rose-50 text-rose-500 dark:bg-rose-950',
                 )}
               >
@@ -238,42 +194,31 @@ export function ProductCard({ product, className, layout = 'grid', onOpen }: Pro
             {product.badge === 'sale' && product.discount ? `-${product.discount}%` : product.badge}
           </div>
         ) : null}
-        {product.isFlashSale ? (
-          <div className="absolute right-2 top-2 z-10 rounded-lg bg-rose-500 p-1 text-white sm:right-3 sm:top-3">
-            <Zap size={12} className="fill-white" />
-          </div>
-        ) : null}
 
         {!simpleMode ? (
           <>
             <div className="absolute inset-0 bg-black/0 transition-colors duration-300 group-hover:bg-black/10" />
-            <div className="absolute bottom-2 left-0 right-0 flex min-w-0 translate-y-0 gap-1 px-2 opacity-100 transition-all duration-300 sm:bottom-3 sm:px-3 sm:translate-y-10 sm:opacity-0 sm:group-hover:translate-y-0 sm:group-hover:opacity-100">
+            <div className="absolute bottom-2 left-0 right-0 flex min-w-0 items-center justify-center gap-1.5 px-2 opacity-100 transition-all duration-300 sm:bottom-3 sm:px-3 sm:translate-y-6 sm:opacity-0 sm:group-hover:translate-y-0 sm:group-hover:opacity-100">
               <button
                 type="button"
                 onClick={handleAddToCart}
-                disabled={pendingAction !== null}
-                className="flex min-w-0 flex-1 items-center justify-center gap-1 rounded-xl bg-background/95 px-1.5 py-2 text-[10px] font-semibold shadow-lg backdrop-blur-sm transition-colors hover:bg-primary hover:text-primary-foreground disabled:opacity-60 sm:text-xs"
+                disabled={isAddingToCart}
+                className="flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary px-2.5 py-2 text-xs font-semibold text-primary-foreground shadow-md transition-all hover:bg-primary/90 active:scale-95 disabled:opacity-60"
               >
-                {pendingAction === 'cart' ? <Loader2 size={13} className="animate-spin" /> : <ShoppingCart size={13} />}
-                <span className="truncate">Cart</span>
-              </button>
-              <button
-                type="button"
-                onClick={handleBuyNow}
-                disabled={pendingAction !== null}
-                className="flex min-w-0 flex-1 items-center justify-center gap-1 rounded-xl bg-primary px-1.5 py-2 text-[10px] font-semibold text-primary-foreground shadow-lg transition-opacity hover:opacity-90 disabled:opacity-60 sm:text-xs"
-              >
-                {pendingAction === 'buy' ? <Loader2 size={13} className="animate-spin" /> : <Zap size={13} />}
-                <span className="truncate">Buy</span>
+                {isAddingToCart ? <Loader2 size={13} className="animate-spin" /> : <ShoppingCart size={13} />}
+                <span className="truncate">Add to Cart</span>
               </button>
               {wishlistEnabled ? (
                 <button
                   type="button"
                   onClick={handleToggleWishlist}
                   aria-label={isInWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
-                  className={cn('rounded-xl bg-background/95 p-2 shadow-lg backdrop-blur-sm transition-colors', isInWishlist ? 'text-rose-500' : 'hover:bg-muted')}
+                  className={cn(
+                    'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-background/95 shadow-md backdrop-blur-sm transition-all hover:bg-muted active:scale-95',
+                    isInWishlist ? 'text-rose-500' : 'text-foreground hover:text-primary',
+                  )}
                 >
-                  <Heart size={13} className={isInWishlist ? 'fill-rose-500' : ''} />
+                  <Heart size={14} className={isInWishlist ? 'fill-rose-500' : ''} />
                 </button>
               ) : null}
               <button
@@ -284,10 +229,10 @@ export function ProductCard({ product, className, layout = 'grid', onOpen }: Pro
                   onOpen?.(product);
                   router.push(`/products/${product.slug}`);
                 }}
-                className="rounded-xl bg-background/95 p-2 shadow-lg backdrop-blur-sm transition-colors hover:bg-muted"
-                aria-label="View product"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-background/95 text-foreground shadow-md backdrop-blur-sm transition-all hover:bg-muted hover:text-primary active:scale-95"
+                aria-label="View product details"
               >
-                <Eye size={13} />
+                <Eye size={14} />
               </button>
             </div>
           </>
@@ -318,7 +263,24 @@ export function ProductCard({ product, className, layout = 'grid', onOpen }: Pro
         </div>
 
         {product.stock > 0 && product.stock <= 5 ? <p className="mt-1 text-xs font-medium text-orange-500">Only {product.stock} left!</p> : null}
-        {simpleMode ? <div className="mt-3 flex min-w-0 flex-wrap gap-2">{purchaseButtons}</div> : null}
+        {simpleMode ? (
+          <div className="mt-3 flex min-w-0 items-center gap-2">
+            {purchaseButton}
+            {wishlistEnabled ? (
+              <button
+                type="button"
+                onClick={handleToggleWishlist}
+                aria-label={isInWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
+                className={cn(
+                  'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-border transition-colors hover:bg-muted',
+                  isInWishlist && 'border-rose-200 bg-rose-50 text-rose-500 dark:bg-rose-950',
+                )}
+              >
+                <Heart size={16} className={isInWishlist ? 'fill-rose-500' : ''} />
+              </button>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </article>
   );

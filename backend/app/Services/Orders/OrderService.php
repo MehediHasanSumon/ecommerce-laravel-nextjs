@@ -35,7 +35,7 @@ class OrderService
         $query = Order::query()
             ->with([
                 'user:id,name,email,phone',
-                'guestCustomer:id,name,email,phone',
+                'guestCustomer:id,name,email,mobile',
                 'transactions' => fn ($query) => $query->latest()->limit(1),
                 'latestFraudCheck.providerResults:id,fraud_check_id,provider,status,risk_score,risk_level,response_time_ms',
             ])
@@ -168,7 +168,7 @@ class OrderService
     {
         $relations = [
             'user:id,name,email,phone',
-            'guestCustomer:id,name,email,phone',
+            'guestCustomer:id,name,email,mobile',
             'items.product:id,name,slug',
             'items.product.images:id,product_id,url,is_primary,sort_order',
             'items.variant:id,sku',
@@ -332,7 +332,7 @@ class OrderService
                 $query->where('order_number', 'like', "%{$search}%")
                     ->orWhere('payment_method', 'like', "%{$search}%")
                     ->orWhereHas('user', fn (Builder $user) => $user->where('name', 'like', "%{$search}%")->orWhere('email', 'like', "%{$search}%"))
-                    ->orWhereHas('guestCustomer', fn (Builder $guest) => $guest->where('name', 'like', "%{$search}%")->orWhere('email', 'like', "%{$search}%")->orWhere('phone', 'like', "%{$search}%"))
+                    ->orWhereHas('guestCustomer', fn (Builder $guest) => $guest->where('name', 'like', "%{$search}%")->orWhere('email', 'like', "%{$search}%")->orWhere('mobile', 'like', "%{$search}%"))
                     ->orWhere('billing_address->full_name', 'like', "%{$search}%")
                     ->orWhere('billing_address->email', 'like', "%{$search}%")
                     ->orWhere('billing_address->phone', 'like', "%{$search}%");

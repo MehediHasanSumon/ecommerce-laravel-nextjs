@@ -25,6 +25,11 @@ class Customer extends Model
         return $this->hasMany(Order::class);
     }
 
+    public function getPhoneAttribute(): ?string
+    {
+        return $this->mobile;
+    }
+
     public function getTotalDueAttribute(): float
     {
         return round($this->total_due_cents / 100, 2);

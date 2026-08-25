@@ -36,9 +36,9 @@ class CourierShipmentService
     {
         $query = CourierShipment::query()
             ->with([
-                'order:id,order_number,user_id,guest_customer_id,billing_address,total_cents,currency',
+                'order:id,order_number,user_id,customer_id,billing_address,total_cents,currency',
                 'order.user:id,name,email,phone',
-                'order.guestCustomer:id,name,email,phone',
+                'order.guestCustomer:id,name,email,mobile',
             ])
             ->when($filters['search'] ?? null, function (Builder $query, string $search): void {
                 $escaped = '%'.addcslashes(trim($search), '\\%_').'%';
@@ -68,7 +68,7 @@ class CourierShipmentService
         $query = CourierShipment::query()
             ->with([
                 'order.user:id,name,email,phone',
-                'order.guestCustomer:id,name,email,phone',
+                'order.guestCustomer:id,name,email,mobile',
                 'events' => fn ($query) => $query->latest('occurred_at'),
                 'apiLogs' => fn ($query) => $query->latest()->limit(100),
             ]);

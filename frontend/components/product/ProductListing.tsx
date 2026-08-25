@@ -11,10 +11,11 @@ type ProductListingProps = {
   products: Product[];
   className?: string;
   cardClassName?: string;
+  columns?: 2 | 3 | 4;
   onProductOpen?: (product: Product) => void;
 };
 
-export function ProductListing({ products, className, cardClassName, onProductOpen }: ProductListingProps) {
+export function ProductListing({ products, className, cardClassName, columns = 4, onProductOpen }: ProductListingProps) {
   const settings = useSettingsStore(selectProductCardSettings);
   const viewportRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<number | null>(null);
@@ -86,8 +87,14 @@ export function ProductListing({ products, className, cardClassName, onProductOp
   }
 
   if (settings.layout === 'grid') {
+    const gridColsClass = columns === 4
+      ? 'grid-cols-1 min-[380px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-4'
+      : columns === 2
+      ? 'grid-cols-1 min-[380px]:grid-cols-2'
+      : 'grid-cols-1 min-[380px]:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3';
+
     return (
-      <div className={cn('grid grid-cols-1 gap-3 min-[380px]:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-5 xl:grid-cols-4 xl:gap-6', className)}>
+      <div className={cn('grid gap-3.5 sm:gap-5 xl:gap-6', gridColsClass, className)}>
         {products.map((product) => (
           <ProductCard key={product.id} product={product} className={cardClassName} onOpen={onProductOpen} />
         ))}

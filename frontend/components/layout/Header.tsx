@@ -497,10 +497,8 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
               aria-autocomplete="list"
               aria-expanded={resultCount > 0}
               aria-controls="store-search-suggestions"
-              aria-activedescendant={
-                activeIndex >= 0 ? `store-search-option-${activeIndex}` : undefined
-              }
-              className="min-w-0 flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground focus-visible:shadow-none"
+              style={{ outline: 'none', border: 'none', boxShadow: 'none' }}
+              className="min-w-0 flex-1 !border-0 !border-none bg-transparent px-1 py-0.5 text-base text-foreground !shadow-none !outline-none !ring-0 placeholder:text-muted-foreground focus:!border-0 focus:!border-none focus:!outline-none focus:!ring-0 focus-visible:!border-0 focus-visible:!border-none focus-visible:!outline-none focus-visible:!ring-0 focus-visible:!shadow-none"
             />
             <button
               onClick={onClose}
@@ -735,11 +733,6 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
                           <span className="min-w-0 truncate font-medium">
                             {highlighted(item.keyword)}
                           </span>
-                          {item.search_count ? (
-                            <span className="shrink-0 text-xs text-muted-foreground">
-                              {item.search_count.toLocaleString()}
-                            </span>
-                          ) : null}
                         </button>
                       );
                     })}

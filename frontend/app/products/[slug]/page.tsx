@@ -698,32 +698,44 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
               <span className="text-sm font-semibold">Quantity:</span>
               <div className="flex items-center border border-border rounded-xl overflow-hidden">
                 <button
+                  type="button"
+                  disabled={quantity <= 1}
                   onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                  className="flex h-10 w-10 items-center justify-center transition-colors hover:bg-muted"
+                  className="flex h-10 w-10 items-center justify-center transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
                   aria-label="Decrease quantity"
                 >
                   <Minus size={15} />
                 </button>
                 <span className="w-12 text-center font-semibold">{quantity}</span>
                 <button
-                  onClick={() => setQuantity((q) => displayTrackInventory ? Math.min(Math.max(displayStock, 1), q + 1) : q + 1)}
-                  className="flex h-10 w-10 items-center justify-center transition-colors hover:bg-muted"
+                  type="button"
+                  disabled={displayTrackInventory && (displayStock < 1 || quantity >= displayStock)}
+                  onClick={() => setQuantity((q) => displayTrackInventory ? Math.min(displayStock, q + 1) : q + 1)}
+                  className="flex h-10 w-10 items-center justify-center transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
                   aria-label="Increase quantity"
                 >
                   <Plus size={15} />
                 </button>
               </div>
-              <span className="text-sm text-muted-foreground">{displayTrackInventory ? `${displayStock} available` : 'In stock'}</span>
+              <span className={cn("text-sm", displayTrackInventory && displayStock < 1 ? "font-medium text-destructive" : "text-muted-foreground")}>
+                {displayTrackInventory ? (displayStock > 0 ? `${displayStock} available` : 'Out of stock') : 'In stock'}
+              </span>
             </div>
 
             {/* CTA Buttons */}
             <div className="flex flex-col gap-3 sm:flex-row">
               <button
+                type="button"
                 onClick={handleAddToCart}
                 disabled={Boolean(product.variants?.length && (!hasCompleteVariantSelection || !selectedVariant)) || (displayTrackInventory && displayStock < 1)}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary py-3.5 font-bold text-primary-foreground shadow-lg transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary py-3.5 font-bold text-primary-foreground shadow-lg transition-all hover:bg-primary/90 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <ShoppingCart size={18} /> Add to Cart
+                <ShoppingCart size={18} />
+                {displayTrackInventory && displayStock < 1
+                  ? 'Out of Stock'
+                  : product.variants?.length && (!hasCompleteVariantSelection || !selectedVariant)
+                  ? 'Select Options'
+                  : 'Add to Cart'}
               </button>
               {isAuthenticated ? (
                 <button

@@ -596,7 +596,7 @@ function ShopPageContent() {
             </div>
 
             {!mounted || loading ? (
-              <ProductGridSkeleton count={SHOP_PER_PAGE} />
+              <ProductGridSkeleton count={SHOP_PER_PAGE} columns={3} />
             ) : error ? (
               <div className="flex flex-col items-center justify-center py-24 text-center">
                 <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mb-4">
@@ -649,12 +649,12 @@ function ShopPageContent() {
                         ))}
                       </div>
                     </div>
-                    <ProductListing products={searchContext.no_results.recommended_products} onProductOpen={trackProductOpen} />
+                    <ProductListing products={searchContext.no_results.recommended_products} columns={3} onProductOpen={trackProductOpen} />
                   </section>
                 ) : null}
               </div>
             ) : (
-              <ProductListing products={products} onProductOpen={trackProductOpen} />
+              <ProductListing products={products} columns={3} onProductOpen={trackProductOpen} />
             )}
 
             {!loading && !error && lastPage > 1 ? (
