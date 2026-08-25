@@ -14,16 +14,14 @@ class SmsSetting extends Model
     {
         return [
             'enabled' => 'boolean',
-            'provider_configuration' => 'array',
             'api_key' => 'encrypted',
             'api_secret' => 'encrypted',
-            'username' => 'encrypted',
-            'password' => 'encrypted',
             'require_guest_checkout_otp' => 'boolean',
             'require_registered_checkout_otp' => 'boolean',
+            'otp_length' => 'integer',
+            'otp_expiration_minutes' => 'integer',
             'order_confirmation_enabled' => 'boolean',
             'order_status_events' => 'array',
-            'shipping_status_events' => 'array',
         ];
     }
 

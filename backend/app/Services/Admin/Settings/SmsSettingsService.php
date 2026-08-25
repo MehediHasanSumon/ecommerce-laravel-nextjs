@@ -43,19 +43,10 @@ class SmsSettingsService
             $setting->refresh();
         }
         $defaults = $this->defaults();
-        $providerConfiguration = [
-            ...$defaults['provider_configuration'],
-            ...(array) $setting->provider_configuration,
-        ];
         $orderEvents = [...$defaults['order_status_events'], ...(array) $setting->order_status_events];
-        $shippingEvents = [...$defaults['shipping_status_events'], ...(array) $setting->shipping_status_events];
-        if ($providerConfiguration !== $setting->provider_configuration
-            || $orderEvents !== $setting->order_status_events
-            || $shippingEvents !== $setting->shipping_status_events) {
+        if ($orderEvents !== $setting->order_status_events) {
             $setting->update([
-                'provider_configuration' => $providerConfiguration,
                 'order_status_events' => $orderEvents,
-                'shipping_status_events' => $shippingEvents,
             ]);
             $setting->refresh();
         }
@@ -69,7 +60,7 @@ class SmsSettingsService
         $templates = $data['templates'] ?? null;
         unset($data['templates']);
 
-        foreach (['api_key', 'api_secret', 'username', 'password'] as $secret) {
+        foreach (['api_key', 'api_secret'] as $secret) {
             if (! array_key_exists($secret, $data) || $data[$secret] === null || $data[$secret] === '') {
                 unset($data[$secret]);
             }
@@ -105,7 +96,7 @@ class SmsSettingsService
                 'require_registered_checkout_otp' => (bool) $settings->enabled && (bool) $settings->require_registered_checkout_otp,
                 'otp_length' => (int) $settings->otp_length,
                 'otp_expiration_minutes' => (int) $settings->otp_expiration_minutes,
-                'otp_resend_cooldown_seconds' => (int) $settings->otp_resend_cooldown_seconds,
+                'otp_resend_cooldown_seconds' => 60,
             ];
         });
     }
@@ -124,18 +115,14 @@ class SmsSettingsService
         return [
             'settings' => [
                 ...$settings->only([
-                    'enabled', 'provider', 'api_base_url', 'sender_id', 'route',
-                    'provider_configuration',
-                    'default_country_code', 'request_timeout', 'test_number',
+                    'enabled', 'provider', 'api_base_url', 'sender_id',
+                    'default_country_code', 'test_number',
                     'require_guest_checkout_otp', 'require_registered_checkout_otp',
-                    'otp_length', 'otp_expiration_minutes', 'otp_resend_cooldown_seconds',
-                    'otp_max_resends', 'otp_max_verification_attempts', 'otp_rate_limit_per_hour',
-                    'order_confirmation_enabled', 'order_status_events', 'shipping_status_events',
+                    'otp_length', 'otp_expiration_minutes',
+                    'order_confirmation_enabled', 'order_status_events',
                 ]),
                 'api_key_configured' => filled($settings->api_key),
                 'api_secret_configured' => filled($settings->api_secret),
-                'username_configured' => filled($settings->username),
-                'password_configured' => filled($settings->password),
             ],
             'templates' => $this->templates()->map(fn (SmsTemplate $template): array => [
                 'event' => $template->event,

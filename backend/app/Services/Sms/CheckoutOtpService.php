@@ -29,9 +29,9 @@ class CheckoutOtpService
         return [
             'required' => $required,
             'enabled' => (bool) $settings->enabled,
-            'otp_length' => (int) $settings->otp_length,
-            'expiration_minutes' => (int) $settings->otp_expiration_minutes,
-            'resend_cooldown_seconds' => (int) $settings->otp_resend_cooldown_seconds,
+            'otp_length' => (int) ($settings->otp_length ?? 6),
+            'expiration_minutes' => (int) ($settings->otp_expiration_minutes ?? 5),
+            'resend_cooldown_seconds' => 60,
         ];
     }
 
@@ -48,7 +48,7 @@ class CheckoutOtpService
             ->where('mobile', $mobile)
             ->where('created_at', '>=', now()->subHour())
             ->count();
-        if ($recentCount >= (int) $settings->otp_rate_limit_per_hour) {
+        if ($recentCount >= 10) {
             throw ValidationException::withMessages(['mobile' => ['Too many verification requests. Please try again later.']]);
         }
 
@@ -61,18 +61,18 @@ class CheckoutOtpService
             ->latest()
             ->first();
 
-        if ($challenge && $challenge->last_sent_at->addSeconds((int) $settings->otp_resend_cooldown_seconds)->isFuture()) {
+        if ($challenge && $challenge->last_sent_at->addSeconds(60)->isFuture()) {
             throw ValidationException::withMessages([
                 'mobile' => ['Please wait before requesting another verification code.'],
             ]);
         }
-        if ($challenge && $challenge->resend_count >= (int) $settings->otp_max_resends) {
+        if ($challenge && $challenge->resend_count >= 3) {
             throw ValidationException::withMessages([
                 'mobile' => ['Maximum resend attempts reached. Please try again later.'],
             ]);
         }
 
-        $length = (int) $settings->otp_length;
+        $length = (int) ($settings->otp_length ?? 6);
         $code = str_pad((string) random_int(0, (10 ** $length) - 1), $length, '0', STR_PAD_LEFT);
         $payload = [
             ...$identity,
@@ -81,7 +81,7 @@ class CheckoutOtpService
             'code_hash' => Hash::make($code),
             'verification_attempts' => 0,
             'last_sent_at' => now(),
-            'expires_at' => now()->addMinutes((int) $settings->otp_expiration_minutes),
+            'expires_at' => now()->addMinutes((int) ($settings->otp_expiration_minutes ?? 5)),
             'verified_at' => null,
             'used_at' => null,
         ];
@@ -107,7 +107,7 @@ class CheckoutOtpService
             'challenge_id' => $challenge->public_id,
             'expires_at' => $challenge->expires_at->toISOString(),
             'resend_available_at' => $challenge->last_sent_at
-                ->addSeconds((int) $settings->otp_resend_cooldown_seconds)
+                ->addSeconds(60)
                 ->toISOString(),
         ];
     }
@@ -130,7 +130,7 @@ class CheckoutOtpService
         if ($challenge->verified_at) {
             return ['verified' => true, 'challenge_id' => $challenge->public_id];
         }
-        if ($challenge->verification_attempts >= (int) $settings->otp_max_verification_attempts) {
+        if ($challenge->verification_attempts >= 5) {
             throw ValidationException::withMessages(['code' => ['Maximum verification attempts reached. Request a new code.']]);
         }
 
@@ -159,39 +159,33 @@ class CheckoutOtpService
             ->where('public_id', $challengeId)
             ->where('mobile', $mobile)
             ->where('session_hash', $identity['session_hash'])
-            ->whereNotNull('verified_at')
-            ->whereNull('used_at')
-            ->where('expires_at', '>', now())
-            ->lockForUpdate()
+            ->where('purpose', 'checkout')
             ->first();
 
-        if (! $challenge) {
-            throw ValidationException::withMessages(['otp_verification_id' => ['Mobile verification is invalid or expired.']]);
+        if (! $challenge || ! $challenge->verified_at || $challenge->used_at || $challenge->expires_at->isPast()) {
+            throw ValidationException::withMessages(['otp_verification_id' => ['The mobile verification session is invalid or expired. Please verify again.']]);
         }
 
         return $challenge;
     }
 
-    public function consume(?SmsOtpChallenge $challenge): void
+    public function markUsed(?SmsOtpChallenge $challenge): void
     {
         $challenge?->update(['used_at' => now()]);
     }
 
     private function identity(Request $request): array
     {
-        $guestToken = (string) $request->header('X-Guest-Token');
-        $sessionId = $request->hasSession() ? $request->session()->getId() : '';
-        $authToken = (string) (
-            $request->cookie(config('auth_api.access_cookie_name'))
-            ?: $request->bearerToken()
-            ?: ''
-        );
-        $identity = ($request->user()?->id ?: 'guest').'|'.$guestToken.'|'.$sessionId.'|'.hash('sha256', $authToken);
+        $guestToken = $request->header('X-Guest-Token');
+        $user = $request->user();
+        $sessionSeed = $user
+            ? "user:{$user->id}"
+            : 'guest:'.($guestToken ?: $request->ip().':'.$request->userAgent());
 
         return [
-            'user_id' => $request->user()?->id,
-            'guest_token_hash' => $guestToken !== '' ? hash('sha256', $guestToken) : null,
-            'session_hash' => hash_hmac('sha256', $identity, (string) config('app.key')),
+            'user_id' => $user?->id,
+            'guest_token_hash' => $guestToken ? hash('sha256', $guestToken) : null,
+            'session_hash' => hash('sha256', $sessionSeed),
         ];
     }
 }
