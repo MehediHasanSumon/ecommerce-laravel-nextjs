@@ -40,10 +40,11 @@ class AuthService
 
     public function login(array $credentials): array
     {
-        $user = User::query()->where('email', $credentials['email'])->first();
+        $identifier = trim((string) ($credentials['email'] ?? $credentials['login'] ?? $credentials['phone'] ?? ''));
+        $user = $this->findUserByIdentifier($identifier);
 
         if (! $user || ! Hash::check($credentials['password'], $user->password)) {
-            Log::warning('auth.login_failed', ['email' => $credentials['email']]);
+            Log::warning('auth.login_failed', ['identifier' => $identifier]);
 
             throw ValidationException::withMessages([
                 'email' => ['The provided credentials are invalid.'],
@@ -62,6 +63,41 @@ class AuthService
             'user' => $this->serializeUser($user),
             'tokens' => $this->issueAccessToken($user),
         ];
+    }
+
+    private function findUserByIdentifier(string $identifier): ?User
+    {
+        if ($identifier === '') {
+            return null;
+        }
+
+        if (filter_var($identifier, FILTER_VALIDATE_EMAIL)) {
+            return User::query()
+                ->whereRaw('lower(email) = ?', [mb_strtolower($identifier)])
+                ->first();
+        }
+
+        $digits = preg_replace('/\D+/', '', $identifier);
+
+        return User::query()
+            ->where(function ($query) use ($identifier, $digits) {
+                $query->whereRaw('lower(email) = ?', [mb_strtolower($identifier)])
+                    ->orWhere('phone', $identifier);
+
+                if (! empty($digits)) {
+                    $query->orWhereRaw("REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '+', '') = ?", [$digits]);
+
+                    if (str_starts_with($digits, '880') && strlen($digits) > 3) {
+                        $local = '0'.substr($digits, 3);
+                        $query->orWhereRaw("REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '+', '') = ?", [$local]);
+                    } elseif (str_starts_with($digits, '0')) {
+                        $intl = '88'.$digits;
+                        $query->orWhereRaw("REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '+', '') = ?", [$intl]);
+                        $query->orWhereRaw("REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '+', '') = ?", ['880'.substr($digits, 1)]);
+                    }
+                }
+            })
+            ->first();
     }
 
     public function userFromToken(?string $plainTextToken): ?User

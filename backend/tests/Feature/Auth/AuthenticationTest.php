@@ -59,6 +59,7 @@ it('rejects duplicate emails', function () {
 it('logs in with valid credentials and rejects invalid credentials', function () {
     User::factory()->create([
         'email' => 'ada@example.test',
+        'phone' => '01712345678',
         'password' => Hash::make('Str0ng!Passw0rd'),
     ]);
 
@@ -74,6 +75,20 @@ it('logs in with valid credentials and rejects invalid credentials', function ()
         ->assertJsonPath('success', true)
         ->assertCookie(config('auth_api.access_cookie_name'))
         ->assertJsonMissingPath('data.tokens');
+
+    // Test login using phone number
+    $this->postJson('/api/auth/login', [
+        'email' => '01712345678',
+        'password' => 'Str0ng!Passw0rd',
+    ])->assertOk()
+        ->assertJsonPath('success', true);
+
+    // Test login using international phone format
+    $this->postJson('/api/auth/login', [
+        'email' => '+8801712345678',
+        'password' => 'Str0ng!Passw0rd',
+    ])->assertOk()
+        ->assertJsonPath('success', true);
 });
 
 it('protects authenticated endpoints and accepts valid access cookies', function () {

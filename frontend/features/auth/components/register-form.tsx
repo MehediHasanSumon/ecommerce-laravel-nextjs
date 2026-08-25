@@ -62,7 +62,7 @@ export function RegisterForm() {
         error={form.formState.errors.password?.message}
         leftIcon={<Lock className="h-4 w-4" />}
         rightIcon={
-          <button type="button" onClick={() => setShowPassword((value) => !value)} className="rounded-xl p-2 text-muted-foreground transition hover:bg-muted hover:text-foreground" aria-label={showPassword ? "Hide password" : "Show password"}>
+          <button type="button" onClick={() => setShowPassword((value) => !value)} className="rounded-xl p-2 text-muted-foreground transition hover:bg-muted hover:text-foreground" aria-label={showPassword ? "Hide password" : "Show password"} title={showPassword ? "Hide password" : "Show password"}>
             {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
         }
@@ -88,7 +88,7 @@ export function RegisterForm() {
 
       <Input label="Confirm password" type={showPassword ? "text" : "password"} autoComplete="new-password" disabled={isLoading} error={form.formState.errors.password_confirmation?.message} leftIcon={<Lock className="h-4 w-4" />} placeholder="Confirm password" {...form.register("password_confirmation")} />
 
-      <Button className="w-full" type="submit" isLoading={isLoading} disabled={!customerSettings.allow_registration}>
+      <Button className="w-full" type="submit" isLoading={isLoading} disabled={!customerSettings.allow_registration} title="Create your account">
         <span>Create account</span>
         <ArrowRight className="h-4 w-4" />
       </Button>

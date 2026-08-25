@@ -121,6 +121,7 @@ function NavbarNotificationBell({ onOpen }: { onOpen?: () => void }) {
         onClick={() => setIsOpen((open) => !open)}
         className="relative rounded-lg p-2 transition-colors hover:bg-muted"
         aria-label="Notifications"
+        title="Notifications"
         aria-haspopup="menu"
         aria-expanded={isOpen}
       >
@@ -142,7 +143,7 @@ function NavbarNotificationBell({ onOpen }: { onOpen?: () => void }) {
           <div className="flex items-center justify-between border-b border-border bg-muted/50 p-3">
             <p className="text-sm font-semibold">Notifications</p>
             {unreadCount > 0 ? (
-              <button type="button" onClick={() => void markAllRead()} className="text-xs font-medium text-primary hover:underline">
+              <button type="button" onClick={() => void markAllRead()} className="text-xs font-medium text-primary hover:underline" title="Mark all notifications as read">
                 Mark all read
               </button>
             ) : null}
@@ -162,6 +163,7 @@ function NavbarNotificationBell({ onOpen }: { onOpen?: () => void }) {
                 }}
                 className={cn('flex gap-3 rounded-lg p-3 transition-colors hover:bg-muted', !item.read && 'bg-primary/5')}
                 role="menuitem"
+                title={item.title}
               >
                 <span className={cn('mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg', item.read ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary')}>
                   <Package size={16} />
@@ -178,7 +180,7 @@ function NavbarNotificationBell({ onOpen }: { onOpen?: () => void }) {
             )}
           </div>
           <div className="border-t border-border p-1">
-            <Link href="/account/notifications" onClick={() => setIsOpen(false)} className="block rounded-lg px-3 py-2 text-center text-sm font-medium text-primary transition-colors hover:bg-muted">
+            <Link href="/account/notifications" onClick={() => setIsOpen(false)} className="block rounded-lg px-3 py-2 text-center text-sm font-medium text-primary transition-colors hover:bg-muted" title="View all notifications">
               View all notifications
             </Link>
           </div>
@@ -198,6 +200,7 @@ function ThemeToggle() {
       onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
       className="rounded-lg p-1.5 transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring sm:p-2"
       aria-label="Toggle theme"
+      title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
     >
       {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
     </button>
@@ -414,6 +417,7 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
               onClick={onClose}
               className="rounded-lg p-1 text-muted-foreground transition hover:bg-muted hover:text-foreground"
               aria-label="Close search"
+              title="Close search"
             >
               <X size={20} />
             </button>
@@ -1052,6 +1056,7 @@ export function Header() {
               <button
                 onClick={() => setIsSearchOpen(true)}
                 className="flex w-full items-center gap-3 rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-muted-foreground shadow-sm transition-colors hover:border-primary/50 hover:bg-background"
+                title="Search products, brands, and categories (⌘K)"
               >
                 <Search size={16} />
                 <span>Search...</span>
@@ -1067,6 +1072,7 @@ export function Header() {
                 onClick={() => setIsSearchOpen(true)}
                 className="rounded-lg p-1.5 transition-colors hover:bg-muted sm:p-2 md:hidden"
                 aria-label="Search"
+                title="Search"
               >
                 <Search size={20} />
               </button>
@@ -1078,6 +1084,7 @@ export function Header() {
                   href="/wishlist"
                   className="relative rounded-lg p-1.5 transition-colors hover:bg-muted sm:p-2"
                   aria-label="Wishlist"
+                  title="Wishlist"
                 >
                   <Heart size={20} />
                   {wishlistItemCount > 0 && (
@@ -1092,6 +1099,7 @@ export function Header() {
                 href="/cart"
                 className="relative rounded-lg p-1.5 transition-colors hover:bg-muted sm:p-2"
                 aria-label="Cart"
+                title="Shopping Cart"
               >
                 <ShoppingCart size={20} />
                 {cartItemCount > 0 && (
@@ -1117,6 +1125,7 @@ export function Header() {
                     type="button"
                     className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-lg transition-colors hover:bg-muted"
                     aria-label="Account"
+                    title="Account menu"
                     aria-haspopup="menu"
                     aria-expanded={isAccountMenuOpen}
                     onClick={() => setIsAccountMenuOpen((open) => !open)}
@@ -1161,6 +1170,7 @@ export function Header() {
                             onClick={() => setIsAccountMenuOpen(false)}
                             className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-muted"
                             role="menuitem"
+                            title={label}
                           >
                             <Icon size={15} className="text-muted-foreground" />
                             {label}
@@ -1173,6 +1183,7 @@ export function Header() {
                           onClick={handleSignOut}
                           className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-destructive/10 hover:text-destructive"
                           role="menuitem"
+                          title="Sign Out"
                         >
                           <LogOut size={15} />
                           Sign Out
@@ -1186,6 +1197,7 @@ export function Header() {
                   href="/login"
                   className="rounded-lg p-2 transition-colors hover:bg-muted hidden md:block"
                   aria-label="Account"
+                  title="Sign in"
                 >
                   <User size={20} />
                 </Link>
@@ -1195,6 +1207,7 @@ export function Header() {
                 onClick={() => setIsMobileMenuOpen(true)}
                 className="rounded-lg p-1.5 transition-colors hover:bg-muted sm:p-2 xl:hidden"
                 aria-label="Menu"
+                title="Open menu"
               >
                 <Menu size={20} />
               </button>
@@ -1216,6 +1229,7 @@ export function Header() {
                 href="/"
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="min-w-0 max-w-[14rem]"
+                title="Home"
               >
                 <BrandLogo textClassName="text-xl" />
               </Link>
@@ -1223,6 +1237,7 @@ export function Header() {
                 onClick={() => setIsMobileMenuOpen(false)}
                 className="rounded-lg p-2 transition-colors hover:bg-muted"
                 aria-label="Close menu"
+                title="Close menu"
               >
                 <X size={20} />
               </button>

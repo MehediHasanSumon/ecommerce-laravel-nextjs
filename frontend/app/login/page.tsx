@@ -16,6 +16,7 @@ export default function LoginPage() {
           <Link
             className="font-semibold text-foreground hover:text-primary hover:underline"
             href={routePaths.register}
+            title="Create a new account"
           >
             Create an account
           </Link>

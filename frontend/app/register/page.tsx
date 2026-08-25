@@ -14,6 +14,7 @@ export default function RegisterPage() {
           <Link
             className="font-semibold text-foreground hover:text-primary hover:underline"
             href={routePaths.login}
+            title="Sign in to your account"
           >
             Sign in
           </Link>

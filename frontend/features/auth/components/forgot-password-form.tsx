@@ -47,7 +47,7 @@ export function ForgotPasswordForm() {
           <h2 className="mb-2 text-xl font-extrabold">Check your inbox!</h2>
           <p className="text-sm text-muted-foreground">{success}</p>
         </div>
-        <Link className={cn("inline-flex h-11 w-full items-center justify-center rounded-xl border border-border bg-background px-4 text-sm font-bold transition hover:bg-muted")} href={routePaths.login}>
+        <Link className={cn("inline-flex h-11 w-full items-center justify-center rounded-xl border border-border bg-background px-4 text-sm font-bold transition hover:bg-muted")} href={routePaths.login} title="Return to sign in page">
           Back to login
         </Link>
       </div>
@@ -58,7 +58,7 @@ export function ForgotPasswordForm() {
     <form className="space-y-5" onSubmit={form.handleSubmit(onSubmit)} noValidate>
       {error ? <Alert type="error" message={error} /> : null}
       <Input label="Email address" type="email" autoComplete="email" disabled={isLoading} error={form.formState.errors.email?.message} leftIcon={<Mail className="h-4 w-4" />} placeholder="Enter email" {...form.register("email")} />
-      <Button className="w-full" type="submit" isLoading={isLoading}>
+      <Button className="w-full" type="submit" isLoading={isLoading} title="Send password reset link">
         Send reset link
       </Button>
     </form>

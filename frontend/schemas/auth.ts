@@ -18,8 +18,25 @@ const emailSchema = z
   .email("Enter a valid email address.")
   .transform(normalizeEmail);
 
+const loginIdentifierSchema = z
+  .string()
+  .trim()
+  .min(1, "Email or phone number is required.")
+  .max(254, "Input is too long.")
+  .refine(
+    (val) => {
+      const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
+      const isPhone = /^[\d\s+\-()]{6,25}$/.test(val);
+      return isEmail || isPhone;
+    },
+    {
+      message: "Enter a valid email address or phone number.",
+    },
+  )
+  .transform((val) => (val.includes("@") ? normalizeEmail(val) : val.trim()));
+
 export const loginSchema = z.object({
-  email: emailSchema,
+  email: loginIdentifierSchema,
   password: z.string().min(1, "Password is required.").max(1024, "Password is too long."),
 });
 

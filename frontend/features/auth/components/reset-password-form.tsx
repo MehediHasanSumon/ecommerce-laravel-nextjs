@@ -46,7 +46,7 @@ export function ResetPasswordForm() {
     return (
       <div className="space-y-5">
         <Alert type="error" title="Invalid reset link" message="Request a new password reset link and try again." />
-        <Link className={cn("inline-flex h-11 w-full items-center justify-center rounded-xl border border-border bg-background px-4 text-sm font-bold transition hover:bg-muted")} href={routePaths.forgotPassword}>
+        <Link className={cn("inline-flex h-11 w-full items-center justify-center rounded-xl border border-border bg-background px-4 text-sm font-bold transition hover:bg-muted")} href={routePaths.forgotPassword} title="Request a new password reset link">
           Request new link
         </Link>
       </div>
@@ -64,7 +64,7 @@ export function ResetPasswordForm() {
         error={form.formState.errors.password?.message}
         leftIcon={<Lock className="h-4 w-4" />}
         rightIcon={
-          <button type="button" onClick={() => setShowPassword((value) => !value)} className="rounded-xl p-2 text-muted-foreground transition hover:bg-muted hover:text-foreground" aria-label={showPassword ? "Hide password" : "Show password"}>
+          <button type="button" onClick={() => setShowPassword((value) => !value)} className="rounded-xl p-2 text-muted-foreground transition hover:bg-muted hover:text-foreground" aria-label={showPassword ? "Hide password" : "Show password"} title={showPassword ? "Hide password" : "Show password"}>
             {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
         }
@@ -72,7 +72,7 @@ export function ResetPasswordForm() {
         {...form.register("password")}
       />
       <Input label="Confirm password" type={showPassword ? "text" : "password"} autoComplete="new-password" disabled={isLoading} error={form.formState.errors.password_confirmation?.message} leftIcon={<Lock className="h-4 w-4" />} placeholder="Confirm password" {...form.register("password_confirmation")} />
-      <Button className="w-full" type="submit" isLoading={isLoading}>
+      <Button className="w-full" type="submit" isLoading={isLoading} title="Set new password">
         Reset password
       </Button>
     </form>

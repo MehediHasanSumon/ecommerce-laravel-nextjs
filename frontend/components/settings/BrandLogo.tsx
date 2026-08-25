@@ -72,7 +72,11 @@ export function BrandLogo({
 
   if (href) {
     return (
-      <Link href={href} aria-label={ariaLabel ?? siteName ?? "Home"}>
+      <Link
+        href={href}
+        aria-label={ariaLabel ?? siteName ?? "Home"}
+        title={ariaLabel ?? siteName ?? "Home"}
+      >
         {content}
       </Link>
     );
