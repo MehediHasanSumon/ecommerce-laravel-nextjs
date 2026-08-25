@@ -37,6 +37,7 @@ class RolePermissionInstaller
         'store_setting',
         'payment_setting',
         'seo_setting',
+        'footer_setting',
         'social_setting',
         'sms_setting',
         'sms_log',

@@ -76,7 +76,7 @@ export const routePaths = {
   adminSettingsMetaPixel: "/admin/settings/meta-pixel",
   adminSettingsGoogleAnalytics: "/admin/settings/google-analytics",
   adminSettingsSeo: "/admin/settings/seo",
-  adminSettingsSocial: "/admin/settings/social",
+  adminSettingsFooter: "/admin/settings/footer",
   adminSettingsSms: "/admin/settings/sms",
   adminSettingsSmsLogs: "/admin/settings/sms/logs",
   adminSettingsSecurity: "/admin/settings/security",

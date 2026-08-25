@@ -145,7 +145,7 @@ class AdminNavigationService
                 $this->item('Meta Pixel', '/admin/settings/meta-pixel', 'BarChart3', 'can_view_meta_pixel_setting'),
                 $this->item('Google Analytics', '/admin/settings/google-analytics', 'ChartNoAxesCombined', 'can_view_google_analytics_setting'),
                 $this->item('SEO Settings', '/admin/settings/seo', 'Search', 'can_view_seo_setting'),
-                $this->item('Social Media', '/admin/settings/social', 'Megaphone', 'can_view_social_setting'),
+                $this->item('Footer Settings', '/admin/settings/footer', 'LayoutGrid', 'can_view_footer_setting'),
                 $this->item('SMS Settings', '/admin/settings/sms', 'MessageSquareText', 'can_view_sms_setting'),
                 $this->item('SMS Logs', '/admin/settings/sms/logs', 'ListChecks', 'can_view_sms_log'),
                 $this->item('Security Settings', '/admin/settings/security', 'ShieldAlert', 'can-view-ip-block'),

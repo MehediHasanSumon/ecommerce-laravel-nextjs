@@ -53,6 +53,12 @@ const defaultHomePageSettings: RuntimeSettings["home_page_settings"] = {
     link_url: "/shop",
   },
 };
+const defaultFooterSettings = {
+  payment_banner_image: null as string | null,
+  payment_banner_enabled: true,
+  payment_banner_title: "We accept",
+  social_links: emptySocialLinks,
+};
 const pendingBrandSettings: RuntimeSettings["brand_settings"] = {
   enabled: false,
   show_on_home: false,
@@ -369,7 +375,19 @@ export const selectAdminNavigation = (state: SettingsState) =>
 export const selectAdminNavigationPending = (state: SettingsState) =>
   state.adminNavigationLoading || !state.adminNavigationLoaded;
 export const selectSocialLinks = (state: SettingsState) =>
-  selectSettingsPending(state) ? emptySocialLinks : state.settings?.social_links ?? emptySocialLinks;
+  selectSettingsPending(state)
+    ? emptySocialLinks
+    : state.settings?.footer_settings?.social_links ?? state.settings?.social_links ?? emptySocialLinks;
+export const selectFooterSettings = (state: SettingsState) =>
+  selectSettingsPending(state) ? defaultFooterSettings : state.settings?.footer_settings ?? defaultFooterSettings;
+export const selectPaymentBanner = (state: SettingsState) => {
+  const footer = selectFooterSettings(state);
+  return {
+    image: footer.payment_banner_image,
+    enabled: footer.payment_banner_enabled,
+    title: footer.payment_banner_title || "We accept",
+  };
+};
 export const selectCategoryDisplaySettings = (state: SettingsState) =>
   selectSettingsPending(state) ? pendingCategoryDisplaySettings : state.settings?.category_display_settings ?? defaultCategoryDisplaySettings;
 export const selectRuntimeCategories = (state: SettingsState) =>

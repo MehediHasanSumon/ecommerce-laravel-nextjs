@@ -255,6 +255,12 @@ export type RuntimeSettings = {
   home_feature_cards: RuntimeHomeFeatureCard[];
   payment_methods: RuntimePaymentMethod[];
   social_links: RuntimeSocialLink[];
+  footer_settings?: {
+    payment_banner_image?: string | null;
+    payment_banner_enabled: boolean;
+    payment_banner_title?: string | null;
+    social_links: RuntimeSocialLink[];
+  };
   product_card_settings: RuntimeProductCardSettings;
   customer_settings: RuntimeCustomerSettings;
   sms_settings: RuntimeSmsSettings;

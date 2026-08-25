@@ -743,6 +743,7 @@ function HeaderSkeleton({ isScrolled }: { isScrolled: boolean }) {
         <div className="max-w-7xl mx-auto px-4 py-1.5 flex items-center justify-between">
           <div className="h-4 w-44 animate-pulse rounded bg-muted" />
           <div className="flex items-center gap-4">
+            <span className="h-4 w-16 animate-pulse rounded bg-muted" />
             <span className="h-4 w-10 animate-pulse rounded bg-muted" />
             <span className="h-4 w-8 animate-pulse rounded bg-muted" />
             <span className="h-4 w-12 animate-pulse rounded bg-muted" />
@@ -962,6 +963,9 @@ export function Header() {
               ) : null}
             </div>
             <div className="flex items-center gap-4">
+              <Link href="/order-tracking" className="hover:text-foreground transition-colors flex items-center gap-1">
+                <Package size={12} /> Track Order
+              </Link>
               <Link href="/about" className="hover:text-foreground transition-colors">
                 About
               </Link>
@@ -1310,6 +1314,13 @@ export function Header() {
                     <Heart size={18} /> Wishlist {wishlistItemCount > 0 && `(${wishlistItemCount})`}
                   </Link>
                 ) : null}
+                <Link
+                  href="/order-tracking"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="flex items-center gap-3 rounded-xl px-4 py-3 transition-colors hover:bg-muted"
+                >
+                  <Package size={18} /> Track Order
+                </Link>
               </div>
             </div>
             <div className="p-4 border-t border-border">

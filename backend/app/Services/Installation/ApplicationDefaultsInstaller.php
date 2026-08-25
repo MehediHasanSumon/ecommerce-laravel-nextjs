@@ -5,10 +5,10 @@ namespace App\Services\Installation;
 use App\Models\HomeFeatureCard;
 use App\Models\Settings\BlogSetting;
 use App\Models\Settings\CategoryDisplaySetting;
+use App\Models\Settings\FooterSetting;
 use App\Models\Settings\HomeFeatureCardSetting;
 use App\Models\Settings\PaymentGatewaySetting;
 use App\Models\Settings\SeoSetting;
-use App\Models\Settings\SocialMediaSetting;
 use App\Support\Admin\SettingsDefaults;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
@@ -21,6 +21,7 @@ class ApplicationDefaultsInstaller
         $this->singleton(CategoryDisplaySetting::class, SettingsDefaults::categoryDisplay());
         $this->singleton(HomeFeatureCardSetting::class, SettingsDefaults::homeFeatureCards());
         $this->singleton(SeoSetting::class, SettingsDefaults::seo());
+        $this->singleton(FooterSetting::class, SettingsDefaults::footer());
 
         foreach (SettingsDefaults::homeFeatureCardItems() as $item) {
             HomeFeatureCard::query()->updateOrCreate(['title' => $item['title']], $item);
@@ -32,18 +33,13 @@ class ApplicationDefaultsInstaller
             $this->keyed(PaymentGatewaySetting::class, ['gateway' => $name], $gateway);
         }
 
-        foreach (SettingsDefaults::socialMedia() as $item) {
-            $platform = $item['platform'];
-            unset($item['platform']);
-            $this->keyed(SocialMediaSetting::class, ['platform' => $platform], $item);
-        }
-
         foreach ([
             'settings.blog',
             'settings.category-display',
             'settings.home-feature-cards',
             'settings.payment',
             'settings.seo',
+            'settings.footer',
             'settings.social',
         ] as $key) {
             Cache::forget($key);
@@ -58,34 +54,28 @@ class ApplicationDefaultsInstaller
     private function singleton(string $modelClass, array $defaults): Model
     {
         $model = $modelClass::query()->first() ?? new $modelClass;
+        $missing = array_diff_key($defaults, array_filter($model->getAttributes()));
 
-        return $this->fillMissing($model, $defaults);
+        if ($missing !== [] || ! $model->exists) {
+            $model->forceFill($defaults)->save();
+        }
+
+        return $model;
     }
 
     /**
      * @param  class-string<Model>  $modelClass
-     * @param  array<string, mixed>  $lookup
-     * @param  array<string, mixed>  $defaults
+     * @param  array<string, mixed>  $attributes
+     * @param  array<string, mixed>  $values
      */
-    private function keyed(string $modelClass, array $lookup, array $defaults): Model
+    private function keyed(string $modelClass, array $attributes, array $values): Model
     {
-        $model = $modelClass::query()->where($lookup)->first() ?? new $modelClass($lookup);
+        $model = $modelClass::query()->where($attributes)->first() ?? new $modelClass;
+        $missing = array_diff_key($values, array_filter($model->getAttributes()));
 
-        return $this->fillMissing($model, $defaults);
-    }
-
-    /**
-     * @param  array<string, mixed>  $defaults
-     */
-    private function fillMissing(Model $model, array $defaults): Model
-    {
-        foreach ($defaults as $key => $value) {
-            if (! $model->exists || $model->getAttribute($key) === null) {
-                $model->setAttribute($key, $value);
-            }
+        if ($missing !== [] || ! $model->exists) {
+            $model->forceFill($attributes + $values)->save();
         }
-
-        $model->save();
 
         return $model;
     }

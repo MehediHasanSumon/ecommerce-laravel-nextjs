@@ -32,7 +32,7 @@ use App\Http\Controllers\Api\Admin\Settings\PaymentSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\SecuritySettingsController;
 use App\Http\Controllers\Api\Admin\Settings\SeoSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\SmsSettingsController;
-use App\Http\Controllers\Api\Admin\Settings\SocialMediaSettingsController;
+use App\Http\Controllers\Api\Admin\Settings\FooterSettingsController;
 use App\Http\Controllers\Api\Admin\Settings\StoreSettingsController;
 use App\Http\Controllers\Api\Admin\ShippingMethodManagementController;
 use App\Http\Controllers\Api\Admin\ShippingZoneController;
@@ -302,8 +302,9 @@ Route::prefix('admin')
         Route::put('/settings/seo', [SeoSettingsController::class, 'update']);
         Route::post('/settings/seo/upload', [SeoSettingsController::class, 'upload']);
 
-        Route::get('/settings/social', [SocialMediaSettingsController::class, 'show']);
-        Route::put('/settings/social', [SocialMediaSettingsController::class, 'update']);
+        Route::get('/settings/footer', [FooterSettingsController::class, 'show']);
+        Route::put('/settings/footer', [FooterSettingsController::class, 'update']);
+        Route::post('/settings/footer/upload', [FooterSettingsController::class, 'uploadBanner']);
 
         Route::get('/settings/sms', [SmsSettingsController::class, 'show']);
         Route::put('/settings/sms', [SmsSettingsController::class, 'update']);

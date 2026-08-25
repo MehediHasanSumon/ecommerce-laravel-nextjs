@@ -17,9 +17,9 @@ use App\Services\Admin\Settings\CompanySettingsService;
 use App\Services\Admin\Settings\HomeFeatureCardSettingsService;
 use App\Services\Admin\Settings\HomePageSettingsService;
 use App\Services\Admin\Settings\MarketingSettingsService;
+use App\Services\Admin\Settings\FooterSettingsService;
 use App\Services\Admin\Settings\PaymentSettingsService;
 use App\Services\Admin\Settings\SmsSettingsService;
-use App\Services\Admin\Settings\SocialMediaSettingsService;
 use App\Services\Admin\Settings\StoreSettingsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
@@ -36,7 +36,7 @@ class NavigationSettingsController extends Controller
         private readonly BrandSettingsService $brandSettings,
         private readonly HomeFeatureCardService $homeFeatureCards,
         private readonly StoreSettingsService $storeSettings,
-        private readonly SocialMediaSettingsService $socialMediaSettings,
+        private readonly FooterSettingsService $footerSettings,
         private readonly PaymentSettingsService $paymentSettings,
         private readonly SmsSettingsService $smsSettings,
         private readonly MarketingSettingsService $marketingSettings,
@@ -60,7 +60,7 @@ class NavigationSettingsController extends Controller
         $homePageSettings = $this->homePageSettings->runtime();
         $blogSettings = $this->blogSettings->runtime();
         $brandSettings = $this->brandSettings->runtime();
-        $social = $this->socialMediaSettings->all();
+        $footer = $this->footerSettings->runtime();
         $payments = $this->paymentSettings->all();
         $siteName = $company->company_name;
         $currency = $company->currency;
@@ -180,16 +180,8 @@ class NavigationSettingsController extends Controller
             'payment_methods' => PaymentMethodResource::collection(
                 $payments->where('enabled', true)->sortBy('display_order')->values()
             )->resolve(),
-            'social_links' => $social
-                ->where('status', true)
-                ->values()
-                ->map(fn ($item): array => [
-                    'platform' => $item->platform,
-                    'url' => $item->url,
-                    'icon' => $item->icon,
-                    'open_in_new_tab' => (bool) $item->open_in_new_tab,
-                ])
-                ->all(),
+            'footer_settings' => $footer,
+            'social_links' => $footer['social_links'],
         ];
     }
 

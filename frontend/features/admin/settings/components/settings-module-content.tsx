@@ -91,14 +91,7 @@ function gatewayConfigValue(row: PaymentGatewayRow, key: string) {
   return typeof value === "string" || typeof value === "number" ? String(value) : "";
 }
 
-type SocialMediaRow = {
-  platform: string;
-  url: string;
-  icon: string;
-  display_order: number;
-  open_in_new_tab: boolean;
-  status: boolean;
-};
+
 
 type Section = {
   title: string;
@@ -790,91 +783,7 @@ export function PaymentSettingsContent() {
   );
 }
 
-export function SocialMediaSettingsContent() {
-  const pathname = usePathname();
-  const defaults = React.useMemo<SocialMediaRow[]>(() => ["facebook", "instagram", "linkedin", "x", "youtube", "tiktok", "pinterest"].map((platform, index) => ({ platform, url: "", icon: platform, display_order: index, open_in_new_tab: true, status: false })), []);
-  const [items, setItems] = React.useState(defaults);
-  const [initial, setInitial] = React.useState(defaults);
-  const [loading, setLoading] = React.useState(true);
-  const [saving, setSaving] = React.useState(false);
-  const [resetOpen, setResetOpen] = React.useState(false);
-  useAuthStore((state) => state.user?.permissions);
-  const canEdit = hasPermission("can_edit_social_setting");
-  const isDirty = JSON.stringify(items) !== JSON.stringify(initial);
-  useUnsavedChanges(isDirty);
 
-  React.useEffect(() => {
-    settingsApi.get<{ items: SocialMediaRow[] }>("social")
-      .then((response) => {
-        const rows = response.data.items.length ? response.data.items : defaults;
-        setItems(rows);
-        setInitial(rows);
-      })
-      .catch(() => toast.error("Could not load social settings."))
-      .finally(() => setLoading(false));
-  }, [defaults]);
-
-  async function submit(event: React.FormEvent) {
-    event.preventDefault();
-    if (!canEdit) return;
-    try {
-      setSaving(true);
-      const response = await settingsApi.update<{ items: SocialMediaRow[] }, { items: SocialMediaRow[] }>("social", { items });
-      setItems(response.data.items);
-      setInitial(response.data.items);
-      toast.success(response.message || "Social settings saved.");
-    } catch (error: unknown) {
-      toast.error(getApiError(error).message || "Unable to save social settings.");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <form onSubmit={submit}>
-      <SettingsPageShell title="Social Media" description="Manage storefront social profiles, ordering, tab behavior, and visibility." icon={Link2} actions={canEdit ? <FormActions isSaving={saving} isDirty={isDirty} onReset={() => setResetOpen(true)} /> : null}>
-        <SettingsGrid>
-          <SettingsSubnav items={settingsNavItems} pathname={pathname} />
-          <div className="space-y-4">
-            {loading ? <SettingsLoading /> : <EditableRows title="Social Profiles" rows={items} addLabel="Add Profile" icon={Link2} fields={[["platform", "Platform"], ["url", "URL"], ["icon", "Icon"]]} onChange={(rows) => setItems(rows as SocialMediaRow[])} canEdit={canEdit} />}
-          </div>
-        </SettingsGrid>
-      </SettingsPageShell>
-      <ResetConfirmation open={resetOpen} onClose={() => setResetOpen(false)} onConfirm={() => { setItems(initial); setResetOpen(false); }} />
-    </form>
-  );
-}
-
-function EditableRows({ title, description, rows, addLabel, icon: Icon, fields, onChange, canEdit = true }: { title: string; description?: string; rows: Values[]; addLabel: string; icon: LucideIcon; fields: Array<[string, string]>; onChange: (rows: Values[]) => void; canEdit?: boolean }) {
-  function patch(index: number, key: string, value: SettingValue) {
-    onChange(rows.map((row, rowIndex) => rowIndex === index ? { ...row, [key]: value } : row));
-  }
-
-  return (
-    <SettingsSection title={title} description={description ?? "Create, update, reorder, enable, or disable records for this settings module."} icon={Icon}>
-      <div className="space-y-3.5">
-        {rows.map((row, index) => (
-          <div key={String(row.id ?? `${title}-${index}`)} className="rounded-lg border border-border bg-background p-3">
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <StatusPill ok={Boolean(row.status ?? true)} label={Boolean(row.status ?? true) ? "Enabled" : "Disabled"} />
-              <div className="flex gap-2">
-                {canEdit && "status" in row ? <ToggleSwitch label="Status" checked={Boolean(row.status)} onChange={(checked) => patch(index, "status", checked)} /> : null}
-                {canEdit && "open_in_new_tab" in row ? <ToggleSwitch label="New Tab" checked={Boolean(row.open_in_new_tab)} onChange={(checked) => patch(index, "open_in_new_tab", checked)} /> : null}
-                {canEdit ? <Button type="button" variant="ghost" size="icon" aria-label="Remove row" icon={<Trash2 className="h-4 w-4" />} onClick={() => onChange(rows.filter((_, rowIndex) => rowIndex !== index))} /> : null}
-              </div>
-            </div>
-            <FormGrid>
-              {fields.map(([key, label]) => (
-                <TextInput key={key} label={label} value={fieldValue(row[key])} onChange={(event) => patch(index, key, editableNumericField(key) ? numericValue(event.target.value) : event.target.value)} />
-              ))}
-            </FormGrid>
-          </div>
-        ))}
-        {canEdit ? <Button type="button" variant="secondary" icon={<Plus className="h-4 w-4" />} onClick={() => onChange([...rows, blankRow(fields, rows.length)])}>{addLabel}</Button> : null}
-      </div>
-    </SettingsSection>
-  );
-}
 
 function SettingsLoading() {
   return (

@@ -218,10 +218,18 @@ class SettingsDefaults
                 'platform' => $platform,
                 'url' => "https://example.com/{$platform}",
                 'icon' => $platform,
-                'display_order' => $index,
-                'open_in_new_tab' => true,
                 'status' => in_array($platform, ['facebook', 'instagram', 'youtube'], true),
             ])
             ->all();
+    }
+
+    public static function footer(): array
+    {
+        return [
+            'payment_banner_image' => null,
+            'payment_banner_enabled' => true,
+            'payment_banner_title' => 'We accept',
+            'social_links' => self::socialMedia(),
+        ];
     }
 }

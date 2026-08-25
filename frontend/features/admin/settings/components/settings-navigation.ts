@@ -17,6 +17,7 @@ import {
   MessageSquareText,
   ListChecks,
   ChartNoAxesCombined,
+  PanelBottom,
 } from "lucide-react";
 import { routePaths } from "@/constants/routes";
 import type { SettingNavItem } from "@/features/admin/settings/components/settings-primitives";
@@ -107,10 +108,10 @@ export const settingsNavItems: SettingNavItem[] = [
     icon: Search,
   },
   {
-    href: routePaths.adminSettingsSocial,
-    label: "Social Media",
-    description: "Social links and sharing",
-    icon: Megaphone,
+    href: routePaths.adminSettingsFooter,
+    label: "Footer Settings",
+    description: "Social media profiles and payment banner",
+    icon: PanelBottom,
   },
   {
     href: routePaths.adminSettingsSms,
@@ -161,12 +162,6 @@ export const placeholderSettings = {
     description:
       "Global SEO defaults for titles, canonical behavior, robots, sitemap, and social previews.",
     icon: Search,
-  },
-  social: {
-    title: "Social Media",
-    description:
-      "Manage storefront social profiles, share metadata, and customer community links.",
-    icon: Megaphone,
   },
 } as const;
 
