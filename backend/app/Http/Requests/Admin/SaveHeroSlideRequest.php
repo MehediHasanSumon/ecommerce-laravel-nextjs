@@ -45,6 +45,22 @@ class SaveHeroSlideRequest extends FormRequest
             'elements.*.z_index' => ['required_with:elements', 'integer', 'min:0', 'max:999'],
             'elements.*.locked' => ['required_with:elements', 'boolean'],
             'elements.*.hidden' => ['required_with:elements', 'boolean'],
+            'enable_device_content' => ['sometimes', 'boolean'],
+            'device_content' => ['sometimes', 'nullable', 'array'],
+            'device_content.desktop' => ['sometimes', 'nullable', 'array'],
+            'device_content.tablet' => ['sometimes', 'nullable', 'array'],
+            'device_content.mobile' => ['sometimes', 'nullable', 'array'],
+            'device_content.*.background_image' => ['sometimes', 'nullable', 'string', 'max:2048'],
+            'device_content.*.title' => ['sometimes', 'nullable', 'string', 'max:180'],
+            'device_content.*.subtitle' => ['sometimes', 'nullable', 'string', 'max:180'],
+            'device_content.*.description' => ['sometimes', 'nullable', 'string', 'max:1000'],
+            'device_content.*.primary_button_text' => ['sometimes', 'nullable', 'string', 'max:80'],
+            'device_content.*.primary_button_url' => ['sometimes', 'nullable', 'string', 'max:2048'],
+            'device_content.*.secondary_button_text' => ['sometimes', 'nullable', 'string', 'max:80'],
+            'device_content.*.secondary_button_url' => ['sometimes', 'nullable', 'string', 'max:2048'],
+            'device_content.*.text_alignment' => ['sometimes', 'nullable', Rule::in(['left', 'center', 'right'])],
+            'device_content.*.overlay' => ['sometimes', 'nullable', 'boolean'],
+            'device_content.*.overlay_opacity' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:100'],
         ];
     }
 }

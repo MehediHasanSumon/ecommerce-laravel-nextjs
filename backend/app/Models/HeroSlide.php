@@ -22,6 +22,8 @@ class HeroSlide extends Model
             'canvas_size' => 'array',
             'status' => 'boolean',
             'sort_order' => 'integer',
+            'enable_device_content' => 'boolean',
+            'device_content' => 'array',
         ];
     }
 

@@ -199,6 +199,12 @@ class HeroSectionService
             'canvas_size' => $slide->canvas_size ?: ['desktop' => ['width' => 1280, 'height' => 620], 'tablet' => ['width' => 768, 'height' => 560], 'mobile' => ['width' => 390, 'height' => 480]],
             'status' => (bool) $slide->status,
             'sort_order' => (int) $slide->sort_order,
+            'enable_device_content' => (bool) $slide->enable_device_content,
+            'device_content' => $slide->device_content ?: [
+                'desktop' => [],
+                'tablet' => [],
+                'mobile' => [],
+            ],
             'elements' => $slide->elements
                 ->when($runtime, fn ($items) => $items->where('hidden', false))
                 ->map(fn (HeroSlideElement $element): array => [
