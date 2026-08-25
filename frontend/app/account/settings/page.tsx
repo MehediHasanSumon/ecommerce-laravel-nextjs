@@ -9,6 +9,7 @@ import { Footer } from '@/components/layout/Footer';
 import { AccountSidebar } from '@/components/account/AccountSidebar';
 import { toast } from 'sonner';
 import { accountService } from '@/services/account-service';
+import { toAppError } from '@/lib/errors';
 
 export default function SettingsPage() {
   const [passwordSaving, setPasswordSaving] = useState(false);
@@ -24,9 +25,9 @@ export default function SettingsPage() {
     try {
       await accountService.changePassword(passwordForm);
       setPasswordForm({ current_password: '', password: '', password_confirmation: '' });
-      toast.success('Password changed.');
-    } catch {
-      toast.error('Unable to change password.');
+      toast.success('Password changed successfully.');
+    } catch (error) {
+      toast.error(toAppError(error).message);
     } finally {
       setPasswordSaving(false);
     }

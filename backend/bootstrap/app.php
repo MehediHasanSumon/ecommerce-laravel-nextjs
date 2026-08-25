@@ -85,6 +85,38 @@ return Application::configure(basePath: dirname(__DIR__))
             return ApiResponse::error('Validation failed.', 422, $e->errors());
         });
 
+        $exceptions->render(function (\Illuminate\Database\Eloquent\ModelNotFoundException|\Symfony\Component\HttpKernel\Exception\NotFoundHttpException $e, Request $request) {
+            if (! $request->is('api/*')) {
+                return null;
+            }
+
+            return ApiResponse::error('The requested resource was not found.', 404);
+        });
+
+        $exceptions->render(function (\Illuminate\Auth\AuthenticationException $e, Request $request) {
+            if (! $request->is('api/*')) {
+                return null;
+            }
+
+            return ApiResponse::error('Unauthenticated. Please log in to continue.', 401);
+        });
+
+        $exceptions->render(function (\Illuminate\Auth\Access\AuthorizationException|\Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException $e, Request $request) {
+            if (! $request->is('api/*')) {
+                return null;
+            }
+
+            return ApiResponse::error('You do not have permission to perform this action.', 403);
+        });
+
+        $exceptions->render(function (\Illuminate\Http\Exceptions\ThrottleRequestsException|\Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException $e, Request $request) {
+            if (! $request->is('api/*')) {
+                return null;
+            }
+
+            return ApiResponse::error('Too many requests. Please wait a moment and try again.', 429);
+        });
+
         $exceptions->render(function (CourierApiException $e, Request $request) {
             if (! $request->is('api/*')) {
                 return null;

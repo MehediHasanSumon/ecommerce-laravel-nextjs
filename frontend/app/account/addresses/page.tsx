@@ -9,6 +9,7 @@ import { Footer } from '@/components/layout/Footer';
 import { AccountSidebar } from '@/components/account/AccountSidebar';
 import { toast } from 'sonner';
 import { useDeleteConfirmation } from '@/hooks/use-delete-confirmation';
+import { toAppError } from '@/lib/errors';
 import {
   createAddress,
   deleteAddress,
@@ -106,8 +107,8 @@ export default function AddressesPage() {
       setEditingId(null);
       setForm(emptyForm);
       toast.success(editingId ? 'Address updated.' : 'Address saved.');
-    } catch {
-      toast.error('Unable to save address.');
+    } catch (error) {
+      toast.error(toAppError(error).message);
     } finally {
       setSaving(false);
     }
@@ -140,8 +141,8 @@ export default function AddressesPage() {
         })),
       );
       toast.success('Default address updated.');
-    } catch {
-      toast.error('Unable to update default address.');
+    } catch (error) {
+      toast.error(toAppError(error).message);
     }
   };
 
@@ -150,8 +151,8 @@ export default function AddressesPage() {
       await deleteAddress(id);
       setAddresses((prev) => prev.filter((address) => address.id !== id));
       toast.success('Address deleted.');
-    } catch {
-      toast.error('Unable to delete address.');
+    } catch (error) {
+      toast.error(toAppError(error).message);
     }
   };
 

@@ -13,17 +13,18 @@ import { Input } from "@/components/ui/input";
 import { routePaths } from "@/constants/routes";
 import { resetPasswordSchema, type ResetPasswordFormValues } from "@/schemas/auth";
 import { useAuthStore } from "@/store/auth-store";
-import { applyValidationErrors, shouldToastFormError, validationSummary } from "@/lib/form-errors";
+import { applyValidationErrors, validationSummary } from "@/lib/form-errors";
 import { cn } from "@/utils/cn";
 
 export function ResetPasswordForm() {
   const [showPassword, setShowPassword] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const router = useRouter();
   const params = useSearchParams();
   const token = params.get("token") ?? "";
   const email = params.get("email") ?? "";
   const hasValidLink = useMemo(() => token.length >= 20 && email.includes("@"), [token, email]);
-  const { resetPassword, isLoading, error, clearError } = useAuthStore();
+  const { resetPassword, isLoading, error: authError, clearError } = useAuthStore();
   const form = useForm<ResetPasswordFormValues>({
     resolver: zodResolver(resetPasswordSchema),
     defaultValues: { email, token, password: "", password_confirmation: "" },
@@ -31,13 +32,17 @@ export function ResetPasswordForm() {
 
   async function onSubmit(values: ResetPasswordFormValues) {
     clearError();
+    setFormError(null);
     try {
       await resetPassword({ ...values, email, token });
-      toast.success("Password reset successful.");
+      toast.success("Password reset successful. Please sign in.");
       router.replace(routePaths.login);
     } catch (err) {
-      if (!applyValidationErrors(form, err) && shouldToastFormError(err)) {
-        toast.error(validationSummary(err));
+      const hasFieldErrors = applyValidationErrors(form, err);
+      if (!hasFieldErrors) {
+        const msg = validationSummary(err);
+        setFormError(msg);
+        toast.error(msg);
       }
     }
   }
@@ -45,7 +50,7 @@ export function ResetPasswordForm() {
   if (!hasValidLink) {
     return (
       <div className="space-y-5">
-        <Alert type="error" title="Invalid reset link" message="Request a new password reset link and try again." />
+        <Alert type="error" title="Invalid reset link" message="The password reset link is invalid or has expired. Please request a new link." />
         <Link className={cn("inline-flex h-11 w-full items-center justify-center rounded-xl border border-border bg-background px-4 text-sm font-bold transition hover:bg-muted")} href={routePaths.forgotPassword} title="Request a new password reset link">
           Request new link
         </Link>
@@ -53,9 +58,11 @@ export function ResetPasswordForm() {
     );
   }
 
+  const activeError = formError || authError;
+
   return (
     <form className="space-y-5" onSubmit={form.handleSubmit(onSubmit)} noValidate>
-      {error ? <Alert type="error" message={error} /> : null}
+      {activeError ? <Alert type="error" message={activeError} /> : null}
       <Input
         label="Password"
         type={showPassword ? "text" : "password"}
@@ -71,7 +78,16 @@ export function ResetPasswordForm() {
         placeholder="Enter password"
         {...form.register("password")}
       />
-      <Input label="Confirm password" type={showPassword ? "text" : "password"} autoComplete="new-password" disabled={isLoading} error={form.formState.errors.password_confirmation?.message} leftIcon={<Lock className="h-4 w-4" />} placeholder="Confirm password" {...form.register("password_confirmation")} />
+      <Input
+        label="Confirm password"
+        type={showPassword ? "text" : "password"}
+        autoComplete="new-password"
+        disabled={isLoading}
+        error={form.formState.errors.password_confirmation?.message}
+        leftIcon={<Lock className="h-4 w-4" />}
+        placeholder="Confirm password"
+        {...form.register("password_confirmation")}
+      />
       <Button className="w-full" type="submit" isLoading={isLoading} title="Set new password">
         Reset password
       </Button>

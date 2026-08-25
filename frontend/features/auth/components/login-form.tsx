@@ -12,14 +12,15 @@ import { Alert } from "@/components/ui/alert";
 import { routePaths } from "@/constants/routes";
 import { loginSchema, type LoginFormValues } from "@/schemas/auth";
 import { useAuthStore } from "@/store/auth-store";
-import { applyValidationErrors } from "@/lib/form-errors";
+import { applyValidationErrors, validationSummary } from "@/lib/form-errors";
 import { safeRedirect } from "@/utils/sanitize";
 
 export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { login, isLoading, error, clearError } = useAuthStore();
+  const { login, isLoading, error: authError, clearError } = useAuthStore();
   const redirectTo = safeRedirect(searchParams.get("redirect"), routePaths.account);
   const sessionExpired = searchParams.get("session") === "expired";
 
@@ -30,20 +31,33 @@ export function LoginForm() {
 
   async function onSubmit(values: LoginFormValues) {
     clearError();
+    setFormError(null);
     try {
       await login(values);
       router.replace(redirectTo);
     } catch (err) {
-      applyValidationErrors(form, err);
+      const hasFieldErrors = applyValidationErrors(form, err, {
+        fieldAliases: {
+          identifier: "email",
+          phone: "email",
+          login: "email",
+        },
+      });
+
+      if (!hasFieldErrors) {
+        setFormError(validationSummary(err));
+      }
     }
   }
+
+  const activeError = formError || authError;
 
   return (
     <form className="space-y-5" onSubmit={form.handleSubmit(onSubmit)} noValidate>
       {sessionExpired ? (
         <Alert type="info" message="Your session expired. Please sign in again." />
       ) : null}
-      {error ? <Alert type="error" message={error} /> : null}
+      {activeError ? <Alert type="error" message={activeError} /> : null}
 
       <Input
         label="Email or Phone number"

@@ -12,12 +12,13 @@ import { Input } from "@/components/ui/input";
 import { routePaths } from "@/constants/routes";
 import { forgotPasswordSchema, type ForgotPasswordFormValues } from "@/schemas/auth";
 import { useAuthStore } from "@/store/auth-store";
-import { applyValidationErrors, shouldToastFormError, validationSummary } from "@/lib/form-errors";
+import { applyValidationErrors, validationSummary } from "@/lib/form-errors";
 import { cn } from "@/utils/cn";
 
 export function ForgotPasswordForm() {
   const [success, setSuccess] = useState<string | null>(null);
-  const { forgotPassword, isLoading, error, clearError } = useAuthStore();
+  const [formError, setFormError] = useState<string | null>(null);
+  const { forgotPassword, isLoading, error: authError, clearError } = useAuthStore();
   const form = useForm<ForgotPasswordFormValues>({
     resolver: zodResolver(forgotPasswordSchema),
     defaultValues: { email: "" },
@@ -25,14 +26,18 @@ export function ForgotPasswordForm() {
 
   async function onSubmit(values: ForgotPasswordFormValues) {
     clearError();
+    setFormError(null);
     setSuccess(null);
     try {
       const message = await forgotPassword(values);
       setSuccess(message);
-      toast.success("Check your email.");
+      toast.success("Password reset link sent to your email.");
     } catch (err) {
-      if (!applyValidationErrors(form, err) && shouldToastFormError(err)) {
-        toast.error(validationSummary(err));
+      const hasFieldErrors = applyValidationErrors(form, err);
+      if (!hasFieldErrors) {
+        const msg = validationSummary(err);
+        setFormError(msg);
+        toast.error(msg);
       }
     }
   }
@@ -47,17 +52,32 @@ export function ForgotPasswordForm() {
           <h2 className="mb-2 text-xl font-extrabold">Check your inbox!</h2>
           <p className="text-sm text-muted-foreground">{success}</p>
         </div>
-        <Link className={cn("inline-flex h-11 w-full items-center justify-center rounded-xl border border-border bg-background px-4 text-sm font-bold transition hover:bg-muted")} href={routePaths.login} title="Return to sign in page">
+        <Link
+          className={cn("inline-flex h-11 w-full items-center justify-center rounded-xl border border-border bg-background px-4 text-sm font-bold transition hover:bg-muted")}
+          href={routePaths.login}
+          title="Return to sign in page"
+        >
           Back to login
         </Link>
       </div>
     );
   }
 
+  const activeError = formError || authError;
+
   return (
     <form className="space-y-5" onSubmit={form.handleSubmit(onSubmit)} noValidate>
-      {error ? <Alert type="error" message={error} /> : null}
-      <Input label="Email address" type="email" autoComplete="email" disabled={isLoading} error={form.formState.errors.email?.message} leftIcon={<Mail className="h-4 w-4" />} placeholder="Enter email" {...form.register("email")} />
+      {activeError ? <Alert type="error" message={activeError} /> : null}
+      <Input
+        label="Email address"
+        type="email"
+        autoComplete="email"
+        disabled={isLoading}
+        error={form.formState.errors.email?.message}
+        leftIcon={<Mail className="h-4 w-4" />}
+        placeholder="Enter email"
+        {...form.register("email")}
+      />
       <Button className="w-full" type="submit" isLoading={isLoading} title="Send password reset link">
         Send reset link
       </Button>

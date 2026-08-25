@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { accountService, type AccountProfile } from "@/services/account-service";
 import { useAuthStore } from "@/store/auth-store";
 import { getInitials } from "@/utils/sanitize";
+import { toAppError } from "@/lib/errors";
 
 const genderOptions = [
   { value: "male", label: "Male" },
@@ -79,8 +80,8 @@ export default function ProfilePage() {
         permissions: authUser?.permissions,
       });
       toast.success("Profile updated successfully.");
-    } catch {
-      toast.error("Unable to update profile.");
+    } catch (error) {
+      toast.error(toAppError(error).message);
     } finally {
       setSaving(false);
     }
