@@ -23,7 +23,6 @@ import {
   SettingsSubnav,
   StatusPill,
   TextInput,
-  ToggleSwitch,
   useUnsavedChanges,
 } from "@/features/admin/settings/components/settings-primitives";
 import { settingsNavItems } from "@/features/admin/settings/components/settings-navigation";
@@ -204,30 +203,44 @@ export function FooterSettingsContent() {
                 {/* Payment Banner Section */}
                 <SettingsSection
                   title="Payment Banner"
-                  description="Upload a banner image displaying supported payment gateways (e.g. Cards, bKash, Nagad, Visa, Mastercard) shown in the footer."
+                  description="Configure and upload a banner image displaying supported payment gateways shown in the footer."
                   icon={UploadCloud}
                 >
                   <div className="space-y-4">
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-border/60 pb-4">
-                      <div>
-                        <h3 className="text-sm font-semibold text-foreground">Enable Payment Banner</h3>
-                        <p className="text-xs text-muted-foreground">Toggle to display or hide the payment methods banner in the storefront footer.</p>
-                      </div>
-                      <ToggleSwitch
-                        label=""
-                        checked={values.payment_banner_enabled}
-                        onChange={(checked) => setValues((prev) => ({ ...prev, payment_banner_enabled: checked }))}
-                      />
-                    </div>
-
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                      <TextInput
-                        label="Banner Section Title"
-                        value={values.payment_banner_title}
-                        helper="Heading displayed right above the payment methods banner."
-                        placeholder="e.g. We accept"
-                        onChange={(e) => setValues((prev) => ({ ...prev, payment_banner_title: e.target.value }))}
-                      />
+                      <div>
+                        <label className="mb-1.5 block text-xs font-semibold text-foreground">
+                          Payment Banner Display
+                        </label>
+                        <Select
+                          value={values.payment_banner_enabled ? "enabled" : "disabled"}
+                          onValueChange={(val) =>
+                            setValues((prev) => ({ ...prev, payment_banner_enabled: val === "enabled" }))
+                          }
+                          disabled={!canEdit}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select display status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="enabled">Enabled (Visible in Footer)</SelectItem>
+                            <SelectItem value="disabled">Disabled (Hidden in Footer)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Select whether to display or hide the payment methods banner.
+                        </p>
+                      </div>
+
+                      <div>
+                        <TextInput
+                          label="Banner Section Title"
+                          value={values.payment_banner_title}
+                          helper="Heading displayed right above the payment methods banner."
+                          placeholder="e.g. We accept"
+                          onChange={(e) => setValues((prev) => ({ ...prev, payment_banner_title: e.target.value }))}
+                        />
+                      </div>
                     </div>
 
                     <div className="mt-2 space-y-2">
@@ -251,44 +264,29 @@ export function FooterSettingsContent() {
                     {values.social_links.map((link, index) => (
                       <div
                         key={`${link.platform}-${index}`}
-                        className="rounded-xl border border-border bg-background p-4 shadow-sm transition-all"
+                        className="rounded-xl border border-border bg-background p-4 transition-all"
                       >
                         <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-3">
                           <div className="flex items-center gap-2">
                             <StatusPill ok={link.status} label={link.status ? "Enabled" : "Disabled"} />
                             <span className="text-xs font-bold capitalize text-foreground">{link.platform}</span>
                           </div>
-                          <div className="flex items-center gap-3">
-                            {canEdit ? (
-                              <ToggleSwitch
-                                label="Active"
-                                checked={link.status}
-                                onChange={(checked) => handleUpdateSocialLink(index, { status: checked })}
-                              />
-                            ) : null}
-                            {canEdit ? (
-                              <ToggleSwitch
-                                label="New Tab"
-                                checked={link.open_in_new_tab}
-                                onChange={(checked) => handleUpdateSocialLink(index, { open_in_new_tab: checked })}
-                              />
-                            ) : null}
-                            {canEdit ? (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                aria-label="Remove social profile"
-                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                onClick={() => handleRemoveSocialLink(index)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            ) : null}
-                          </div>
+                          {canEdit ? (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              aria-label="Remove social profile"
+                              className="h-8 text-xs text-muted-foreground hover:text-destructive"
+                              onClick={() => handleRemoveSocialLink(index)}
+                            >
+                              <Trash2 className="h-4 w-4 mr-1" /> Remove
+                            </Button>
+                          ) : null}
                         </div>
 
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                          {/* Platform / Icon Select */}
                           <div>
                             <label className="mb-1.5 block text-xs font-semibold text-foreground">
                               Platform / Icon
@@ -311,7 +309,50 @@ export function FooterSettingsContent() {
                             </Select>
                           </div>
 
-                          <div className="sm:col-span-2">
+                          {/* Status Select */}
+                          <div>
+                            <label className="mb-1.5 block text-xs font-semibold text-foreground">
+                              Status
+                            </label>
+                            <Select
+                              value={link.status ? "enabled" : "disabled"}
+                              onValueChange={(val) => handleUpdateSocialLink(index, { status: val === "enabled" })}
+                              disabled={!canEdit}
+                            >
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Select status" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="enabled">Enabled</SelectItem>
+                                <SelectItem value="disabled">Disabled</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          {/* Link Target Select */}
+                          <div>
+                            <label className="mb-1.5 block text-xs font-semibold text-foreground">
+                              Link Target
+                            </label>
+                            <Select
+                              value={link.open_in_new_tab ? "new_tab" : "same_tab"}
+                              onValueChange={(val) =>
+                                handleUpdateSocialLink(index, { open_in_new_tab: val === "new_tab" })
+                              }
+                              disabled={!canEdit}
+                            >
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Select target" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="new_tab">Open in New Tab</SelectItem>
+                                <SelectItem value="same_tab">Open in Same Tab</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          {/* URL Input */}
+                          <div className="sm:col-span-2 lg:col-span-3">
                             <TextInput
                               label="Profile / Channel URL"
                               value={link.url}

@@ -380,14 +380,12 @@ export const selectSocialLinks = (state: SettingsState) =>
     : state.settings?.footer_settings?.social_links ?? state.settings?.social_links ?? emptySocialLinks;
 export const selectFooterSettings = (state: SettingsState) =>
   selectSettingsPending(state) ? defaultFooterSettings : state.settings?.footer_settings ?? defaultFooterSettings;
-export const selectPaymentBanner = (state: SettingsState) => {
-  const footer = selectFooterSettings(state);
-  return {
-    image: footer.payment_banner_image,
-    enabled: footer.payment_banner_enabled,
-    title: footer.payment_banner_title || "We accept",
-  };
-};
+export const selectPaymentBannerImage = (state: SettingsState) =>
+  selectSettingsPending(state) ? null : state.settings?.footer_settings?.payment_banner_image ?? null;
+export const selectPaymentBannerEnabled = (state: SettingsState) =>
+  selectSettingsPending(state) ? true : (state.settings?.footer_settings?.payment_banner_enabled ?? true);
+export const selectPaymentBannerTitle = (state: SettingsState) =>
+  selectSettingsPending(state) ? "We accept" : (state.settings?.footer_settings?.payment_banner_title || "We accept");
 export const selectCategoryDisplaySettings = (state: SettingsState) =>
   selectSettingsPending(state) ? pendingCategoryDisplaySettings : state.settings?.category_display_settings ?? defaultCategoryDisplaySettings;
 export const selectRuntimeCategories = (state: SettingsState) =>

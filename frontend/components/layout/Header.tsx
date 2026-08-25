@@ -1,7 +1,7 @@
-'use client';
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import { useState, useRef, useEffect, useMemo } from 'react';
+"use client";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useState, useRef, useEffect, useMemo } from "react";
 import {
   Search,
   ShoppingCart,
@@ -27,13 +27,13 @@ import {
   Star,
   Tags,
   TrendingUp,
-} from 'lucide-react';
-import { useTheme } from '@/components/theme/ThemeProvider';
-import { BrandLogo } from '@/components/settings/BrandLogo';
-import { useCartStore } from '@/store/cartStore';
-import { useWishlistStore } from '@/store/wishlistStore';
-import { useAuthStore } from '@/store/auth-store';
-import { useNotificationStore } from '@/store/notification-store';
+} from "lucide-react";
+import { useTheme } from "@/components/theme/ThemeProvider";
+import { BrandLogo } from "@/components/settings/BrandLogo";
+import { useCartStore } from "@/store/cartStore";
+import { useWishlistStore } from "@/store/wishlistStore";
+import { useAuthStore } from "@/store/auth-store";
+import { useNotificationStore } from "@/store/notification-store";
 import {
   selectBranding,
   selectBlogSettings,
@@ -43,9 +43,9 @@ import {
   selectRuntimeCategories,
   selectSettingsPending,
   useSettingsStore,
-} from '@/store/settings-store';
-import { NAV_LINKS } from '@/constants';
-import { formatPrice } from '@/utils/format';
+} from "@/store/settings-store";
+import { NAV_LINKS } from "@/constants";
+import { formatPrice } from "@/utils/format";
 import {
   clearRecentSearches,
   fetchSearchSuggestions,
@@ -54,22 +54,25 @@ import {
   type SearchEntitySuggestion,
   type SearchKeywordSuggestion,
   type SearchSuggestions,
-} from '@/services/catalog-service';
-import type { RuntimeCategory } from '@/types/settings';
-import Image from 'next/image';
-import { cn } from '@/lib/utils';
-import { RealtimeNotifications } from '@/components/notifications/RealtimeNotifications';
+} from "@/services/catalog-service";
+import type { RuntimeCategory } from "@/types/settings";
+import Image from "next/image";
+import { cn } from "@/lib/utils";
+import { RealtimeNotifications } from "@/components/notifications/RealtimeNotifications";
 import {
   clearGuestSearchHistory,
   getGuestSearchHistory,
   rememberGuestSearch,
   removeGuestSearch,
   setSearchAttribution,
-} from '@/lib/search-state';
+} from "@/lib/search-state";
 
 function timeAgo(value?: string | null) {
-  if (!value) return '';
-  const seconds = Math.max(1, Math.floor((Date.now() - new Date(value).getTime()) / 1000));
+  if (!value) return "";
+  const seconds = Math.max(
+    1,
+    Math.floor((Date.now() - new Date(value).getTime()) / 1000),
+  );
   if (seconds < 60) return `${seconds}s ago`;
   const minutes = Math.floor(seconds / 60);
   if (minutes < 60) return `${minutes}m ago`;
@@ -100,17 +103,17 @@ function NavbarNotificationBell({ onOpen }: { onOpen?: () => void }) {
       }
     };
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (event.key === "Escape") {
         setIsOpen(false);
       }
     };
 
-    document.addEventListener('mousedown', handlePointerDown);
-    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
-      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
     };
   }, [fetchNotifications, isOpen, onOpen]);
 
@@ -128,14 +131,16 @@ function NavbarNotificationBell({ onOpen }: { onOpen?: () => void }) {
         <Bell size={20} />
         {unreadCount > 0 ? (
           <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold leading-none text-primary-foreground">
-            {unreadCount > 9 ? '9+' : unreadCount}
+            {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         ) : null}
       </button>
       <div
         className={cn(
-          'absolute right-0 top-full w-80 pt-2 transition-all duration-200',
-          isOpen ? 'visible translate-y-0 opacity-100' : 'invisible -translate-y-1 opacity-0'
+          "absolute right-0 top-full w-80 pt-2 transition-all duration-200",
+          isOpen
+            ? "visible translate-y-0 opacity-100"
+            : "invisible -translate-y-1 opacity-0",
         )}
         role="menu"
       >
@@ -143,7 +148,12 @@ function NavbarNotificationBell({ onOpen }: { onOpen?: () => void }) {
           <div className="flex items-center justify-between border-b border-border bg-muted/50 p-3">
             <p className="text-sm font-semibold">Notifications</p>
             {unreadCount > 0 ? (
-              <button type="button" onClick={() => void markAllRead()} className="text-xs font-medium text-primary hover:underline" title="Mark all notifications as read">
+              <button
+                type="button"
+                onClick={() => void markAllRead()}
+                className="text-xs font-medium text-primary hover:underline"
+                title="Mark all notifications as read"
+              >
                 Mark all read
               </button>
             ) : null}
@@ -151,36 +161,73 @@ function NavbarNotificationBell({ onOpen }: { onOpen?: () => void }) {
           <div className="max-h-80 overflow-y-auto p-1">
             {isLoading && notifications.length === 0 ? (
               <div className="space-y-2 p-2">
-                {Array.from({ length: 3 }).map((_, index) => <span key={index} className="block h-14 animate-pulse rounded-lg bg-muted" />)}
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <span
+                    key={index}
+                    className="block h-14 animate-pulse rounded-lg bg-muted"
+                  />
+                ))}
               </div>
-            ) : notifications.length ? notifications.slice(0, 8).map((item) => (
-              <Link
-                key={item.id}
-                href={item.actionUrl || '/account/notifications'}
-                onClick={() => {
-                  void markRead(item.id);
-                  setIsOpen(false);
-                }}
-                className={cn('flex gap-3 rounded-lg p-3 transition-colors hover:bg-muted', !item.read && 'bg-primary/5')}
-                role="menuitem"
-                title={item.title}
-              >
-                <span className={cn('mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg', item.read ? 'bg-muted text-muted-foreground' : 'bg-primary/10 text-primary')}>
-                  <Package size={16} />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className={cn('block truncate text-sm font-semibold', !item.read && 'text-primary')}>{item.title}</span>
-                  <span className="mt-0.5 line-clamp-2 block text-xs text-muted-foreground">{item.message}</span>
-                  <span className="mt-1 block text-[11px] text-muted-foreground">{timeAgo(item.createdAt)}</span>
-                </span>
-                {!item.read ? <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-primary" /> : null}
-              </Link>
-            )) : (
-              <div className="p-6 text-center text-sm text-muted-foreground">No notifications yet.</div>
+            ) : notifications.length ? (
+              notifications.slice(0, 8).map((item) => (
+                <Link
+                  key={item.id}
+                  href={item.actionUrl || "/account/notifications"}
+                  onClick={() => {
+                    void markRead(item.id);
+                    setIsOpen(false);
+                  }}
+                  className={cn(
+                    "flex gap-3 rounded-lg p-3 transition-colors hover:bg-muted",
+                    !item.read && "bg-primary/5",
+                  )}
+                  role="menuitem"
+                  title={item.title}
+                >
+                  <span
+                    className={cn(
+                      "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+                      item.read
+                        ? "bg-muted text-muted-foreground"
+                        : "bg-primary/10 text-primary",
+                    )}
+                  >
+                    <Package size={16} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span
+                      className={cn(
+                        "block truncate text-sm font-semibold",
+                        !item.read && "text-primary",
+                      )}
+                    >
+                      {item.title}
+                    </span>
+                    <span className="mt-0.5 line-clamp-2 block text-xs text-muted-foreground">
+                      {item.message}
+                    </span>
+                    <span className="mt-1 block text-[11px] text-muted-foreground">
+                      {timeAgo(item.createdAt)}
+                    </span>
+                  </span>
+                  {!item.read ? (
+                    <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-primary" />
+                  ) : null}
+                </Link>
+              ))
+            ) : (
+              <div className="p-6 text-center text-sm text-muted-foreground">
+                No notifications yet.
+              </div>
             )}
           </div>
           <div className="border-t border-border p-1">
-            <Link href="/account/notifications" onClick={() => setIsOpen(false)} className="block rounded-lg px-3 py-2 text-center text-sm font-medium text-primary transition-colors hover:bg-muted" title="View all notifications">
+            <Link
+              href="/account/notifications"
+              onClick={() => setIsOpen(false)}
+              className="block rounded-lg px-3 py-2 text-center text-sm font-medium text-primary transition-colors hover:bg-muted"
+              title="View all notifications"
+            >
               View all notifications
             </Link>
           </div>
@@ -197,12 +244,12 @@ function ThemeToggle() {
   if (!mounted) return <div className="w-9 h-9" />;
   return (
     <button
-      onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
       className="rounded-lg p-1.5 transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring sm:p-2"
       aria-label="Toggle theme"
-      title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+      title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
     >
-      {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+      {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
     </button>
   );
 }
@@ -210,7 +257,7 @@ function ThemeToggle() {
 function SearchOverlay({ onClose }: { onClose: () => void }) {
   const router = useRouter();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<SearchSuggestions>({
     products: [],
     categories: [],
@@ -223,7 +270,7 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [activeIndex, setActiveIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -236,28 +283,40 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
     if (normalizedQuery.length === 1) return;
 
     const controller = new AbortController();
-    const timer = window.setTimeout(() => {
-      setIsLoading(true);
-      setError('');
-      fetchSearchSuggestions(normalizedQuery, { signal: controller.signal, limit: 5 })
-        .then((response) => {
-          setSuggestions({
-            ...response,
-            recent: isAuthenticated ? response.recent : getGuestSearchHistory().slice(0, 5),
+    const timer = window.setTimeout(
+      () => {
+        setIsLoading(true);
+        setError("");
+        fetchSearchSuggestions(normalizedQuery, { signal: controller.signal, limit: 5 })
+          .then((response) => {
+            setSuggestions({
+              ...response,
+              recent: isAuthenticated
+                ? response.recent
+                : getGuestSearchHistory().slice(0, 5),
+            });
+            setHasSearched(true);
+            setActiveIndex(-1);
+          })
+          .catch((err: unknown) => {
+            if ((err as { name?: string })?.name === "CanceledError") return;
+            setSuggestions((current) => ({
+              ...current,
+              products: [],
+              categories: [],
+              brands: [],
+              collections: [],
+              tags: [],
+            }));
+            setError("Search suggestions are temporarily unavailable.");
+            setHasSearched(true);
+          })
+          .finally(() => {
+            if (!controller.signal.aborted) setIsLoading(false);
           });
-          setHasSearched(true);
-          setActiveIndex(-1);
-        })
-        .catch((err: unknown) => {
-          if ((err as { name?: string })?.name === 'CanceledError') return;
-          setSuggestions((current) => ({ ...current, products: [], categories: [], brands: [], collections: [], tags: [] }));
-          setError('Search suggestions are temporarily unavailable.');
-          setHasSearched(true);
-        })
-        .finally(() => {
-          if (!controller.signal.aborted) setIsLoading(false);
-        });
-    }, normalizedQuery === '' ? 0 : 250);
+      },
+      normalizedQuery === "" ? 0 : 250,
+    );
 
     return () => {
       window.clearTimeout(timer);
@@ -272,17 +331,21 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
       id: Number(item.id),
       slug: item.slug,
       label: item.name,
-      href: item.type === 'category'
-        ? `/shop?category=${encodeURIComponent(item.slug)}`
-        : item.type === 'brand'
-          ? `/brands/${item.slug}`
-          : item.type === 'collection'
-            ? `/collections/${item.slug}`
-            : `/shop?search=${encodeURIComponent(item.name)}`,
+      href:
+        item.type === "category"
+          ? `/shop?category=${encodeURIComponent(item.slug)}`
+          : item.type === "brand"
+            ? `/brands/${item.slug}`
+            : item.type === "collection"
+              ? `/collections/${item.slug}`
+              : `/shop?search=${encodeURIComponent(item.name)}`,
     });
-    const keywordItem = (item: SearchKeywordSuggestion, group: 'recent' | 'popular' | 'trending') => ({
+    const keywordItem = (
+      item: SearchKeywordSuggestion,
+      group: "recent" | "popular" | "trending",
+    ) => ({
       key: `${group}-${item.id}`,
-      type: 'keyword' as const,
+      type: "keyword" as const,
       id: Number(item.id) || undefined,
       slug: undefined,
       label: item.keyword,
@@ -292,7 +355,7 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
     return [
       ...suggestions.products.map((product) => ({
         key: `product-${product.id}`,
-        type: 'product' as const,
+        type: "product" as const,
         id: Number(product.id),
         slug: product.slug,
         label: product.name,
@@ -302,16 +365,19 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
       ...suggestions.brands.map(entityItem),
       ...suggestions.collections.map(entityItem),
       ...suggestions.tags.map(entityItem),
-      ...suggestions.recent.map((item) => keywordItem(item, 'recent')),
-      ...suggestions.popular.map((item) => keywordItem(item, 'popular')),
-      ...suggestions.trending.map((item) => keywordItem(item, 'trending')),
+      ...suggestions.recent.map((item) => keywordItem(item, "recent")),
+      ...suggestions.popular.map((item) => keywordItem(item, "popular")),
+      ...suggestions.trending.map((item) => keywordItem(item, "trending")),
     ];
   }, [suggestions]);
 
   const openSuggestion = (item: (typeof navigableItems)[number], position: number) => {
     const keyword = query.trim() || item.label;
     if (!isAuthenticated) {
-      setSuggestions((current) => ({ ...current, recent: rememberGuestSearch(keyword).slice(0, 5) }));
+      setSuggestions((current) => ({
+        ...current,
+        recent: rememberGuestSearch(keyword).slice(0, 5),
+      }));
     }
     void trackSearchClick({
       query: keyword,
@@ -319,7 +385,9 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
       target_id: item.id,
       target_slug: item.slug,
       position: position + 1,
-    }).then(setSearchAttribution).catch(() => undefined);
+    })
+      .then(setSearchAttribution)
+      .catch(() => undefined);
     onClose();
     router.push(item.href);
   };
@@ -335,10 +403,16 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
   const removeHistory = (item: SearchKeywordSuggestion) => {
     if (isAuthenticated) {
       void removeRecentSearch(item.id).catch(() => undefined);
-      setSuggestions((current) => ({ ...current, recent: current.recent.filter((recent) => recent.id !== item.id) }));
+      setSuggestions((current) => ({
+        ...current,
+        recent: current.recent.filter((recent) => recent.id !== item.id),
+      }));
       return;
     }
-    setSuggestions((current) => ({ ...current, recent: removeGuestSearch(item.id).slice(0, 5) }));
+    setSuggestions((current) => ({
+      ...current,
+      recent: removeGuestSearch(item.id).slice(0, 5),
+    }));
   };
 
   const clearHistory = () => {
@@ -350,20 +424,31 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
     setSuggestions((current) => ({ ...current, recent: [] }));
   };
 
-  const resultCount = suggestions.products.length
-    + suggestions.categories.length
-    + suggestions.brands.length
-    + suggestions.collections.length
-    + suggestions.tags.length
-    + suggestions.popular.length
-    + suggestions.recent.length
-    + suggestions.trending.length;
+  const resultCount =
+    suggestions.products.length +
+    suggestions.categories.length +
+    suggestions.brands.length +
+    suggestions.collections.length +
+    suggestions.tags.length +
+    suggestions.popular.length +
+    suggestions.recent.length +
+    suggestions.trending.length;
   const highlighted = (value: string) => <HighlightedMatch value={value} query={query} />;
   const entitySections = [
-    { key: 'categories', label: 'Categories', icon: Layers3, items: suggestions.categories },
-    { key: 'brands', label: 'Brands', icon: Building2, items: suggestions.brands },
-    { key: 'collections', label: 'Collections', icon: ShoppingBag, items: suggestions.collections },
-    { key: 'tags', label: 'Tags', icon: Tags, items: suggestions.tags },
+    {
+      key: "categories",
+      label: "Categories",
+      icon: Layers3,
+      items: suggestions.categories,
+    },
+    { key: "brands", label: "Brands", icon: Building2, items: suggestions.brands },
+    {
+      key: "collections",
+      label: "Collections",
+      icon: ShoppingBag,
+      items: suggestions.collections,
+    },
+    { key: "tags", label: "Tags", icon: Tags, items: suggestions.tags },
   ] as const;
 
   return (
@@ -382,22 +467,24 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(event) => {
-                if (event.key === 'Escape') {
+                if (event.key === "Escape") {
                   event.preventDefault();
                   onClose();
                   return;
                 }
-                if (event.key === 'ArrowDown') {
+                if (event.key === "ArrowDown") {
                   event.preventDefault();
-                  setActiveIndex((current) => Math.min(navigableItems.length - 1, current + 1));
+                  setActiveIndex((current) =>
+                    Math.min(navigableItems.length - 1, current + 1),
+                  );
                   return;
                 }
-                if (event.key === 'ArrowUp') {
+                if (event.key === "ArrowUp") {
                   event.preventDefault();
                   setActiveIndex((current) => Math.max(-1, current - 1));
                   return;
                 }
-                if (event.key === 'Enter') {
+                if (event.key === "Enter") {
                   event.preventDefault();
                   if (activeIndex >= 0 && navigableItems[activeIndex]) {
                     openSuggestion(navigableItems[activeIndex], activeIndex);
@@ -410,7 +497,9 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
               aria-autocomplete="list"
               aria-expanded={resultCount > 0}
               aria-controls="store-search-suggestions"
-              aria-activedescendant={activeIndex >= 0 ? `store-search-option-${activeIndex}` : undefined}
+              aria-activedescendant={
+                activeIndex >= 0 ? `store-search-option-${activeIndex}` : undefined
+              }
               className="min-w-0 flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground focus-visible:shadow-none"
             />
             <button
@@ -439,62 +528,25 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
           )}
 
           {!isLoading && resultCount > 0 && (
-            <div id="store-search-suggestions" role="listbox" className="mt-3 max-h-[min(70vh,38rem)] space-y-3 overflow-y-auto pb-2">
+            <div
+              id="store-search-suggestions"
+              role="listbox"
+              className="mt-3 max-h-[min(70vh,38rem)] space-y-3 overflow-y-auto pb-2"
+            >
               {suggestions.products.length > 0 ? (
-                <SearchSuggestionSection title={query.trim() ? 'Products' : 'Popular Products'} icon={<Package className="h-4 w-4" />}>
-                  {suggestions.products.map((product) => {
-                    const currentIndex = navigableItems.findIndex((item) => item.key === `product-${product.id}`);
-                    return (
-                <Link
-                  key={product.id}
-                  id={`store-search-option-${currentIndex}`}
-                  href={`/products/${product.slug}`}
-                  role="option"
-                  aria-selected={activeIndex === currentIndex}
-                  onMouseEnter={() => setActiveIndex(currentIndex)}
-                  onClick={(event) => {
-                    event.preventDefault();
-                    openSuggestion(navigableItems[currentIndex], currentIndex);
-                  }}
-                  className={cn('group flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-muted', activeIndex === currentIndex && 'bg-muted')}
+                <SearchSuggestionSection
+                  title={query.trim() ? "Products" : "Popular Products"}
+                  icon={<Package className="h-4 w-4" />}
                 >
-                  <div className="w-12 h-12 relative rounded-lg overflow-hidden bg-muted shrink-0">
-                    <Image
-                      src={product.thumbnail}
-                      alt={product.name}
-                      fill
-                      unoptimized
-                      className="object-cover"
-                    />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm group-hover:text-primary transition-colors truncate">
-                      {highlighted(product.name)}
-                    </p>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span>{product.category}</span>
-                      <span className="inline-flex items-center gap-0.5"><Star className="h-3 w-3 fill-amber-400 text-amber-400" />{product.rating}</span>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    {product.discount ? <span className="mb-0.5 block text-[10px] font-bold text-rose-500">-{product.discount}%</span> : null}
-                    <span className="font-semibold text-sm">{formatPrice(product.price)}</span>
-                  </div>
-                </Link>
+                  {suggestions.products.map((product) => {
+                    const currentIndex = navigableItems.findIndex(
+                      (item) => item.key === `product-${product.id}`,
                     );
-                  })}
-                </SearchSuggestionSection>
-              ) : null}
-
-              {entitySections.map((section) => section.items.length > 0 ? (
-                <SearchSuggestionSection key={section.key} title={section.label} icon={<section.icon className="h-4 w-4" />}>
-                  {section.items.map((item) => {
-                    const currentIndex = navigableItems.findIndex((option) => option.key === `${item.type}-${item.id}`);
                     return (
                       <Link
-                        key={item.id}
+                        key={product.id}
                         id={`store-search-option-${currentIndex}`}
-                        href={navigableItems[currentIndex].href}
+                        href={`/products/${product.slug}`}
                         role="option"
                         aria-selected={activeIndex === currentIndex}
                         onMouseEnter={() => setActiveIndex(currentIndex)}
@@ -502,38 +554,134 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
                           event.preventDefault();
                           openSuggestion(navigableItems[currentIndex], currentIndex);
                         }}
-                        className={cn('flex items-center justify-between gap-3 rounded-lg px-2 py-2 text-sm transition-colors hover:bg-muted', activeIndex === currentIndex && 'bg-muted')}
+                        className={cn(
+                          "group flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-muted",
+                          activeIndex === currentIndex && "bg-muted",
+                        )}
                       >
-                        <span className="min-w-0 truncate font-medium">{highlighted(item.name)}</span>
-                        <span className="shrink-0 text-xs text-muted-foreground">{item.product_count} products</span>
+                        <div className="w-12 h-12 relative rounded-lg overflow-hidden bg-muted shrink-0">
+                          <Image
+                            src={product.thumbnail}
+                            alt={product.name}
+                            fill
+                            unoptimized
+                            className="object-cover"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm group-hover:text-primary transition-colors truncate">
+                            {highlighted(product.name)}
+                          </p>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <span>{product.category}</span>
+                            <span className="inline-flex items-center gap-0.5">
+                              <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                              {product.rating}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          {product.discount ? (
+                            <span className="mb-0.5 block text-[10px] font-bold text-rose-500">
+                              -{product.discount}%
+                            </span>
+                          ) : null}
+                          <span className="font-semibold text-sm">
+                            {formatPrice(product.price)}
+                          </span>
+                        </div>
                       </Link>
                     );
                   })}
                 </SearchSuggestionSection>
-              ) : null)}
+              ) : null}
+
+              {entitySections.map((section) =>
+                section.items.length > 0 ? (
+                  <SearchSuggestionSection
+                    key={section.key}
+                    title={section.label}
+                    icon={<section.icon className="h-4 w-4" />}
+                  >
+                    {section.items.map((item) => {
+                      const currentIndex = navigableItems.findIndex(
+                        (option) => option.key === `${item.type}-${item.id}`,
+                      );
+                      return (
+                        <Link
+                          key={item.id}
+                          id={`store-search-option-${currentIndex}`}
+                          href={navigableItems[currentIndex].href}
+                          role="option"
+                          aria-selected={activeIndex === currentIndex}
+                          onMouseEnter={() => setActiveIndex(currentIndex)}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            openSuggestion(navigableItems[currentIndex], currentIndex);
+                          }}
+                          className={cn(
+                            "flex items-center justify-between gap-3 rounded-lg px-2 py-2 text-sm transition-colors hover:bg-muted",
+                            activeIndex === currentIndex && "bg-muted",
+                          )}
+                        >
+                          <span className="min-w-0 truncate font-medium">
+                            {highlighted(item.name)}
+                          </span>
+                          <span className="shrink-0 text-xs text-muted-foreground">
+                            {item.product_count} products
+                          </span>
+                        </Link>
+                      );
+                    })}
+                  </SearchSuggestionSection>
+                ) : null,
+              )}
 
               {suggestions.recent.length > 0 ? (
                 <SearchSuggestionSection
                   title="Recent Searches"
                   icon={<Clock className="h-4 w-4" />}
-                  action={<button type="button" onClick={clearHistory} className="text-xs font-medium text-primary hover:underline">Clear</button>}
+                  action={
+                    <button
+                      type="button"
+                      onClick={clearHistory}
+                      className="text-xs font-medium text-primary hover:underline"
+                    >
+                      Clear
+                    </button>
+                  }
                 >
                   {suggestions.recent.map((item) => {
-                    const currentIndex = navigableItems.findIndex((option) => option.key === `recent-${item.id}`);
+                    const currentIndex = navigableItems.findIndex(
+                      (option) => option.key === `recent-${item.id}`,
+                    );
                     return (
-                      <div key={item.id} className={cn('flex items-center rounded-lg transition-colors hover:bg-muted', activeIndex === currentIndex && 'bg-muted')}>
+                      <div
+                        key={item.id}
+                        className={cn(
+                          "flex items-center rounded-lg transition-colors hover:bg-muted",
+                          activeIndex === currentIndex && "bg-muted",
+                        )}
+                      >
                         <button
                           id={`store-search-option-${currentIndex}`}
                           type="button"
                           role="option"
                           aria-selected={activeIndex === currentIndex}
                           onMouseEnter={() => setActiveIndex(currentIndex)}
-                          onClick={() => openSuggestion(navigableItems[currentIndex], currentIndex)}
+                          onClick={() =>
+                            openSuggestion(navigableItems[currentIndex], currentIndex)
+                          }
                           className="min-w-0 flex-1 px-2 py-2 text-left text-sm font-medium"
                         >
                           {highlighted(item.keyword)}
                         </button>
-                        <button type="button" onClick={() => removeHistory(item)} className="mr-1 rounded-md p-1 text-muted-foreground hover:bg-background hover:text-foreground" aria-label={`Remove ${item.keyword} from recent searches`}>
+                        <button
+                          type="button"
+                          onClick={() => removeHistory(item)}
+                          className="mr-1 rounded-md p-1 text-muted-foreground hover:bg-background hover:text-foreground"
+                          aria-label={`Remove ${item.keyword} from recent searches`}
+                        >
                           <X className="h-3.5 w-3.5" />
                         </button>
                       </div>
@@ -542,31 +690,62 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
                 </SearchSuggestionSection>
               ) : null}
 
-              {([
-                { key: 'popular', title: 'Popular Searches', icon: <Search className="h-4 w-4" />, items: suggestions.popular },
-                { key: 'trending', title: 'Trending Searches', icon: <TrendingUp className="h-4 w-4" />, items: suggestions.trending },
-              ] as const).map((section) => section.items.length > 0 ? (
-                <SearchSuggestionSection key={section.key} title={section.title} icon={section.icon}>
-                  {section.items.map((item) => {
-                    const currentIndex = navigableItems.findIndex((option) => option.key === `${section.key}-${item.id}`);
-                    return (
-                      <button
-                        key={item.id}
-                        id={`store-search-option-${currentIndex}`}
-                        type="button"
-                        role="option"
-                        aria-selected={activeIndex === currentIndex}
-                        onMouseEnter={() => setActiveIndex(currentIndex)}
-                        onClick={() => openSuggestion(navigableItems[currentIndex], currentIndex)}
-                        className={cn('flex w-full items-center justify-between gap-3 rounded-lg px-2 py-2 text-left text-sm transition-colors hover:bg-muted', activeIndex === currentIndex && 'bg-muted')}
-                      >
-                        <span className="min-w-0 truncate font-medium">{highlighted(item.keyword)}</span>
-                        {item.search_count ? <span className="shrink-0 text-xs text-muted-foreground">{item.search_count.toLocaleString()}</span> : null}
-                      </button>
-                    );
-                  })}
-                </SearchSuggestionSection>
-              ) : null)}
+              {(
+                [
+                  {
+                    key: "popular",
+                    title: "Popular Searches",
+                    icon: <Search className="h-4 w-4" />,
+                    items: suggestions.popular,
+                  },
+                  {
+                    key: "trending",
+                    title: "Trending Searches",
+                    icon: <TrendingUp className="h-4 w-4" />,
+                    items: suggestions.trending,
+                  },
+                ] as const
+              ).map((section) =>
+                section.items.length > 0 ? (
+                  <SearchSuggestionSection
+                    key={section.key}
+                    title={section.title}
+                    icon={section.icon}
+                  >
+                    {section.items.map((item) => {
+                      const currentIndex = navigableItems.findIndex(
+                        (option) => option.key === `${section.key}-${item.id}`,
+                      );
+                      return (
+                        <button
+                          key={item.id}
+                          id={`store-search-option-${currentIndex}`}
+                          type="button"
+                          role="option"
+                          aria-selected={activeIndex === currentIndex}
+                          onMouseEnter={() => setActiveIndex(currentIndex)}
+                          onClick={() =>
+                            openSuggestion(navigableItems[currentIndex], currentIndex)
+                          }
+                          className={cn(
+                            "flex w-full items-center justify-between gap-3 rounded-lg px-2 py-2 text-left text-sm transition-colors hover:bg-muted",
+                            activeIndex === currentIndex && "bg-muted",
+                          )}
+                        >
+                          <span className="min-w-0 truncate font-medium">
+                            {highlighted(item.keyword)}
+                          </span>
+                          {item.search_count ? (
+                            <span className="shrink-0 text-xs text-muted-foreground">
+                              {item.search_count.toLocaleString()}
+                            </span>
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </SearchSuggestionSection>
+                ) : null,
+              )}
             </div>
           )}
 
@@ -574,12 +753,15 @@ function SearchOverlay({ onClose }: { onClose: () => void }) {
             <p className="py-4 text-center text-sm text-destructive">{error}</p>
           ) : null}
 
-          {!isLoading && query.trim().length > 1 && hasSearched && resultCount === 0 && !error && (
-            <p className="text-center text-muted-foreground py-4 text-sm">
-              No results for &ldquo;{query}&rdquo;
-            </p>
-          )}
-
+          {!isLoading &&
+            query.trim().length > 1 &&
+            hasSearched &&
+            resultCount === 0 &&
+            !error && (
+              <p className="text-center text-muted-foreground py-4 text-sm">
+                No results for &ldquo;{query}&rdquo;
+              </p>
+            )}
         </div>
       </div>
     </div>
@@ -612,15 +794,27 @@ function SearchSuggestionSection({
 }
 
 function HighlightedMatch({ value, query }: { value: string; query: string }) {
-  const terms = Array.from(new Set(query.trim().split(/\s+/).filter(Boolean))).sort((a, b) => b.length - a.length);
+  const terms = Array.from(new Set(query.trim().split(/\s+/).filter(Boolean))).sort(
+    (a, b) => b.length - a.length,
+  );
   if (!terms.length) return value;
 
-  const expression = new RegExp(`(${terms.map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'ig');
-  return value.split(expression).map((part, index) => (
-    terms.some((term) => part.toLocaleLowerCase() === term.toLocaleLowerCase())
-      ? <mark key={`${part}-${index}`} className="bg-transparent font-extrabold text-primary">{part}</mark>
-      : <span key={`${part}-${index}`}>{part}</span>
-  ));
+  const expression = new RegExp(
+    `(${terms.map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`,
+    "ig",
+  );
+  return value.split(expression).map((part, index) =>
+    terms.some((term) => part.toLocaleLowerCase() === term.toLocaleLowerCase()) ? (
+      <mark
+        key={`${part}-${index}`}
+        className="bg-transparent font-extrabold text-primary"
+      >
+        {part}
+      </mark>
+    ) : (
+      <span key={`${part}-${index}`}>{part}</span>
+    ),
+  );
 }
 
 function CategoryDropdown({
@@ -639,8 +833,8 @@ function CategoryDropdown({
   return (
     <div
       className={cn(
-        'bg-background border border-border shadow-xl z-40 animate-in fade-in-0 zoom-in-95 duration-150',
-        className
+        "bg-background border border-border shadow-xl z-40 animate-in fade-in-0 zoom-in-95 duration-150",
+        className,
       )}
       role="menu"
       aria-label="Category navigation"
@@ -734,8 +928,8 @@ function HeaderSkeleton({ isScrolled }: { isScrolled: boolean }) {
   return (
     <header
       className={cn(
-        'sticky top-0 z-40 bg-background/95 backdrop-blur transition-shadow duration-200',
-        isScrolled ? 'shadow-md' : 'border-b border-border'
+        "sticky top-0 z-40 bg-background/95 backdrop-blur transition-shadow duration-200",
+        isScrolled ? "shadow-md" : "border-b border-border",
       )}
       aria-busy="true"
     >
@@ -789,7 +983,9 @@ export function Header() {
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
   const accountMenuRef = useRef<HTMLDivElement>(null);
 
-  const cartItemCount = useCartStore((s) => s.items.reduce((sum, item) => sum + item.quantity, 0));
+  const cartItemCount = useCartStore((s) =>
+    s.items.reduce((sum, item) => sum + item.quantity, 0),
+  );
   const cartInitialized = useCartStore((s) => s.initialized);
   const wishlistItemCount = useWishlistStore((s) => s.items.length);
   const wishlistInitialized = useWishlistStore((s) => s.initialized);
@@ -839,19 +1035,27 @@ export function Header() {
           children: category.children
             .filter((child) => child.show_in_navbar)
             .slice()
-            .sort((a, b) => a.navbar_display_order - b.navbar_display_order || a.name.localeCompare(b.name)),
+            .sort(
+              (a, b) =>
+                a.navbar_display_order - b.navbar_display_order ||
+                a.name.localeCompare(b.name),
+            ),
         }))
         .slice()
-        .sort((a, b) => a.navbar_display_order - b.navbar_display_order || a.name.localeCompare(b.name)),
-    [runtimeCategories]
+        .sort(
+          (a, b) =>
+            a.navbar_display_order - b.navbar_display_order ||
+            a.name.localeCompare(b.name),
+        ),
+    [runtimeCategories],
   );
   const supportPhone = branding?.support_phone || branding?.company_phone;
   const supportAddress = branding?.address;
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 10);
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   useEffect(() => {
@@ -862,17 +1066,17 @@ export function Header() {
     if (!isMobileMenuOpen) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (event.key === "Escape") {
         setIsMobileMenuOpen(false);
       }
     };
 
-    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
     const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    document.body.style.overflow = "hidden";
 
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = previousOverflow;
     };
   }, [isMobileMenuOpen]);
@@ -886,17 +1090,17 @@ export function Header() {
       }
     };
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (event.key === "Escape") {
         setIsCategoryDropdownOpen(false);
       }
     };
 
-    document.addEventListener('mousedown', handlePointerDown);
-    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
-      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
     };
   }, [isCategoryDropdownOpen]);
 
@@ -909,24 +1113,24 @@ export function Header() {
       }
     };
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (event.key === "Escape") {
         setIsAccountMenuOpen(false);
       }
     };
 
-    document.addEventListener('mousedown', handlePointerDown);
-    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
-      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
     };
   }, [isAccountMenuOpen]);
 
   async function handleSignOut() {
     await logout();
     setIsAccountMenuOpen(false);
-    router.push('/');
+    router.push("/");
   }
 
   const isNavbarLoading =
@@ -943,8 +1147,8 @@ export function Header() {
 
       <header
         className={cn(
-          'sticky top-0 z-40 bg-background/95 backdrop-blur transition-shadow duration-200',
-          isScrolled ? 'shadow-md' : 'border-b border-border'
+          "sticky top-0 z-40 bg-background/95 backdrop-blur transition-shadow duration-200",
+          isScrolled ? "shadow-md" : "border-b border-border",
         )}
       >
         {/* Top bar */}
@@ -963,8 +1167,11 @@ export function Header() {
               ) : null}
             </div>
             <div className="flex items-center gap-4">
-              <Link href="/order-tracking" className="hover:text-foreground transition-colors flex items-center gap-1">
-                <Package size={12} /> Track Order
+              <Link
+                href="/order-tracking"
+                className="hover:text-foreground transition-colors flex items-center gap-1"
+              >
+                Track Order
               </Link>
               <Link href="/about" className="hover:text-foreground transition-colors">
                 About
@@ -1002,57 +1209,64 @@ export function Header() {
                   <span className="h-9 w-24 animate-pulse rounded-lg bg-muted" />
                 </>
               ) : null}
-              {!isSettingsLoading && navLinks.map((link) => {
-                const isCategoriesLink = 'module' in link && link.module === 'categories' || link.href === '/categories';
-                if (isCategoriesLink && categoryDisplay.navbar_dropdown_enabled && navbarCategories.length > 0) {
-                  return (
-                    <div
-                      key={`${link.href}-${link.label}`}
-                      className="relative"
-                      ref={categoryDropdownRef}
-                    >
-                      <button
-                        type="button"
-                        className="flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-muted hover:text-primary"
-                        aria-expanded={isCategoryDropdownOpen}
-                        aria-haspopup="menu"
-                        onClick={() => setIsCategoryDropdownOpen((open) => !open)}
-                        onKeyDown={(event) => {
-                          if (event.key === 'ArrowDown') {
-                            event.preventDefault();
-                            setIsCategoryDropdownOpen(true);
-                          }
-                        }}
+              {!isSettingsLoading &&
+                navLinks.map((link) => {
+                  const isCategoriesLink =
+                    ("module" in link && link.module === "categories") ||
+                    link.href === "/categories";
+                  if (
+                    isCategoriesLink &&
+                    categoryDisplay.navbar_dropdown_enabled &&
+                    navbarCategories.length > 0
+                  ) {
+                    return (
+                      <div
+                        key={`${link.href}-${link.label}`}
+                        className="relative"
+                        ref={categoryDropdownRef}
                       >
-                        {link.label}
-                        <ChevronDown
-                          size={14}
-                          className={cn(
-                            'transition-transform',
-                            isCategoryDropdownOpen && 'rotate-180'
-                          )}
-                        />
-                      </button>
-                      {isCategoryDropdownOpen && (
-                        <CategoryDropdown
-                          categories={navbarCategories}
-                          onClose={() => setIsCategoryDropdownOpen(false)}
-                          className="absolute left-0 top-full mt-2 w-[min(46rem,calc(100vw-2rem))] rounded-xl"
-                        />
-                      )}
-                    </div>
+                        <button
+                          type="button"
+                          className="flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-muted hover:text-primary"
+                          aria-expanded={isCategoryDropdownOpen}
+                          aria-haspopup="menu"
+                          onClick={() => setIsCategoryDropdownOpen((open) => !open)}
+                          onKeyDown={(event) => {
+                            if (event.key === "ArrowDown") {
+                              event.preventDefault();
+                              setIsCategoryDropdownOpen(true);
+                            }
+                          }}
+                        >
+                          {link.label}
+                          <ChevronDown
+                            size={14}
+                            className={cn(
+                              "transition-transform",
+                              isCategoryDropdownOpen && "rotate-180",
+                            )}
+                          />
+                        </button>
+                        {isCategoryDropdownOpen && (
+                          <CategoryDropdown
+                            categories={navbarCategories}
+                            onClose={() => setIsCategoryDropdownOpen(false)}
+                            className="absolute left-0 top-full mt-2 w-[min(46rem,calc(100vw-2rem))] rounded-xl"
+                          />
+                        )}
+                      </div>
+                    );
+                  }
+                  return (
+                    <Link
+                      key={`${link.href}-${link.label}`}
+                      href={link.href}
+                      className="rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-muted hover:text-primary"
+                    >
+                      {link.label}
+                    </Link>
                   );
-                }
-                return (
-                  <Link
-                    key={`${link.href}-${link.label}`}
-                    href={link.href}
-                    className="rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-muted hover:text-primary"
-                  >
-                    {link.label}
-                  </Link>
-                );
-              })}
+                })}
             </nav>
 
             {/* Search bar */}
@@ -1093,7 +1307,7 @@ export function Header() {
                   <Heart size={20} />
                   {wishlistItemCount > 0 && (
                     <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-destructive text-destructive-foreground text-xs rounded-full flex items-center justify-center font-bold">
-                      {wishlistItemCount > 9 ? '9+' : wishlistItemCount}
+                      {wishlistItemCount > 9 ? "9+" : wishlistItemCount}
                     </span>
                   )}
                 </Link>
@@ -1108,7 +1322,7 @@ export function Header() {
                 <ShoppingCart size={20} />
                 {cartItemCount > 0 && (
                   <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-primary text-primary-foreground text-xs rounded-full flex items-center justify-center font-bold">
-                    {cartItemCount > 9 ? '9+' : cartItemCount}
+                    {cartItemCount > 9 ? "9+" : cartItemCount}
                   </span>
                 )}
               </Link>
@@ -1152,7 +1366,7 @@ export function Header() {
                       "absolute right-0 top-full w-56 pt-2 transition-all duration-200",
                       isAccountMenuOpen
                         ? "visible translate-y-0 opacity-100"
-                        : "invisible -translate-y-1 opacity-0"
+                        : "invisible -translate-y-1 opacity-0",
                     )}
                     role="menu"
                   >
@@ -1163,10 +1377,18 @@ export function Header() {
                       </div>
                       <div className="p-1">
                         {[
-                          { icon: LayoutDashboard, label: 'Dashboard', href: '/account' },
-                          { icon: Package, label: 'My Orders', href: '/account/orders' },
-                          { icon: Bell, label: 'Notifications', href: '/account/notifications' },
-                          { icon: Settings, label: 'Settings', href: '/account/settings' },
+                          { icon: LayoutDashboard, label: "Dashboard", href: "/account" },
+                          { icon: Package, label: "My Orders", href: "/account/orders" },
+                          {
+                            icon: Bell,
+                            label: "Notifications",
+                            href: "/account/notifications",
+                          },
+                          {
+                            icon: Settings,
+                            label: "Settings",
+                            href: "/account/settings",
+                          },
                         ].map(({ icon: Icon, label, href }) => (
                           <Link
                             key={href}
@@ -1261,8 +1483,14 @@ export function Header() {
               </div>
               <nav className="space-y-1">
                 {navLinks.map((link) => {
-                  const isCategoriesLink = 'module' in link && link.module === 'categories' || link.href === '/categories';
-                  if (isCategoriesLink && categoryDisplay.navbar_dropdown_enabled && navbarCategories.length > 0) {
+                  const isCategoriesLink =
+                    ("module" in link && link.module === "categories") ||
+                    link.href === "/categories";
+                  if (
+                    isCategoriesLink &&
+                    categoryDisplay.navbar_dropdown_enabled &&
+                    navbarCategories.length > 0
+                  ) {
                     return (
                       <div key={`${link.href}-${link.label}`} className="space-y-2">
                         <p className="px-4 py-2 font-medium">{link.label}</p>
@@ -1311,7 +1539,8 @@ export function Header() {
                     onClick={() => setIsMobileMenuOpen(false)}
                     className="flex items-center gap-3 rounded-xl px-4 py-3 transition-colors hover:bg-muted"
                   >
-                    <Heart size={18} /> Wishlist {wishlistItemCount > 0 && `(${wishlistItemCount})`}
+                    <Heart size={18} /> Wishlist{" "}
+                    {wishlistItemCount > 0 && `(${wishlistItemCount})`}
                   </Link>
                 ) : null}
                 <Link
@@ -1319,7 +1548,7 @@ export function Header() {
                   onClick={() => setIsMobileMenuOpen(false)}
                   className="flex items-center gap-3 rounded-xl px-4 py-3 transition-colors hover:bg-muted"
                 >
-                  <Package size={18} /> Track Order
+                  Track Order
                 </Link>
               </div>
             </div>
@@ -1351,4 +1580,3 @@ export function Header() {
     </>
   );
 }
-
