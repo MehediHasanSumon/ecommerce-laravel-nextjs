@@ -5,7 +5,7 @@ import { getMarketingConsent } from "@/lib/marketing-consent";
 
 const baseURL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/auth";
 const csrfCookieUrl = process.env.NEXT_PUBLIC_CSRF_COOKIE_URL;
-const authInvalidatedEvent = "luxecart-auth-invalidated";
+const authInvalidatedEvent = "auth-invalidated";
 
 let csrfPromise: Promise<void> | null = null;
 

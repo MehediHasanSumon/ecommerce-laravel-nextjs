@@ -99,8 +99,8 @@ return new class extends Migration
                 'display_position_anchor' => 'promo_banners',
                 'display_position_placement' => 'before',
                 'route_aliases' => json_encode(['/flash-sale']),
-                'meta_title' => 'Flash Sale | LuxeCart',
-                'meta_description' => 'Shop active flash sale products at LuxeCart.',
+                'meta_title' => 'Flash Sale',
+                'meta_description' => 'Shop active flash sale products.',
             ],
             [
                 'name' => 'Trending Now',
@@ -115,8 +115,8 @@ return new class extends Migration
                 'priority' => 40,
                 'display_position_anchor' => 'top_brands',
                 'display_position_placement' => 'before',
-                'meta_title' => 'Trending Now | LuxeCart',
-                'meta_description' => 'Browse trending products at LuxeCart.',
+                'meta_title' => 'Trending Now',
+                'meta_description' => 'Browse trending products.',
             ],
             [
                 'name' => 'Best Sellers',
@@ -133,8 +133,8 @@ return new class extends Migration
                 'display_position_anchor' => 'top_brands',
                 'display_position_placement' => 'before',
                 'route_aliases' => json_encode(['/best-sellers']),
-                'meta_title' => 'Best Sellers | LuxeCart',
-                'meta_description' => 'Shop bestselling products at LuxeCart.',
+                'meta_title' => 'Best Sellers',
+                'meta_description' => 'Shop bestselling products.',
             ],
             [
                 'name' => 'New Arrivals',
@@ -151,8 +151,8 @@ return new class extends Migration
                 'display_position_anchor' => 'products',
                 'display_position_placement' => 'before',
                 'route_aliases' => json_encode(['/new-arrivals']),
-                'meta_title' => 'New Arrivals | LuxeCart',
-                'meta_description' => 'Browse the latest published products at LuxeCart.',
+                'meta_title' => 'New Arrivals',
+                'meta_description' => 'Browse the latest published products.',
             ],
         ];
     }

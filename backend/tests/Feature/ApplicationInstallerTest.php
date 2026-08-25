@@ -119,6 +119,7 @@ it('installs settings roles permissions and the initial super admin idempotently
         ->expectsQuestion('Confirm Super Admin password', $password)
         ->expectsQuestion('Super Admin mobile number (optional)', '+8801700000000')
         ->expectsConfirmation('Would you like to create an Admin user?', 'no')
+        ->expectsConfirmation('Would you like to create a Customer (User)?', 'no')
         ->assertSuccessful();
 
     $user = User::query()->where('email', 'root@example.com')->firstOrFail();
@@ -140,6 +141,7 @@ it('installs settings roles permissions and the initial super admin idempotently
         ->expectsQuestion('Super Admin password (leave blank to keep the current password)', '')
         ->expectsQuestion('Super Admin mobile number (optional)', '+8801700000000')
         ->expectsConfirmation('Would you like to create an Admin user?', 'no')
+        ->expectsConfirmation('Would you like to create a Customer (User)?', 'no')
         ->assertSuccessful();
 
     $user->refresh();
@@ -153,11 +155,13 @@ it('installs settings roles permissions and the initial super admin idempotently
         ->and(Hash::check($password, $user->password))->toBeTrue();
 });
 
-it('can create the optional admin with the admin role', function (): void {
+it('can create the optional admin and customer with corresponding roles', function (): void {
     $password = 'Installer!Pass123';
     $adminPassword = 'Secondary!Pass123';
+    $userPassword = 'Customer!Pass123';
 
-    $this->artisan('app:install', ['--use-defaults' => true])
+    $this->artisan('app:install')
+        ->expectsQuestion('Company Name', 'My Awesome Store')
         ->expectsQuestion('Super Admin name', 'Root Admin')
         ->expectsQuestion('Super Admin email', 'root@example.com')
         ->expectsQuestion('Super Admin password', $password)
@@ -169,8 +173,16 @@ it('can create the optional admin with the admin role', function (): void {
         ->expectsQuestion('Admin password', $adminPassword)
         ->expectsQuestion('Confirm Admin password', $adminPassword)
         ->expectsQuestion('Admin mobile number (optional)', null)
+        ->expectsConfirmation('Would you like to create a Customer (User)?', 'yes')
+        ->expectsQuestion('Customer name', 'John Customer')
+        ->expectsQuestion('Customer email', 'customer@example.com')
+        ->expectsQuestion('Customer password', $userPassword)
+        ->expectsQuestion('Confirm Customer password', $userPassword)
+        ->expectsQuestion('Customer mobile number (optional)', null)
         ->assertSuccessful();
 
-    expect(User::query()->where('email', 'root@example.com')->firstOrFail()->hasRole('super-admin'))->toBeTrue()
-        ->and(User::query()->where('email', 'admin@example.com')->firstOrFail()->hasRole('admin'))->toBeTrue();
+    expect(CompanySetting::query()->first()->company_name)->toBe('My Awesome Store')
+        ->and(User::query()->where('email', 'root@example.com')->firstOrFail()->hasRole('super-admin'))->toBeTrue()
+        ->and(User::query()->where('email', 'admin@example.com')->firstOrFail()->hasRole('admin'))->toBeTrue()
+        ->and(User::query()->where('email', 'customer@example.com')->firstOrFail()->hasRole('user'))->toBeTrue();
 });

@@ -20,9 +20,9 @@ class BlogSeeder extends Seeder
             $appName = config('app.name', 'Ecommerce');
 
             $author = User::query()->firstOrCreate(
-                ['email' => 'editor@luxecart.test'],
+                ['email' => 'editor@example.com'],
                 [
-                    'name' => 'LuxeCart Editor',
+                    'name' => 'Content Editor',
                     'password' => Hash::make('password'),
                     'status' => 'active',
                     'email_verified_at' => now(),

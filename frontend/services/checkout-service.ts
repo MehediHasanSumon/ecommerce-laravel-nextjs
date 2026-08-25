@@ -10,7 +10,7 @@ const apiBaseUrl = (
 
 const client = createAuthAwareClient({ baseURL: apiBaseUrl });
 
-const GUEST_TOKEN_KEY = "luxecart-guest-token";
+const GUEST_TOKEN_KEY = "guest-token";
 
 function checkoutHeaders() {
   const guestToken = typeof window !== "undefined" ? window.localStorage.getItem(GUEST_TOKEN_KEY) : "";

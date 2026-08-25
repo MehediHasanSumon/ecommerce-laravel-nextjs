@@ -13,9 +13,9 @@ import { AppError, toAppError } from "@/lib/errors";
 import { useCartStore } from "@/store/cartStore";
 import { useWishlistStore } from "@/store/wishlistStore";
 
-const AUTH_LOGOUT_EVENT_KEY = "luxecart-auth-logout";
-const AUTH_USER_CACHE_KEY = "luxecart-auth-user";
-const AUTH_INVALIDATED_EVENT_KEY = "luxecart-auth-invalidated";
+const AUTH_LOGOUT_EVENT_KEY = "app-auth-logout";
+const AUTH_USER_CACHE_KEY = "app-auth-user";
+const AUTH_INVALIDATED_EVENT_KEY = "auth-invalidated";
 
 let currentUserPromise: Promise<User | null> | null = null;
 

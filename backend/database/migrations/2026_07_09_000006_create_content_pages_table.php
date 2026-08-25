@@ -45,8 +45,8 @@ return new class extends Migration
         return [
             [
                 'slug' => 'about',
-                'title' => 'About LuxeCart',
-                'description' => "We're on a mission to make premium shopping accessible to everyone. Founded in 2020, LuxeCart connects discerning shoppers with the world's best brands.",
+                'title' => 'About Us',
+                'description' => "We're on a mission to make premium shopping accessible to everyone. Founded with a vision to connect discerning shoppers with top quality products and trusted brands.",
                 'template' => 'about',
                 'payload' => json_encode([
                     'stats' => [
@@ -58,7 +58,7 @@ return new class extends Migration
                     'mission' => [
                         'title' => 'Our Mission',
                         'body' => [
-                            'At LuxeCart, we believe that premium quality should not come with a premium price tag. We work directly with top brands and manufacturers to bring you authentic products at fair prices.',
+                            'We believe that premium quality should not come with a premium price tag. We work directly with top brands and manufacturers to bring you authentic products at fair prices.',
                             'Our platform is built on three pillars: authenticity, accessibility, and sustainability. Every product we carry is verified genuine, and we are committed to reducing our environmental footprint.',
                         ],
                         'image' => 'https://images.unsplash.com/photo-1567401893414-76b7b1e5a7a5?w=800&auto=format&fit=crop',
@@ -76,8 +76,8 @@ return new class extends Migration
                         ['name' => 'Logistics Team', 'role' => 'Delivery Operations', 'avatar' => 'https://i.pravatar.cc/150?img=11'],
                     ],
                 ]),
-                'meta_title' => 'About LuxeCart',
-                'meta_description' => 'Learn about LuxeCart, our mission, values, and customer-first shopping experience.',
+                'meta_title' => 'About Us',
+                'meta_description' => 'Learn about our mission, values, and customer-first shopping experience.',
                 'is_active' => true,
                 'created_at' => $now,
                 'updated_at' => $now,
@@ -121,7 +121,7 @@ return new class extends Migration
                     ],
                 ]),
                 'meta_title' => 'Frequently Asked Questions',
-                'meta_description' => 'Answers to common LuxeCart ordering, shipping, payment, and product questions.',
+                'meta_description' => 'Answers to common ordering, shipping, payment, and product questions.',
                 'is_active' => true,
                 'created_at' => $now,
                 'updated_at' => $now,
@@ -129,7 +129,7 @@ return new class extends Migration
             [
                 'slug' => 'privacy',
                 'title' => 'Privacy Policy',
-                'description' => 'At LuxeCart, we take your privacy seriously. This Privacy Policy describes how we collect, use, and protect your personal information when you use our services.',
+                'description' => 'We take your privacy seriously. This Privacy Policy describes how we collect, use, and protect your personal information when you use our services.',
                 'template' => 'legal',
                 'payload' => json_encode([
                     'updatedLabel' => 'Last updated: July 9, 2026',
@@ -143,7 +143,7 @@ return new class extends Migration
                     ],
                 ]),
                 'meta_title' => 'Privacy Policy',
-                'meta_description' => 'LuxeCart privacy policy and customer data practices.',
+                'meta_description' => 'Privacy policy and customer data practices.',
                 'is_active' => true,
                 'created_at' => $now,
                 'updated_at' => $now,
@@ -151,22 +151,22 @@ return new class extends Migration
             [
                 'slug' => 'terms',
                 'title' => 'Terms & Conditions',
-                'description' => 'These Terms and Conditions govern your access to and use of LuxeCart services.',
+                'description' => 'These Terms and Conditions govern your access to and use of our services.',
                 'template' => 'legal',
                 'payload' => json_encode([
                     'updatedLabel' => 'Last updated: July 9, 2026',
                     'sections' => [
-                        ['title' => 'Acceptance of Terms', 'content' => 'By accessing and using LuxeCart, you agree to be bound by these Terms and Conditions.'],
+                        ['title' => 'Acceptance of Terms', 'content' => 'By accessing and using our store, you agree to be bound by these Terms and Conditions.'],
                         ['title' => 'Account Registration', 'content' => 'You are responsible for maintaining accurate account information and protecting your account credentials.'],
                         ['title' => 'Products & Pricing', 'content' => 'Products are subject to availability. Pricing, offers, and promotions may change according to catalog and campaign settings.'],
                         ['title' => 'Orders & Payment', 'content' => 'Orders are processed through checkout and confirmed according to payment verification and order validation rules.'],
                         ['title' => 'Returns & Refunds', 'content' => 'Return and refund eligibility depends on order status, product condition, and the published return policy.'],
-                        ['title' => 'Limitation of Liability', 'content' => 'LuxeCart is not liable for indirect or consequential damages arising from use of the service where limited by applicable law.'],
+                        ['title' => 'Limitation of Liability', 'content' => 'We are not liable for indirect or consequential damages arising from use of the service where limited by applicable law.'],
                     ],
                     'contact' => ['label' => 'For questions about these Terms, contact support.', 'href' => '/contact'],
                 ]),
                 'meta_title' => 'Terms & Conditions',
-                'meta_description' => 'LuxeCart terms and conditions for customers.',
+                'meta_description' => 'Terms and conditions for customers.',
                 'is_active' => true,
                 'created_at' => $now,
                 'updated_at' => $now,

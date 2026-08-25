@@ -6,12 +6,14 @@ class SettingsDefaults
 {
     public static function company(): array
     {
+        $appName = config('app.name', 'Ecommerce');
+
         return [
-            'company_name' => 'LuxeCart',
-            'legal_company_name' => 'LuxeCart Commerce Ltd.',
-            'company_email' => 'hello@luxecart.test',
+            'company_name' => $appName,
+            'legal_company_name' => $appName.' Ltd.',
+            'company_email' => 'hello@example.com',
             'company_phone' => '+880 1700-000000',
-            'support_email' => 'support@luxecart.test',
+            'support_email' => 'support@example.com',
             'support_phone' => '+880 1700-000001',
             'logo' => null,
             'dark_logo' => null,
@@ -31,7 +33,7 @@ class SettingsDefaults
             'date_format' => 'd M Y',
             'time_format' => '12h',
             'invoice_prefix' => 'INV',
-            'invoice_footer' => 'Thank you for shopping with LuxeCart.',
+            'invoice_footer' => 'Thank you for shopping with us.',
         ];
     }
 
@@ -175,7 +177,7 @@ class SettingsDefaults
             'site_title' => $appName,
             'meta_title' => $appName.' - Modern Online Shopping',
             'meta_description' => 'Shop curated fashion, electronics, lifestyle products, and daily essentials at '.$appName.'.',
-            'meta_keywords' => 'online shopping,ecommerce,luxecart,bangladesh',
+            'meta_keywords' => 'online shopping,ecommerce,bangladesh',
             'canonical_url' => config('app.url'),
             'robots_index' => true,
             'robots_follow' => true,

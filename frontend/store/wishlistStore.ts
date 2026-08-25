@@ -5,7 +5,7 @@ import type { Product, WishlistItem } from '@/types';
 import { wishlistService, type WishlistApiResponse } from '@/services/wishlist-service';
 import { useAuthStore } from '@/store/auth-store';
 
-const GUEST_TOKEN_KEY = 'luxecart-guest-token';
+const GUEST_TOKEN_KEY = 'guest-token';
 
 function browserGuestToken() {
   if (typeof window === 'undefined') {

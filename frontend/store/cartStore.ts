@@ -11,8 +11,8 @@ import {
 import { useAuthStore } from '@/store/auth-store';
 import { firstValidationMessage, toAppError } from '@/lib/errors';
 
-const GUEST_TOKEN_KEY = 'luxecart-guest-token';
-const CART_STORAGE_PREFIXES = ['luxecart-cart', 'cart'];
+const GUEST_TOKEN_KEY = 'guest-token';
+const CART_STORAGE_PREFIXES = ['cart', 'app-cart'];
 
 let cartInitializePromise: Promise<void> | null = null;
 

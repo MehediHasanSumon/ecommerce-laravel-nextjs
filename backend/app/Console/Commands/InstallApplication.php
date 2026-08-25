@@ -22,9 +22,10 @@ use Throwable;
 class InstallApplication extends Command
 {
     protected $signature = 'app:install
-        {--use-defaults : Keep existing values or accept model/database defaults without prompting for settings}';
+        {--company-name= : Set the company name directly}
+        {--use-defaults : Use default company name without prompting}';
 
-    protected $description = 'Interactively install and configure the application';
+    protected $description = 'Quickly install and configure the application with company name, roles, permissions, and accounts';
 
     public function __construct(
         private readonly InteractiveSettingsConfigurator $settings,
@@ -54,28 +55,48 @@ class InstallApplication extends Command
         $this->line('Existing records are updated in place, so this command can be run safely more than once.');
 
         try {
-            $this->components->twoColumnDetail('Step 1 of 5', 'Company Settings');
-            $companyValues = $this->settings->collect(
-                $this,
-                CompanySetting::class,
-                SettingsDefaults::company(),
-                (bool) $this->option('use-defaults'),
-            );
+            $existingCompany = CompanySetting::query()->first();
+            $defaultCompanyName = $existingCompany?->company_name ?: config('app.name', 'Ecommerce');
 
-            $this->components->twoColumnDetail('Step 2 of 5', 'Store Settings');
-            $storeValues = $this->settings->collect(
-                $this,
-                StoreSetting::class,
-                SettingsDefaults::store(),
-                (bool) $this->option('use-defaults'),
-            );
+            $this->components->twoColumnDetail('Step 1 of 5', 'Company Name');
+            if ($this->option('company-name')) {
+                $companyName = (string) $this->option('company-name');
+            } elseif ($this->option('use-defaults')) {
+                $companyName = $defaultCompanyName;
+            } else {
+                $companyName = $this->askValidated(
+                    'Company Name',
+                    ['required', 'string', 'max:255'],
+                    default: $defaultCompanyName,
+                );
+            }
 
-            $this->components->twoColumnDetail('Step 3 of 5', 'Super Admin');
+            $companyValues = SettingsDefaults::company();
+            if ($existingCompany) {
+                $companyValues = array_merge($companyValues, array_filter($existingCompany->toArray(), fn ($v) => $v !== null));
+            }
+            $companyValues['company_name'] = $companyName;
+            $companyValues['legal_company_name'] = $companyName.' Ltd.';
+            $companyValues['invoice_footer'] = "Thank you for shopping with {$companyName}.";
+
+            $existingStore = StoreSetting::query()->first();
+            $storeValues = SettingsDefaults::store();
+            if ($existingStore) {
+                $storeValues = array_merge($storeValues, array_filter($existingStore->toArray(), fn ($v) => $v !== null));
+            }
+
+            $this->components->twoColumnDetail('Step 2 of 5', 'Super Admin Account');
             $superAdminData = $this->collectAccount('Super Admin');
 
-            $this->components->twoColumnDetail('Step 4 of 5', 'Optional Admin');
+            $this->components->twoColumnDetail('Step 3 of 5', 'Optional Admin Account');
             $adminData = $this->confirm('Would you like to create an Admin user?', false)
-                ? $this->collectAccount('Admin', $superAdminData['email'])
+                ? $this->collectAccount('Admin', [$superAdminData['email']])
+                : null;
+
+            $this->components->twoColumnDetail('Step 4 of 5', 'Optional Customer Account');
+            $excludedEmails = array_filter([$superAdminData['email'], $adminData['email'] ?? null]);
+            $userData = $this->confirm('Would you like to create a Customer (User)?', false)
+                ? $this->collectAccount('Customer', $excludedEmails)
                 : null;
 
             $this->components->twoColumnDetail('Step 5 of 5', 'Installing');
@@ -84,6 +105,7 @@ class InstallApplication extends Command
                 $storeValues,
                 $superAdminData,
                 $adminData,
+                $userData,
             );
         } catch (Throwable $exception) {
             report($exception);
@@ -97,12 +119,12 @@ class InstallApplication extends Command
         $this->table(
             ['Item', 'Result'],
             [
-                ['Company Settings', 'Configured'],
-                ['Store Settings', 'Configured'],
+                ['Company Name', $summary['company_name']],
                 ['Roles', (string) $summary['roles']],
                 ['Permissions', (string) $summary['permissions']],
                 ['Super Admin', $summary['super_admin']],
                 ['Admin', $summary['admin'] ?? 'Not created'],
+                ['Customer (User)', $summary['user'] ?? 'Not created'],
             ],
         );
 
@@ -114,13 +136,15 @@ class InstallApplication extends Command
      * @param  array<string, mixed>  $storeValues
      * @param  array<string, mixed>  $superAdminData
      * @param  array<string, mixed>|null  $adminData
-     * @return array{roles: int, permissions: int, super_admin: string, admin: string|null}
+     * @param  array<string, mixed>|null  $userData
+     * @return array{roles: int, permissions: int, company_name: string, super_admin: string, admin: string|null, user: string|null}
      */
     private function install(
         array $companyValues,
         array $storeValues,
         array $superAdminData,
         ?array $adminData,
+        ?array $userData = null,
     ): array {
         $progress = $this->output->createProgressBar(4);
         $progress->start();
@@ -131,6 +155,7 @@ class InstallApplication extends Command
                 $storeValues,
                 $superAdminData,
                 $adminData,
+                $userData,
                 $progress,
             ): array {
                 $this->settings->save(CompanySetting::class, $companyValues);
@@ -145,12 +170,15 @@ class InstallApplication extends Command
 
                 $superAdmin = $this->accounts->install($superAdminData, 'super-admin');
                 $admin = $adminData ? $this->accounts->install($adminData, 'admin') : null;
+                $user = $userData ? $this->accounts->install($userData, 'user') : null;
                 $progress->advance();
 
                 return [
                     ...$roleSummary,
+                    'company_name' => $companyValues['company_name'] ?? 'Ecommerce',
                     'super_admin' => "{$superAdmin->name} <{$superAdmin->email}>",
                     'admin' => $admin ? "{$admin->name} <{$admin->email}>" : null,
+                    'user' => $user ? "{$user->name} <{$user->email}>" : null,
                 ];
             });
         } finally {
@@ -161,10 +189,15 @@ class InstallApplication extends Command
     }
 
     /**
+     * @param  list<string>|string|null  $differentFromEmail
      * @return array{name: string, email: string, phone?: string|null, password: string|null}
      */
-    private function collectAccount(string $label, ?string $differentFromEmail = null): array
+    private function collectAccount(string $label, array|string|null $differentFromEmail = null): array
     {
+        $excluded = is_array($differentFromEmail)
+            ? $differentFromEmail
+            : ($differentFromEmail !== null ? [$differentFromEmail] : []);
+
         $name = $this->askValidated(
             "{$label} name",
             ['required', 'string', 'max:255'],
@@ -172,10 +205,14 @@ class InstallApplication extends Command
         $email = $this->askValidated(
             "{$label} email",
             ['required', 'email', 'max:255'],
-            function (string $email) use ($differentFromEmail): ?string {
-                return $differentFromEmail !== null && strcasecmp($email, $differentFromEmail) === 0
-                    ? 'The Admin email must be different from the Super Admin email.'
-                    : null;
+            function (string $email) use ($excluded, $label): ?string {
+                foreach ($excluded as $other) {
+                    if (strcasecmp($email, $other) === 0) {
+                        return "The {$label} email must be different from already specified accounts.";
+                    }
+                }
+
+                return null;
             },
         );
         $existing = User::withTrashed()->where('email', $email)->first();
