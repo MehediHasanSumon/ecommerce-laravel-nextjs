@@ -13,6 +13,10 @@ return new class extends Migration
             $table->boolean('enable_product_section')->default(true);
             $table->unsignedSmallInteger('products_per_section')->default(20);
             $table->boolean('enable_testimonial_section')->default(true);
+            $table->boolean('announcement_enabled')->default(true);
+            $table->string('announcement_text')->nullable()->default('Free shipping on orders over ৳75.00! Limited time offer.');
+            $table->string('announcement_link_text')->nullable()->default('Shop Now');
+            $table->string('announcement_link_url')->nullable()->default('/shop');
             $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
         });

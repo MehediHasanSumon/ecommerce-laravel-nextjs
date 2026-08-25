@@ -18,6 +18,8 @@ return new class extends Migration
             $table->longText('content');
             $table->string('meta_title')->nullable();
             $table->text('meta_description')->nullable();
+            $table->text('meta_keywords')->nullable();
+            $table->string('canonical_url')->nullable();
             $table->string('open_graph_image')->nullable();
             $table->string('status', 20)->default('draft')->index();
             $table->timestamp('published_at')->nullable()->index();

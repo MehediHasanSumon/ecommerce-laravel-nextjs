@@ -15,11 +15,8 @@ return new class extends Migration
             $table->boolean('slider_autoplay')->default(true);
             $table->unsignedInteger('autoplay_delay')->default(6000);
             $table->boolean('infinite_loop')->default(true);
-            $table->unsignedInteger('transition_speed')->default(500);
-            $table->string('transition_effect', 24)->default('slide');
             $table->boolean('show_navigation')->default(true);
             $table->boolean('show_pagination')->default(true);
-            $table->boolean('keyboard_navigation')->default(true);
             $table->boolean('swipe_support')->default(true);
             $table->boolean('pause_on_hover')->default(true);
             $table->boolean('lazy_load_images')->default(true);
@@ -63,7 +60,6 @@ return new class extends Migration
             $table->json('content')->nullable();
             $table->json('style')->nullable();
             $table->json('responsive')->nullable();
-            $table->json('animation')->nullable();
             $table->unsignedInteger('z_index')->default(1)->index();
             $table->boolean('locked')->default(false);
             $table->boolean('hidden')->default(false);

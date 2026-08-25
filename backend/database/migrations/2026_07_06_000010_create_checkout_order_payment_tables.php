@@ -13,6 +13,7 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained()->cascadeOnDelete()->cascadeOnUpdate();
             $table->string('full_name');
             $table->string('phone', 40);
+            $table->string('alternative_phone', 40)->nullable();
             $table->string('email')->nullable();
             $table->string('country', 100);
             $table->string('state', 120);
@@ -21,6 +22,9 @@ return new class extends Migration
             $table->string('area', 120)->nullable();
             $table->string('postal_code', 40)->nullable();
             $table->text('address_line');
+            $table->string('landmark', 255)->nullable();
+            $table->string('address_label', 40)->nullable();
+            $table->string('duplicate_fingerprint', 64)->nullable();
             $table->boolean('is_default_billing')->default(false)->index();
             $table->boolean('is_default_shipping')->default(false)->index();
             $table->timestamps();
@@ -28,19 +32,40 @@ return new class extends Migration
 
             $table->index(['user_id', 'is_default_billing']);
             $table->index(['user_id', 'is_default_shipping']);
+            $table->index(['user_id', 'duplicate_fingerprint']);
+        });
+
+        Schema::create('guest_customers', function (Blueprint $table): void {
+            $table->id();
+            $table->foreignId('linked_user_id')->nullable()->constrained('users')->nullOnDelete()->cascadeOnUpdate();
+            $table->string('name');
+            $table->string('email')->nullable()->index();
+            $table->string('phone', 40)->index();
+            $table->json('billing_address')->nullable();
+            $table->json('shipping_address')->nullable();
+            $table->string('status', 24)->default('active')->index();
+            $table->text('notes')->nullable();
+            $table->timestamp('last_order_at')->nullable()->index();
+            $table->timestamps();
+
+            $table->index(['email', 'phone']);
         });
 
         Schema::create('orders', function (Blueprint $table): void {
             $table->id();
             $table->string('order_number', 40)->unique();
             $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete()->cascadeOnUpdate();
+            $table->foreignId('guest_customer_id')->nullable()->constrained('guest_customers')->nullOnDelete()->cascadeOnUpdate();
             $table->foreignId('cart_id')->nullable()->constrained()->nullOnDelete()->cascadeOnUpdate();
             $table->string('guest_token', 120)->nullable()->index();
             $table->string('status', 40)->default('pending')->index();
             $table->string('payment_status', 40)->default('pending')->index();
+            $table->string('shipping_status', 40)->default('pending')->index();
             $table->string('payment_method', 80)->index();
             $table->foreignId('shipping_method_id')->nullable()->constrained('shipping_methods')->nullOnDelete()->cascadeOnUpdate();
             $table->string('shipping_method_name')->nullable();
+            $table->foreignId('shipping_zone_id')->nullable()->constrained('shipping_zones')->nullOnDelete()->cascadeOnUpdate();
+            $table->string('shipping_zone_name')->nullable();
             $table->string('currency', 10)->default('BDT');
             $table->unsignedBigInteger('subtotal_cents')->default(0);
             $table->unsignedBigInteger('item_discount_cents')->default(0);
@@ -53,21 +78,30 @@ return new class extends Migration
             $table->json('billing_address');
             $table->json('shipping_address');
             $table->json('summary_snapshot');
+            $table->text('customer_notes')->nullable();
+            $table->text('admin_notes')->nullable();
+            $table->text('delivery_notes')->nullable();
+            $table->string('source', 24)->default('storefront')->index();
             $table->string('client_ip', 45)->nullable();
             $table->text('user_agent')->nullable();
             $table->timestamp('placed_at')->nullable()->index();
+            $table->timestamp('inventory_released_at')->nullable();
             $table->timestamps();
             $table->softDeletes();
 
             $table->index(['user_id', 'status']);
             $table->index(['payment_method', 'payment_status']);
+            $table->index(['payment_status', 'placed_at'], 'orders_payment_status_placed_index');
+            $table->index(['status', 'placed_at'], 'orders_status_placed_index');
+            $table->index(['user_id', 'placed_at'], 'orders_user_placed_index');
+            $table->index(['guest_customer_id', 'placed_at'], 'orders_guest_customer_placed_index');
         });
 
         Schema::create('order_items', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('order_id')->constrained()->cascadeOnDelete()->cascadeOnUpdate();
-            $table->foreignId('product_id')->nullable()->constrained()->nullOnDelete()->cascadeOnUpdate();
-            $table->foreignId('product_variant_id')->nullable()->constrained('product_variants')->nullOnDelete()->cascadeOnUpdate();
+            $table->unsignedBigInteger('product_id')->nullable()->index();
+            $table->unsignedBigInteger('product_variant_id')->nullable()->index();
             $table->string('product_name');
             $table->string('sku')->nullable();
             $table->unsignedInteger('quantity');
@@ -81,6 +115,48 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index(['order_id', 'product_id']);
+        });
+
+        Schema::create('order_status_histories', function (Blueprint $table): void {
+            $table->id();
+            $table->foreignId('order_id')->constrained()->cascadeOnDelete()->cascadeOnUpdate();
+            $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete()->cascadeOnUpdate();
+            $table->string('type', 40)->index();
+            $table->string('from_status', 40)->nullable();
+            $table->string('to_status', 40);
+            $table->string('title');
+            $table->text('note')->nullable();
+            $table->json('payload')->nullable();
+            $table->timestamps();
+
+            $table->index(['order_id', 'type']);
+        });
+
+        Schema::create('order_refunds', function (Blueprint $table): void {
+            $table->id();
+            $table->foreignId('order_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
+            $table->unsignedBigInteger('amount_cents');
+            $table->string('status', 40)->default('pending')->index();
+            $table->string('reason')->nullable();
+            $table->text('note')->nullable();
+            $table->json('payload')->nullable();
+            $table->timestamp('processed_at')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('shipping_logs', function (Blueprint $table): void {
+            $table->id();
+            $table->foreignId('order_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
+            $table->string('status', 60)->index();
+            $table->string('courier')->nullable();
+            $table->string('tracking_number')->nullable()->index();
+            $table->string('tracking_url')->nullable();
+            $table->text('note')->nullable();
+            $table->timestamp('shipped_at')->nullable();
+            $table->timestamp('delivered_at')->nullable();
+            $table->timestamps();
         });
 
         Schema::create('checkout_sessions', function (Blueprint $table): void {
@@ -119,6 +195,8 @@ return new class extends Migration
 
             $table->unique(['gateway', 'gateway_transaction_id']);
             $table->index(['order_id', 'status']);
+            $table->index(['status', 'created_at'], 'payment_transactions_status_created_index');
+            $table->index(['gateway', 'status', 'created_at'], 'payment_transactions_gateway_status_created_index');
         });
 
         Schema::create('payment_logs', function (Blueprint $table): void {
@@ -139,8 +217,12 @@ return new class extends Migration
         Schema::dropIfExists('payment_logs');
         Schema::dropIfExists('payment_transactions');
         Schema::dropIfExists('checkout_sessions');
+        Schema::dropIfExists('shipping_logs');
+        Schema::dropIfExists('order_refunds');
+        Schema::dropIfExists('order_status_histories');
         Schema::dropIfExists('order_items');
         Schema::dropIfExists('orders');
+        Schema::dropIfExists('guest_customers');
         Schema::dropIfExists('customer_addresses');
     }
 };

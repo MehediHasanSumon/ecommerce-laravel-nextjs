@@ -8,48 +8,29 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('users', function (Blueprint $table): void {
-            if (! Schema::hasColumn('users', 'phone')) {
-                $table->string('phone', 40)->nullable()->after('email');
-            }
-            if (! Schema::hasColumn('users', 'date_of_birth')) {
-                $table->date('date_of_birth')->nullable()->after('phone');
-            }
-            if (! Schema::hasColumn('users', 'gender')) {
-                $table->string('gender', 30)->nullable()->after('date_of_birth');
-            }
-            if (! Schema::hasColumn('users', 'avatar')) {
-                $table->string('avatar')->nullable()->after('gender');
-            }
-            if (! Schema::hasColumn('users', 'account_preferences')) {
-                $table->json('account_preferences')->nullable()->after('avatar');
-            }
-        });
-
         Schema::create('customer_notifications', function (Blueprint $table): void {
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete()->cascadeOnUpdate();
+            $table->string('notifiable_type')->nullable();
+            $table->unsignedBigInteger('notifiable_id')->nullable();
             $table->string('type', 40)->default('account')->index();
+            $table->string('icon', 60)->nullable();
             $table->string('title');
             $table->text('message');
+            $table->string('action_url')->nullable();
             $table->json('payload')->nullable();
             $table->timestamp('read_at')->nullable()->index();
             $table->timestamps();
 
             $table->index(['user_id', 'read_at']);
+            $table->index(['user_id', 'read_at', 'created_at'], 'customer_notifications_user_read_created_index');
+            $table->index(['notifiable_type', 'notifiable_id'], 'customer_notifications_notifiable_index');
+            $table->index(['user_id', 'type', 'created_at'], 'customer_notifications_user_type_created_index');
         });
     }
 
     public function down(): void
     {
         Schema::dropIfExists('customer_notifications');
-
-        Schema::table('users', function (Blueprint $table): void {
-            foreach (['phone', 'date_of_birth', 'gender', 'avatar', 'account_preferences'] as $column) {
-                if (Schema::hasColumn('users', $column)) {
-                    $table->dropColumn($column);
-                }
-            }
-        });
     }
 };

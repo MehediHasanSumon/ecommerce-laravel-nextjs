@@ -18,6 +18,11 @@ return new class extends Migration
             $table->json('payload')->nullable();
             $table->string('meta_title')->nullable();
             $table->text('meta_description')->nullable();
+            $table->text('meta_keywords')->nullable();
+            $table->string('canonical_url')->nullable();
+            $table->string('og_title')->nullable();
+            $table->text('og_description')->nullable();
+            $table->text('og_image_url')->nullable();
             $table->boolean('is_active')->default(true);
             $table->timestamps();
             $table->softDeletes();
