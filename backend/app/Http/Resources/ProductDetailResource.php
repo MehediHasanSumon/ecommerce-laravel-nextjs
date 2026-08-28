@@ -238,16 +238,18 @@ class ProductDetailResource extends JsonResource
     private function variantPayload(ProductVariant $variant): array
     {
         $options = $variant->attributeValues
-            ->mapWithKeys(fn (ProductAttributeValue $value) => [
-                $value->attribute?->name ?: 'Option' => [
-                    'id' => $value->id,
-                    'name' => $value->value,
-                    'value' => $value->slug,
-                    'display_value' => $value->display_value,
-                    'hex' => $value->hex_color,
-                ],
-            ])
-            ->all();
+            ? $variant->attributeValues
+                ->mapWithKeys(fn (ProductAttributeValue $value) => [
+                    $value->attribute?->name ?: 'Option' => [
+                        'id' => $value->id,
+                        'name' => $value->value,
+                        'value' => $value->slug,
+                        'display_value' => $value->display_value,
+                        'hex' => $value->hex_color,
+                    ],
+                ])
+                ->all()
+            : [];
 
         return [
             'id' => (string) $variant->id,

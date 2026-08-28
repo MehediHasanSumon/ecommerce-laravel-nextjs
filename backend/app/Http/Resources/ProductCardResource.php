@@ -63,7 +63,7 @@ class ProductCardResource extends JsonResource
             'reviewCount' => (int) ($this->review_count ?? 0),
             'stock' => $stock,
             'sku' => $hasVariants ? ($primaryVariant?->sku ?: '') : ($this->sku ?: ''),
-            'tags' => $this->tags->pluck('name')->values()->all(),
+            'tags' => $this->tags ? $this->tags->pluck('name')->values()->all() : [],
             'badge' => $this->badge(),
             'isFeatured' => (bool) $this->is_featured,
             'isNew' => (bool) $this->is_new,
