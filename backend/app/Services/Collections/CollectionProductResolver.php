@@ -154,8 +154,8 @@ class CollectionProductResolver
 
         $smartQuery = Product::query()
             ->whereIn('products.id', $productIds)
-            ->where('status', 'active')
-            ->whereNotNull('published_at');
+            ->where('products.status', 'active')
+            ->where(fn (Builder $query) => $query->whereNull('products.published_at')->orWhere('products.published_at', '<=', now()));
         $this->applySmartRule($smartQuery, $collection);
 
         return $smartQuery->reorder()
@@ -168,8 +168,8 @@ class CollectionProductResolver
     private function baseProductQuery(): Builder
     {
         return Product::query()
-            ->where('status', 'active')
-            ->whereNotNull('published_at')
+            ->where('products.status', 'active')
+            ->where(fn (Builder $query) => $query->whereNull('products.published_at')->orWhere('products.published_at', '<=', now()))
             ->withSellableVariantMetrics()
             ->whereSellableAvailable()
             ->with([
@@ -185,7 +185,7 @@ class CollectionProductResolver
         if ($collection->collection_type === 'manual' || $collection->type === 'manual') {
             return $collection->products()
                 ->where('products.status', 'active')
-                ->whereNotNull('products.published_at')
+                ->where(fn (Builder $query) => $query->whereNull('products.published_at')->orWhere('products.published_at', '<=', now()))
                 ->withSellableVariantMetrics()
                 ->whereSellableAvailable()
                 ->with([
@@ -195,14 +195,13 @@ class CollectionProductResolver
                     'tags:id,name',
                 ])
                 ->orderBy('product_collection_product.sort_order')
-                ->orderByDesc('products.published_at')
                 ->orderByDesc('products.created_at');
         }
 
         $smartIds = Product::query()
             ->select('products.id')
             ->where('products.status', 'active')
-            ->whereNotNull('products.published_at');
+            ->where(fn (Builder $query) => $query->whereNull('products.published_at')->orWhere('products.published_at', '<=', now()));
         $this->applySmartRule($smartIds, $collection);
         $smartIds->reorder();
         $assignedIds = DB::table('product_collection_product')
@@ -213,7 +212,6 @@ class CollectionProductResolver
             ->where(fn (Builder $query) => $query
                 ->whereIn('products.id', $smartIds)
                 ->orWhereIn('products.id', $assignedIds))
-            ->orderByDesc('products.published_at')
             ->orderByDesc('products.created_at');
     }
 
@@ -222,26 +220,24 @@ class CollectionProductResolver
         match ($collection->rule_key) {
             'flash_sale' => $query
                 ->where('is_flash_sale', true)
-                ->whereNotNull('flash_sale_ends_at')
-                ->where('flash_sale_ends_at', '>', now())
+                ->where(fn ($q) => $q->whereNull('flash_sale_ends_at')->orWhere('flash_sale_ends_at', '>', now()))
                 ->orderBy('flash_sale_ends_at')
                 ->orderByDesc('review_count'),
             'trending' => $query
                 ->orderByDesc('review_count')
                 ->orderByDesc('rating_average')
                 ->orderByDesc('is_featured')
-                ->latest('published_at'),
+                ->latest('created_at'),
             'best_sellers' => $query
                 ->orderByDesc('is_best_seller')
                 ->orderByDesc('review_count')
                 ->orderByDesc('rating_average')
-                ->latest('published_at'),
+                ->latest('created_at'),
             'new_arrivals', 'recently_added' => $query
-                ->latest('published_at')
                 ->latest('created_at'),
             'featured' => $query
                 ->where('is_featured', true)
-                ->latest('published_at'),
+                ->latest('created_at'),
             default => $this->applyConfiguredRules($query, (array) $collection->rules),
         };
     }
@@ -266,6 +262,6 @@ class CollectionProductResolver
             };
         }
 
-        $query->latest('published_at')->latest('created_at');
+        $query->latest('created_at');
     }
 }

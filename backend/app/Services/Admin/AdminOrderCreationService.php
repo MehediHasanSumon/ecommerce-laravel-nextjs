@@ -83,7 +83,7 @@ class AdminOrderCreationService
     {
         return Product::query()
             ->where('status', 'active')
-            ->whereNotNull('published_at')
+            ->where(fn ($query) => $query->whereNull('published_at')->orWhere('published_at', '<=', now()))
             ->when($ids !== [], fn ($query) => $query->whereIn('id', $ids))
             ->when($ids === [] && $search !== '', fn ($query) => $query->where(fn ($query) => $query
                 ->where('name', 'like', "%{$search}%")

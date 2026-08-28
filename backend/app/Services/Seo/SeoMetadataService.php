@@ -96,7 +96,7 @@ class SeoMetadataService
                 $entries[] = $this->entry("{$base}/brands");
             }
 
-            Product::query()->where('status', 'active')->whereNotNull('published_at')->get(['slug', 'updated_at'])->each(
+            Product::query()->where('status', 'active')->where(fn ($q) => $q->whereNull('published_at')->orWhere('published_at', '<=', now()))->get(['slug', 'updated_at'])->each(
                 fn (Product $product) => $entries[] = $this->entry("{$base}/products/{$product->slug}", $product->updated_at)
             );
             Category::query()->where('status', 'active')->get(['slug', 'updated_at'])->each(

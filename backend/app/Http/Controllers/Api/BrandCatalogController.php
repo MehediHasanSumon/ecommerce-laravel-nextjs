@@ -80,7 +80,7 @@ class BrandCatalogController extends Controller
         $products = Product::query()
             ->where('status', 'active')
             ->where('brand_id', $brand->id)
-            ->whereNotNull('published_at')
+            ->where(fn (Builder $query) => $query->whereNull('published_at')->orWhere('published_at', '<=', now()))
             ->withSellableVariantMetrics()
             ->whereSellableAvailable()
             ->with([
@@ -90,7 +90,7 @@ class BrandCatalogController extends Controller
                 'tags:id,name',
             ])
             ->orderByDesc('is_featured')
-            ->latest('published_at')
+            ->latest('created_at')
             ->paginate((int) ($validated['per_page'] ?? 12))
             ->withQueryString();
 

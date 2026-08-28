@@ -85,7 +85,7 @@ class HomePageController extends Controller
     {
         return Product::query()
             ->where('status', 'active')
-            ->whereNotNull('published_at')
+            ->where(fn (Builder $query) => $query->whereNull('published_at')->orWhere('published_at', '<=', now()))
             ->withSellableVariantMetrics()
             ->whereSellableAvailable()
             ->with([

@@ -296,14 +296,31 @@ class ProductModuleService
             unset($data['products']);
             $this->applySlug($module, $model, $data);
             $data['type'] = ($data['collection_type'] ?? $data['type'] ?? 'manual') === 'smart' ? 'automatic' : 'manual';
+            $data['collection_type'] = $data['collection_type'] ?? ($data['type'] === 'automatic' ? 'smart' : 'manual');
             if (! (bool) ($data['discount_enabled'] ?? false)) {
                 $data['discount_type'] = null;
                 $data['discount_value'] = null;
             }
             $this->assignSortOrderOnCreate($module, $model, $data);
             $model->fill($data)->save();
-            $model->products()->sync(collect($products)->mapWithKeys(fn ($item) => [$item['id'] => ['sort_order' => $item['sort_order'] ?? 0]])->all());
-            $affectedProductIds = $affectedProductIds->merge(collect($products)->pluck('id'))->unique();
+
+            $syncData = collect($products)->mapWithKeys(function ($item, $index) {
+                if (is_array($item)) {
+                    $id = $item['id'] ?? null;
+                    $sortOrder = $item['sort_order'] ?? $index;
+                } elseif (is_object($item)) {
+                    $id = $item->id ?? null;
+                    $sortOrder = $item->sort_order ?? $index;
+                } else {
+                    $id = (int) $item;
+                    $sortOrder = $index;
+                }
+
+                return $id ? [$id => ['sort_order' => $sortOrder]] : [];
+            })->all();
+
+            $model->products()->sync($syncData);
+            $affectedProductIds = $affectedProductIds->merge(array_keys($syncData))->unique();
             DB::afterCommit(fn () => $this->searchIndexer->indexMany($affectedProductIds));
             $this->clearHomePageCache();
             $this->clearSeoCaches($module);
