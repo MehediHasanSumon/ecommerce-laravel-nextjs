@@ -12,28 +12,38 @@ class ProductCardResource extends JsonResource
     public function toArray(Request $request): array
     {
         $brandsEnabled = app(BrandSettingsService::class)->enabled();
-        $primaryImage = $this->images ? ($this->images->firstWhere('is_primary', true) ?? $this->images->first()) : null;
-        $imageUrl = PublicStorageImage::url($primaryImage?->url);
-        $images = $this->images
-            ? $this->images
-                ->map(fn ($image) => PublicStorageImage::object($image))
-                ->filter(fn (array $image): bool => filled($image['url']))
-                ->values()
-            : collect();
-        $activeVariantsCount = $this->active_variants_count;
 
+        $imagesCollection = $this->images instanceof \Illuminate\Support\Collection || is_array($this->images)
+            ? collect($this->images)
+            : collect();
+
+        $primaryImage = $imagesCollection->firstWhere('is_primary', true) ?? $imagesCollection->first();
+        $imageUrl = PublicStorageImage::url(is_object($primaryImage) ? ($primaryImage->url ?? null) : (is_array($primaryImage) ? ($primaryImage['url'] ?? null) : null));
+
+        $images = $imagesCollection
+            ->map(fn ($image) => PublicStorageImage::object($image))
+            ->filter(fn (array $image): bool => filled($image['url']))
+            ->values();
+
+        $activeVariantsCount = $this->active_variants_count;
         if ($activeVariantsCount === null) {
-            $activeVariantsCount = $this->variants()->where('status', 'active')->count();
+            if ($this->relationLoaded('variants') && $this->variants) {
+                $activeVariantsCount = $this->variants->where('status', 'active')->count();
+            } else {
+                $activeVariantsCount = $this->variants()->where('status', 'active')->count();
+            }
         }
 
         $hasVariants = (int) $activeVariantsCount > 0;
         $primaryVariant = $this->relationLoaded('primaryActiveVariant')
             ? $this->primaryActiveVariant
-            : ($hasVariants ? $this->primaryActiveVariant()->first() : null);
+            : ($hasVariants ? ($this->relationLoaded('variants') && $this->variants ? ($this->variants->firstWhere('is_primary', true) ?? $this->variants->first()) : $this->primaryActiveVariant()->first()) : null);
+
         $priceCents = $this->catalog_price_cents
-            ?? $this->effectivePriceCents($primaryVariant);
+            ?? ($this->resource instanceof Product ? $this->effectivePriceCents($primaryVariant) : $this->base_price_cents);
         $compareAtPriceCents = $this->catalog_compare_at_price_cents
-            ?? $this->effectiveCompareAtPriceCents($primaryVariant);
+            ?? ($this->resource instanceof Product ? $this->effectiveCompareAtPriceCents($primaryVariant) : $this->compare_at_price_cents);
+
         $stock = $hasVariants
             ? ($primaryVariant
                 ? ($primaryVariant->track_inventory
@@ -44,15 +54,19 @@ class ProductCardResource extends JsonResource
                 ? (int) ($this->stock_quantity ?? 0)
                 : max(1, (int) ($this->stock_quantity ?? 0)));
 
+        $tags = $this->tags instanceof \Illuminate\Support\Collection || is_array($this->tags)
+            ? collect($this->tags)->pluck('name')->filter()->values()->all()
+            : [];
+
         return [
             'id' => (string) $this->id,
-            'slug' => $this->slug,
-            'name' => $this->name,
-            'description' => $this->short_description ?: '',
-            'longDescription' => $this->description,
-            'price' => round(((int) $priceCents) / 100, 2),
+            'slug' => (string) ($this->slug ?? ''),
+            'name' => (string) ($this->name ?? ''),
+            'description' => (string) ($this->short_description ?: ''),
+            'longDescription' => (string) ($this->description ?: ''),
+            'price' => round(((int) ($priceCents ?? 0)) / 100, 2),
             'originalPrice' => $compareAtPriceCents ? round(((int) $compareAtPriceCents) / 100, 2) : null,
-            'discount' => $this->discountPercent($priceCents, $compareAtPriceCents),
+            'discount' => $this->discountPercent($priceCents !== null ? (int) $priceCents : null, $compareAtPriceCents !== null ? (int) $compareAtPriceCents : null),
             'category' => $this->category?->name ?: '',
             'categorySlug' => $this->category?->slug ?: '',
             'brand' => $brandsEnabled ? ($this->brand?->name ?: '') : '',
@@ -63,7 +77,7 @@ class ProductCardResource extends JsonResource
             'reviewCount' => (int) ($this->review_count ?? 0),
             'stock' => $stock,
             'sku' => $hasVariants ? ($primaryVariant?->sku ?: '') : ($this->sku ?: ''),
-            'tags' => $this->tags ? $this->tags->pluck('name')->values()->all() : [],
+            'tags' => $tags,
             'badge' => $this->badge(),
             'isFeatured' => (bool) $this->is_featured,
             'isNew' => (bool) $this->is_new,
@@ -79,7 +93,7 @@ class ProductCardResource extends JsonResource
 
     private function discountPercent(?int $priceCents, ?int $compareAtPriceCents): ?int
     {
-        if (! $compareAtPriceCents || $compareAtPriceCents <= $priceCents) {
+        if (! $compareAtPriceCents || ! $priceCents || $compareAtPriceCents <= $priceCents) {
             return null;
         }
 
@@ -102,5 +116,4 @@ class ProductCardResource extends JsonResource
 
         return null;
     }
-
 }

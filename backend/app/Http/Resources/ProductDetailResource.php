@@ -193,19 +193,21 @@ class ProductDetailResource extends JsonResource
 
     private function relationProducts(string $type)
     {
-        if (! $this->relatedProducts) {
+        if (! $this->relatedProducts instanceof \Illuminate\Support\Collection && ! is_array($this->relatedProducts)) {
             return collect();
         }
 
-        return $this->relatedProducts
-            ->filter(fn (Product $product): bool => $product->pivot?->type === $type)
-            ->sortBy(fn (Product $product): int => (int) ($product->pivot?->sort_order ?? 0))
+        return collect($this->relatedProducts)
+            ->filter(fn ($product): bool => is_object($product) && ($product->pivot?->type ?? null) === $type)
+            ->sortBy(fn ($product): int => (int) ($product->pivot?->sort_order ?? 0))
             ->values();
     }
 
     private function similarProducts()
     {
-        $relatedIds = $this->relatedProducts ? $this->relatedProducts->pluck('id')->push($this->id)->all() : [$this->id];
+        $relatedIds = $this->relatedProducts instanceof \Illuminate\Support\Collection || is_array($this->relatedProducts)
+            ? collect($this->relatedProducts)->pluck('id')->filter()->push($this->id)->all()
+            : [$this->id];
         $brandsEnabled = app(BrandSettingsService::class)->enabled();
 
         return Product::query()
@@ -235,28 +237,36 @@ class ProductDetailResource extends JsonResource
             ->get();
     }
 
-    private function variantPayload(ProductVariant $variant): array
+    private function variantPayload(mixed $variant): array
     {
-        $options = $variant->attributeValues
-            ? $variant->attributeValues
+        if (! $variant instanceof ProductVariant) {
+            return [];
+        }
+
+        $options = $variant->attributeValues instanceof \Illuminate\Support\Collection || is_array($variant->attributeValues)
+            ? collect($variant->attributeValues)
+                ->filter(fn ($value) => $value instanceof ProductAttributeValue)
                 ->mapWithKeys(fn (ProductAttributeValue $value) => [
                     $value->attribute?->name ?: 'Option' => [
                         'id' => $value->id,
-                        'name' => $value->value,
-                        'value' => $value->slug,
-                        'display_value' => $value->display_value,
+                        'name' => (string) $value->value,
+                        'value' => (string) $value->slug,
+                        'display_value' => (string) ($value->display_value ?: $value->value),
                         'hex' => $value->hex_color,
                     ],
                 ])
                 ->all()
             : [];
 
+        $priceCents = $this->resource instanceof Product ? $this->effectivePriceCents($variant) : $variant->price_cents;
+        $compareAtPriceCents = $this->resource instanceof Product ? $this->effectiveCompareAtPriceCents($variant) : $variant->compare_at_price_cents;
+
         return [
             'id' => (string) $variant->id,
-            'sku' => $variant->sku,
-            'price' => $this->money($this->effectivePriceCents($variant)),
-            'originalPrice' => $this->effectiveCompareAtPriceCents($variant) !== null
-                ? $this->money($this->effectiveCompareAtPriceCents($variant))
+            'sku' => (string) ($variant->sku ?? ''),
+            'price' => $this->money($priceCents),
+            'originalPrice' => $compareAtPriceCents !== null
+                ? $this->money($compareAtPriceCents)
                 : null,
             'stock' => $variant->track_inventory ? (int) ($variant->stock_quantity ?? 0) : max(1, (int) ($variant->stock_quantity ?? 0)),
             'stockStatus' => ! $variant->track_inventory || (int) ($variant->stock_quantity ?? 0) > 0 ? 'in_stock' : 'out_of_stock',
