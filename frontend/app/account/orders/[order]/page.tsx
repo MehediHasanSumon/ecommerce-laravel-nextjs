@@ -297,15 +297,60 @@ function AddressPanel({ title, address }: { title: string; address: Record<strin
 }
 
 function VariantText({ selection }: { selection?: Record<string, unknown> | null }) {
-  const selectedOptions = selection?.selected_options;
-  const optionText = selectedOptions && typeof selectedOptions === "object"
-    ? Object.values(selectedOptions).map((value) => String(value)).filter(Boolean).join(" · ")
-    : "";
-  const attributes = selection?.selected_attributes;
-  const attributeText = Array.isArray(attributes) ? attributes.map((value) => String(value)).join(" · ") : "";
-  const text = optionText || attributeText || String(selection?.selected_variant ?? "");
+  if (!selection) return null;
 
-  return text ? <p className="mt-1 text-xs text-muted-foreground">{text}</p> : null;
+  const parts: string[] = [];
+
+  const variantLabel = selection.selected_variant;
+  if (typeof variantLabel === "string" && variantLabel.trim() !== "" && variantLabel !== "[object Object]") {
+    parts.push(variantLabel.trim());
+  }
+
+  const selectedOptions = selection.selected_options;
+  if (selectedOptions && typeof selectedOptions === "object") {
+    Object.entries(selectedOptions).forEach(([key, opt]) => {
+      if (!opt) return;
+      if (typeof opt === "string" || typeof opt === "number") {
+        parts.push(`${key}: ${opt}`);
+      } else if (typeof opt === "object") {
+        const optionObj = opt as Record<string, unknown>;
+        const label = String(optionObj.display_value ?? optionObj.name ?? optionObj.value ?? "");
+        if (label && label !== "[object Object]") {
+          parts.push(`${key}: ${label}`);
+        }
+      }
+    });
+  }
+
+  const attributes = selection.selected_attributes;
+  if (Array.isArray(attributes)) {
+    attributes.forEach((attr) => {
+      if (!attr) return;
+      if (typeof attr === "string" || typeof attr === "number") {
+        parts.push(String(attr));
+      } else if (typeof attr === "object") {
+        const attrObj = attr as Record<string, unknown>;
+        const name = String(attrObj.name ?? "");
+        const val = String(attrObj.label ?? attrObj.display_value ?? attrObj.value ?? "");
+        if (name && val && val !== "[object Object]") {
+          parts.push(`${name}: ${val}`);
+        } else if (val && val !== "[object Object]") {
+          parts.push(val);
+        }
+      }
+    });
+  }
+
+  if (typeof selection.selected_color === "string" && selection.selected_color) {
+    parts.push(`Color: ${selection.selected_color}`);
+  }
+  if (typeof selection.selected_size === "string" && selection.selected_size) {
+    parts.push(`Size: ${selection.selected_size}`);
+  }
+
+  const uniqueParts = Array.from(new Set(parts.filter((p) => p && p !== "[object Object]")));
+
+  return uniqueParts.length > 0 ? <p className="mt-1 text-xs text-muted-foreground">{uniqueParts.join(" · ")}</p> : null;
 }
 
 function label(value?: string | null) {
