@@ -13,14 +13,16 @@ const apiBaseUrl = (
   "http://localhost:8000/api/auth"
 ).replace(/\/auth\/?$/, "");
 
-async function fetchPublicData<T>(path: string, revalidate: number): Promise<T | null> {
+async function fetchPublicData<T>(path: string): Promise<T | null> {
   try {
     const response = await fetch(`${apiBaseUrl}${path}`, {
       headers: {
         Accept: "application/json",
         "X-Requested-With": "XMLHttpRequest",
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        Pragma: "no-cache",
       },
-      next: { revalidate },
+      cache: "no-store",
     });
 
     if (!response.ok) {
@@ -35,9 +37,9 @@ async function fetchPublicData<T>(path: string, revalidate: number): Promise<T |
 }
 
 export function getRuntimeSettings() {
-  return fetchPublicData<RuntimeSettings>("/settings/navigation", 600);
+  return fetchPublicData<RuntimeSettings>("/settings/navigation");
 }
 
 export function getHomePageSections() {
-  return fetchPublicData<HomePageSections>("/home-page", 300);
+  return fetchPublicData<HomePageSections>("/home-page");
 }

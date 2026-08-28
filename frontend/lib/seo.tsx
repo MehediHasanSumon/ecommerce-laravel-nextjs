@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { cache } from "react";
 
 const apiBaseUrl = (
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000/api/auth"
@@ -109,7 +108,13 @@ export function JsonLd({ data }: { data: Record<string, unknown> | null | undefi
 
 export async function sitemapEntries(): Promise<Array<{ url: string; lastModified?: string; changeFrequency?: string; priority?: number }>> {
   try {
-    const response = await fetch(`${apiBaseUrl}/seo/sitemap`, { next: { revalidate: 900 } });
+    const response = await fetch(`${apiBaseUrl}/seo/sitemap`, {
+      cache: "no-store",
+      headers: {
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        Pragma: "no-cache",
+      },
+    });
     if (!response.ok) return [];
     const json = (await response.json()) as ApiEnvelope<{ items: Array<{ url: string; lastModified?: string; changeFrequency?: string; priority?: number }> }>;
     return json.data.items;
@@ -123,10 +128,14 @@ async function metadataFromPayload(payload: SeoMetadataPayload): Promise<Metadat
   return toMetadata(mergeDefaults(payload, defaults));
 }
 
-const fetchDefaults = cache(async (): Promise<SeoMetadataPayload | null> => {
+const fetchDefaults = async (): Promise<SeoMetadataPayload | null> => {
   try {
     const response = await fetch(`${apiBaseUrl}/seo/defaults`, {
-      next: { revalidate: 600, tags: ["seo-defaults"] },
+      cache: "no-store",
+      headers: {
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        Pragma: "no-cache",
+      },
     });
     if (!response.ok) return null;
     const json = (await response.json()) as ApiEnvelope<{ metadata: SeoMetadataPayload }>;
@@ -134,12 +143,16 @@ const fetchDefaults = cache(async (): Promise<SeoMetadataPayload | null> => {
   } catch {
     return null;
   }
-});
+};
 
-const fetchEntity = cache(async (type: string, slug: string): Promise<SeoMetadataPayload | null> => {
+const fetchEntity = async (type: string, slug: string): Promise<SeoMetadataPayload | null> => {
   try {
     const response = await fetch(`${apiBaseUrl}/seo/${type}/${encodeURIComponent(slug)}`, {
-      next: { revalidate: 600, tags: [`seo-${type}-${slug}`] },
+      cache: "no-store",
+      headers: {
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        Pragma: "no-cache",
+      },
     });
     if (!response.ok) return null;
     const json = (await response.json()) as ApiEnvelope<{ metadata: SeoMetadataPayload }>;
@@ -147,7 +160,7 @@ const fetchEntity = cache(async (type: string, slug: string): Promise<SeoMetadat
   } catch {
     return null;
   }
-});
+};
 
 function fallbackPayload(title: string, description: string, path: string, robots = "index,follow"): SeoMetadataPayload {
   return {
