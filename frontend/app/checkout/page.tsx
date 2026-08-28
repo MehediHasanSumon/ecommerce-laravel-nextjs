@@ -1181,7 +1181,7 @@ function CheckoutPageContent() {
                   {itemDiscount > 0 ? (
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Discount</span>
-                      <span className="text-emerald-600">-{formatPrice(itemDiscount)}</span>
+                      <span className="text-emerald-700 font-medium dark:text-emerald-400">-{formatPrice(itemDiscount)}</span>
                     </div>
                   ) : null}
                   {hasCoupon ? (
@@ -1190,7 +1190,7 @@ function CheckoutPageContent() {
                         Coupon:
                         <span className="block font-medium text-foreground">{cart.couponCode}</span>
                       </span>
-                      <span className="text-emerald-600">
+                      <span className="text-emerald-700 font-medium dark:text-emerald-400">
                         {couponDiscount > 0 ? `-${formatPrice(couponDiscount)}` : formatPrice(0)}
                       </span>
                     </div>
@@ -1198,11 +1198,11 @@ function CheckoutPageContent() {
                   {hasCoupon && shippingDiscount > 0 ? (
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Shipping Discount</span>
-                      <span className="text-emerald-600">-{formatPrice(shippingDiscount)}</span>
+                      <span className="text-emerald-700 font-medium dark:text-emerald-400">-{formatPrice(shippingDiscount)}</span>
                     </div>
                   ) : null}
                   {hasCoupon && couponMessage ? (
-                    <p className={couponMessageType === 'error' ? 'text-xs text-destructive' : 'text-xs text-emerald-600'}>
+                    <p className={couponMessageType === 'error' ? 'text-xs text-destructive' : 'text-xs text-emerald-700 font-medium dark:text-emerald-400'}>
                       {couponMessage}
                     </p>
                   ) : null}
