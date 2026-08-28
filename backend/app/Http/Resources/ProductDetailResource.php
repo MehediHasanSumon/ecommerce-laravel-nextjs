@@ -45,10 +45,13 @@ class ProductDetailResource extends JsonResource
         $lowestVariant = $variantCollection->sortBy('price')->first();
         $highestVariant = $variantCollection->sortByDesc('price')->first();
         $priceCents = $hasVariants
-            ? (int) round(((float) ($primaryVariant['price'] ?? 0)) * 100)
-            : $this->base_price_cents;
+            ? (int) round(((float) ($primaryVariant['price'] ?? $lowestVariant['price'] ?? 0)) * 100)
+            : ($this->base_price_cents ?? 0);
+        if ($priceCents <= 0 && $this->base_price_cents) {
+            $priceCents = (int) $this->base_price_cents;
+        }
         $compareAtPriceCents = $hasVariants
-            ? (isset($primaryVariant['originalPrice']) ? (int) round(((float) $primaryVariant['originalPrice']) * 100) : null)
+            ? (isset($primaryVariant['originalPrice']) ? (int) round(((float) $primaryVariant['originalPrice']) * 100) : $this->compare_at_price_cents)
             : $this->compare_at_price_cents;
         $stock = $hasVariants
             ? (int) ($primaryVariant['stock'] ?? 0)

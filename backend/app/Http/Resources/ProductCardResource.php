@@ -35,21 +35,32 @@ class ProductCardResource extends JsonResource
         }
 
         $hasVariants = (int) $activeVariantsCount > 0;
-        $primaryVariant = $this->relationLoaded('primaryActiveVariant')
+        $primaryVariant = ($this->relationLoaded('primaryActiveVariant') && $this->primaryActiveVariant)
             ? $this->primaryActiveVariant
-            : ($hasVariants ? ($this->relationLoaded('variants') && $this->variants ? ($this->variants->firstWhere('is_primary', true) ?? $this->variants->first()) : $this->primaryActiveVariant()->first()) : null);
+            : ($this->resource instanceof Product
+                ? $this->defaultActiveVariant()
+                : ($hasVariants && $this->relationLoaded('variants') && $this->variants
+                    ? ($this->variants->firstWhere('is_primary', true) ?? $this->variants->firstWhere('status', 'active') ?? $this->variants->first())
+                    : null));
 
         $priceCents = $this->catalog_price_cents
-            ?? ($this->resource instanceof Product ? $this->effectivePriceCents($primaryVariant) : $this->base_price_cents);
+            ?? ($this->resource instanceof Product ? $this->effectivePriceCents($primaryVariant) : null)
+            ?? ($primaryVariant?->price_cents)
+            ?? ($this->base_price_cents)
+            ?? ($hasVariants && $this->relationLoaded('variants') && $this->variants ? $this->variants->where('status', 'active')->min('price_cents') : null)
+            ?? 0;
+
         $compareAtPriceCents = $this->catalog_compare_at_price_cents
-            ?? ($this->resource instanceof Product ? $this->effectiveCompareAtPriceCents($primaryVariant) : $this->compare_at_price_cents);
+            ?? ($this->resource instanceof Product ? $this->effectiveCompareAtPriceCents($primaryVariant) : null)
+            ?? ($primaryVariant?->compare_at_price_cents)
+            ?? ($this->compare_at_price_cents);
 
         $stock = $hasVariants
             ? ($primaryVariant
                 ? ($primaryVariant->track_inventory
                     ? (int) ($primaryVariant->stock_quantity ?? 0)
                     : max(1, (int) ($primaryVariant->stock_quantity ?? 0)))
-                : 0)
+                : ($this->active_variants_stock ?? ($this->relationLoaded('variants') && $this->variants ? (int) $this->variants->sum('stock_quantity') : 0)))
             : ($this->track_inventory
                 ? (int) ($this->stock_quantity ?? 0)
                 : max(1, (int) ($this->stock_quantity ?? 0)));
