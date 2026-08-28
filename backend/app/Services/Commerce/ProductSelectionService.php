@@ -88,8 +88,14 @@ class ProductSelectionService
                 ->all();
         }
 
-        $unitPrice = (int) $product->effectivePriceCents($variant);
-        $compareAt = (int) ($product->effectiveCompareAtPriceCents($variant) ?: 0);
+        $unitPrice = (int) ($product->effectivePriceCents($variant)
+            ?? $variant?->price_cents
+            ?? $product->base_price_cents
+            ?? 0);
+        $compareAt = (int) ($product->effectiveCompareAtPriceCents($variant)
+            ?? $variant?->compare_at_price_cents
+            ?? $product->compare_at_price_cents
+            ?? 0);
 
         $activeCollection = $this->collections->activeCollectionForProduct($product);
         $discountedPrice = $this->applyCollectionDiscount($unitPrice, $activeCollection?->discount_type, $activeCollection?->discount_value);
@@ -174,7 +180,13 @@ class ProductSelectionService
 
     private function assertProductVisible(Product $product): void
     {
-        if ($product->status !== 'active' || ! $product->published_at) {
+        if ($product->status !== 'active') {
+            throw ValidationException::withMessages([
+                'product_id' => ['The selected product is unavailable.'],
+            ]);
+        }
+
+        if ($product->published_at && $product->published_at->isFuture()) {
             throw ValidationException::withMessages([
                 'product_id' => ['The selected product is unavailable.'],
             ]);
@@ -199,7 +211,13 @@ class ProductSelectionService
             return;
         }
 
-        if ($product->variants->isNotEmpty() || ($product->track_inventory && (int) ($product->stock_quantity ?? 0) <= 0)) {
+        if ($product->variants->isNotEmpty() && $activeVariants->isEmpty()) {
+            throw ValidationException::withMessages([
+                'product_id' => ['This product has no active variants.'],
+            ]);
+        }
+
+        if ($product->track_inventory && (int) ($product->stock_quantity ?? 0) <= 0) {
             throw ValidationException::withMessages([
                 'product_id' => ['This product is currently out of stock.'],
             ]);
