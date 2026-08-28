@@ -25,9 +25,21 @@ export type CreateOrderProduct = {
   variants: Array<{ id: number; label: string; sku: string | null; price: number; stock: number; is_primary: boolean }>;
 };
 
+export type CustomerOptionItem = {
+  id: number;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  mobile?: string | null;
+  address?: string | null;
+  billing_address?: Record<string, string | null> | null;
+  shipping_address?: Record<string, string | null> | null;
+};
+
 export type CreateOrderOptions = {
-  registered_customers: Array<{ id: number; name: string; email: string; phone: string | null }>;
-  guest_customers: Array<{ id: number; name: string; email: string | null; phone: string; billing_address: Record<string, string | null> | null; shipping_address: Record<string, string | null> | null }>;
+  customers?: CustomerOptionItem[];
+  registered_customers?: CustomerOptionItem[];
+  guest_customers?: CustomerOptionItem[];
   shipping_methods: Array<{ id: number; name: string; rate: number }>;
   payment_methods: Array<{ gateway: string; name: string }>;
   statuses: { order: string[]; payment: string[] };

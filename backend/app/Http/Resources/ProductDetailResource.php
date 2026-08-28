@@ -22,18 +22,22 @@ class ProductDetailResource extends JsonResource
         $settings = app(StoreSettingsService::class)->get();
         $feedback = app(ProductFeedbackService::class);
         $imageObjects = $this->images
-            ->sortBy([['sort_order', 'asc'], ['id', 'asc']])
-            ->map(fn ($image): array => PublicStorageImage::object($image))
-            ->filter(fn (array $image): bool => filled($image['path']) && filled($image['url']))
-            ->values();
+            ? $this->images
+                ->sortBy([['sort_order', 'asc'], ['id', 'asc']])
+                ->map(fn ($image): array => PublicStorageImage::object($image))
+                ->filter(fn (array $image): bool => filled($image['url']))
+                ->values()
+            : collect();
         $imageUrls = $imageObjects->pluck('url')->filter()->values();
         $primaryImage = $imageUrls->first() ?: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&auto=format&fit=crop';
-        $attributes = $this->attributeGroups($this->attributeValues);
+        $attributes = $this->attributeValues ? $this->attributeGroups($this->attributeValues) : [];
         $variants = $this->variants
-            ->where('status', 'active')
-            ->values()
-            ->map(fn (ProductVariant $variant): array => $this->variantPayload($variant))
-            ->all();
+            ? $this->variants
+                ->where('status', 'active')
+                ->values()
+                ->map(fn (ProductVariant $variant): array => $this->variantPayload($variant))
+                ->all()
+            : [];
         $variantCollection = collect($variants);
         $hasVariants = $variantCollection->isNotEmpty();
         $primaryVariant = $variantCollection->firstWhere('isPrimary', true)
@@ -89,17 +93,23 @@ class ProductDetailResource extends JsonResource
                     ? (bool) ($primaryVariant['trackInventory'] ?? true)
                     : (bool) $this->track_inventory,
                 'sku' => $hasVariants ? (string) ($primaryVariant['sku'] ?? '') : ($this->sku ?: ''),
-                'tags' => $this->tags->pluck('name')->values()->all(),
+                'tags' => $this->tags ? $this->tags->pluck('name')->values()->all() : [],
                 'badge' => $this->badge(),
                 'features' => $this->features
-                    ->sortBy('sort_order')
-                    ->pluck('value')
-                    ->values()
-                    ->all(),
+                    ? $this->features
+                        ->sortBy('sort_order')
+                        ->pluck('value')
+                        ->filter(fn ($v) => filled($v))
+                        ->values()
+                        ->all()
+                    : [],
                 'specifications' => $this->specifications
-                    ->sortBy('sort_order')
-                    ->mapWithKeys(fn ($item) => [$item->name => (string) $item->value])
-                    ->all(),
+                    ? $this->specifications
+                        ->sortBy('sort_order')
+                        ->filter(fn ($item) => filled($item->name))
+                        ->mapWithKeys(fn ($item) => [(string) $item->name => (string) $item->value])
+                        ->all()
+                    : [],
                 'attributes' => $attributes,
                 'variants' => $variants,
                 'colors' => $this->colorOptions($attributes),
@@ -126,50 +136,54 @@ class ProductDetailResource extends JsonResource
                 ],
             ],
             'reviews' => $this->reviews
-                ->sortByDesc('created_at')
-                ->values()
-                ->map(fn (ProductReview $review): array => [
-                    'id' => (string) $review->id,
-                    'productId' => (string) $review->product_id,
-                    'userId' => (string) ($review->user_id ?? ''),
-                    'user' => [
-                        'id' => (string) ($review->user_id ?? ''),
-                        'name' => $review->user?->name ?: $review->guest_name ?: 'Guest',
-                        'avatar' => $this->assetUrl($review->user?->avatar),
-                    ],
-                    'rating' => (int) $review->rating,
-                    'comment' => $review->comment,
-                    'verified' => (bool) $settings->verified_purchase_badge_enabled
-                        && (bool) $review->is_verified_purchase,
-                    'createdAt' => optional($review->created_at)->toISOString(),
-                    'replies' => $review->admin_reply ? [[
-                        'id' => 'admin-'.$review->id,
-                        'author' => 'Store',
-                        'comment' => $review->admin_reply,
-                        'createdAt' => optional($review->admin_replied_at ?: $review->updated_at)->toISOString(),
-                    ]] : [],
-                ])
-                ->all(),
+                ? $this->reviews
+                    ->sortByDesc('created_at')
+                    ->values()
+                    ->map(fn (ProductReview $review): array => [
+                        'id' => (string) $review->id,
+                        'productId' => (string) $review->product_id,
+                        'userId' => (string) ($review->user_id ?? ''),
+                        'user' => [
+                            'id' => (string) ($review->user_id ?? ''),
+                            'name' => $review->user?->name ?: $review->guest_name ?: 'Guest',
+                            'avatar' => $this->assetUrl($review->user?->avatar),
+                        ],
+                        'rating' => (int) $review->rating,
+                        'comment' => (string) ($review->comment ?? ''),
+                        'verified' => (bool) $settings->verified_purchase_badge_enabled
+                            && (bool) $review->is_verified_purchase,
+                        'createdAt' => optional($review->created_at)->toISOString(),
+                        'replies' => $review->admin_reply ? [[
+                            'id' => 'admin-'.$review->id,
+                            'author' => 'Store',
+                            'comment' => $review->admin_reply,
+                            'createdAt' => optional($review->admin_replied_at ?: $review->updated_at)->toISOString(),
+                        ]] : [],
+                    ])
+                    ->all()
+                : [],
             'comments' => $this->comments
-                ->sortByDesc('created_at')
-                ->values()
-                ->map(fn (ProductComment $comment): array => [
-                    'id' => (string) $comment->id,
-                    'productId' => (string) $comment->product_id,
-                    'userId' => (string) ($comment->user_id ?? ''),
-                    'user' => [
-                        'id' => (string) ($comment->user_id ?? ''),
-                        'name' => $comment->user?->name ?: $comment->guest_name ?: 'Guest',
-                        'avatar' => $this->assetUrl($comment->user?->avatar),
-                    ],
-                    'content' => $comment->content,
-                    'createdAt' => optional($comment->created_at)->toISOString(),
-                    'editedAt' => optional($comment->edited_at)->toISOString(),
-                    'canEdit' => $request->user()
-                        && (int) $comment->user_id === (int) $request->user()->id
-                        && $feedback->canEditComment($comment),
-                ])
-                ->all(),
+                ? $this->comments
+                    ->sortByDesc('created_at')
+                    ->values()
+                    ->map(fn (ProductComment $comment): array => [
+                        'id' => (string) $comment->id,
+                        'productId' => (string) $comment->product_id,
+                        'userId' => (string) ($comment->user_id ?? ''),
+                        'user' => [
+                            'id' => (string) ($comment->user_id ?? ''),
+                            'name' => $comment->user?->name ?: $comment->guest_name ?: 'Guest',
+                            'avatar' => $this->assetUrl($comment->user?->avatar),
+                        ],
+                        'content' => (string) ($comment->content ?? ''),
+                        'createdAt' => optional($comment->created_at)->toISOString(),
+                        'editedAt' => optional($comment->edited_at)->toISOString(),
+                        'canEdit' => $request->user()
+                            && (int) $comment->user_id === (int) $request->user()->id
+                            && $feedback->canEditComment($comment),
+                    ])
+                    ->all()
+                : [],
             'relatedProducts' => ProductCardResource::collection($this->relationProducts('related'))->resolve(),
             'similarProducts' => ProductCardResource::collection($this->relationLoaded('similarProducts') ? $this->similarProducts : $this->similarProducts())->resolve(),
             'frequentlyBoughtTogether' => ProductCardResource::collection($this->relationProducts('cross_sell'))->resolve(),
@@ -179,6 +193,10 @@ class ProductDetailResource extends JsonResource
 
     private function relationProducts(string $type)
     {
+        if (! $this->relatedProducts) {
+            return collect();
+        }
+
         return $this->relatedProducts
             ->filter(fn (Product $product): bool => $product->pivot?->type === $type)
             ->sortBy(fn (Product $product): int => (int) ($product->pivot?->sort_order ?? 0))
@@ -187,19 +205,27 @@ class ProductDetailResource extends JsonResource
 
     private function similarProducts()
     {
-        $relatedIds = $this->relatedProducts->pluck('id')->push($this->id)->all();
+        $relatedIds = $this->relatedProducts ? $this->relatedProducts->pluck('id')->push($this->id)->all() : [$this->id];
         $brandsEnabled = app(BrandSettingsService::class)->enabled();
 
         return Product::query()
             ->where('status', 'active')
             ->where('id', '!=', $this->id)
             ->whereNotIn('id', $relatedIds)
-            ->where(function ($query) use ($brandsEnabled): void {
-                $query->where('category_id', $this->category_id);
+            ->when($this->category_id || ($brandsEnabled && $this->brand_id), function ($query) use ($brandsEnabled): void {
+                $query->where(function ($query) use ($brandsEnabled): void {
+                    if ($this->category_id) {
+                        $query->where('category_id', $this->category_id);
+                    }
 
-                if ($brandsEnabled && $this->brand_id) {
-                    $query->orWhere('brand_id', $this->brand_id);
-                }
+                    if ($brandsEnabled && $this->brand_id) {
+                        if ($this->category_id) {
+                            $query->orWhere('brand_id', $this->brand_id);
+                        } else {
+                            $query->where('brand_id', $this->brand_id);
+                        }
+                    }
+                });
             })
             ->withSellableVariantMetrics()
             ->with(['brand:id,name,slug', 'category:id,name,slug', 'images:id,product_id,url,is_primary,sort_order', 'tags:id,name'])

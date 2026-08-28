@@ -12,12 +12,14 @@ class ProductCardResource extends JsonResource
     public function toArray(Request $request): array
     {
         $brandsEnabled = app(BrandSettingsService::class)->enabled();
-        $primaryImage = $this->images->firstWhere('is_primary', true) ?? $this->images->first();
+        $primaryImage = $this->images ? ($this->images->firstWhere('is_primary', true) ?? $this->images->first()) : null;
         $imageUrl = PublicStorageImage::url($primaryImage?->url);
         $images = $this->images
-            ->map(fn ($image) => PublicStorageImage::object($image))
-            ->filter(fn (array $image): bool => filled($image['path']) && filled($image['url']))
-            ->values();
+            ? $this->images
+                ->map(fn ($image) => PublicStorageImage::object($image))
+                ->filter(fn (array $image): bool => filled($image['url']))
+                ->values()
+            : collect();
         $activeVariantsCount = $this->active_variants_count;
 
         if ($activeVariantsCount === null) {

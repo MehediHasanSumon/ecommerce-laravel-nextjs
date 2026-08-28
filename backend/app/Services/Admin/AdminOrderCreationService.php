@@ -32,12 +32,28 @@ class AdminOrderCreationService
 
     public function options(): array
     {
+        $customers = Customer::query()
+            ->where('status', 'active')
+            ->orderBy('name')
+            ->limit(250)
+            ->get(['id', 'name', 'email', 'mobile', 'address'])
+            ->map(fn (Customer $customer): array => [
+                'id' => $customer->id,
+                'name' => $customer->name,
+                'email' => $customer->email,
+                'phone' => $customer->mobile,
+                'mobile' => $customer->mobile,
+                'address' => $customer->address,
+                'billing_address' => $customer->address ? ['address_line' => $customer->address, 'full_name' => $customer->name, 'phone' => $customer->mobile, 'email' => $customer->email] : null,
+                'shipping_address' => $customer->address ? ['address_line' => $customer->address, 'full_name' => $customer->name, 'phone' => $customer->mobile, 'email' => $customer->email] : null,
+            ])
+            ->values()
+            ->all();
+
         return [
-            'customers' => Customer::query()
-                ->where('status', 'active')
-                ->orderBy('name')
-                ->limit(250)
-                ->get(['id', 'name', 'email', 'mobile', 'address']),
+            'customers' => $customers,
+            'registered_customers' => $customers,
+            'guest_customers' => $customers,
             'shipping_methods' => ShippingMethod::query()
                 ->where('status', true)
                 ->orderBy('display_order')
@@ -46,12 +62,16 @@ class AdminOrderCreationService
                     'id' => $method->id,
                     'name' => $method->name,
                     'rate' => round($method->rate_cents / 100, 2),
-                ]),
+                ])
+                ->values()
+                ->all(),
             'payment_methods' => $this->payments->enabledSettings()
                 ->map(fn ($setting): array => [
                     'gateway' => $setting->gateway,
                     'name' => $setting->additional_configuration['display_name'] ?? str($setting->gateway)->replace('_', ' ')->title()->toString(),
-                ]),
+                ])
+                ->values()
+                ->all(),
             'statuses' => [
                 'order' => OrderService::ORDER_STATUSES,
                 'payment' => OrderService::PAYMENT_STATUSES,

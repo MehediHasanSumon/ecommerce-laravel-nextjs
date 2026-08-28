@@ -63,18 +63,48 @@ class PublicStorageImage
         return $path ? Storage::disk('public')->url($path) : null;
     }
 
-    public static function object(ProductImage $image): array
+    public static function object(mixed $image): array
     {
-        $path = self::path($image->url);
+        if ($image instanceof ProductImage) {
+            $id = $image->id;
+            $rawUrl = $image->url;
+            $altText = $image->alt_text;
+            $type = $image->type;
+            $sortOrder = $image->sort_order;
+            $isPrimary = (bool) $image->is_primary;
+        } elseif (is_array($image)) {
+            $id = $image['id'] ?? null;
+            $rawUrl = $image['url'] ?? $image['path'] ?? null;
+            $altText = $image['alt_text'] ?? null;
+            $type = $image['type'] ?? 'gallery';
+            $sortOrder = $image['sort_order'] ?? 0;
+            $isPrimary = (bool) ($image['is_primary'] ?? false);
+        } elseif (is_object($image)) {
+            $id = $image->id ?? null;
+            $rawUrl = $image->url ?? $image->path ?? null;
+            $altText = $image->alt_text ?? null;
+            $type = $image->type ?? 'gallery';
+            $sortOrder = $image->sort_order ?? 0;
+            $isPrimary = (bool) ($image->is_primary ?? false);
+        } else {
+            $rawUrl = is_string($image) ? $image : null;
+            $id = null;
+            $altText = null;
+            $type = 'gallery';
+            $sortOrder = 0;
+            $isPrimary = false;
+        }
+
+        $path = self::path($rawUrl);
 
         return [
-            'id' => $image->id,
+            'id' => $id,
             'path' => $path,
-            'url' => self::url($path ?: $image->url),
-            'alt_text' => $image->alt_text,
-            'type' => $image->type,
-            'sort_order' => $image->sort_order,
-            'is_primary' => (bool) $image->is_primary,
+            'url' => self::url($path ?: $rawUrl),
+            'alt_text' => $altText,
+            'type' => $type,
+            'sort_order' => $sortOrder,
+            'is_primary' => $isPrimary,
         ];
     }
 }

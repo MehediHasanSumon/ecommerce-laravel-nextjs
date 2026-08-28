@@ -102,33 +102,34 @@ function AdminOrderForm({ orderNumber }: { orderNumber?: string }) {
     ])
       .then(async ([optionResponse, orderResponse]) => {
         if (!active) return;
-        setOptions(optionResponse.data);
+        const optData = optionResponse.data;
+        setOptions(optData);
         setPaymentMethod(
-          optionResponse.data.payment_methods[0]?.gateway ?? "cash_on_delivery",
+          optData?.payment_methods?.[0]?.gateway ?? "cash_on_delivery",
         );
-        setOrderStatus(optionResponse.data.statuses.order[0] ?? "pending");
+        setOrderStatus(optData?.statuses?.order?.[0] ?? "pending");
         if (!orderResponse) return;
 
         const order = orderResponse.data.order;
         const productResponse = await orderManagementService.searchProducts(
           "",
-          order.items.map((item) => Number(item.productId)).filter(Boolean),
+          (order.items ?? []).map((item) => Number(item.productId)).filter(Boolean),
         );
-        const products = productResponse.data.products;
+        const products = productResponse.data?.products ?? [];
         if (!active) return;
         setCustomerType(
           order.userId ? "registered" : order.guestCustomerId ? "guest" : "new_guest",
         );
         setCustomerId(String(order.userId ?? order.guestCustomerId ?? ""));
         setCustomer({
-          name: order.customer.name ?? "",
-          email: order.customer.email ?? "",
-          phone: order.customer.phone ?? "",
+          name: order.customer?.name ?? "",
+          email: order.customer?.email ?? "",
+          phone: order.customer?.phone ?? "",
         });
         setBilling(addressFrom(order.billingAddress));
         setShipping(addressFrom(order.shippingAddress));
         setItems(
-          order.items.map((item) => ({
+          (order.items ?? []).map((item) => ({
             key: crypto.randomUUID(),
             product:
               products.find((product) => product.id === Number(item.productId)) ?? null,
@@ -139,15 +140,15 @@ function AdminOrderForm({ orderNumber }: { orderNumber?: string }) {
           })),
         );
         setShippingMethodId(String(order.shippingMethodId ?? ""));
-        setShippingCharge(String(order.summary.shipping));
-        setTax(String(order.summary.tax));
+        setShippingCharge(String(order.summary?.shipping ?? 0));
+        setTax(String(order.summary?.tax ?? 0));
         setCouponCode(order.couponCode ?? "");
         setAdditionalDiscount(String(order.additionalDiscount || ""));
         setCouponDiscount(
           String(
             Math.max(
               0,
-              order.summary.couponDiscount - Number(order.additionalDiscount || 0),
+              (order.summary?.couponDiscount ?? 0) - Number(order.additionalDiscount || 0),
             ) || "",
           ),
         );
@@ -169,23 +170,49 @@ function AdminOrderForm({ orderNumber }: { orderNumber?: string }) {
     if (sameAddress) setShipping({ ...billing });
   }, [billing, sameAddress]);
 
+  const customerList = useMemo(() => {
+    if (!options) return [];
+    if (Array.isArray(options.customers) && options.customers.length > 0) {
+      return options.customers;
+    }
+    return [
+      ...(options.registered_customers ?? []),
+      ...(options.guest_customers ?? []),
+    ];
+  }, [options]);
+
   const selectedCustomer = useMemo(() => {
-    if (!options || !customerId) return null;
-    return customerType === "registered"
-      ? options.registered_customers.find((item) => String(item.id) === customerId)
-      : options.guest_customers.find((item) => String(item.id) === customerId);
-  }, [customerId, customerType, options]);
+    if (!customerId || !customerList.length) return null;
+    return customerList.find((item) => String(item.id) === customerId) ?? null;
+  }, [customerId, customerList]);
 
   useEffect(() => {
     if (!selectedCustomer) return;
     setCustomer({
-      name: selectedCustomer.name,
+      name: selectedCustomer.name ?? "",
       email: selectedCustomer.email ?? "",
-      phone: selectedCustomer.phone ?? "",
+      phone: selectedCustomer.phone ?? selectedCustomer.mobile ?? "",
     });
-    if ("billing_address" in selectedCustomer) {
+    if (selectedCustomer.address) {
+      setBilling((prev) => ({
+        ...prev,
+        full_name: selectedCustomer.name ?? prev.full_name,
+        phone: selectedCustomer.phone ?? selectedCustomer.mobile ?? prev.phone,
+        email: selectedCustomer.email ?? prev.email,
+        address_line: selectedCustomer.address || prev.address_line,
+      }));
+      setShipping((prev) => ({
+        ...prev,
+        full_name: selectedCustomer.name ?? prev.full_name,
+        phone: selectedCustomer.phone ?? selectedCustomer.mobile ?? prev.phone,
+        email: selectedCustomer.email ?? prev.email,
+        address_line: selectedCustomer.address || prev.address_line,
+      }));
+    } else if (selectedCustomer.billing_address) {
       setBilling(addressFrom(selectedCustomer.billing_address));
-      setShipping(addressFrom(selectedCustomer.shipping_address));
+      if (selectedCustomer.shipping_address) {
+        setShipping(addressFrom(selectedCustomer.shipping_address));
+      }
     }
   }, [selectedCustomer]);
 
@@ -219,8 +246,9 @@ function AdminOrderForm({ orderNumber }: { orderNumber?: string }) {
     setSaving(true);
     const payload = {
       customer_type: customerType,
+      customer_id: customerType !== "new_guest" && customerId ? Number(customerId) : undefined,
       user_id: customerType === "registered" ? Number(customerId) : undefined,
-      guest_customer_id: customerType === "guest" ? Number(customerId) : undefined,
+      guest_customer_id: customerType !== "new_guest" && customerId ? Number(customerId) : undefined,
       customer,
       billing_address: billing,
       shipping_address: shipping,
@@ -313,7 +341,7 @@ function AdminOrderForm({ orderNumber }: { orderNumber?: string }) {
             values={[
               ["new_guest", "New Guest"],
               ["registered", "Registered Customer"],
-              ["guest", "Existing Guest"],
+              ["guest", "Existing Customer"],
             ]}
             onChange={(value) => {
               setCustomerType(value);
@@ -324,12 +352,9 @@ function AdminOrderForm({ orderNumber }: { orderNumber?: string }) {
             label="Select Customer"
             value={customerId}
             disabled={customerType === "new_guest"}
-            values={(customerType === "registered"
-              ? options.registered_customers
-              : options.guest_customers
-            ).map((item) => [
+            values={(customerList ?? []).map((item) => [
               String(item.id),
-              `${item.name} · ${item.phone ?? item.email ?? ""}`,
+              `${item.name} · ${item.phone ?? item.mobile ?? item.email ?? "No phone"}`,
             ])}
             onChange={setCustomerId}
             placeholder={
@@ -402,7 +427,7 @@ function AdminOrderForm({ orderNumber }: { orderNumber?: string }) {
             <FieldSelect
               label="Shipping Method"
               value={shippingMethodId}
-              values={options.shipping_methods.map((item) => [
+              values={(options.shipping_methods ?? []).map((item) => [
                 String(item.id),
                 `${item.name} · ${formatPrice(item.rate)}`,
               ])}
@@ -410,7 +435,7 @@ function AdminOrderForm({ orderNumber }: { orderNumber?: string }) {
                 setShippingMethodId(value);
                 setShippingCharge(
                   String(
-                    options.shipping_methods.find((item) => String(item.id) === value)
+                    options.shipping_methods?.find((item) => String(item.id) === value)
                       ?.rate ?? 0,
                   ),
                 );
@@ -457,19 +482,19 @@ function AdminOrderForm({ orderNumber }: { orderNumber?: string }) {
             <FieldSelect
               label="Payment Method"
               value={paymentMethod}
-              values={options.payment_methods.map((item) => [item.gateway, item.name])}
+              values={(options.payment_methods ?? []).map((item) => [item.gateway, item.name])}
               onChange={setPaymentMethod}
             />
             <FieldSelect
               label="Payment Status"
               value={paymentStatus}
-              values={options.statuses.payment.map((item) => [item, label(item)])}
+              values={(options.statuses?.payment ?? []).map((item) => [item, label(item)])}
               onChange={setPaymentStatus}
             />
             <FieldSelect
               label="Order Status"
               value={orderStatus}
-              values={options.statuses.order.map((item) => [item, label(item)])}
+              values={(options.statuses?.order ?? []).map((item) => [item, label(item)])}
               onChange={setOrderStatus}
             />
           </div>

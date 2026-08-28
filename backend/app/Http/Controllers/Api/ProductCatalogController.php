@@ -215,18 +215,26 @@ class ProductCatalogController extends Controller
             "product.{$product->id}.similar",
             now()->addMinutes(10),
             function () use ($product, $brandsEnabled) {
-                $relatedIds = $product->relatedProducts->pluck('id')->push($product->id)->all();
+                $relatedIds = $product->relatedProducts ? $product->relatedProducts->pluck('id')->push($product->id)->all() : [$product->id];
 
                 return Product::query()
                     ->where('status', 'active')
                     ->where('id', '!=', $product->id)
                     ->whereNotIn('id', $relatedIds)
-                    ->where(function ($query) use ($product, $brandsEnabled): void {
-                        $query->where('category_id', $product->category_id);
+                    ->when($product->category_id || ($brandsEnabled && $product->brand_id), function ($query) use ($product, $brandsEnabled): void {
+                        $query->where(function ($query) use ($product, $brandsEnabled): void {
+                            if ($product->category_id) {
+                                $query->where('category_id', $product->category_id);
+                            }
 
-                        if ($brandsEnabled && $product->brand_id) {
-                            $query->orWhere('brand_id', $product->brand_id);
-                        }
+                            if ($brandsEnabled && $product->brand_id) {
+                                if ($product->category_id) {
+                                    $query->orWhere('brand_id', $product->brand_id);
+                                } else {
+                                    $query->where('brand_id', $product->brand_id);
+                                }
+                            }
+                        });
                     })
                     ->withSellableVariantMetrics()
                     ->with(['brand:id,name,slug', 'category:id,name,slug', 'images:id,product_id,url,is_primary,sort_order', 'tags:id,name'])
