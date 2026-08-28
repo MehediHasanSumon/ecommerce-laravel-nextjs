@@ -303,7 +303,7 @@ export default function CartPage() {
                               </p>
                             )}
                             {item.product.discount ? (
-                              <span className="inline-flex items-center rounded-md bg-rose-50 px-1.5 py-0.5 text-[11px] font-bold text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-400 dark:border-rose-900/50">
+                              <span className="inline-flex items-center rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-semibold text-foreground border border-border">
                                 -{item.product.discount}%
                               </span>
                             ) : null}
@@ -341,16 +341,16 @@ export default function CartPage() {
                   </div>
 
                   {productDiscount > 0 ? (
-                    <div className="flex justify-between text-emerald-700 dark:text-emerald-400 font-medium">
+                    <div className="flex justify-between text-muted-foreground">
                       <span>Product Discount</span>
-                      <span className="font-semibold">-{formatPrice(productDiscount)}</span>
+                      <span className="font-semibold text-foreground">-{formatPrice(productDiscount)}</span>
                     </div>
                   ) : null}
 
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Shipping</span>
-                    <span className="font-medium">
-                      {shipping === 0 ? <span className="text-emerald-700 font-semibold dark:text-emerald-400">FREE</span> : formatPrice(shipping)}
+                    <span className="font-medium text-foreground">
+                      {shipping === 0 ? <span className="font-semibold uppercase">Free</span> : formatPrice(shipping)}
                     </span>
                   </div>
 
@@ -360,25 +360,25 @@ export default function CartPage() {
                   </div>
 
                   {promoDiscount > 0 ? (
-                    <div className="flex justify-between text-emerald-700 dark:text-emerald-400 font-medium">
+                    <div className="flex justify-between text-muted-foreground">
                       <span>Promotional Discount</span>
-                      <span className="font-semibold">-{formatPrice(promoDiscount)}</span>
+                      <span className="font-semibold text-foreground">-{formatPrice(promoDiscount)}</span>
                     </div>
                   ) : null}
 
                   {hasCoupon && couponDiscount > 0 ? (
-                    <div className="flex justify-between text-emerald-700 dark:text-emerald-400 font-medium">
+                    <div className="flex justify-between text-muted-foreground">
                       <span>Coupon ({cart.couponCode})</span>
-                      <span className="font-semibold">-{formatPrice(couponDiscount)}</span>
+                      <span className="font-semibold text-foreground">-{formatPrice(couponDiscount)}</span>
                     </div>
                   ) : null}
 
                   {/* Total Savings Highlight Banner */}
                   {totalSavings > 0 ? (
-                    <div className="rounded-xl border border-emerald-300/60 bg-emerald-50 px-3.5 py-2.5 dark:border-emerald-800/60 dark:bg-emerald-950/40">
+                    <div className="rounded-xl border border-border bg-muted/60 px-3.5 py-2.5">
                       <div className="flex justify-between items-center">
-                        <span className="text-xs font-semibold text-emerald-800 dark:text-emerald-300">Total Savings</span>
-                        <span className="text-sm font-bold text-emerald-700 dark:text-emerald-400">-{formatPrice(totalSavings)}</span>
+                        <span className="text-xs font-semibold text-muted-foreground">Total Savings</span>
+                        <span className="text-sm font-bold text-foreground">-{formatPrice(totalSavings)}</span>
                       </div>
                     </div>
                   ) : null}

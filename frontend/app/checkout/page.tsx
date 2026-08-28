@@ -1179,30 +1179,30 @@ function CheckoutPageContent() {
                     </button>
                   ) : null}
                   {itemDiscount > 0 ? (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Discount</span>
-                      <span className="text-emerald-700 font-medium dark:text-emerald-400">-{formatPrice(itemDiscount)}</span>
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>Discount</span>
+                      <span className="font-semibold text-foreground">-{formatPrice(itemDiscount)}</span>
                     </div>
                   ) : null}
                   {hasCoupon ? (
-                    <div className="flex items-start justify-between gap-4">
-                      <span className="text-muted-foreground">
+                    <div className="flex items-start justify-between gap-4 text-muted-foreground">
+                      <span>
                         Coupon:
                         <span className="block font-medium text-foreground">{cart.couponCode}</span>
                       </span>
-                      <span className="text-emerald-700 font-medium dark:text-emerald-400">
+                      <span className="font-semibold text-foreground">
                         {couponDiscount > 0 ? `-${formatPrice(couponDiscount)}` : formatPrice(0)}
                       </span>
                     </div>
                   ) : null}
                   {hasCoupon && shippingDiscount > 0 ? (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Shipping Discount</span>
-                      <span className="text-emerald-700 font-medium dark:text-emerald-400">-{formatPrice(shippingDiscount)}</span>
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>Shipping Discount</span>
+                      <span className="font-semibold text-foreground">-{formatPrice(shippingDiscount)}</span>
                     </div>
                   ) : null}
                   {hasCoupon && couponMessage ? (
-                    <p className={couponMessageType === 'error' ? 'text-xs text-destructive' : 'text-xs text-emerald-700 font-medium dark:text-emerald-400'}>
+                    <p className={couponMessageType === 'error' ? 'text-xs text-destructive' : 'text-xs text-muted-foreground font-medium'}>
                       {couponMessage}
                     </p>
                   ) : null}
