@@ -244,7 +244,7 @@ class ProductCatalogController extends Controller
                     ->get();
             }
         );
-        $product->setRelation('similarProducts', $similarProducts);
+        $product->setRelation('similarProducts', $similarProducts ?: collect());
 
         return ApiResponse::success(ProductDetailResource::make($product)->resolve());
     }

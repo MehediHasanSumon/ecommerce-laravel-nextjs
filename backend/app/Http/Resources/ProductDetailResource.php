@@ -184,9 +184,9 @@ class ProductDetailResource extends JsonResource
                     ])
                     ->all()
                 : [],
-            'relatedProducts' => ProductCardResource::collection($this->relationProducts('related'))->resolve(),
-            'similarProducts' => ProductCardResource::collection($this->relationLoaded('similarProducts') ? $this->similarProducts : $this->similarProducts())->resolve(),
-            'frequentlyBoughtTogether' => ProductCardResource::collection($this->relationProducts('cross_sell'))->resolve(),
+            'relatedProducts' => ProductCardResource::collection($this->relationProducts('related') ?: collect())->resolve(),
+            'similarProducts' => ProductCardResource::collection(($this->relationLoaded('similarProducts') && $this->similarProducts ? $this->similarProducts : $this->similarProducts()) ?: collect())->resolve(),
+            'frequentlyBoughtTogether' => ProductCardResource::collection($this->relationProducts('cross_sell') ?: collect())->resolve(),
             'recentlyViewedProducts' => [],
         ];
     }
